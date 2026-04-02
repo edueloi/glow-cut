@@ -1,0 +1,7 @@
+{
+  "name": "Glow & Cut - Sistema de Agendamento",
+  "description": "Sistema completo e responsivo para barbearias, salões de beleza e manicures com agendamento externo e dashboard administrativo.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
