@@ -52,7 +52,7 @@ interface FilterLineViewToggleProps<T extends string | number = string> {
   className?: string;
 }
 
-interface FilterLineSearchProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
+interface FilterLineSearchProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'value' | 'onChange'> {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
