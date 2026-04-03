@@ -79,27 +79,42 @@ export function MinhaAgendaTab({ studioName = "Glow & Cut", themeColor = "#f59e0
             <input type="text" defaultValue="Bem-vindo ao nosso agendamento online!" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all" />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Imagem de Fundo (Capa)</label>
-            <div className="flex flex-col gap-3">
-              <div className="h-32 rounded-xl bg-zinc-100 border-2 border-dashed border-zinc-300 flex flex-col items-center justify-center text-zinc-400 hover:bg-zinc-50 hover:border-emerald-400 hover:text-emerald-500 transition-all cursor-pointer relative overflow-hidden group">
-                <ImageIcon size={28} className="mb-2 group-hover:scale-110 transition-transform" />
-                <p className="text-xs font-bold">Fazer Upload da Capa</p>
-                <p className="text-[9px] mt-1">1200x600px • JPG ou PNG</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Logo do Estúdio</label>
+              <div className="flex flex-col gap-3">
+                <div className="h-32 rounded-xl bg-zinc-50 border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-400 hover:bg-zinc-100 hover:border-emerald-400 hover:text-emerald-500 transition-all cursor-pointer relative overflow-hidden group">
+                  <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                    <ImageIcon size={18} />
+                  </div>
+                  <p className="text-[10px] font-bold">Enviar Logo</p>
+                  <p className="text-[8px] mt-0.5">Quadrado • PNG</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Imagem de Fundo (Capa)</label>
+              <div className="flex flex-col gap-3">
+                <div className="h-32 rounded-xl bg-zinc-50 border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-400 hover:bg-zinc-100 hover:border-emerald-400 hover:text-emerald-500 transition-all cursor-pointer relative overflow-hidden group">
+                  <ImageIcon size={24} className="mb-2 group-hover:scale-110 transition-transform" />
+                  <p className="text-[10px] font-bold">Fazer Upload</p>
+                  <p className="text-[8px] mt-0.5">Horizontal • JPG</p>
+                </div>
               </div>
             </div>
           </div>
           
           <div className="space-y-2 pt-2">
             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center justify-between">
-              Cor do Tema e Botões
+              Cor Principal (Tema)
             </label>
             <div className="flex items-center gap-3 bg-zinc-50 p-3 rounded-xl border border-zinc-200">
-               <div className="w-6 h-6 rounded-full shadow-sm" style={{ backgroundColor: themeColor }} />
-               <span className="text-xs font-bold text-zinc-700 flex-1">Usar mesma cor do painel</span>
-               <div className="w-8 h-4 bg-emerald-500 rounded-full relative cursor-pointer">
-                 <div className="w-3 h-3 bg-white rounded-full absolute top-0.5 right-0.5 shadow-sm" />
+               <input type="color" defaultValue="#09090b" className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 bg-transparent" />
+               <div className="flex-1">
+                 <input type="text" defaultValue="#09090b" className="w-full bg-transparent text-xs font-bold text-zinc-700 outline-none uppercase" />
                </div>
+               <span className="text-[9px] text-zinc-400 font-bold uppercase">Cor dos botões</span>
             </div>
           </div>
 

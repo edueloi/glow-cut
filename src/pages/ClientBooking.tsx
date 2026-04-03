@@ -13,6 +13,10 @@ export default function ClientBooking() {
   const defaultTitle = slug ? slug.replace(/-/g, ' ') : "Glow & Cut";
   const studioName = defaultTitle.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + " Studio";
 
+  // Mock configurações que viriam do Painel Admin
+  const customColor = "#0a0a0a"; 
+  const customLogo = "https://cdn-icons-png.flaticon.com/512/3233/3233034.png";
+
   const [step, setStep] = useState<"loading" | "home" | "consult" | "service" | "professional" | "date" | "confirm" | "success">("loading");
   const [services, setServices] = useState<any[]>([]);
   const [professionals, setProfessionals] = useState<any[]>([]);
@@ -157,8 +161,12 @@ export default function ClientBooking() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <div className="w-20 h-20 2xl:w-28 2xl:h-28 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-black/50">
-              <span className="text-zinc-950 font-black text-4xl 2xl:text-6xl">{studioName.charAt(0)}</span>
+            <div className="w-20 h-20 2xl:w-28 2xl:h-28 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-black/50 overflow-hidden">
+              {customLogo ? (
+                <img src={customLogo} alt="Logo" className="w-full h-full object-contain p-2" />
+              ) : (
+                <span className="font-black text-4xl 2xl:text-6xl" style={{ color: customColor }}>{studioName.charAt(0)}</span>
+              )}
             </div>
             <h1 className="text-5xl lg:text-7xl 2xl:text-8xl font-black text-white tracking-tighter leading-none mb-6">
               {studioName}
@@ -178,8 +186,12 @@ export default function ClientBooking() {
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent pointer-events-none" />
           
           <div className="relative z-10 flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-xl">
-              <span className="text-zinc-950 font-black text-2xl">{studioName.charAt(0)}</span>
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-xl overflow-hidden">
+              {customLogo ? (
+                <img src={customLogo} alt="Logo" className="w-full h-full object-contain p-1.5" />
+              ) : (
+                <span className="font-black text-2xl" style={{ color: customColor }}>{studioName.charAt(0)}</span>
+              )}
             </div>
             <h2 className="text-2xl font-black uppercase tracking-tight">{studioName}</h2>
             <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold mt-1">Bem-vindo ao nosso agendamento</p>
@@ -203,9 +215,13 @@ export default function ClientBooking() {
                     <p className="text-xs text-zinc-500 font-medium mt-2">O que você gostaria de fazer hoje?</p>
                   </div>
                   
-                  <Button className="w-full justify-between py-4 rounded-xl text-sm shadow-lg shadow-zinc-200/50 hover:-translate-y-0.5 transition-all bg-zinc-950 group" onClick={() => setStep("service")}>
+                  <Button 
+                    className="w-full justify-between py-4 rounded-xl text-sm shadow-lg shadow-black/20 hover:-translate-y-0.5 transition-all text-white group" 
+                    style={{ backgroundColor: customColor }}
+                    onClick={() => setStep("service")}
+                  >
                     <span className="font-bold pl-2">Agendar Novo Horário</span>
-                    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                    <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors">
                       <ArrowRight size={14} />
                     </div>
                   </Button>
@@ -244,7 +260,7 @@ export default function ClientBooking() {
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                       />
-                      <Button onClick={handleConsultAppointments} disabled={isLoading} className="rounded-xl w-12 h-12 p-0 flex items-center justify-center bg-zinc-900 shadow-md flex-shrink-0">
+                      <Button onClick={handleConsultAppointments} disabled={isLoading} className="rounded-xl w-12 h-12 p-0 flex items-center justify-center text-white shadow-md flex-shrink-0" style={{ backgroundColor: customColor }}>
                         {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                       </Button>
                     </div>
@@ -254,7 +270,7 @@ export default function ClientBooking() {
                   <div className="space-y-2">
                     {myAppointments.map((app) => (
                       <div key={app.id} className="p-3 border border-zinc-200 rounded-xl bg-white shadow-sm flex flex-col gap-1.5 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-zinc-900" />
+                        <div className="absolute top-0 left-0 w-1 h-full opacity-80" style={{ backgroundColor: customColor }} />
                         <div className="flex justify-between items-start pl-2">
                           <div>
                             <p className="text-xs font-black text-zinc-900">{app.service.name}</p>
@@ -454,10 +470,11 @@ export default function ClientBooking() {
                             }}
                             className={cn(
                               "h-8 w-8 md:h-9 md:w-9 mx-auto rounded-lg flex items-center justify-center text-xs font-bold transition-all",
-                              isActive ? "bg-zinc-900 text-white shadow-sm" : 
+                              isActive ? "text-white shadow-md shadow-black/20" : 
                               (isPastDay || !isCurrentMonth) ? "text-zinc-300 cursor-not-allowed opacity-50" : 
                               "bg-zinc-50 text-zinc-700 hover:bg-zinc-200 border border-zinc-100"
                             )}
+                            style={isActive ? { backgroundColor: customColor } : {}}
                           >
                             {format(day, "d")}
                           </button>
@@ -523,8 +540,9 @@ export default function ClientBooking() {
                   <Button 
                     className={cn(
                       "flex-1 py-4 rounded-xl text-sm font-bold transition-all",
-                      selectedSlot ? "bg-zinc-900 text-white" : "bg-zinc-200 text-zinc-400 cursor-not-allowed"
+                      selectedSlot ? "text-white shadow-lg shadow-black/10" : "bg-zinc-200 text-zinc-400 cursor-not-allowed"
                     )}
+                    style={selectedSlot ? { backgroundColor: customColor } : {}}
                     disabled={!selectedSlot} 
                     onClick={() => {
                       setStep("confirm");
@@ -599,7 +617,12 @@ export default function ClientBooking() {
 
                 <div className="flex gap-2 pt-2">
                   <Button variant="outline" className="flex-1 py-4 rounded-xl border-zinc-200 text-sm font-bold" onClick={() => setStep("date")}>Voltar</Button>
-                  <Button className="flex-[2] py-4 rounded-xl bg-zinc-900 font-bold text-sm" onClick={handleBooking} disabled={!clientData.name || !phone || isLoading}>
+                  <Button 
+                    className="flex-[2] py-4 rounded-xl text-white font-bold text-sm shadow-xl shadow-black/10" 
+                    style={{ backgroundColor: customColor }}
+                    onClick={handleBooking} 
+                    disabled={!clientData.name || !phone || isLoading}
+                  >
                     {isLoading ? <Loader2 size={18} className="animate-spin" /> : "Concluir Agendamento"}
                   </Button>
                 </div>
