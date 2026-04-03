@@ -10,18 +10,35 @@ interface MinhaAgendaTabProps {
   themeColor?: string;
 }
 
+const PRESET_COLORS = [
+  "#09090b", // Zinc/Black
+  "#f43f5e", // Rose
+  "#8b5cf6", // Violet
+  "#3b82f6", // Blue
+  "#0ea5e9", // Sky
+  "#10b981", // Emerald
+  "#84cc16", // Lime
+  "#eb5e28", // Orange
+  "#f59e0b", // Amber
+  "#dc2626", // Red
+  "#ec4899", // Pink
+  "#78350f", // Brown
+];
+
 export function MinhaAgendaTab({ studioName = "Glow & Cut", themeColor = "#f59e0b" }: MinhaAgendaTabProps) {
   const { show } = useToast();
-  const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
-  const [coverPreview, setCoverPreview] = React.useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = React.useState<string | null>(() => localStorage.getItem('studioLogo'));
+  const [coverPreview, setCoverPreview] = React.useState<string | null>(() => localStorage.getItem('studioCover'));
+  const [localColor, setLocalColor] = React.useState<string>(() => localStorage.getItem('themeColor') || "#09090b");
   const [isLoading, setIsLoading] = React.useState(false);
 
   const handleSave = async () => {
     setIsLoading(true);
     // Simula um delay de salvamento no banco
     setTimeout(() => {
-      if (logoPreview) localStorage.setItem('studioLogo', logoPreview);
-      if (coverPreview) localStorage.setItem('studioCover', coverPreview);
+      localStorage.setItem('studioLogo', logoPreview || "");
+      localStorage.setItem('studioCover', coverPreview || "");
+      localStorage.setItem('themeColor', localColor);
       setIsLoading(false);
       show("Configurações da agenda salvas com sucesso!", "success");
     }, 800);
@@ -202,12 +219,42 @@ export function MinhaAgendaTab({ studioName = "Glow & Cut", themeColor = "#f59e0
             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center justify-between">
               Cor Principal (Tema)
             </label>
-            <div className="flex items-center gap-3 bg-zinc-50 p-3 rounded-xl border border-zinc-200">
-               <input type="color" defaultValue="#09090b" className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 bg-transparent flex-shrink-0" />
-               <div className="flex-1">
-                 <input type="text" defaultValue="#09090b" className="w-full bg-transparent text-xs font-bold text-zinc-700 outline-none uppercase" />
+            <div className="flex flex-col gap-3 bg-zinc-50 p-4 rounded-2xl border border-zinc-200">
+               <div className="grid grid-cols-6 sm:grid-cols-12 gap-2 mb-2">
+                 {PRESET_COLORS.map((color) => (
+                   <button
+                     key={color}
+                     onClick={() => setLocalColor(color)}
+                     className={cn(
+                       "w-full aspect-square rounded-lg border-2 transition-all hover:scale-110",
+                       localColor === color ? "border-emerald-500 scale-110 shadow-md" : "border-transparent"
+                     )}
+                     style={{ backgroundColor: color }}
+                   />
+                 ))}
                </div>
-               <span className="text-[9px] text-zinc-400 font-bold uppercase hidden sm:inline">Cor dos botões</span>
+               
+               <div className="flex items-center gap-3 pt-2 border-t border-zinc-200">
+                 <input 
+                   type="color" 
+                   value={localColor} 
+                   onChange={(e) => setLocalColor(e.target.value)}
+                   className="w-10 h-10 rounded-xl cursor-pointer border-0 p-0 bg-transparent flex-shrink-0" 
+                 />
+                 <div className="flex-1">
+                   <p className="text-[9px] text-zinc-400 font-bold uppercase mb-1">Cor Personalizada</p>
+                   <input 
+                     type="text" 
+                     value={localColor}
+                     onChange={(e) => setLocalColor(e.target.value)}
+                     className="w-full bg-transparent text-xs font-black text-zinc-700 outline-none uppercase" 
+                   />
+                 </div>
+                 <div className="hidden sm:block text-right">
+                    <span className="text-[9px] text-zinc-400 font-bold uppercase block">Prévia</span>
+                    <div className="w-12 h-4 rounded-full mt-1 border border-zinc-200" style={{ backgroundColor: localColor }} />
+                 </div>
+               </div>
             </div>
           </div>
 

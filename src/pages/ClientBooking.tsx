@@ -239,9 +239,13 @@ export default function ClientBooking() {
                     </div>
                   </Button>
                   
-                  <Button variant="outline" className="w-full justify-between py-4 rounded-xl text-sm font-bold text-zinc-700 bg-zinc-50 border-zinc-200 hover:bg-zinc-100 hover:border-zinc-300 transition-all group" onClick={() => setStep("consult")}>
-                    <span className="pl-2">Ver Meus Agendamentos</span>
-                    <div className="w-7 h-7 rounded-full bg-zinc-200 flex items-center justify-center group-hover:bg-zinc-300 transition-colors">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-between py-4 rounded-xl text-sm font-bold bg-zinc-50 border-zinc-200 transition-all group hover:bg-zinc-100 hover:border-zinc-300" 
+                    onClick={() => setStep("consult")}
+                  >
+                    <span className="pl-2" style={{ color: customColor }}>Ver Meus Agendamentos</span>
+                    <div className="w-7 h-7 rounded-full bg-zinc-200 flex items-center justify-center group-hover:bg-zinc-300 transition-colors" style={{ color: customColor }}>
                       <Search size={14} />
                     </div>
                   </Button>
