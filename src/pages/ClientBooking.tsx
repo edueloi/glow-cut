@@ -442,6 +442,26 @@ export default function ClientBooking() {
                     ))}
                   </div>
 
+                  {/* Legenda de Status */}
+                  <div className="flex flex-wrap gap-3 mb-4 px-1">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                      <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Fechado</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Corrido</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Livre</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                      <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Lotado</span>
+                    </div>
+                  </div>
+
                   {(() => {
                     const monthStart = startOfMonth(currentMonth);
                     const monthEnd = endOfMonth(monthStart);
@@ -458,6 +478,19 @@ export default function ClientBooking() {
                         const isPastDay = isBefore(day, today);
                         const isActive = isSameDay(day, selectedDate);
                         const isCurrentMonth = isSameMonth(day, monthStart);
+                        const dayOfWeek = day.getDay();
+                        
+                        // Determinar status visual do dia (Simulação baseada em lógica realística)
+                        let dayStatus: 'closed' | 'full' | 'busy' | 'available' = 'available';
+                        
+                        if (dayOfWeek === 0) {
+                          dayStatus = 'closed'; // Domingo fechado
+                        } else {
+                          // Simulação de lotação baseada no número do dia
+                          const seed = day.getDate();
+                          if (seed % 7 === 0) dayStatus = 'full';
+                          else if (seed % 5 === 0) dayStatus = 'busy';
+                        }
 
                         days.push(
                           <button
@@ -469,14 +502,37 @@ export default function ClientBooking() {
                               fetchAvailability(cloneDay, selectedService.id, selectedProfessional.id);
                             }}
                             className={cn(
-                              "h-8 w-8 md:h-9 md:w-9 mx-auto rounded-lg flex items-center justify-center text-xs font-bold transition-all",
+                              "h-10 w-full md:h-11 mx-auto rounded-xl flex flex-col items-center justify-center text-xs font-bold transition-all relative",
                               isActive ? "text-white shadow-md shadow-black/20" : 
                               (isPastDay || !isCurrentMonth) ? "text-zinc-300 cursor-not-allowed opacity-50" : 
-                              "bg-zinc-50 text-zinc-700 hover:bg-zinc-200 border border-zinc-100"
+                              "bg-zinc-50 text-zinc-700 hover:bg-zinc-100 border border-zinc-100"
                             )}
                             style={isActive ? { backgroundColor: customColor } : {}}
                           >
-                            {format(day, "d")}
+                            <span>{format(day, "d")}</span>
+                            
+                            {/* Indicador de Status Visual */}
+                            {!isPastDay && isCurrentMonth && (
+                              <div className="absolute bottom-1.5 flex gap-0.5 mt-1">
+                                {dayStatus === 'closed' && (
+                                  <div className="w-1 h-1 rounded-full bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.6)]" title="Fechado" />
+                                )}
+                                {dayStatus === 'full' && (
+                                  <div className="w-1 h-1 rounded-full bg-zinc-400" title="Lotado" />
+                                )}
+                                {dayStatus === 'busy' && (
+                                  <div className="w-1 h-1 rounded-full bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.6)]" title="Poucas vagas" />
+                                )}
+                                {dayStatus === 'available' && (
+                                  <div className="w-1 h-1 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.6)]" title="Disponível" />
+                                )}
+                              </div>
+                            )}
+
+                            {/* Overlay de Bloqueio Visual (Vermelhão para fechado) */}
+                            {!isPastDay && isCurrentMonth && dayStatus === 'closed' && !isActive && (
+                              <div className="absolute inset-0 bg-rose-50/40 rounded-xl pointer-events-none border border-rose-100" />
+                            )}
                           </button>
                         );
                         day = addDays(day, 1);

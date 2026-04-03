@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { 
   LayoutDashboard,
   Calendar as CalendarIcon,
@@ -932,6 +932,7 @@ export default function AdminDashboard() {
         {activeTab === 'horarios' && (
           <HorariosTab
             workingHours={workingHours}
+            setWorkingHours={setWorkingHours}
             localWorkingHours={localWorkingHours}
             setLocalWorkingHours={setLocalWorkingHours}
             holidays={holidays}
@@ -2179,3 +2180,4 @@ function NavItem({ active, icon, label, onClick }: { active: boolean, icon: Reac
 }
 
 // Moved to src/components/ui/StatCard.tsx
+
