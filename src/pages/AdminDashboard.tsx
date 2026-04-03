@@ -73,6 +73,14 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/src/lib/utils";
 import { Button } from "@/src/components/ui/Button";
 import { Modal } from "@/src/components/ui/Modal";
+import { StatCard } from "@/src/components/ui/StatCard";
+import { DashboardTab } from "@/src/pages/admin/tabs/DashboardTab";
+import { ComandasTab } from "@/src/pages/admin/tabs/ComandasTab";
+import { FluxoTab } from "@/src/pages/admin/tabs/FluxoTab";
+import { ProfessionalsTab } from "@/src/pages/admin/tabs/ProfessionalsTab";
+import { HorariosTab } from "@/src/pages/admin/tabs/HorariosTab";
+import { SettingsTab } from "@/src/pages/admin/tabs/SettingsTab";
+import { ClientsTab } from "@/src/pages/admin/tabs/ClientsTab";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   AreaChart, 
@@ -168,6 +176,7 @@ export default function AdminDashboard() {
 
   // New Comanda State
   const [newComanda, setNewComanda] = useState({
+    clientId: "",
     clientPhone: "",
     clientName: "",
     items: [] as { id: string, name: string, price: number, quantity: number }[],
@@ -175,6 +184,7 @@ export default function AdminDashboard() {
     discountType: "value" as "value" | "percentage",
     paymentMethod: "cash" as "cash" | "card" | "pix" | "transfer"
   });
+  const [comandaClientSearchResults, setComandaClientSearchResults] = useState<any[]>([]);
 
   // New Client State
   const emptyClient = {
@@ -284,24 +294,24 @@ export default function AdminDashboard() {
   };
 
   const handleCreateComanda = async () => {
-    // 1. Find or create client
-    let clientId = "";
-    const clientRes = await fetch(`/api/clients/search?phone=${newComanda.clientPhone}`);
-    const clientData = await clientRes.json();
-    
-    if (clientData) {
-      clientId = clientData.id;
-    } else {
+    let clientId = newComanda.clientId;
+
+    // If no client selected, try to create one
+    if (!clientId) {
+      if (!newComanda.clientName || !newComanda.clientPhone) {
+        alert("Por favor, selecione um cliente ou preencha nome e telefone para cadastrar um novo.");
+        return;
+      }
       const newClientRes = await fetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newComanda.clientName, phone: newComanda.clientPhone })
       });
-      const newClient = await newClientRes.json();
-      clientId = newClient.id;
+      const newClientData = await newClientRes.json();
+      clientId = newClientData.id;
     }
 
-    // 2. Calculate total
+    // Calculate total
     const subtotal = newComanda.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     let total = subtotal;
     const discountVal = parseFloat(newComanda.discount || "0");
@@ -311,7 +321,7 @@ export default function AdminDashboard() {
       total = subtotal - discountVal;
     }
 
-    // 3. Create comanda
+    // Create comanda
     await fetch("/api/comandas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -324,7 +334,30 @@ export default function AdminDashboard() {
     });
 
     setIsComandaModalOpen(false);
+    setNewComanda({ clientId: "", clientPhone: "", clientName: "", items: [], discount: "0", discountType: "value", paymentMethod: "cash" });
+    setComandaClientSearchResults([]);
     fetch("/api/comandas").then(res => res.json()).then(setComandas);
+  };
+
+  const handleSearchClientForComanda = async (name: string) => {
+    setNewComanda(prev => ({ ...prev, clientName: name, clientId: "", clientPhone: "" }));
+    if (name.length > 2) {
+      const res = await fetch(`/api/clients/search?name=${name}`);
+      const data = await res.json();
+      setComandaClientSearchResults(data || []);
+    } else {
+      setComandaClientSearchResults([]);
+    }
+  };
+
+  const handleSelectClientForComanda = (c: any) => {
+    setNewComanda(prev => ({
+      ...prev,
+      clientId: c.id,
+      clientName: c.name,
+      clientPhone: c.phone || ""
+    }));
+    setComandaClientSearchResults([]);
   };
 
   const handleCreateClient = async () => {
@@ -801,225 +834,14 @@ export default function AdminDashboard() {
             >
 
         {activeTab === 'dash' && (
-          <div className="space-y-6">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatCard 
-                title="Faturamento Hoje" 
-                value="R$ 1.250,00" 
-                icon={DollarSign} 
-                trend={{ value: 12, isUp: true }}
-                description="vs. ontem"
-              />
-              <StatCard 
-                title="Agendamentos" 
-                value="18" 
-                icon={CalendarIcon} 
-                trend={{ value: 3, isUp: true }}
-                description="para hoje"
-              />
-              <StatCard 
-                title="Novos Clientes" 
-                value="5" 
-                icon={UserPlus} 
-                trend={{ value: 2, isUp: true }}
-                description="esta semana"
-              />
-              <StatCard 
-                title="Ticket Médio" 
-                value="R$ 68,00" 
-                icon={TrendingUp} 
-                trend={{ value: 5, isUp: false }}
-                description="vs. mês anterior"
-              />
-            </div>
-
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-zinc-200">
-                <div className="flex items-center justify-between mb-5">
-                  <div>
-                    <h3 className="text-sm font-bold text-zinc-900">Desempenho Semanal</h3>
-                    <p className="text-[10px] text-zinc-400">Faturamento bruto por dia</p>
-                  </div>
-                  <select className="text-[10px] font-bold border border-zinc-200 bg-zinc-50 text-zinc-600 rounded-lg p-1.5 outline-none">
-                    <option>Esta Semana</option>
-                    <option>Mês Passado</option>
-                  </select>
-                </div>
-                <div className="h-[220px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={revenueData}>
-                      <defs>
-                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.15}/>
-                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#a1a1aa' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#a1a1aa' }} tickFormatter={(v) => `R$ ${v}`} />
-                      <Tooltip contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e4e4e7', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px', color: '#18181b' }} itemStyle={{ color: '#d97706' }} />
-                      <Area type="monotone" dataKey="value" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200">
-                <h3 className="text-sm font-bold text-zinc-900 mb-5">Serviços Populares</h3>
-                <div className="h-[180px] w-full flex items-center justify-center">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={servicesData} cx="50%" cy="50%" innerRadius={55} outerRadius={75} paddingAngle={5} dataKey="value">
-                        {servicesData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e4e4e7', fontSize: '12px' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="space-y-2 mt-3">
-                  {servicesData.map((item) => (
-                    <div key={item.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className="text-[10px] font-medium text-zinc-500">{item.name}</span>
-                      </div>
-                      <span className="text-[10px] font-bold text-zinc-700">{item.value}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Activity & Upcoming */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200">
-                <div className="flex items-center justify-between mb-5">
-                  <h3 className="text-sm font-bold text-zinc-900">Próximos Agendamentos</h3>
-                  <button onClick={() => handleTabChange('agenda')} className="text-[10px] font-bold text-amber-600 hover:text-amber-700 transition-colors">Ver Todos</button>
-                </div>
-                <div className="space-y-3">
-                  {appointments.slice(0, 4).map((app) => (
-                    <div key={app.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-50 transition-colors border border-transparent hover:border-zinc-100">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 font-bold text-xs">
-                          {app.client.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-zinc-900">{app.client.name}</p>
-                          <p className="text-[10px] text-zinc-500 font-medium">{app.service.name}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs font-bold text-zinc-700">{app.startTime}</p>
-                        <p className="text-[10px] text-zinc-400 font-medium">{format(new Date(app.date), "dd/MM")}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {appointments.length === 0 && (
-                    <div className="py-8 text-center">
-                      <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Nenhum agendamento próximo</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200">
-                <div className="flex items-center justify-between mb-5">
-                  <h3 className="text-sm font-bold text-zinc-900">Últimas Comandas</h3>
-                  <button onClick={() => handleTabChange('comandas')} className="text-[10px] font-bold text-amber-600 hover:text-amber-700 transition-colors">Ver Todas</button>
-                </div>
-                <div className="space-y-3">
-                  {comandas.slice(0, 4).map((com) => (
-                    <div key={com.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-50 transition-colors border border-transparent hover:border-zinc-100">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs">
-                          <DollarSign size={15} />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-zinc-900">{com.client.name}</p>
-                          <p className="text-[10px] text-zinc-500 font-medium">{com.status === 'paid' ? 'Pago' : 'Em Aberto'}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs font-bold text-emerald-600">R$ {com.total.toFixed(2)}</p>
-                        <p className="text-[10px] text-zinc-400 font-medium">{format(new Date(com.createdAt), "dd/MM")}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {comandas.length === 0 && (
-                    <div className="py-8 text-center">
-                      <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Nenhuma comanda hoje</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Birthday Widget */}
-              {(() => {
-                const currentMonthNum = new Date().getMonth() + 1;
-                const birthdayClients = clients.filter(c => {
-                  if (!c.birthDate) return false;
-                  const parts = c.birthDate.split("/");
-                  if (parts.length !== 3) return false;
-                  return parseInt(parts[1]) === currentMonthNum;
-                }).sort((a, b) => {
-                  const dayA = parseInt(a.birthDate.split("/")[0]);
-                  const dayB = parseInt(b.birthDate.split("/")[0]);
-                  return dayA - dayB;
-                });
-                const monthName = format(new Date(), "MMMM", { locale: ptBR });
-                return birthdayClients.length > 0 ? (
-                  <div className="bg-gradient-to-br from-pink-50 to-rose-50 p-6 rounded-2xl shadow-sm border border-pink-100">
-                    <div className="flex items-center justify-between mb-5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-pink-100 rounded-xl flex items-center justify-center">
-                          <Cake size={16} className="text-pink-500" />
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-bold text-zinc-900">Aniversariantes</h3>
-                          <p className="text-[10px] text-pink-500 font-bold uppercase tracking-widest capitalize">{monthName}</p>
-                        </div>
-                      </div>
-                      <span className="bg-pink-500 text-white text-[10px] font-black rounded-full w-6 h-6 flex items-center justify-center">{birthdayClients.length}</span>
-                    </div>
-                    <div className="space-y-2.5">
-                      {birthdayClients.slice(0, 5).map(c => {
-                        const day = c.birthDate.split("/")[0];
-                        const age = calculateAge(c.birthDate);
-                        const todayDay = new Date().getDate();
-                        const isToday = parseInt(day) === todayDay;
-                        return (
-                          <div key={c.id} className={cn("flex items-center gap-3 p-2.5 rounded-xl transition-all", isToday ? "bg-pink-100 border border-pink-200" : "bg-white/70 border border-transparent")}>
-                            <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black shrink-0", isToday ? "bg-pink-500 text-white shadow-sm shadow-pink-300" : "bg-pink-50 border border-pink-100 text-pink-600")}>
-                              {c.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-zinc-900 truncate">{c.name}</p>
-                              <p className="text-[10px] text-zinc-500 font-medium">
-                                Dia {day}{age !== null ? ` · ${age} anos` : ""}
-                              </p>
-                            </div>
-                            {isToday && (
-                              <span className="text-[9px] font-black bg-pink-500 text-white px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">Hoje!</span>
-                            )}
-                          </div>
-                        );
-                      })}
-                      {birthdayClients.length > 5 && (
-                        <button onClick={() => handleTabChange('clients')} className="w-full text-center text-[10px] font-bold text-pink-500 hover:text-pink-700 pt-1 transition-colors">
-                          +{birthdayClients.length - 5} mais
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ) : null;
-              })()}
-            </div>
-          </div>
+          <DashboardTab
+            revenueData={revenueData}
+            servicesData={servicesData}
+            appointments={appointments}
+            comandas={comandas}
+            clients={clients}
+            handleTabChange={handleTabChange}
+          />
         )}
 
         {activeTab === 'agenda' && (
@@ -1522,871 +1344,66 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === 'clients' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex p-1 bg-zinc-100 rounded-xl w-fit">
-                <button
-                  onClick={() => setClientView('grid')}
-                  className={cn("p-2 rounded-lg transition-all", clientView === 'grid' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700")}
-                >
-                  <LayoutGrid size={18} />
-                </button>
-                <button
-                  onClick={() => setClientView('list')}
-                  className={cn("p-2 rounded-lg transition-all", clientView === 'list' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700")}
-                >
-                  <List size={18} />
-                </button>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="relative hidden md:block">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
-                  <input
-                    type="text"
-                    placeholder="Buscar clientes..."
-                    className="pl-9 pr-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-xs text-zinc-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all w-64"
-                  />
-                </div>
-                <Button
-                  onClick={() => setIsClientModalOpen(true)}
-                  className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-5 font-bold shadow-sm flex items-center gap-2"
-                >
-                  <Plus size={16} />
-                  Novo Cliente
-                </Button>
-              </div>
-            </div>
-
-            {clientView === 'grid' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {clients.map((client, idx) => (
-                  <motion.div
-                    key={client.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm hover:shadow-md hover:border-amber-300 transition-all"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 text-xl font-bold shrink-0">
-                        {client.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-bold text-zinc-900 truncate">{client.name}</h4>
-                        <p className="text-xs text-zinc-500 mt-0.5 font-medium">{client.phone}</p>
-                        {client.birthDate && (() => {
-                          const age = calculateAge(client.birthDate);
-                          const parts = client.birthDate.split("/");
-                          const isBday = parts.length === 3 && parseInt(parts[0]) === new Date().getDate() && parseInt(parts[1]) === new Date().getMonth() + 1;
-                          return (
-                            <p className={cn("text-[10px] mt-0.5 font-bold flex items-center gap-1", isBday ? "text-pink-500" : "text-zinc-400")}>
-                              <Cake size={9} />
-                              {isBday ? "Aniversário hoje! " : ""}{age !== null ? `${age} anos` : client.birthDate}
-                            </p>
-                          );
-                        })()}
-                      </div>
-                      <div className="flex gap-1 shrink-0">
-                        <button onClick={() => handleEditClient(client)} className="p-1.5 bg-zinc-100 hover:bg-amber-500 hover:text-white text-zinc-500 rounded-lg transition-all"><Edit2 size={13}/></button>
-                        <button onClick={() => handleDeleteClient(client.id)} className="p-1.5 bg-zinc-100 hover:bg-red-500 hover:text-white text-zinc-500 rounded-lg transition-all"><Trash2 size={13}/></button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 mt-4">
-                      <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-100">
-                        <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Agendamentos</p>
-                        <p className="text-lg font-black text-zinc-900 mt-1">{client.appointments?.length || 0}</p>
-                      </div>
-                      <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
-                        <p className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">Comandas</p>
-                        <p className="text-lg font-black text-amber-600 mt-1">{client.comandas?.length || 0}</p>
-                      </div>
-                    </div>
-
-                    {(client.email || client.city) && (
-                      <div className="mt-3 space-y-1">
-                        {client.email && <p className="text-[10px] text-zinc-400 font-medium truncate">{client.email}</p>}
-                        {client.city && <p className="text-[10px] text-zinc-400 font-medium truncate flex items-center gap-1"><MapPinIcon size={9}/>{client.city}{client.state ? `, ${client.state}` : ""}</p>}
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
-                {clients.length === 0 && (
-                  <div className="col-span-full py-24 bg-white rounded-[40px] border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-400">
-                    <Users size={48} className="mb-4 opacity-20" />
-                    <p className="text-sm font-bold text-zinc-500">Nenhum cliente cadastrado.</p>
-                    <p className="text-xs mt-1 font-medium">Clique no botão acima para começar.</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-zinc-50 border-b border-zinc-100">
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Cliente</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Contato</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Agendamentos</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clients.map(client => (
-                      <tr key={client.id} className="border-b border-zinc-100 hover:bg-zinc-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-xs font-bold text-amber-600">
-                              {client.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <span className="text-sm font-bold text-zinc-900 block">{client.name}</span>
-                              {client.birthDate && (() => {
-                                const age = calculateAge(client.birthDate);
-                                return age !== null ? <span className="text-[10px] text-zinc-400 font-medium">{age} anos</span> : null;
-                              })()}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-xs text-zinc-500 font-medium">{client.phone}</div>
-                          {client.email && <div className="text-[10px] text-zinc-400">{client.email}</div>}
-                        </td>
-                        <td className="px-6 py-4 text-xs font-bold text-zinc-700">{client.appointments?.length || 0}</td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => handleEditClient(client)} className="p-2 bg-zinc-100 hover:bg-amber-500 hover:text-white text-zinc-500 rounded-lg transition-all"><Edit2 size={14}/></button>
-                            <button onClick={() => handleDeleteClient(client.id)} className="p-2 bg-zinc-100 hover:bg-red-500 hover:text-white text-zinc-500 rounded-lg transition-all"><Trash2 size={14}/></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {clients.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="px-8 py-24 text-center text-xs font-bold text-zinc-400 uppercase tracking-widest">Nenhum cliente cadastrado.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <ClientsTab
+            clientView={clientView}
+            setClientView={setClientView}
+            clients={clients}
+            setIsClientModalOpen={setIsClientModalOpen}
+            calculateAge={calculateAge}
+            handleEditClient={handleEditClient}
+            handleDeleteClient={handleDeleteClient}
+          />
         )}
 
         {activeTab === 'comandas' && (
-          <div className="space-y-6">
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Em Aberto</p>
-                <p className="text-2xl font-black text-amber-600 mt-1">{comandas.filter(c => c.status === 'open').length}</p>
-                <p className="text-[10px] text-zinc-400 mt-1">comandas aguardando</p>
-              </div>
-              <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">A Receber</p>
-                <p className="text-2xl font-black text-red-500 mt-1">R$ {comandas.filter(c => c.status === 'open').reduce((a, c) => a + c.total, 0).toFixed(2)}</p>
-                <p className="text-[10px] text-zinc-400 mt-1">valor pendente</p>
-              </div>
-              <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Pagas</p>
-                <p className="text-2xl font-black text-emerald-600 mt-1">{comandas.filter(c => c.status === 'paid').length}</p>
-                <p className="text-[10px] text-zinc-400 mt-1">finalizadas</p>
-              </div>
-              <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Total Recebido</p>
-                <p className="text-2xl font-black text-zinc-900 mt-1">R$ {comandas.filter(c => c.status === 'paid').reduce((a, c) => a + c.total, 0).toFixed(2)}</p>
-                <p className="text-[10px] text-zinc-400 mt-1">receita total</p>
-              </div>
-            </div>
-
-            {/* Comandas table */}
-            <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-zinc-100 flex justify-between items-center">
-                <div>
-                  <h3 className="text-base font-bold text-zinc-900">Todas as Comandas</h3>
-                  <p className="text-[10px] text-zinc-400 mt-0.5 uppercase tracking-widest font-bold">{comandas.length} registros</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Button
-                    size="sm"
-                    onClick={() => setIsComandaModalOpen(true)}
-                    className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold shadow-sm flex items-center gap-2"
-                  >
-                    <Plus size={16} /> Nova Comanda
-                  </Button>
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-zinc-50 border-b border-zinc-100">
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Cliente</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Serviços / Agendamentos</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Data</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Desconto</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Total</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Status</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {comandas.map((c, idx) => (
-                      <motion.tr
-                        key={c.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.03 }}
-                        className="border-b border-zinc-100 hover:bg-zinc-50/80 transition-colors group cursor-pointer"
-                        onClick={() => { setSelectedComanda(c); setIsComandaDetailOpen(true); }}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-xs font-bold text-amber-600">
-                              {c.client.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-zinc-900">{c.client.name}</p>
-                              <p className="text-[10px] text-zinc-400">{c.client.phone}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-wrap gap-1.5">
-                            {c.appointments.length > 0 ? c.appointments.map((a: any, i: number) => (
-                              <span key={i} className="text-[9px] font-bold bg-zinc-100 text-zinc-600 px-2 py-1 rounded-lg">
-                                {a.service.name}
-                              </span>
-                            )) : (
-                              <span className="text-[10px] text-zinc-400 italic">Sem agendamentos vinculados</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-xs text-zinc-500 font-medium">
-                          {format(new Date(c.createdAt), "dd/MM/yyyy")}
-                        </td>
-                        <td className="px-6 py-4">
-                          {c.discount > 0 ? (
-                            <span className="text-xs font-bold text-green-600">
-                              -{c.discountType === 'percentage' ? `${c.discount}%` : `R$ ${c.discount}`}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-zinc-300">—</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-sm font-black text-zinc-900">R$ {c.total.toFixed(2)}</td>
-                        <td className="px-6 py-4">
-                          <span className={cn(
-                            "text-[9px] font-bold px-2.5 py-1.5 rounded-lg uppercase tracking-widest border",
-                            c.status === 'open' ? "bg-amber-50 text-amber-600 border-amber-200" : "bg-emerald-50 text-emerald-600 border-emerald-200"
-                          )}>
-                            {c.status === 'open' ? 'Em Aberto' : 'Pago'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-2">
-                            {c.status === 'open' && (
-                              <button
-                                onClick={() => handlePayComanda(c)}
-                                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5"
-                              >
-                                <CheckCircle size={12} /> Pagar
-                              </button>
-                            )}
-                            <button
-                              onClick={() => { setSelectedComanda(c); setIsComandaDetailOpen(true); }}
-                              className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-lg text-[10px] font-bold transition-all"
-                            >
-                              Detalhes
-                            </button>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    ))}
-                    {comandas.length === 0 && (
-                      <tr>
-                        <td colSpan={7} className="px-8 py-24 text-center text-xs font-bold text-zinc-400 uppercase tracking-widest">
-                          Nenhuma comanda encontrada.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Comanda Detail Modal */}
-            {isComandaDetailOpen && selectedComanda && (
-              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setIsComandaDetailOpen(false)}>
-                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-5" onClick={e => e.stopPropagation()}>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-base font-bold text-zinc-900">Comanda #{selectedComanda.id.slice(-6).toUpperCase()}</h3>
-                      <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold mt-0.5">{format(new Date(selectedComanda.createdAt), "dd/MM/yyyy 'às' HH:mm")}</p>
-                    </div>
-                    <button onClick={() => setIsComandaDetailOpen(false)} className="p-2 hover:bg-zinc-100 rounded-xl transition-colors"><X size={18} /></button>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                    <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-sm font-bold text-amber-600">
-                      {selectedComanda.client.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-zinc-900">{selectedComanda.client.name}</p>
-                      <p className="text-[10px] text-zinc-500">{selectedComanda.client.phone}</p>
-                    </div>
-                    <span className={cn(
-                      "ml-auto text-[9px] font-bold px-2.5 py-1.5 rounded-lg uppercase tracking-widest border",
-                      selectedComanda.status === 'open' ? "bg-amber-50 text-amber-600 border-amber-200" : "bg-emerald-50 text-emerald-600 border-emerald-200"
-                    )}>
-                      {selectedComanda.status === 'open' ? 'Em Aberto' : 'Pago'}
-                    </span>
-                  </div>
-
-                  <div>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Agendamentos vinculados</p>
-                    {selectedComanda.appointments.length > 0 ? (
-                      <div className="space-y-2">
-                        {selectedComanda.appointments.map((a: any) => (
-                          <div key={a.id} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100">
-                            <div className="flex items-center gap-2">
-                              <Scissors size={14} className="text-amber-500" />
-                              <div>
-                                <p className="text-xs font-bold text-zinc-900">{a.service.name}</p>
-                                <p className="text-[10px] text-zinc-400">{format(new Date(a.date), "dd/MM")} • {a.startTime}–{a.endTime}</p>
-                              </div>
-                            </div>
-                            <p className="text-sm font-black text-zinc-900">R$ {a.service.price.toFixed(2)}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-zinc-400 italic py-3">Nenhum agendamento vinculado a esta comanda.</p>
-                    )}
-                  </div>
-
-                  <div className="border-t border-zinc-100 pt-4 space-y-2">
-                    <div className="flex justify-between text-xs text-zinc-500">
-                      <span>Subtotal</span>
-                      <span>R$ {selectedComanda.appointments.reduce((a: number, ap: any) => a + ap.service.price, 0).toFixed(2)}</span>
-                    </div>
-                    {selectedComanda.discount > 0 && (
-                      <div className="flex justify-between text-xs text-green-600 font-bold">
-                        <span>Desconto {selectedComanda.discountType === 'percentage' ? `(${selectedComanda.discount}%)` : ''}</span>
-                        <span>-R$ {selectedComanda.discountType === 'percentage'
-                          ? (selectedComanda.appointments.reduce((a: number, ap: any) => a + ap.service.price, 0) * selectedComanda.discount / 100).toFixed(2)
-                          : selectedComanda.discount.toFixed(2)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-base font-black text-zinc-900 border-t border-zinc-100 pt-2">
-                      <span>Total</span>
-                      <span>R$ {selectedComanda.total.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  {selectedComanda.status === 'open' && (
-                    <button
-                      onClick={() => { handlePayComanda(selectedComanda); setIsComandaDetailOpen(false); }}
-                      className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2"
-                    >
-                      <CheckCircle size={18} /> Finalizar e Pagar
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <ComandasTab
+            comandas={comandas}
+            setIsComandaModalOpen={setIsComandaModalOpen}
+            selectedComanda={selectedComanda}
+            setSelectedComanda={setSelectedComanda}
+            isComandaDetailOpen={isComandaDetailOpen}
+            setIsComandaDetailOpen={setIsComandaDetailOpen}
+            handlePayComanda={handlePayComanda}
+          />
         )}
 
         {activeTab === 'fluxo' && (
-          <div className="space-y-6">
-            {/* KPIs */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Receita Total</p>
-                <p className="text-2xl font-black text-emerald-600 mt-1">R$ {comandas.filter(c => c.status === 'paid').reduce((a, c) => a + c.total, 0).toFixed(2)}</p>
-                <p className="text-[10px] text-zinc-400 mt-1">comandas pagas</p>
-              </div>
-              <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">A Receber</p>
-                <p className="text-2xl font-black text-amber-600 mt-1">R$ {comandas.filter(c => c.status === 'open').reduce((a, c) => a + c.total, 0).toFixed(2)}</p>
-                <p className="text-[10px] text-zinc-400 mt-1">em aberto</p>
-              </div>
-              <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Ticket Médio</p>
-                <p className="text-2xl font-black text-zinc-900 mt-1">
-                  R$ {comandas.length ? (comandas.reduce((a, c) => a + c.total, 0) / comandas.length).toFixed(2) : '0.00'}
-                </p>
-                <p className="text-[10px] text-zinc-400 mt-1">por comanda</p>
-              </div>
-              <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Total Comandas</p>
-                <p className="text-2xl font-black text-zinc-900 mt-1">{comandas.length}</p>
-                <p className="text-[10px] text-zinc-400 mt-1">{comandas.filter(c => c.status === 'paid').length} pagas</p>
-              </div>
-            </div>
-
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Revenue area chart */}
-              <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm">
-                <h3 className="text-sm font-bold text-zinc-900 mb-4">Receita por Dia (últimas comandas)</h3>
-                <div className="h-[200px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={(() => {
-                      const days: Record<string, number> = {};
-                      comandas.filter(c => c.status === 'paid').forEach(c => {
-                        const d = format(new Date(c.createdAt), "dd/MM");
-                        days[d] = (days[d] || 0) + c.total;
-                      });
-                      return Object.entries(days).slice(-7).map(([name, value]) => ({ name, value }));
-                    })()}>
-                      <defs>
-                        <linearGradient id="cashGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#a1a1aa' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#a1a1aa' }} tickFormatter={v => `R$ ${v}`} />
-                      <Tooltip contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e4e4e7', fontSize: '12px' }} itemStyle={{ color: '#059669' }} />
-                      <Area type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#cashGrad)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Status breakdown */}
-              <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm">
-                <h3 className="text-sm font-bold text-zinc-900 mb-4">Status das Comandas</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle size={20} className="text-emerald-600" />
-                      <div>
-                        <p className="text-sm font-bold text-zinc-900">Pagas</p>
-                        <p className="text-[10px] text-zinc-500">{comandas.filter(c => c.status === 'paid').length} comandas</p>
-                      </div>
-                    </div>
-                    <p className="text-lg font-black text-emerald-600">R$ {comandas.filter(c => c.status === 'paid').reduce((a, c) => a + c.total, 0).toFixed(2)}</p>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-amber-50 rounded-xl border border-amber-100">
-                    <div className="flex items-center gap-3">
-                      <FileText size={20} className="text-amber-600" />
-                      <div>
-                        <p className="text-sm font-bold text-zinc-900">Em Aberto</p>
-                        <p className="text-[10px] text-zinc-500">{comandas.filter(c => c.status === 'open').length} comandas</p>
-                      </div>
-                    </div>
-                    <p className="text-lg font-black text-amber-600">R$ {comandas.filter(c => c.status === 'open').reduce((a, c) => a + c.total, 0).toFixed(2)}</p>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-xl border border-zinc-100">
-                    <div className="flex items-center gap-3">
-                      <TrendingUp size={20} className="text-zinc-600" />
-                      <div>
-                        <p className="text-sm font-bold text-zinc-900">Taxa de Fechamento</p>
-                        <p className="text-[10px] text-zinc-500">comandas pagas / total</p>
-                      </div>
-                    </div>
-                    <p className="text-lg font-black text-zinc-900">
-                      {comandas.length ? Math.round(comandas.filter(c => c.status === 'paid').length / comandas.length * 100) : 0}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Recent transactions */}
-            <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-zinc-100">
-                <h3 className="text-sm font-bold text-zinc-900">Últimas Transações</h3>
-              </div>
-              <div className="divide-y divide-zinc-100">
-                {[...comandas].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8).map(c => (
-                  <div key={c.id} className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm", c.status === 'paid' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-amber-50 text-amber-600 border border-amber-100")}>
-                        {c.client.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-zinc-900">{c.client.name}</p>
-                        <p className="text-[10px] text-zinc-400">{format(new Date(c.createdAt), "dd/MM/yyyy 'às' HH:mm")}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={cn("text-[9px] font-bold px-2 py-1 rounded-lg border", c.status === 'paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100")}>
-                        {c.status === 'paid' ? 'Pago' : 'Em Aberto'}
-                      </span>
-                      <p className={cn("text-sm font-black", c.status === 'paid' ? "text-emerald-600" : "text-zinc-700")}>
-                        {c.status === 'paid' ? '+' : ''}R$ {c.total.toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                {comandas.length === 0 && (
-                  <div className="py-16 text-center">
-                    <p className="text-xs text-zinc-400">Nenhuma transação encontrada</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <FluxoTab comandas={comandas} />
         )}
 
         {activeTab === 'professionals' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-zinc-500 font-medium">
-                {professionals.length} profissional(is) cadastrado(s)
-              </p>
-              <Button
-                onClick={() => { setEditingProfessional(null); setNewProfessional({ name: "", role: "", password: "", showPassword: false }); setIsProfessionalModalOpen(true); }}
-                className="bg-amber-500 hover:bg-amber-600 text-zinc-950 rounded-2xl px-6 font-bold shadow-lg shadow-amber-500/20 flex items-center gap-2"
-              >
-                <Plus size={18} />
-                Novo Profissional
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {professionals.map((prof: any, idx: number) => (
-                <motion.div
-                  key={prof.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="group bg-white rounded-3xl border border-zinc-200 p-6 shadow-sm hover:shadow-lg hover:border-amber-300 transition-all relative overflow-hidden"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 text-2xl font-black shrink-0">
-                      {prof.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-bold text-zinc-900 truncate">{prof.name}</h4>
-                      <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest mt-1">{prof.role || "Sem cargo"}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex gap-3">
-                    <Button
-                      variant="outline"
-                      className="flex-1 rounded-2xl text-[10px] font-bold border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 py-4 flex items-center justify-center gap-2"
-                      onClick={() => {
-                        setEditingProfessional(prof);
-                        setNewProfessional({ name: prof.name, role: prof.role || "", password: "", showPassword: false });
-                        setIsProfessionalModalOpen(true);
-                      }}
-                    >
-                      <UserCog size={14} /> Editar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1 rounded-2xl text-[10px] font-bold border-red-200 text-red-500 hover:bg-red-50 py-4 flex items-center justify-center gap-2"
-                      onClick={() => handleDeleteProfessional(prof.id)}
-                    >
-                      <Trash2 size={14} /> Excluir
-                    </Button>
-                  </div>
-                </motion.div>
-              ))}
-              {professionals.length === 0 && (
-                <div className="col-span-full py-24 bg-zinc-50 rounded-[40px] border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-400">
-                  <UserCog size={48} className="mb-4 opacity-30" />
-                  <p className="text-sm font-bold text-zinc-500">Nenhum profissional cadastrado.</p>
-                  <p className="text-xs mt-1 font-medium">Clique no botão acima para adicionar.</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <ProfessionalsTab
+            professionals={professionals}
+            setEditingProfessional={setEditingProfessional}
+            setNewProfessional={setNewProfessional}
+            setIsProfessionalModalOpen={setIsProfessionalModalOpen}
+            handleDeleteProfessional={handleDeleteProfessional}
+          />
         )}
 
         {/* ── HORÁRIOS ─────────────────────────────────────────── */}
         {activeTab === 'horarios' && (
-          <div className="max-w-3xl space-y-6">
-            {/* Grade semanal */}
-            <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-              <div className="flex items-center gap-4 p-6 border-b border-zinc-100">
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
-                  <Clock size={20} className="text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-zinc-900">Horário de Funcionamento</h3>
-                  <p className="text-[10px] text-zinc-400 font-medium">Defina quais dias e horários o studio está aberto</p>
-                </div>
-                <Button
-                  className="ml-auto bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl shadow-sm"
-                  onClick={async () => {
-                    for (const wh of localWorkingHours) {
-                      await fetch(`/api/settings/working-hours/${wh.id}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ isOpen: wh.isOpen, startTime: wh.startTime, endTime: wh.endTime })
-                      });
-                    }
-                  }}
-                >
-                  Salvar
-                </Button>
-              </div>
-              <div className="divide-y divide-zinc-100">
-                {(localWorkingHours.length > 0 ? localWorkingHours : workingHours).map((wh, i) => {
-                  const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-                  const dayShort = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-                  return (
-                    <div key={wh.id} className={cn(
-                      "flex items-center gap-4 px-6 py-4 transition-colors",
-                      !wh.isOpen && "opacity-50"
-                    )}>
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black uppercase tracking-widest bg-zinc-100 text-zinc-500">
-                        {dayShort[wh.dayOfWeek]}
-                      </div>
-                      <span className="text-xs font-bold text-zinc-800 w-20">{dayNames[wh.dayOfWeek]}</span>
-                      <div className={cn("flex items-center gap-2 flex-1 transition-all", !wh.isOpen && "pointer-events-none")}>
-                        <input
-                          type="time"
-                          value={wh.startTime}
-                          onChange={e => setLocalWorkingHours(prev => prev.map((h, idx) => idx === i ? { ...h, startTime: e.target.value } : h))}
-                          className="w-24 text-xs p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-center font-bold text-zinc-800 focus:ring-2 focus:ring-amber-500/20 outline-none"
-                        />
-                        <span className="text-zinc-400 text-[10px] font-bold">até</span>
-                        <input
-                          type="time"
-                          value={wh.endTime}
-                          onChange={e => setLocalWorkingHours(prev => prev.map((h, idx) => idx === i ? { ...h, endTime: e.target.value } : h))}
-                          className="w-24 text-xs p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-center font-bold text-zinc-800 focus:ring-2 focus:ring-amber-500/20 outline-none"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 ml-auto">
-                        <span className={cn("text-[10px] font-black uppercase tracking-widest", wh.isOpen ? "text-emerald-600" : "text-zinc-400")}>
-                          {wh.isOpen ? "Aberto" : "Fechado"}
-                        </span>
-                        <button
-                          onClick={() => setLocalWorkingHours(prev => prev.map((h, idx) => idx === i ? { ...h, isOpen: !h.isOpen } : h))}
-                          className={cn(
-                            "relative w-11 h-6 rounded-full transition-all duration-200",
-                            wh.isOpen ? "bg-amber-500" : "bg-zinc-200"
-                          )}
-                        >
-                          <div className={cn(
-                            "absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200",
-                            wh.isOpen ? "left-6" : "left-1"
-                          )} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Feriados & Fechamentos */}
-            <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-              <div className="flex items-center gap-4 p-6 border-b border-zinc-100">
-                <div className="p-3 bg-rose-50 rounded-xl border border-rose-100">
-                  <CalendarOff size={20} className="text-rose-500" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-zinc-900">Feriados & Fechamentos</h3>
-                  <p className="text-[10px] text-zinc-400 font-medium">Datas bloqueadas na agenda dos clientes</p>
-                </div>
-              </div>
-
-              {/* Adicionar feriado */}
-              <div className="p-6 border-b border-zinc-100 bg-zinc-50/60">
-                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3">Adicionar data fechada</p>
-                <div className="flex gap-3">
-                  <input
-                    type="date"
-                    value={newHoliday.date}
-                    onChange={e => setNewHoliday(prev => ({ ...prev, date: e.target.value }))}
-                    className="text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Ex: Natal, Recesso..."
-                    value={newHoliday.name}
-                    onChange={e => setNewHoliday(prev => ({ ...prev, name: e.target.value }))}
-                    className="flex-1 text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
-                  />
-                  <button
-                    onClick={() => {
-                      if (!newHoliday.date || !newHoliday.name) return;
-                      setHolidays(prev => [...prev, { id: Date.now().toString(), ...newHoliday }]);
-                      setNewHoliday({ date: '', name: '' });
-                    }}
-                    className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-xl transition-all"
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Lista de feriados */}
-              {holidays.length === 0 ? (
-                <div className="p-10 flex flex-col items-center gap-2 text-center">
-                  <Sun size={28} className="text-zinc-300" />
-                  <p className="text-xs font-bold text-zinc-400">Nenhuma data cadastrada ainda</p>
-                  <p className="text-[10px] text-zinc-300">Adicione feriados e dias de folga acima</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-zinc-100">
-                  {holidays.map(h => (
-                    <div key={h.id} className="flex items-center gap-4 px-6 py-4">
-                      <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex flex-col items-center justify-center">
-                        <span className="text-[9px] font-black text-rose-400 uppercase leading-none">
-                          {format(new Date(h.date + 'T12:00:00'), 'MMM', { locale: ptBR })}
-                        </span>
-                        <span className="text-sm font-black text-rose-600 leading-none">
-                          {format(new Date(h.date + 'T12:00:00'), 'dd')}
-                        </span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs font-bold text-zinc-800">{h.name}</p>
-                        <p className="text-[10px] text-zinc-400">
-                          {format(new Date(h.date + 'T12:00:00'), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setHolidays(prev => prev.filter(x => x.id !== h.id))}
-                        className="p-2 rounded-lg hover:bg-red-50 text-zinc-300 hover:text-red-500 transition-all"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <HorariosTab
+            workingHours={workingHours}
+            localWorkingHours={localWorkingHours}
+            setLocalWorkingHours={setLocalWorkingHours}
+            holidays={holidays}
+            setHolidays={setHolidays}
+            newHoliday={newHoliday}
+            setNewHoliday={setNewHoliday}
+          />
         )}
 
         {/* ── CONFIGURAÇÕES ────────────────────────────────────── */}
         {activeTab === 'settings' && (
-          <div className="max-w-2xl space-y-3">
-            {/* Card: Informações do Studio */}
-            {[
-              {
-                id: 'studio',
-                icon: <Store size={18} />,
-                iconBg: 'bg-blue-50 border-blue-100',
-                iconColor: 'text-blue-600',
-                title: 'Informações do Studio',
-                subtitle: 'Nome, contato e endereço',
-                content: (
-                  <div className="space-y-4 pt-2">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5"><Store size={10}/> Nome do Studio</label>
-                      <input type="text" defaultValue="Glow & Cut Studio" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5"><Phone size={10}/> Telefone</label>
-                      <input type="text" defaultValue="(11) 99999-9999" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5"><MapPin size={10}/> Endereço</label>
-                      <input type="text" defaultValue="Rua das Flores, 123 - Centro" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none" />
-                    </div>
-                    <Button className="w-full bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl py-3 font-bold shadow-sm">
-                      Salvar Informações
-                    </Button>
-                  </div>
-                )
-              },
-              {
-                id: 'tema',
-                icon: <Palette size={18} />,
-                iconBg: 'border',
-                iconColor: '',
-                iconStyle: { background: currentTheme.light, borderColor: currentTheme.border },
-                iconInner: <div className="w-4 h-4 rounded-full" style={{ background: currentTheme.hex }} />,
-                title: 'Personalização de Tema',
-                subtitle: `Cor atual: ${currentTheme.label}`,
-                content: (
-                  <div className="space-y-5 pt-2">
-                    <div className="flex flex-wrap gap-3">
-                      {themeColors.map(color => (
-                        <button
-                          key={color.value}
-                          onClick={() => handleThemeChange(color.value)}
-                          title={color.label}
-                          className="relative flex flex-col items-center gap-1.5 transition-all"
-                        >
-                          <div
-                            className={cn(
-                              "w-9 h-9 rounded-full shadow-md transition-all duration-200",
-                              themeColor === color.value
-                                ? "scale-110 ring-2 ring-offset-2 ring-zinc-800"
-                                : "hover:scale-110 hover:shadow-lg"
-                            )}
-                            style={{ background: color.hex }}
-                          >
-                            {themeColor === color.value && (
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                                  <path d="M3 8l3.5 3.5L13 5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                              </div>
-                            )}
-                          </div>
-                          <span className={cn("text-[9px] font-black uppercase tracking-widest", themeColor === color.value ? "text-zinc-800" : "text-zinc-400")}>{color.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
-                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Pré-visualização</p>
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <button className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm" style={{ background: currentTheme.hex }}>Botão Principal</button>
-                        <button className="px-4 py-2 rounded-xl text-xs font-bold border" style={{ background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }}>Secundário</button>
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold" style={{ background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }}>
-                          <div className="w-2 h-2 rounded-full" style={{ background: currentTheme.hex }} />Badge
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-[9px] text-zinc-400">✓ A cor é salva e aplicada imediatamente em toda a interface.</p>
-                  </div>
-                )
-              },
-              {
-                id: 'perigo',
-                icon: <AlertTriangle size={18} />,
-                iconBg: 'bg-red-50 border-red-100',
-                iconColor: 'text-red-500',
-                title: 'Zona de Perigo',
-                subtitle: 'Ações irreversíveis',
-                content: (
-                  <div className="space-y-3 pt-2">
-                    <p className="text-[10px] text-zinc-500 leading-relaxed">Estas ações não podem ser desfeitas. Tenha certeza antes de continuar.</p>
-                    <button className="w-full py-3 rounded-xl text-[10px] font-bold border border-red-200 text-red-600 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all uppercase tracking-widest">
-                      Limpar Banco de Dados
-                    </button>
-                  </div>
-                )
-              }
-            ].map(card => (
-              <div key={card.id} className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-                <button
-                  className="w-full flex items-center gap-4 p-5 text-left hover:bg-zinc-50/70 transition-colors"
-                  onClick={() => setSettingsOpenCard(settingsOpenCard === card.id ? null : card.id)}
-                >
-                  <div className={cn("p-2.5 rounded-xl border", card.iconBg, card.iconColor)} style={card.iconStyle}>
-                    {card.iconInner || card.icon}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-zinc-900">{card.title}</p>
-                    <p className="text-[10px] text-zinc-400 font-medium mt-0.5">{card.subtitle}</p>
-                  </div>
-                  <ChevronDown
-                    size={16}
-                    className={cn("text-zinc-400 transition-transform duration-200", settingsOpenCard === card.id && "rotate-180")}
-                  />
-                </button>
-                {settingsOpenCard === card.id && (
-                  <div className="px-5 pb-5 border-t border-zinc-100">
-                    {card.content}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <SettingsTab
+            currentTheme={currentTheme}
+            themeColors={themeColors}
+            themeColor={themeColor}
+            handleThemeChange={handleThemeChange}
+            settingsOpenCard={settingsOpenCard}
+            setSettingsOpenCard={setSettingsOpenCard}
+          />
         )}
 
       </motion.div>
@@ -2581,7 +1598,7 @@ export default function AdminDashboard() {
                   <div className="px-6 pt-4 pb-3 shrink-0">
                     <div className="flex gap-1 p-1 bg-zinc-100 rounded-xl">
                       {([
-                        { value:'atendimento', label:'Consulta', icon:<Scissors size={13}/> },
+                        { value:'atendimento', label:'Agendamento', icon:<Scissors size={13}/> },
                         { value:'pessoal',     label:'Evento Pessoal', icon:<Users size={13}/> },
                         { value:'bloqueio',    label:'Bloqueio Agenda', icon:<CalendarOff size={13}/> },
                       ] as const).map(t => (
@@ -3072,142 +2089,244 @@ export default function AdminDashboard() {
         })()}
       </AnimatePresence>
 
-      <Modal isOpen={isComandaModalOpen} onClose={() => setIsComandaModalOpen(false)} title="Nova Comanda">
-        <div className="space-y-4">
-          {/* Client */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Telefone</label>
-              <input
-                type="tel"
-                className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-                placeholder="(00) 00000-0000"
-                value={newComanda.clientPhone}
-                onChange={e => setNewComanda({ ...newComanda, clientPhone: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Nome (novo cliente)</label>
-              <input
-                type="text"
-                className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-                placeholder="Se for novo cliente..."
-                value={newComanda.clientName}
-                onChange={e => setNewComanda({ ...newComanda, clientName: e.target.value })}
-              />
-            </div>
-          </div>
+      {/* ═══ MODAL NOVA COMANDA ═══════════════════════════════ */}
+      <AnimatePresence>
+        {isComandaModalOpen && (() => {
+          const closeComanda = () => { setIsComandaModalOpen(false); setComandaClientSearchResults([]); setNewComanda({ clientId: "", clientPhone: "", clientName: "", items: [], discount: "0", discountType: "value", paymentMethod: "cash" }); };
+          const subtotal = newComanda.items.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+          const d = parseFloat(newComanda.discount) || 0;
+          const total = newComanda.discountType === 'percentage' ? subtotal * (1 - d / 100) : subtotal - d;
+          return (
+            <>
+              <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+                onClick={closeComanda} className="fixed inset-0 z-50 bg-black/20" />
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+                <motion.div initial={{opacity:0,scale:0.97,y:8}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.97,y:8}} transition={{duration:0.18}}
+                  className="w-full max-w-lg bg-white rounded-2xl shadow-xl pointer-events-auto border border-zinc-200 flex flex-col max-h-[90vh]">
 
-          {/* Services */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Serviços / Itens</label>
-            <select
-              className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-              onChange={(e) => handleAddServiceToComanda(e.target.value)}
-              value=""
-            >
-              <option value="" disabled>Adicionar serviço ou pacote...</option>
-              {services.map(s => (
-                <option key={s.id} value={s.id}>{s.name} — R$ {s.price}</option>
-              ))}
-            </select>
-
-            <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
-              {newComanda.items.map(item => (
-                <div key={item.id} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100">
-                  <div>
-                    <span className="text-xs font-bold text-zinc-800">{item.name}</span>
-                    <span className="text-[9px] text-zinc-500 ml-2">R$ {item.price}/un</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min={1}
-                      className="w-12 text-xs p-1.5 bg-white border border-zinc-200 rounded-lg text-center text-zinc-800 font-bold outline-none"
-                      value={item.quantity}
-                      onChange={(e) => { const val = parseInt(e.target.value); setNewComanda(prev => ({ ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, quantity: val } : i) })); }}
-                    />
-                    <span className="text-[10px] font-bold text-zinc-700">= R$ {(item.price * item.quantity).toFixed(2)}</span>
-                    <button onClick={() => setNewComanda(prev => ({ ...prev, items: prev.items.filter(i => i.id !== item.id) }))} className="text-red-400 hover:text-red-600 transition-colors ml-1">
-                      <XCircle size={16} />
+                  {/* Header */}
+                  <div className="flex items-start justify-between px-6 pt-5 pb-0 shrink-0">
+                    <div>
+                      <h2 className="text-base font-bold text-zinc-900">Nova Comanda</h2>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">Abra uma comanda para registrar serviços e pagamento</p>
+                    </div>
+                    <button onClick={closeComanda} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-all mt-0.5">
+                      <X size={16} />
                     </button>
                   </div>
-                </div>
-              ))}
-              {newComanda.items.length === 0 && (
-                <p className="text-[10px] text-zinc-400 text-center py-3 italic">Nenhum item adicionado</p>
-              )}
-            </div>
-          </div>
 
-          {/* Discount */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Desconto</label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  className="flex-1 text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-                  value={newComanda.discount}
-                  onChange={e => setNewComanda({ ...newComanda, discount: e.target.value })}
-                />
-                <select
-                  className="w-14 text-[10px] p-2 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-700 font-bold outline-none"
-                  value={newComanda.discountType}
-                  onChange={e => setNewComanda({ ...newComanda, discountType: e.target.value as any })}
-                >
-                  <option value="value">R$</option>
-                  <option value="percentage">%</option>
-                </select>
+                  {/* Scrollable Content */}
+                  <div className="px-6 py-5 overflow-y-auto flex-1 space-y-5">
+                    {/* ── CLIENTE ── */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1 h-4 rounded-full bg-amber-500" />
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Cliente</p>
+                      </div>
+
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"><Users size={13}/></div>
+                        <input type="text"
+                          className="w-full text-xs pl-8 pr-8 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
+                          placeholder="Buscar cliente pelo nome..."
+                          value={newComanda.clientName}
+                          onChange={e => handleSearchClientForComanda(e.target.value)}
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"><Search size={13}/></div>
+                        {comandaClientSearchResults.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 bg-white border border-zinc-200 rounded-xl shadow-xl z-50 max-h-44 overflow-y-auto mt-1 p-1">
+                            {comandaClientSearchResults.map(c => (
+                              <button key={c.id} onClick={() => handleSelectClientForComanda(c)}
+                                className="w-full text-left px-3 py-2.5 text-xs hover:bg-zinc-50 rounded-lg transition-all border-b border-zinc-100 last:border-0">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 font-bold text-[10px]">
+                                      {c.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <p className="font-bold text-zinc-900">{c.name}</p>
+                                      <p className="text-zinc-400 text-[10px]">{c.phone}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                            <button onClick={() => { setComandaClientSearchResults([]); setIsClientModalOpen(true); }}
+                              className="w-full text-left px-3 py-2.5 text-xs text-amber-600 font-bold hover:bg-amber-50 rounded-lg transition-all flex items-center gap-2">
+                              <Plus size={12}/> Novo cliente
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {newComanda.clientId && (
+                        <p className="text-[9px] text-emerald-600 font-bold flex items-center gap-1 ml-1 mt-1.5">
+                          <CheckCircle size={10}/> {newComanda.clientName} • {newComanda.clientPhone}
+                        </p>
+                      )}
+
+                      {/* Fallback: phone + name if no client selected */}
+                      {!newComanda.clientId && newComanda.clientName.length > 0 && comandaClientSearchResults.length === 0 && (
+                        <div className="grid grid-cols-2 gap-3 mt-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Telefone *</label>
+                            <input type="tel"
+                              className="w-full text-xs p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                              placeholder="(00) 00000-0000"
+                              value={newComanda.clientPhone}
+                              onChange={e => setNewComanda(prev => ({ ...prev, clientPhone: e.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Nome</label>
+                            <div className="w-full text-xs p-2.5 bg-zinc-100 border border-zinc-200 rounded-xl text-zinc-600 font-bold">
+                              {newComanda.clientName}
+                            </div>
+                          </div>
+                          <p className="col-span-2 text-[9px] text-amber-500 font-medium -mt-1">Cliente não encontrado. Preencha o telefone para cadastrar automaticamente.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── SERVIÇOS ── */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1 h-4 rounded-full bg-emerald-500" />
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Serviços / Itens</p>
+                      </div>
+
+                      <div className="relative">
+                        <select
+                          className="w-full appearance-none text-xs p-3 pr-8 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-700 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
+                          onChange={(e) => handleAddServiceToComanda(e.target.value)}
+                          value=""
+                        >
+                          <option value="" disabled>Adicionar serviço ou pacote...</option>
+                          {services.map(s => (
+                            <option key={s.id} value={s.id}>{s.name} — R$ {Number(s.price).toFixed(2)}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"/>
+                      </div>
+
+                      <div className="space-y-2 max-h-40 overflow-y-auto pr-1 mt-3">
+                        {newComanda.items.map(item => (
+                          <div key={item.id} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100 hover:border-zinc-200 transition-all">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                                <Scissors size={11} className="text-emerald-600"/>
+                              </div>
+                              <div>
+                                <span className="text-xs font-bold text-zinc-800">{item.name}</span>
+                                <span className="text-[9px] text-zinc-400 ml-1.5">R$ {item.price.toFixed(2)}/un</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min={1}
+                                className="w-11 text-xs p-1.5 bg-white border border-zinc-200 rounded-lg text-center text-zinc-800 font-bold outline-none"
+                                value={item.quantity}
+                                onChange={(e) => { const val = parseInt(e.target.value); setNewComanda(prev => ({ ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, quantity: val } : i) })); }}
+                              />
+                              <span className="text-[10px] font-bold text-emerald-600">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                              <button onClick={() => setNewComanda(prev => ({ ...prev, items: prev.items.filter(i => i.id !== item.id) }))} className="text-red-300 hover:text-red-500 transition-colors ml-0.5">
+                                <XCircle size={15} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {newComanda.items.length === 0 && (
+                          <div className="py-6 text-center">
+                            <Scissors size={20} className="text-zinc-200 mx-auto mb-2"/>
+                            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Nenhum item adicionado</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ── PAGAMENTO ── */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1 h-4 rounded-full bg-violet-400" />
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Pagamento</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Desconto</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              className="flex-1 text-xs p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                              value={newComanda.discount}
+                              onChange={e => setNewComanda({ ...newComanda, discount: e.target.value })}
+                            />
+                            <select
+                              className="w-14 text-[10px] p-2 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-700 font-bold outline-none"
+                              value={newComanda.discountType}
+                              onChange={e => setNewComanda({ ...newComanda, discountType: e.target.value as any })}
+                            >
+                              <option value="value">R$</option>
+                              <option value="percentage">%</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Total</label>
+                          <div className="w-full text-sm p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl font-black text-emerald-700 flex items-center justify-center">
+                            R$ {total.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-1.5">
+                        <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Forma de Pagamento</label>
+                        <div className="grid grid-cols-4 gap-2">
+                          {([
+                            { value: 'cash', label: 'Dinheiro', icon: <Banknote size={13}/> },
+                            { value: 'card', label: 'Cartão', icon: <DollarSign size={13}/> },
+                            { value: 'pix', label: 'PIX', icon: <Zap size={13}/> },
+                            { value: 'transfer', label: 'Transf.', icon: <ArrowUpRight size={13}/> },
+                          ] as const).map(opt => (
+                            <button
+                              key={opt.value}
+                              onClick={() => setNewComanda({ ...newComanda, paymentMethod: opt.value })}
+                              className={cn(
+                                "py-2.5 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-1",
+                                newComanda.paymentMethod === opt.value
+                                  ? "bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-500/20"
+                                  : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:bg-zinc-100"
+                              )}
+                            >
+                              {opt.icon}
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 shrink-0">
+                    <button onClick={closeComanda} className="px-4 py-2 text-sm font-bold text-zinc-400 hover:text-zinc-700 transition-all">
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleCreateComanda}
+                      disabled={(!newComanda.clientId && !newComanda.clientPhone) || newComanda.items.length === 0}
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/20 transition-all disabled:opacity-40"
+                    >
+                      <CheckCircle size={15}/>
+                      Abrir Comanda
+                    </button>
+                  </div>
+                </motion.div>
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Total</label>
-              <div className="w-full text-sm p-3 bg-amber-50 border border-amber-200 rounded-xl font-black text-amber-700 flex items-center justify-center">
-                R$ {(() => {
-                  const subtotal = newComanda.items.reduce((acc, i) => acc + (i.price * i.quantity), 0);
-                  const d = parseFloat(newComanda.discount) || 0;
-                  return newComanda.discountType === 'percentage' ? (subtotal * (1 - d / 100)).toFixed(2) : (subtotal - d).toFixed(2);
-                })()}
-              </div>
-            </div>
-          </div>
-
-          {/* Payment method */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Forma de Pagamento</label>
-            <div className="grid grid-cols-4 gap-2">
-              {([
-                { value: 'cash', label: 'Dinheiro' },
-                { value: 'card', label: 'Cartão' },
-                { value: 'pix', label: 'PIX' },
-                { value: 'transfer', label: 'Transf.' },
-              ] as const).map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => setNewComanda({ ...newComanda, paymentMethod: opt.value })}
-                  className={cn(
-                    "py-2.5 rounded-xl text-[10px] font-bold transition-all border",
-                    newComanda.paymentMethod === opt.value
-                      ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-                      : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:border-zinc-300"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <Button
-            className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-bold shadow-sm"
-            onClick={handleCreateComanda}
-            disabled={!newComanda.clientPhone || newComanda.items.length === 0}
-          >
-            Abrir Comanda
-          </Button>
-        </div>
-      </Modal>
+            </>
+          );
+        })()}
+      </AnimatePresence>
 
       <Modal isOpen={isProfessionalModalOpen} onClose={() => { setIsProfessionalModalOpen(false); setEditingProfessional(null); }} title={editingProfessional ? "Editar Profissional" : "Novo Profissional"}>
         <div className="space-y-4">
@@ -3512,43 +2631,4 @@ function NavItem({ active, icon, label, onClick }: { active: boolean, icon: Reac
   );
 }
 
-function StatCard({ title, value, icon: Icon, trend, description }: {
-  title: string,
-  value: string | number,
-  icon: any,
-  trend?: { value: number, isUp: boolean },
-  description?: string
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white p-5 rounded-2xl shadow-sm border border-zinc-200 hover:shadow-md transition-all group relative overflow-hidden"
-    >
-      <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700" />
-
-      <div className="flex justify-between items-start mb-4 relative z-10">
-        <div className="p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-amber-600 group-hover:bg-amber-500 group-hover:text-white group-hover:border-amber-500 transition-all duration-300">
-          <Icon size={18} />
-        </div>
-        {trend && (
-          <div className={cn(
-            "flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border",
-            trend.isUp ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-red-50 text-red-500 border-red-200"
-          )}>
-            {trend.isUp ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
-            {trend.value}%
-          </div>
-        )}
-      </div>
-      <div className="relative z-10">
-        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">{title}</p>
-        <h3 className="text-2xl font-black text-zinc-900 tracking-tight">{value}</h3>
-        {description && <p className="text-[10px] text-zinc-400 mt-1.5 font-medium flex items-center gap-1.5">
-          <span className="w-1 h-1 rounded-full bg-zinc-300" />
-          {description}
-        </p>}
-      </div>
-    </motion.div>
-  );
-}
+// Moved to src/components/ui/StatCard.tsx

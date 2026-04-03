@@ -73,10 +73,11 @@ app.get("/api/clients/search", async (req, res) => {
     return res.json(client);
   }
   if (name) {
-    const clients = await prisma.client.findMany({
-      where: { name: { contains: String(name) } },
+    const searchTerm = String(name).toLowerCase();
+    const allClients = await prisma.client.findMany({
       include: { comandas: { where: { status: "open" } } }
     });
+    const clients = allClients.filter(c => c.name.toLowerCase().includes(searchTerm));
     return res.json(clients);
   }
   res.status(400).json({ error: "Phone or name required" });
