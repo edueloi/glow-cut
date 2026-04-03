@@ -173,6 +173,7 @@ model AdminUser {
   tenant         Tenant   @relation(fields: [tenantId], references: [id])
   createdAt      DateTime @default(now())
   lastLogin      DateTime?
+  permissions    String?  // JSON array ex: ["agenda.ver","clientes.criar"]
 }
 
 // ─── Legacy user model (mantido por compatibilidade) ─────────────────────────

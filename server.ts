@@ -444,10 +444,13 @@ app.put("/api/settings/working-hours", async (req, res) => {
 
 // Seed super admin on startup
 async function seedSuperAdmin() {
-  const count = await prisma.superAdmin.count();
-  if (count === 0) {
+  const existing = await prisma.superAdmin.findFirst({ where: { username: "Admin" } });
+  if (!existing) {
     await prisma.superAdmin.create({ data: { username: "Admin", password: "super123" } });
     console.log("✅ Super admin criado: Admin / super123");
+  } else if (existing.password !== "super123") {
+    await prisma.superAdmin.update({ where: { id: existing.id }, data: { password: "super123" } });
+    console.log("✅ Super admin senha resetada: Admin / super123");
   }
   // Seed default plans
   const planCount = await prisma.plan.count();
@@ -464,7 +467,7 @@ async function seedSuperAdmin() {
 }
 seedSuperAdmin();
 
-// Super Admin login
+// Super Admin login (mantido para compatibilidade)
 app.post("/api/super-admin/login", async (req, res) => {
   const { username, password } = req.body;
   const sa = await prisma.superAdmin.findFirst({ where: { username, password } });
@@ -472,7 +475,7 @@ app.post("/api/super-admin/login", async (req, res) => {
   res.json({ id: sa.id, username: sa.username, role: "superadmin" });
 });
 
-// Admin User login
+// Admin User login (mantido para compatibilidade)
 app.post("/api/admin/login", async (req, res) => {
   const { email, password } = req.body;
   const user = await prisma.adminUser.findFirst({
@@ -493,6 +496,43 @@ app.post("/api/admin/login", async (req, res) => {
     canCreateUsers: user.canCreateUsers,
     canDeleteAccount: user.canDeleteAccount,
   });
+});
+
+// Login unificado — tenta super admin e admin com as mesmas credenciais
+app.post("/api/login", async (req, res) => {
+  const { identifier, password } = req.body;
+  if (!identifier || !password) return res.status(400).json({ error: "Preencha todos os campos." });
+
+  // 1) Tenta super admin
+  const sa = await prisma.superAdmin.findFirst({ where: { username: identifier, password } });
+  if (sa) {
+    return res.json({ type: "superadmin", id: sa.id, username: sa.username, role: "superadmin" });
+  }
+
+  // 2) Tenta admin normal (por email)
+  const adminUser = await prisma.adminUser.findFirst({
+    where: { email: identifier, password, isActive: true },
+    include: { tenant: { include: { plan: true } } }
+  });
+  if (adminUser) {
+    await prisma.adminUser.update({ where: { id: adminUser.id }, data: { lastLogin: new Date() } });
+    return res.json({
+      type: "admin",
+      id: adminUser.id,
+      name: adminUser.name,
+      email: adminUser.email,
+      role: adminUser.role,
+      jobTitle: adminUser.jobTitle,
+      tenantId: adminUser.tenantId,
+      tenantName: adminUser.tenant.name,
+      planName: adminUser.tenant.plan.name,
+      canCreateUsers: adminUser.canCreateUsers,
+      canDeleteAccount: adminUser.canDeleteAccount,
+      permissions: adminUser.permissions,
+    });
+  }
+
+  return res.status(401).json({ error: "Usuário ou senha inválidos." });
 });
 
 // ── Plans ────────────────────────────────────────────────────
