@@ -42,8 +42,17 @@ import {
   Phone,
   Palette,
   CalendarOff,
-  AlertTriangle
+  AlertTriangle,
+  Menu,
+  Cake,
+  Heart,
+  GraduationCap,
+  Baby,
+  MessageCircle,
+  MapPin as MapPinIcon,
+  Hash
 } from "lucide-react";
+import { maskPhone, maskCPF, maskCEP, maskDate, calculateAge } from "@/src/lib/masks";
 import { 
   format, 
   addMonths, 
@@ -128,6 +137,8 @@ export default function AdminDashboard() {
   
   // Tooltip hover state for agenda
   const [hoveredAppointment, setHoveredAppointment] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [slotHover, setSlotHover] = useState<{ x: number; y: number; label: string } | null>(null);
   // Client comanda status for appointment modal
   const [clientComandaStatus, setClientComandaStatus] = useState<"none" | "open" | "paid" | null>(null);
 
@@ -135,14 +146,24 @@ export default function AdminDashboard() {
   const [newAppointment, setNewAppointment] = useState({
     date: new Date(),
     startTime: "09:00",
+    duration: 60,
     clientId: "",
     clientPhone: "",
     clientName: "",
     serviceId: "",
     professionalId: "",
+    status: "agendado" as "agendado" | "confirmado" | "realizado" | "cancelado" | "faltou" | "reagendado",
+    notes: "",
     recurrence: { type: "none", count: 1, interval: 7 },
     comandaId: "" as string | null,
     type: "atendimento" as "atendimento" | "bloqueio" | "pessoal"
+  });
+  const [isRepeatModalOpen, setIsRepeatModalOpen] = useState(false);
+  const [isCustomRepeatModalOpen, setIsCustomRepeatModalOpen] = useState(false);
+  const [repeatLabel, setRepeatLabel] = useState("Não Repete");
+  const [customRepeat, setCustomRepeat] = useState({
+    frequency: "Semanalmente", interval: 1, unit: "SEMANA(S)",
+    endType: "count" as "count" | "date", count: 4, endDate: ""
   });
 
   // New Comanda State
@@ -156,11 +177,31 @@ export default function AdminDashboard() {
   });
 
   // New Client State
-  const [newClient, setNewClient] = useState({
+  const emptyClient = {
     name: "",
     phone: "",
-    age: ""
-  });
+    whatsapp: true,
+    cpf: "",
+    birthDate: "",
+    email: "",
+    cep: "",
+    street: "",
+    number: "",
+    complement: "",
+    neighborhood: "",
+    city: "",
+    state: "",
+    hasChildren: false,
+    isMarried: false,
+    spouseName: "",
+    maritalStatus: "" as "" | "solteiro" | "casado" | "divorciado" | "viuvo" | "uniao_estavel",
+    education: "" as "" | "fundamental" | "medio" | "superior" | "pos" | "mestrado" | "doutorado",
+    notes: ""
+  };
+  const [newClient, setNewClient] = useState({ ...emptyClient });
+  const [editingClient, setEditingClient] = useState<any>(null);
+  const [isCepLoading, setIsCepLoading] = useState(false);
+  const [clientPersonalOpen, setClientPersonalOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/services").then(res => res.json()).then(setServices);
@@ -230,17 +271,14 @@ export default function AdminDashboard() {
     });
     setIsAppointmentModalOpen(false);
     setNewAppointment({
-      date: new Date(),
-      startTime: "09:00",
-      clientId: "",
-      clientPhone: "",
-      clientName: "",
-      serviceId: "",
-      professionalId: "",
+      date: new Date(), startTime: "09:00", duration: 60,
+      clientId: "", clientPhone: "", clientName: "",
+      serviceId: "", professionalId: "",
+      status: "agendado", notes: "",
       recurrence: { type: "none", count: 1, interval: 7 },
-      comandaId: null,
-      type: "atendimento"
+      comandaId: null, type: "atendimento"
     });
+    setRepeatLabel("Não Repete");
     setClientComandaStatus(null);
     fetchAppointments();
   };
@@ -290,14 +328,70 @@ export default function AdminDashboard() {
   };
 
   const handleCreateClient = async () => {
-    await fetch("/api/clients", {
-      method: "POST",
+    const url = editingClient ? `/api/clients/${editingClient.id}` : "/api/clients";
+    const method = editingClient ? "PUT" : "POST";
+    await fetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newClient)
     });
     setIsClientModalOpen(false);
-    setNewClient({ name: "", phone: "", age: "" });
+    setEditingClient(null);
+    setNewClient({ ...emptyClient });
     fetch("/api/clients").then(res => res.json()).then(setClients);
+  };
+
+  const handleDeleteClient = async (id: string) => {
+    if (!confirm("Excluir este cliente?")) return;
+    await fetch(`/api/clients/${id}`, { method: "DELETE" });
+    fetch("/api/clients").then(res => res.json()).then(setClients);
+  };
+
+  const handleEditClient = (client: any) => {
+    setEditingClient(client);
+    setNewClient({
+      name: client.name || "",
+      phone: client.phone || "",
+      whatsapp: client.whatsapp ?? true,
+      cpf: client.cpf || "",
+      birthDate: client.birthDate || "",
+      email: client.email || "",
+      cep: client.cep || "",
+      street: client.street || "",
+      number: client.number || "",
+      complement: client.complement || "",
+      neighborhood: client.neighborhood || "",
+      city: client.city || "",
+      state: client.state || "",
+      hasChildren: client.hasChildren ?? false,
+      isMarried: client.isMarried ?? false,
+      spouseName: client.spouseName || "",
+      maritalStatus: client.maritalStatus || "",
+      education: client.education || "",
+      notes: client.notes || ""
+    });
+    setIsClientModalOpen(true);
+  };
+
+  const handleCepSearch = async (cep: string) => {
+    const raw = cep.replace(/\D/g, "");
+    if (raw.length !== 8) return;
+    setIsCepLoading(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${raw}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setNewClient(prev => ({
+          ...prev,
+          street: data.logradouro || prev.street,
+          neighborhood: data.bairro || prev.neighborhood,
+          city: data.localidade || prev.city,
+          state: data.uf || prev.state,
+        }));
+      }
+    } catch { /* ignore */ } finally {
+      setIsCepLoading(false);
+    }
   };
 
   const handleSearchClientByName = async (name: string) => {
@@ -503,9 +597,31 @@ export default function AdminDashboard() {
   });
 
   return (
-    <div className="flex h-screen bg-zinc-50 text-zinc-700 font-sans selection:bg-amber-500/30">
+    <div className="flex h-screen bg-zinc-50 text-zinc-700 font-sans selection:bg-amber-500/30 overflow-hidden">
+      {/* ── Tooltip flutuante de slot ───────────────────────── */}
+      {slotHover && (
+        <div className="fixed z-[200] pointer-events-none" style={{ left: slotHover.x + 14, top: slotHover.y - 36 }}>
+          <div className="bg-zinc-900/95 text-white text-[11px] font-bold rounded-xl px-3 py-2 shadow-2xl whitespace-nowrap flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
+              <Plus size={11} className="text-white"/>
+            </span>
+            {slotHover.label}
+          </div>
+          <div className="w-2 h-2 bg-zinc-900/95 rotate-45 ml-3 -mt-1" />
+        </div>
+      )}
+
+      {/* ── Overlay mobile sidebar ──────────────────────────── */}
+      {isSidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-72 bg-white border-r border-zinc-200 flex flex-col z-20 shadow-sm">
+      <aside className={cn(
+        "bg-white border-r border-zinc-200 flex flex-col z-50 shadow-sm transition-transform duration-300",
+        "fixed inset-y-0 left-0 w-72 lg:relative lg:translate-x-0",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      )}>
         <div className="p-8">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20">
@@ -606,81 +722,75 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-zinc-50">
         {/* Header */}
-        <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-zinc-200 px-8 flex items-center justify-between sticky top-0 z-10">
-          <div>
-            <h2 className="text-xl font-bold text-zinc-900 font-display capitalize tracking-tight">
-              {activeTab === 'dash' ? 'Painel de Controle' :
-               activeTab === 'agenda' ? 'Agenda de Atendimentos' :
-               activeTab === 'services' ? 'Serviços & Pacotes' :
-               activeTab === 'clients' ? 'Meus Clientes' :
-               activeTab === 'comandas' ? 'Comandas' :
-               activeTab === 'fluxo' ? 'Fluxo de Caixa' :
-               activeTab === 'professionals' ? 'Profissionais' :
-               activeTab === 'horarios' ? 'Horários & Feriados' : 'Configurações'}
-            </h2>
-            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">
-              {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
-            </p>
+        <header className="h-16 md:h-20 bg-white/90 backdrop-blur-xl border-b border-zinc-200 px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 shrink-0">
+          <div className="flex items-center gap-3">
+            {/* Hamburger — mobile only */}
+            <button onClick={() => setIsSidebarOpen(true)} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 lg:hidden transition-all">
+              <Menu size={20} />
+            </button>
+            <div>
+              <h2 className="text-sm md:text-xl font-bold text-zinc-900 font-display capitalize tracking-tight leading-tight">
+                {activeTab === 'dash' ? 'Painel de Controle' :
+                 activeTab === 'agenda' ? 'Agenda' :
+                 activeTab === 'services' ? 'Serviços & Pacotes' :
+                 activeTab === 'clients' ? 'Clientes' :
+                 activeTab === 'comandas' ? 'Comandas' :
+                 activeTab === 'fluxo' ? 'Fluxo de Caixa' :
+                 activeTab === 'professionals' ? 'Profissionais' :
+                 activeTab === 'horarios' ? 'Horários' : 'Configurações'}
+              </h2>
+              <p className="text-[9px] md:text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5 hidden sm:block">
+                {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="relative hidden md:block">
+          <div className="flex items-center gap-2 md:gap-4">
+            <div className="relative hidden lg:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
               <input
                 type="text"
                 placeholder="Buscar cliente ou serviço..."
-                className="pl-10 pr-4 py-2 bg-zinc-100 border border-zinc-200 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 rounded-xl text-xs w-64 transition-all outline-none text-zinc-700"
+                className="pl-10 pr-4 py-2 bg-zinc-100 border border-zinc-200 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 rounded-xl text-xs w-56 transition-all outline-none text-zinc-700"
               />
             </div>
 
-            <button className="p-2.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-xl transition-all relative">
-              <Bell size={20} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-amber-500 rounded-full border-2 border-white"></span>
+            <button className="p-2 md:p-2.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-xl transition-all relative">
+              <Bell size={18} />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full border-2 border-white"></span>
             </button>
-            
-            <div className="h-8 w-px bg-zinc-100 mx-2"></div>
-            
+
+            <div className="h-6 w-px bg-zinc-100 hidden md:block"></div>
+
             {activeTab === 'services' && (
-              <Button size="sm" onClick={() => {
-                setNewService({
-                  name: "",
-                  description: "",
-                  price: "",
-                  duration: "",
-                  type: "service",
-                  discount: "0",
-                  discountType: "value",
-                  includedServices: []
-                });
-                setIsServiceModalOpen(true);
-              }} className="rounded-xl shadow-lg shadow-amber-500/20">
-                <Plus size={16} className="mr-2" /> Novo Serviço
+              <Button size="sm" onClick={() => { setNewService({ name:"",description:"",price:"",duration:"",type:"service",discount:"0",discountType:"value",includedServices:[] }); setIsServiceModalOpen(true); }} className="rounded-xl shadow-lg shadow-amber-500/20 text-[10px] md:text-xs">
+                <Plus size={14} className="mr-1" /><span className="hidden sm:inline">Novo </span>Serviço
               </Button>
             )}
             {activeTab === 'comandas' && (
-              <Button size="sm" onClick={() => setIsComandaModalOpen(true)} className="rounded-xl shadow-lg shadow-amber-500/20">
-                <Plus size={16} className="mr-2" /> Nova Comanda
+              <Button size="sm" onClick={() => setIsComandaModalOpen(true)} className="rounded-xl shadow-lg shadow-amber-500/20 text-[10px] md:text-xs">
+                <Plus size={14} className="mr-1" /><span className="hidden sm:inline">Nova </span>Comanda
               </Button>
             )}
             {activeTab === 'clients' && (
-              <Button size="sm" onClick={() => setIsClientModalOpen(true)} className="rounded-xl shadow-lg shadow-amber-500/20">
-                <Plus size={16} className="mr-2" /> Novo Cliente
+              <Button size="sm" onClick={() => setIsClientModalOpen(true)} className="rounded-xl shadow-lg shadow-amber-500/20 text-[10px] md:text-xs">
+                <Plus size={14} className="mr-1" /><span className="hidden sm:inline">Novo </span>Cliente
               </Button>
             )}
             {activeTab === 'agenda' && (
-              <Button size="sm" onClick={() => setIsAppointmentModalOpen(true)} className="rounded-xl shadow-lg shadow-amber-500/20">
-                <Plus size={16} className="mr-2" /> Novo Agendamento
+              <Button size="sm" onClick={() => setIsAppointmentModalOpen(true)} className="rounded-xl shadow-lg shadow-amber-500/20 text-[10px] md:text-xs">
+                <Plus size={14} className="mr-1" /><span className="hidden sm:inline">Novo </span>Agendamento
               </Button>
             )}
             {activeTab === 'professionals' && (
-              <Button size="sm" onClick={() => { setEditingProfessional(null); setNewProfessional({ name: "", role: "", password: "", showPassword: false }); setIsProfessionalModalOpen(true); }} className="rounded-xl shadow-lg shadow-amber-500/20">
-                <Plus size={16} className="mr-2" /> Novo Profissional
+              <Button size="sm" onClick={() => { setEditingProfessional(null); setNewProfessional({ name:"",role:"",password:"",showPassword:false }); setIsProfessionalModalOpen(true); }} className="rounded-xl shadow-lg shadow-amber-500/20 text-[10px] md:text-xs">
+                <Plus size={14} className="mr-1" /><span className="hidden sm:inline">Novo </span>Profissional
               </Button>
             )}
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 scrollbar-hide">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 scrollbar-hide">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -847,46 +957,97 @@ export default function AdminDashboard() {
                   )}
                 </div>
               </div>
+
+              {/* Birthday Widget */}
+              {(() => {
+                const currentMonthNum = new Date().getMonth() + 1;
+                const birthdayClients = clients.filter(c => {
+                  if (!c.birthDate) return false;
+                  const parts = c.birthDate.split("/");
+                  if (parts.length !== 3) return false;
+                  return parseInt(parts[1]) === currentMonthNum;
+                }).sort((a, b) => {
+                  const dayA = parseInt(a.birthDate.split("/")[0]);
+                  const dayB = parseInt(b.birthDate.split("/")[0]);
+                  return dayA - dayB;
+                });
+                const monthName = format(new Date(), "MMMM", { locale: ptBR });
+                return birthdayClients.length > 0 ? (
+                  <div className="bg-gradient-to-br from-pink-50 to-rose-50 p-6 rounded-2xl shadow-sm border border-pink-100">
+                    <div className="flex items-center justify-between mb-5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-pink-100 rounded-xl flex items-center justify-center">
+                          <Cake size={16} className="text-pink-500" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-zinc-900">Aniversariantes</h3>
+                          <p className="text-[10px] text-pink-500 font-bold uppercase tracking-widest capitalize">{monthName}</p>
+                        </div>
+                      </div>
+                      <span className="bg-pink-500 text-white text-[10px] font-black rounded-full w-6 h-6 flex items-center justify-center">{birthdayClients.length}</span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {birthdayClients.slice(0, 5).map(c => {
+                        const day = c.birthDate.split("/")[0];
+                        const age = calculateAge(c.birthDate);
+                        const todayDay = new Date().getDate();
+                        const isToday = parseInt(day) === todayDay;
+                        return (
+                          <div key={c.id} className={cn("flex items-center gap-3 p-2.5 rounded-xl transition-all", isToday ? "bg-pink-100 border border-pink-200" : "bg-white/70 border border-transparent")}>
+                            <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black shrink-0", isToday ? "bg-pink-500 text-white shadow-sm shadow-pink-300" : "bg-pink-50 border border-pink-100 text-pink-600")}>
+                              {c.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-zinc-900 truncate">{c.name}</p>
+                              <p className="text-[10px] text-zinc-500 font-medium">
+                                Dia {day}{age !== null ? ` · ${age} anos` : ""}
+                              </p>
+                            </div>
+                            {isToday && (
+                              <span className="text-[9px] font-black bg-pink-500 text-white px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">Hoje!</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {birthdayClients.length > 5 && (
+                        <button onClick={() => handleTabChange('clients')} className="w-full text-center text-[10px] font-bold text-pink-500 hover:text-pink-700 pt-1 transition-colors">
+                          +{birthdayClients.length - 5} mais
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
             </div>
           </div>
         )}
 
         {activeTab === 'agenda' && (
           <div className="flex flex-col h-full space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-xl w-fit">
                 {(['day', 'week', 'month'] as const).map(v => (
-                  <button
-                    key={v}
-                    onClick={() => setView(v)}
-                    className={cn(
-                      "px-5 py-2 rounded-lg text-[10px] font-bold transition-all uppercase tracking-wider",
-                      view === v ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
-                    )}
-                  >
+                  <button key={v} onClick={() => setView(v)}
+                    className={cn("px-3 sm:px-5 py-2 rounded-lg text-[10px] font-bold transition-all uppercase tracking-wider",
+                      view === v ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700")}>
                     {v === 'day' ? 'Dia' : v === 'week' ? 'Semana' : 'Mês'}
                   </button>
                 ))}
               </div>
 
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setCurrentMonth(new Date())}
-                  className="px-4 py-2 bg-white border border-zinc-200 rounded-xl text-[10px] font-bold text-zinc-600 hover:bg-zinc-50 transition-all shadow-sm uppercase tracking-wider"
-                >
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => setCurrentMonth(new Date())}
+                  className="px-3 py-2 bg-white border border-zinc-200 rounded-xl text-[10px] font-bold text-zinc-600 hover:bg-zinc-50 transition-all shadow-sm uppercase tracking-wider">
                   Hoje
                 </button>
                 <div className="flex items-center gap-1 bg-white border border-zinc-200 p-1 rounded-xl shadow-sm">
-                  <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition-colors"><ChevronLeft size={16}/></button>
-                  <span className="text-xs font-bold text-zinc-800 px-3 min-w-[130px] text-center uppercase tracking-widest">{format(currentMonth, "MMMM yyyy", { locale: ptBR })}</span>
-                  <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition-colors"><ChevronRight size={16}/></button>
+                  <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition-colors"><ChevronLeft size={15}/></button>
+                  <span className="text-[11px] font-bold text-zinc-800 px-2 min-w-[110px] text-center uppercase tracking-widest">{format(currentMonth, "MMM yyyy", { locale: ptBR })}</span>
+                  <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition-colors"><ChevronRight size={15}/></button>
                 </div>
-                <Button
-                  onClick={() => setIsAppointmentModalOpen(true)}
-                  className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-5 font-bold shadow-sm flex items-center gap-2"
-                >
-                  <Plus size={16} />
-                  Novo Agendamento
+                <Button onClick={() => setIsAppointmentModalOpen(true)}
+                  className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-3 sm:px-5 font-bold shadow-sm flex items-center gap-2 text-xs">
+                  <Plus size={15} /><span className="hidden sm:inline">Novo Agendamento</span><span className="sm:hidden">Novo</span>
                 </Button>
               </div>
             </div>
@@ -948,10 +1109,16 @@ export default function AdminDashboard() {
                             <div className="flex-1 min-h-[52px] flex flex-col gap-2">
                               {dayApps.length === 0 ? (
                                 <button
-                                  onClick={() => { setNewAppointment(prev => ({ ...prev, date: currentMonth, startTime: hourStr })); setIsAppointmentModalOpen(true); }}
-                                  className="w-full h-[40px] border-2 border-dashed border-zinc-200 rounded-xl text-[10px] font-bold text-zinc-300 hover:border-amber-300 hover:text-amber-400 transition-all opacity-0 group-hover:opacity-100"
+                                  onClick={() => { setNewAppointment(prev => ({ ...prev, date: currentMonth, startTime: hourStr })); setIsAppointmentModalOpen(true); setSlotHover(null); }}
+                                  onMouseEnter={(e) => setSlotHover({ x: e.clientX, y: e.clientY, label: `${format(currentMonth, 'EEE d', { locale: ptBR })} • ${hourStr}` })}
+                                  onMouseMove={(e) => setSlotHover(p => p ? { ...p, x: e.clientX, y: e.clientY } : null)}
+                                  onMouseLeave={() => setSlotHover(null)}
+                                  className="w-full h-[44px] rounded-xl text-[10px] font-bold transition-all duration-150 opacity-0 group-hover:opacity-100 cursor-crosshair relative overflow-hidden border border-dashed border-amber-300 bg-amber-50/40 hover:bg-amber-50 hover:border-amber-400 hover:shadow-inner flex items-center justify-center gap-2 text-amber-500 hover:text-amber-600"
                                 >
-                                  + Adicionar
+                                  <div className="w-5 h-5 rounded-full bg-amber-400/90 flex items-center justify-center">
+                                    <Plus size={11} className="text-white"/>
+                                  </div>
+                                  Clique para agendar
                                 </button>
                               ) : (
                                 dayApps.map(app => (
@@ -1072,30 +1239,45 @@ export default function AdminDashboard() {
 
                 {view === 'week' && (
                   <div className="flex flex-col h-full">
-                    <div className="grid grid-cols-8 sticky top-0 z-10 bg-white border-b border-zinc-100">
-                      <div className="p-4 border-r border-zinc-100" />
-                      {eachDayOfInterval({
-                        start: startOfWeek(currentMonth),
-                        end: endOfWeek(currentMonth)
-                      }).map(day => (
-                        <div key={day.toString()} className={cn("p-4 text-center border-r border-zinc-100", isToday(day) && "bg-amber-50/50")}>
-                          <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-1">{format(day, 'EEE', { locale: ptBR })}</p>
-                          <p className={cn("text-sm font-black", isToday(day) ? "text-amber-600" : "text-zinc-800")}>{format(day, 'd')}</p>
-                        </div>
-                      ))}
+                    {/* Week header — scroll horizontal no mobile */}
+                    <div className="overflow-x-auto scrollbar-hide">
+                      <div className="grid border-b border-zinc-100 sticky top-0 z-10 bg-white" style={{ gridTemplateColumns: '56px repeat(7, minmax(90px, 1fr))' }}>
+                        <div className="p-3 border-r border-zinc-100 shrink-0" />
+                        {eachDayOfInterval({ start: startOfWeek(currentMonth), end: endOfWeek(currentMonth) }).map(day => (
+                          <div key={day.toString()} className={cn("p-3 text-center border-r border-zinc-100 min-w-[90px]", isToday(day) && "bg-amber-50/50")}>
+                            <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-1">{format(day, 'EEE', { locale: ptBR })}</p>
+                            <p className={cn("text-sm font-black", isToday(day) ? "text-amber-600" : "text-zinc-800")}>{format(day, 'd')}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex-1 overflow-y-auto scrollbar-hide">
+                    <div className="flex-1 overflow-y-auto overflow-x-auto scrollbar-hide">
                       {Array.from({ length: 14 }).map((_, i) => {
                         const hour = i + 8;
                         return (
-                          <div key={hour} className="grid grid-cols-8 border-b border-zinc-100 group">
-                            <div className="p-4 text-[10px] font-bold text-zinc-400 text-right border-r border-zinc-100 bg-zinc-50/50">{hour}:00</div>
+                          <div key={hour} className="border-b border-zinc-100" style={{ display: 'grid', gridTemplateColumns: '56px repeat(7, minmax(90px, 1fr))' }}>
+                            <div className="p-2 text-[10px] font-bold text-zinc-400 text-right border-r border-zinc-100 bg-zinc-50/50 shrink-0 w-14">{hour}:00</div>
                             {Array.from({ length: 7 }).map((_, j) => {
                               const day = addDays(startOfWeek(currentMonth), j);
                               const hourStr = `${hour.toString().padStart(2, '0')}:00`;
                               const app = appointments.find(a => isSameDay(new Date(a.date), day) && a.startTime === hourStr);
                               return (
-                                <div key={j} className={cn("p-1 border-r border-zinc-100 min-h-[80px] transition-colors group-hover:bg-zinc-50/30 relative", isToday(day) && "bg-amber-50/30")}>
+                                <div key={j}
+                                  className={cn("p-1 border-r border-zinc-100 min-h-[80px] relative transition-colors", isToday(day) && "bg-amber-50/30")}
+                                  onMouseEnter={!app ? (e) => setSlotHover({ x: e.clientX, y: e.clientY, label: `${format(day, 'EEE d', { locale: ptBR })} • ${hourStr}` }) : undefined}
+                                  onMouseMove={!app ? (e) => setSlotHover(p => p ? { ...p, x: e.clientX, y: e.clientY } : null) : undefined}
+                                  onMouseLeave={!app ? () => setSlotHover(null) : undefined}
+                                  onClick={!app ? () => { setSlotHover(null); setNewAppointment(p => ({ ...p, date: day, startTime: hourStr })); setIsAppointmentModalOpen(true); } : undefined}
+                                >
+                                  {/* Empty slot hover indicator */}
+                                  {!app && (
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-all duration-150 cursor-crosshair group/slot">
+                                      <div className="inset-0 absolute bg-amber-50/60 border border-dashed border-amber-300 rounded-lg m-0.5 shadow-inner" />
+                                      <div className="relative z-10 w-7 h-7 rounded-full bg-amber-400/90 flex items-center justify-center shadow-sm">
+                                        <Plus size={14} className="text-white" />
+                                      </div>
+                                    </div>
+                                  )}
                                   {app && (
                                     <div className="relative group/app">
                                       <motion.div
@@ -1383,15 +1565,30 @@ export default function AdminDashboard() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="group bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm hover:shadow-md hover:border-amber-300 transition-all"
+                    className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm hover:shadow-md hover:border-amber-300 transition-all"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 text-xl font-bold">
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 text-xl font-bold shrink-0">
                         {client.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-bold text-zinc-900 truncate">{client.name}</h4>
                         <p className="text-xs text-zinc-500 mt-0.5 font-medium">{client.phone}</p>
+                        {client.birthDate && (() => {
+                          const age = calculateAge(client.birthDate);
+                          const parts = client.birthDate.split("/");
+                          const isBday = parts.length === 3 && parseInt(parts[0]) === new Date().getDate() && parseInt(parts[1]) === new Date().getMonth() + 1;
+                          return (
+                            <p className={cn("text-[10px] mt-0.5 font-bold flex items-center gap-1", isBday ? "text-pink-500" : "text-zinc-400")}>
+                              <Cake size={9} />
+                              {isBday ? "Aniversário hoje! " : ""}{age !== null ? `${age} anos` : client.birthDate}
+                            </p>
+                          );
+                        })()}
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <button onClick={() => handleEditClient(client)} className="p-1.5 bg-zinc-100 hover:bg-amber-500 hover:text-white text-zinc-500 rounded-lg transition-all"><Edit2 size={13}/></button>
+                        <button onClick={() => handleDeleteClient(client.id)} className="p-1.5 bg-zinc-100 hover:bg-red-500 hover:text-white text-zinc-500 rounded-lg transition-all"><Trash2 size={13}/></button>
                       </div>
                     </div>
 
@@ -1406,10 +1603,12 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="mt-4 flex gap-2">
-                      <button className="flex-1 py-2 rounded-xl text-[10px] font-bold border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-all">Ver Perfil</button>
-                      <button className="flex-1 py-2 rounded-xl text-[10px] font-bold border border-amber-200 text-amber-600 hover:bg-amber-50 transition-all">Agendar</button>
-                    </div>
+                    {(client.email || client.city) && (
+                      <div className="mt-3 space-y-1">
+                        {client.email && <p className="text-[10px] text-zinc-400 font-medium truncate">{client.email}</p>}
+                        {client.city && <p className="text-[10px] text-zinc-400 font-medium truncate flex items-center gap-1"><MapPinIcon size={9}/>{client.city}{client.state ? `, ${client.state}` : ""}</p>}
+                      </div>
+                    )}
                   </motion.div>
                 ))}
                 {clients.length === 0 && (
@@ -1433,21 +1632,30 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody>
                     {clients.map(client => (
-                      <tr key={client.id} className="border-b border-zinc-100 hover:bg-zinc-50 transition-colors group">
+                      <tr key={client.id} className="border-b border-zinc-100 hover:bg-zinc-50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-xs font-bold text-amber-600">
                               {client.name.charAt(0).toUpperCase()}
                             </div>
-                            <span className="text-sm font-bold text-zinc-900">{client.name}</span>
+                            <div>
+                              <span className="text-sm font-bold text-zinc-900 block">{client.name}</span>
+                              {client.birthDate && (() => {
+                                const age = calculateAge(client.birthDate);
+                                return age !== null ? <span className="text-[10px] text-zinc-400 font-medium">{age} anos</span> : null;
+                              })()}
+                            </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-xs text-zinc-500 font-medium">{client.phone}</td>
+                        <td className="px-6 py-4">
+                          <div className="text-xs text-zinc-500 font-medium">{client.phone}</div>
+                          {client.email && <div className="text-[10px] text-zinc-400">{client.email}</div>}
+                        </td>
                         <td className="px-6 py-4 text-xs font-bold text-zinc-700">{client.appointments?.length || 0}</td>
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="p-2 bg-zinc-100 hover:bg-amber-500 hover:text-white text-zinc-500 rounded-lg transition-all"><Edit2 size={14}/></button>
-                            <button className="p-2 bg-zinc-100 hover:bg-red-500 hover:text-white text-zinc-500 rounded-lg transition-all"><Trash2 size={14}/></button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => handleEditClient(client)} className="p-2 bg-zinc-100 hover:bg-amber-500 hover:text-white text-zinc-500 rounded-lg transition-all"><Edit2 size={14}/></button>
+                            <button onClick={() => handleDeleteClient(client.id)} className="p-2 bg-zinc-100 hover:bg-red-500 hover:text-white text-zinc-500 rounded-lg transition-all"><Trash2 size={14}/></button>
                           </div>
                         </td>
                       </tr>
@@ -1891,169 +2099,296 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {activeTab === 'settings' && (
-          <div className="max-w-4xl space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-amber-50 rounded-xl text-amber-600 border border-amber-100">
-                    <Clock size={22} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-zinc-900">Horário de Funcionamento</h3>
-                    <p className="text-[10px] text-zinc-400 font-medium">Defina os horários que o studio estará aberto</p>
-                  </div>
+        {/* ── HORÁRIOS ─────────────────────────────────────────── */}
+        {activeTab === 'horarios' && (
+          <div className="max-w-3xl space-y-6">
+            {/* Grade semanal */}
+            <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-4 p-6 border-b border-zinc-100">
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                  <Clock size={20} className="text-amber-600" />
                 </div>
-
-                <div className="space-y-1">
-                  {workingHours.map(wh => (
-                    <div key={wh.id} className="flex items-center justify-between py-3 border-b border-zinc-100 last:border-0 group">
-                      <span className="text-xs font-bold text-zinc-500 w-24 group-hover:text-amber-600 transition-colors uppercase tracking-widest">
-                        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][wh.dayOfWeek]}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <div className={cn("flex items-center gap-2 transition-all", !wh.isOpen && "opacity-30 pointer-events-none")}>
-                          <input type="text" defaultValue={wh.startTime} className="w-16 text-xs p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-center font-bold text-zinc-800 focus:ring-2 focus:ring-amber-500/20 outline-none" />
-                          <span className="text-zinc-400 text-[10px] font-bold">às</span>
-                          <input type="text" defaultValue={wh.endTime} className="w-16 text-xs p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-center font-bold text-zinc-800 focus:ring-2 focus:ring-amber-500/20 outline-none" />
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" checked={wh.isOpen} className="sr-only peer" readOnly />
-                          <div className="w-10 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:border after:rounded-full after:h-[18px] after:w-[18px] after:transition-all peer-checked:bg-amber-500 shadow-inner"></div>
-                        </label>
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-900">Horário de Funcionamento</h3>
+                  <p className="text-[10px] text-zinc-400 font-medium">Defina quais dias e horários o studio está aberto</p>
+                </div>
+                <Button
+                  className="ml-auto bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl shadow-sm"
+                  onClick={async () => {
+                    for (const wh of localWorkingHours) {
+                      await fetch(`/api/settings/working-hours/${wh.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ isOpen: wh.isOpen, startTime: wh.startTime, endTime: wh.endTime })
+                      });
+                    }
+                  }}
+                >
+                  Salvar
+                </Button>
+              </div>
+              <div className="divide-y divide-zinc-100">
+                {(localWorkingHours.length > 0 ? localWorkingHours : workingHours).map((wh, i) => {
+                  const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+                  const dayShort = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+                  return (
+                    <div key={wh.id} className={cn(
+                      "flex items-center gap-4 px-6 py-4 transition-colors",
+                      !wh.isOpen && "opacity-50"
+                    )}>
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black uppercase tracking-widest bg-zinc-100 text-zinc-500">
+                        {dayShort[wh.dayOfWeek]}
                       </div>
+                      <span className="text-xs font-bold text-zinc-800 w-20">{dayNames[wh.dayOfWeek]}</span>
+                      <div className={cn("flex items-center gap-2 flex-1 transition-all", !wh.isOpen && "pointer-events-none")}>
+                        <input
+                          type="time"
+                          value={wh.startTime}
+                          onChange={e => setLocalWorkingHours(prev => prev.map((h, idx) => idx === i ? { ...h, startTime: e.target.value } : h))}
+                          className="w-24 text-xs p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-center font-bold text-zinc-800 focus:ring-2 focus:ring-amber-500/20 outline-none"
+                        />
+                        <span className="text-zinc-400 text-[10px] font-bold">até</span>
+                        <input
+                          type="time"
+                          value={wh.endTime}
+                          onChange={e => setLocalWorkingHours(prev => prev.map((h, idx) => idx === i ? { ...h, endTime: e.target.value } : h))}
+                          className="w-24 text-xs p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-center font-bold text-zinc-800 focus:ring-2 focus:ring-amber-500/20 outline-none"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 ml-auto">
+                        <span className={cn("text-[10px] font-black uppercase tracking-widest", wh.isOpen ? "text-emerald-600" : "text-zinc-400")}>
+                          {wh.isOpen ? "Aberto" : "Fechado"}
+                        </span>
+                        <button
+                          onClick={() => setLocalWorkingHours(prev => prev.map((h, idx) => idx === i ? { ...h, isOpen: !h.isOpen } : h))}
+                          className={cn(
+                            "relative w-11 h-6 rounded-full transition-all duration-200",
+                            wh.isOpen ? "bg-amber-500" : "bg-zinc-200"
+                          )}
+                        >
+                          <div className={cn(
+                            "absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200",
+                            wh.isOpen ? "left-6" : "left-1"
+                          )} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Feriados & Fechamentos */}
+            <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-4 p-6 border-b border-zinc-100">
+                <div className="p-3 bg-rose-50 rounded-xl border border-rose-100">
+                  <CalendarOff size={20} className="text-rose-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-900">Feriados & Fechamentos</h3>
+                  <p className="text-[10px] text-zinc-400 font-medium">Datas bloqueadas na agenda dos clientes</p>
+                </div>
+              </div>
+
+              {/* Adicionar feriado */}
+              <div className="p-6 border-b border-zinc-100 bg-zinc-50/60">
+                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3">Adicionar data fechada</p>
+                <div className="flex gap-3">
+                  <input
+                    type="date"
+                    value={newHoliday.date}
+                    onChange={e => setNewHoliday(prev => ({ ...prev, date: e.target.value }))}
+                    className="text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Ex: Natal, Recesso..."
+                    value={newHoliday.name}
+                    onChange={e => setNewHoliday(prev => ({ ...prev, name: e.target.value }))}
+                    className="flex-1 text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!newHoliday.date || !newHoliday.name) return;
+                      setHolidays(prev => [...prev, { id: Date.now().toString(), ...newHoliday }]);
+                      setNewHoliday({ date: '', name: '' });
+                    }}
+                    className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-xl transition-all"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de feriados */}
+              {holidays.length === 0 ? (
+                <div className="p-10 flex flex-col items-center gap-2 text-center">
+                  <Sun size={28} className="text-zinc-300" />
+                  <p className="text-xs font-bold text-zinc-400">Nenhuma data cadastrada ainda</p>
+                  <p className="text-[10px] text-zinc-300">Adicione feriados e dias de folga acima</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-zinc-100">
+                  {holidays.map(h => (
+                    <div key={h.id} className="flex items-center gap-4 px-6 py-4">
+                      <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex flex-col items-center justify-center">
+                        <span className="text-[9px] font-black text-rose-400 uppercase leading-none">
+                          {format(new Date(h.date + 'T12:00:00'), 'MMM', { locale: ptBR })}
+                        </span>
+                        <span className="text-sm font-black text-rose-600 leading-none">
+                          {format(new Date(h.date + 'T12:00:00'), 'dd')}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-zinc-800">{h.name}</p>
+                        <p className="text-[10px] text-zinc-400">
+                          {format(new Date(h.date + 'T12:00:00'), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setHolidays(prev => prev.filter(x => x.id !== h.id))}
+                        className="p-2 rounded-lg hover:bg-red-50 text-zinc-300 hover:text-red-500 transition-all"
+                      >
+                        <X size={14} />
+                      </button>
                     </div>
                   ))}
                 </div>
-                <Button className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-bold shadow-sm">
-                  Salvar Horários
-                </Button>
-              </div>
-
-              <div className="space-y-6">
-                <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm space-y-5">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-zinc-100 rounded-xl text-zinc-500">
-                      <Settings size={22} />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-zinc-900">Configurações Gerais</h3>
-                      <p className="text-[10px] text-zinc-400 font-medium">Informações básicas do seu studio</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Nome do Studio</label>
-                      <input type="text" defaultValue="Glow & Cut Studio" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Telefone de Contato</label>
-                      <input type="text" defaultValue="(11) 99999-9999" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Endereço</label>
-                      <input type="text" defaultValue="Rua das Flores, 123 - Centro" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none" />
-                    </div>
-                  </div>
-                  <Button className="w-full bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl py-3 font-bold shadow-sm">
-                    Atualizar Perfil
-                  </Button>
-                </div>
-
-                <div className="bg-red-50 p-5 rounded-2xl border border-red-100 space-y-4">
-                  <div className="flex items-center gap-3 text-red-600">
-                    <div className="p-2.5 bg-red-100 rounded-xl">
-                      <Trash2 size={18} />
-                    </div>
-                    <h4 className="text-sm font-bold">Zona de Perigo</h4>
-                  </div>
-                  <p className="text-[10px] text-red-400 leading-relaxed font-medium">
-                    Ações nesta área são irreversíveis. Tenha cuidado ao excluir dados.
-                  </p>
-                  <button className="w-full py-2.5 rounded-xl text-[10px] font-bold border border-red-200 text-red-600 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all uppercase tracking-widest">
-                    Limpar Banco de Dados
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Theme Color */}
-            <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm space-y-5">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl border" style={{ background: currentTheme.light, borderColor: currentTheme.border }}>
-                  <div className="w-5 h-5 rounded-lg" style={{ background: currentTheme.hex }} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-zinc-900">Personalização de Tema</h3>
-                  <p className="text-[10px] text-zinc-400 font-medium">Escolha a cor principal dos botões e destaques</p>
-                </div>
-                <div className="ml-auto px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border"
-                  style={{ background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }}>
-                  {currentTheme.label}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                {themeColors.map(color => (
-                  <button
-                    key={color.value}
-                    onClick={() => handleThemeChange(color.value)}
-                    title={color.label}
-                    className={cn(
-                      "relative group flex flex-col items-center gap-1.5 transition-all",
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "w-10 h-10 rounded-full shadow-md transition-all duration-200",
-                        themeColor === color.value
-                          ? "scale-110 ring-3 ring-offset-2 ring-zinc-800"
-                          : "hover:scale-110 hover:shadow-lg ring-2 ring-offset-1 ring-transparent hover:ring-zinc-300"
-                      )}
-                      style={{ background: color.hex }}
-                    >
-                      {themeColor === color.value && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                            <path d="M3 8l3.5 3.5L13 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    <span className={cn(
-                      "text-[9px] font-black uppercase tracking-widest transition-colors",
-                      themeColor === color.value ? "text-zinc-800" : "text-zinc-400"
-                    )}>{color.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Pré-visualização</p>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm transition-all"
-                    style={{ background: currentTheme.hex }}>
-                    Botão Principal
-                  </button>
-                  <button className="px-4 py-2 rounded-xl text-xs font-bold border transition-all"
-                    style={{ background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }}>
-                    Botão Secundário
-                  </button>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold"
-                    style={{ background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }}>
-                    <div className="w-2 h-2 rounded-full" style={{ background: currentTheme.hex }} />
-                    Badge de Status
-                  </div>
-                </div>
-              </div>
-
-              <p className="text-[9px] text-zinc-400 font-medium">
-                ✓ A cor é salva e aplicada imediatamente em toda a interface.
-              </p>
+              )}
             </div>
           </div>
         )}
+
+        {/* ── CONFIGURAÇÕES ────────────────────────────────────── */}
+        {activeTab === 'settings' && (
+          <div className="max-w-2xl space-y-3">
+            {/* Card: Informações do Studio */}
+            {[
+              {
+                id: 'studio',
+                icon: <Store size={18} />,
+                iconBg: 'bg-blue-50 border-blue-100',
+                iconColor: 'text-blue-600',
+                title: 'Informações do Studio',
+                subtitle: 'Nome, contato e endereço',
+                content: (
+                  <div className="space-y-4 pt-2">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5"><Store size={10}/> Nome do Studio</label>
+                      <input type="text" defaultValue="Glow & Cut Studio" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5"><Phone size={10}/> Telefone</label>
+                      <input type="text" defaultValue="(11) 99999-9999" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5"><MapPin size={10}/> Endereço</label>
+                      <input type="text" defaultValue="Rua das Flores, 123 - Centro" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none" />
+                    </div>
+                    <Button className="w-full bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl py-3 font-bold shadow-sm">
+                      Salvar Informações
+                    </Button>
+                  </div>
+                )
+              },
+              {
+                id: 'tema',
+                icon: <Palette size={18} />,
+                iconBg: 'border',
+                iconColor: '',
+                iconStyle: { background: currentTheme.light, borderColor: currentTheme.border },
+                iconInner: <div className="w-4 h-4 rounded-full" style={{ background: currentTheme.hex }} />,
+                title: 'Personalização de Tema',
+                subtitle: `Cor atual: ${currentTheme.label}`,
+                content: (
+                  <div className="space-y-5 pt-2">
+                    <div className="flex flex-wrap gap-3">
+                      {themeColors.map(color => (
+                        <button
+                          key={color.value}
+                          onClick={() => handleThemeChange(color.value)}
+                          title={color.label}
+                          className="relative flex flex-col items-center gap-1.5 transition-all"
+                        >
+                          <div
+                            className={cn(
+                              "w-9 h-9 rounded-full shadow-md transition-all duration-200",
+                              themeColor === color.value
+                                ? "scale-110 ring-2 ring-offset-2 ring-zinc-800"
+                                : "hover:scale-110 hover:shadow-lg"
+                            )}
+                            style={{ background: color.hex }}
+                          >
+                            {themeColor === color.value && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                                  <path d="M3 8l3.5 3.5L13 5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          <span className={cn("text-[9px] font-black uppercase tracking-widest", themeColor === color.value ? "text-zinc-800" : "text-zinc-400")}>{color.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
+                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Pré-visualização</p>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <button className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm" style={{ background: currentTheme.hex }}>Botão Principal</button>
+                        <button className="px-4 py-2 rounded-xl text-xs font-bold border" style={{ background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }}>Secundário</button>
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold" style={{ background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }}>
+                          <div className="w-2 h-2 rounded-full" style={{ background: currentTheme.hex }} />Badge
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-[9px] text-zinc-400">✓ A cor é salva e aplicada imediatamente em toda a interface.</p>
+                  </div>
+                )
+              },
+              {
+                id: 'perigo',
+                icon: <AlertTriangle size={18} />,
+                iconBg: 'bg-red-50 border-red-100',
+                iconColor: 'text-red-500',
+                title: 'Zona de Perigo',
+                subtitle: 'Ações irreversíveis',
+                content: (
+                  <div className="space-y-3 pt-2">
+                    <p className="text-[10px] text-zinc-500 leading-relaxed">Estas ações não podem ser desfeitas. Tenha certeza antes de continuar.</p>
+                    <button className="w-full py-3 rounded-xl text-[10px] font-bold border border-red-200 text-red-600 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all uppercase tracking-widest">
+                      Limpar Banco de Dados
+                    </button>
+                  </div>
+                )
+              }
+            ].map(card => (
+              <div key={card.id} className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+                <button
+                  className="w-full flex items-center gap-4 p-5 text-left hover:bg-zinc-50/70 transition-colors"
+                  onClick={() => setSettingsOpenCard(settingsOpenCard === card.id ? null : card.id)}
+                >
+                  <div className={cn("p-2.5 rounded-xl border", card.iconBg, card.iconColor)} style={card.iconStyle}>
+                    {card.iconInner || card.icon}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-zinc-900">{card.title}</p>
+                    <p className="text-[10px] text-zinc-400 font-medium mt-0.5">{card.subtitle}</p>
+                  </div>
+                  <ChevronDown
+                    size={16}
+                    className={cn("text-zinc-400 transition-transform duration-200", settingsOpenCard === card.id && "rotate-180")}
+                  />
+                </button>
+                {settingsOpenCard === card.id && (
+                  <div className="px-5 pb-5 border-t border-zinc-100">
+                    {card.content}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
       </motion.div>
     </AnimatePresence>
   </div>
@@ -2204,206 +2539,538 @@ export default function AdminDashboard() {
         </div>
       </Modal>
 
-      <Modal isOpen={isAppointmentModalOpen} onClose={() => { setIsAppointmentModalOpen(false); setClientComandaStatus(null); setClientSearchResults([]); }} title="Novo Agendamento">
-        <div className="space-y-4">
-          {/* Appointment Type */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Tipo de Agendamento</label>
-            <div className="grid grid-cols-3 gap-2">
-              {([
-                { value: 'atendimento', label: 'Atendimento', icon: '✂️', desc: 'Cliente + serviço' },
-                { value: 'bloqueio', label: 'Bloqueio', icon: '🚫', desc: 'Indisponível' },
-                { value: 'pessoal', label: 'Pessoal', icon: '👤', desc: 'Compromisso pessoal' },
-              ] as const).map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => setNewAppointment(prev => ({ ...prev, type: opt.value }))}
-                  className={cn(
-                    "flex flex-col items-center gap-1 py-3 px-2 rounded-xl text-[10px] font-bold transition-all border",
-                    newAppointment.type === opt.value
-                      ? opt.value === 'bloqueio' ? "bg-red-50 border-red-300 text-red-700"
-                        : opt.value === 'pessoal' ? "bg-blue-50 border-blue-300 text-blue-700"
-                        : "bg-amber-50 border-amber-400 text-amber-700"
-                      : "bg-zinc-50 border-zinc-200 text-zinc-500 hover:border-zinc-300"
-                  )}
-                >
-                  <span className="text-base">{opt.icon}</span>
-                  <span className="uppercase tracking-wider">{opt.label}</span>
-                  <span className="font-normal text-[9px] opacity-70">{opt.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* ═══ MODAL AGENDAMENTO ═══════════════════════════════════ */}
+      <AnimatePresence>
+        {isAppointmentModalOpen && (() => {
+          const closeAppt = () => { setIsAppointmentModalOpen(false); setClientComandaStatus(null); setClientSearchResults([]); };
+          const [h, m] = newAppointment.startTime.split(':').map(Number);
+          const totalMins = h * 60 + m + newAppointment.duration;
+          const endH = Math.floor(totalMins / 60) % 24;
+          const endM = totalMins % 60;
+          const endTime = `${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;
+          const statusOpts = [
+            { value:'agendado', label:'Agendado', color:'bg-blue-50 text-blue-700 border-blue-200' },
+            { value:'confirmado', label:'Confirmado', color:'bg-emerald-50 text-emerald-700 border-emerald-200' },
+            { value:'realizado', label:'Realizado', color:'bg-zinc-100 text-zinc-600 border-zinc-200' },
+            { value:'cancelado', label:'Cancelado', color:'bg-red-50 text-red-600 border-red-200' },
+            { value:'faltou', label:'Faltou', color:'bg-orange-50 text-orange-600 border-orange-200' },
+            { value:'reagendado', label:'Reagendado', color:'bg-violet-50 text-violet-700 border-violet-200' },
+          ];
+          return (
+            <>
+              <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+                onClick={closeAppt} className="fixed inset-0 z-50 bg-black/20" />
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+                <motion.div initial={{opacity:0,scale:0.97,y:8}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.97,y:8}} transition={{duration:0.18}}
+                  className="w-full max-w-2xl bg-white rounded-2xl shadow-xl pointer-events-auto border border-zinc-200 flex flex-col max-h-[90vh]">
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Data</label>
-              <input
-                type="date"
-                className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-                value={format(newAppointment.date, "yyyy-MM-dd")}
-                onChange={e => setNewAppointment({ ...newAppointment, date: new Date(e.target.value + 'T12:00:00') })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Horário</label>
-              <input
-                type="time"
-                className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-                value={newAppointment.startTime}
-                onChange={e => setNewAppointment({ ...newAppointment, startTime: e.target.value })}
-              />
-            </div>
-          </div>
+                  {/* Header */}
+                  <div className="flex items-start justify-between px-6 pt-5 pb-0 shrink-0">
+                    <div>
+                      <h2 className="text-base font-bold text-zinc-900">Novo Agendamento</h2>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                        {format(newAppointment.date, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                      </p>
+                    </div>
+                    <button onClick={closeAppt} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-all mt-0.5">
+                      <X size={16} />
+                    </button>
+                  </div>
 
-          <div className="space-y-1.5 relative">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Cliente</label>
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-                  placeholder="Nome do cliente..."
-                  value={newAppointment.clientName}
-                  onChange={e => handleSearchClientByName(e.target.value)}
-                />
-                {clientSearchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 bg-white border border-zinc-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto mt-1 p-1">
-                    {clientSearchResults.map(c => {
-                      const hasOpenComanda = c.comandas?.some((com: any) => com.status === "open");
-                      return (
-                        <button
-                          key={c.id}
-                          onClick={() => handleSelectClientForAppointment(c)}
-                          className="w-full text-left px-3 py-2.5 text-xs hover:bg-zinc-50 rounded-lg transition-all border-b border-zinc-100 last:border-0"
-                        >
-                          <div className="flex items-center justify-between">
-                            <p className="font-bold text-zinc-900">{c.name}</p>
-                            {hasOpenComanda && <span className="text-[8px] font-black bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-md border border-amber-200 uppercase tracking-wide">Comanda aberta</span>}
-                          </div>
-                          <p className="text-zinc-500 text-[10px] mt-0.5">{c.phone}</p>
+                  {/* Type Tabs */}
+                  <div className="px-6 pt-4 pb-3 shrink-0">
+                    <div className="flex gap-1 p-1 bg-zinc-100 rounded-xl">
+                      {([
+                        { value:'atendimento', label:'Consulta', icon:<Scissors size={13}/> },
+                        { value:'pessoal',     label:'Evento Pessoal', icon:<Users size={13}/> },
+                        { value:'bloqueio',    label:'Bloqueio Agenda', icon:<CalendarOff size={13}/> },
+                      ] as const).map(t => (
+                        <button key={t.value}
+                          onClick={() => setNewAppointment(p => ({...p, type: t.value}))}
+                          className={cn("flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-bold transition-all",
+                            newAppointment.type === t.value
+                              ? t.value === 'bloqueio' ? "bg-white text-red-600 shadow-sm border border-red-200"
+                                : t.value === 'pessoal' ? "bg-white text-blue-600 shadow-sm border border-blue-200"
+                                : "bg-white text-amber-600 shadow-sm border border-amber-200"
+                              : "text-zinc-500 hover:text-zinc-700"
+                          )}>
+                          {t.icon} {t.label}
                         </button>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
-                )}
-              </div>
-              <button onClick={() => setIsClientModalOpen(true)} className="px-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-xl border border-zinc-200 transition-all">
-                <Plus size={16} />
-              </button>
-            </div>
-            {newAppointment.clientId && (
-              <div className="flex items-center gap-2 ml-1 mt-1">
-                <p className="text-[9px] text-emerald-600 font-bold flex items-center gap-1 uppercase tracking-wider">
-                  <CheckCircle size={11} /> {newAppointment.clientPhone}
-                </p>
-                {clientComandaStatus === "open" && (
-                  <span className="text-[8px] font-black bg-amber-50 text-amber-600 px-2 py-0.5 rounded-lg border border-amber-200 uppercase tracking-wide flex items-center gap-1">
-                    <FileText size={9} /> Comanda aberta vinculada
-                  </span>
-                )}
-                {clientComandaStatus === "none" && (
-                  <span className="text-[8px] font-bold bg-zinc-50 text-zinc-400 px-2 py-0.5 rounded-lg border border-zinc-200 uppercase tracking-wide">
-                    Sem comanda
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
 
-          {/* Profissional (always shown) */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Profissional</label>
-            <select
-              className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-              value={newAppointment.professionalId}
-              onChange={e => setNewAppointment(prev => ({ ...prev, professionalId: e.target.value }))}
-            >
-              <option value="">Selecionar profissional...</option>
-              {professionals.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
+                  {/* Scrollable Content */}
+                  <div className="px-6 pb-4 overflow-y-auto flex-1">
+                    {newAppointment.type === 'atendimento' && (
+                      <div className="grid grid-cols-2 gap-5">
+                        {/* ── ESQUERDA: Identificação ── */}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-1 h-4 rounded-full bg-amber-500" />
+                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Identificação</p>
+                          </div>
 
-          {/* Client + Service — only for "atendimento" */}
-          {newAppointment.type === 'atendimento' && (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Serviço/Pacote</label>
-                <select
-                  className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-                  value={newAppointment.serviceId}
-                  onChange={e => { const s = services.find(item => item.id === e.target.value); setNewAppointment(prev => ({ ...prev, serviceId: e.target.value, recurrence: { ...prev.recurrence, count: s?.type === 'package' ? 4 : 1 } })); }}
-                >
-                  <option value="">Selecionar serviço...</option>
-                  {services.map(s => <option key={s.id} value={s.id}>{s.name} – R$ {s.price}</option>)}
-                </select>
-              </div>
+                          {/* Cliente combobox */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Cliente</label>
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"><Users size={13}/></div>
+                              <input type="text"
+                                className="w-full text-xs pl-8 pr-8 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
+                                placeholder="Pesquisar ou adicionar cliente..."
+                                value={newAppointment.clientName}
+                                onChange={e => handleSearchClientByName(e.target.value)}
+                              />
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"><ChevronDown size={13}/></div>
+                              {clientSearchResults.length > 0 && (
+                                <div className="absolute top-full left-0 right-0 bg-white border border-zinc-200 rounded-xl shadow-xl z-50 max-h-44 overflow-y-auto mt-1 p-1">
+                                  {clientSearchResults.map(c => {
+                                    const hasOpen = c.comandas?.some((co:any) => co.status === "open");
+                                    return (
+                                      <button key={c.id} onClick={() => handleSelectClientForAppointment(c)}
+                                        className="w-full text-left px-3 py-2.5 text-xs hover:bg-zinc-50 rounded-lg transition-all border-b border-zinc-100 last:border-0">
+                                        <div className="flex items-center justify-between">
+                                          <p className="font-bold text-zinc-900">{c.name}</p>
+                                          {hasOpen && <span className="text-[8px] font-black bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-md border border-amber-200 uppercase">Comanda aberta</span>}
+                                        </div>
+                                        <p className="text-zinc-400 text-[10px] mt-0.5">{c.phone}</p>
+                                      </button>
+                                    );
+                                  })}
+                                  <button onClick={() => setIsClientModalOpen(true)}
+                                    className="w-full text-left px-3 py-2.5 text-xs text-amber-600 font-bold hover:bg-amber-50 rounded-lg transition-all flex items-center gap-2">
+                                    <Plus size={12}/> Novo cliente
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            {newAppointment.clientId && (
+                              <p className="text-[9px] text-emerald-600 font-bold flex items-center gap-1 ml-1">
+                                <CheckCircle size={10}/> {newAppointment.clientPhone}
+                              </p>
+                            )}
+                          </div>
 
-              <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Repetições</span>
-                  <select
-                    className="text-[10px] p-2 bg-white border border-zinc-200 rounded-lg text-zinc-700 font-bold outline-none"
-                    value={newAppointment.recurrence.type}
-                    onChange={e => setNewAppointment(prev => ({ ...prev, recurrence: { ...prev.recurrence, type: e.target.value } }))}
-                  >
-                    <option value="none">Nenhuma</option>
-                    <option value="weekly">Semanal</option>
-                    <option value="biweekly">Quinzenal</option>
-                    <option value="custom">Personalizado</option>
-                  </select>
-                </div>
-                {newAppointment.recurrence.type !== 'none' && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Repetir</span>
-                    <input
-                      type="number"
-                      className="w-14 text-xs p-2 bg-white border border-zinc-200 rounded-lg text-center text-zinc-800 font-bold outline-none"
-                      value={newAppointment.recurrence.count}
-                      onChange={e => setNewAppointment(prev => ({ ...prev, recurrence: { ...prev.recurrence, count: parseInt(e.target.value) } }))}
-                    />
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">vezes</span>
+                          {/* Serviço/Pacote */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Serviço ou Pacote</label>
+                            <div className="relative">
+                              <select
+                                className="w-full appearance-none text-xs p-3 pr-8 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
+                                value={newAppointment.serviceId}
+                                onChange={e => {
+                                  const s = services.find(item => item.id === e.target.value);
+                                  setNewAppointment(prev => ({
+                                    ...prev, serviceId: e.target.value,
+                                    duration: s?.duration || 60,
+                                    recurrence: {...prev.recurrence, count: s?.type === 'package' ? 4 : 1}
+                                  }));
+                                }}
+                              >
+                                <option value="">Selecionar...</option>
+                                {services.map(s => <option key={s.id} value={s.id}>{s.name} — R$ {Number(s.price).toFixed(2)}</option>)}
+                              </select>
+                              <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"/>
+                            </div>
+                          </div>
+
+                          {/* Status */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Status</label>
+                            <div className="relative">
+                              <select
+                                className="w-full appearance-none text-xs p-3 pr-8 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
+                                value={newAppointment.status}
+                                onChange={e => setNewAppointment(p => ({...p, status: e.target.value as any}))}
+                              >
+                                {statusOpts.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                              </select>
+                              <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"/>
+                            </div>
+                            {/* Badge do status */}
+                            <div className={cn("inline-flex items-center px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest",
+                              statusOpts.find(s => s.value === newAppointment.status)?.color)}>
+                              {statusOpts.find(s => s.value === newAppointment.status)?.label}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ── DIREITA: Horário e Repetição ── */}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-1 h-4 rounded-full bg-emerald-500" />
+                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Horário e Repetição</p>
+                          </div>
+
+                          {/* Data + Hora + Duração */}
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Data</label>
+                              <input type="date"
+                                className="w-full text-[11px] p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                value={format(newAppointment.date, "yyyy-MM-dd")}
+                                onChange={e => setNewAppointment(p => ({...p, date: new Date(e.target.value+'T12:00:00')}))}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Hora</label>
+                              <input type="time"
+                                className="w-full text-[11px] p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                value={newAppointment.startTime}
+                                onChange={e => setNewAppointment(p => ({...p, startTime: e.target.value}))}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Duração (min)</label>
+                              <input type="number" min={5} step={5}
+                                className="w-full text-[11px] p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none text-center"
+                                value={newAppointment.duration}
+                                onChange={e => setNewAppointment(p => ({...p, duration: parseInt(e.target.value)||60}))}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Término previsto */}
+                          <div className="flex items-center gap-3 p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl">
+                            <Clock size={15} className="text-zinc-400 shrink-0"/>
+                            <div className="flex-1">
+                              <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Término Previsto</p>
+                              <p className="text-base font-black text-amber-600">{endTime}h</p>
+                            </div>
+                          </div>
+
+                          {/* Profissional */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Profissional Responsável</label>
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"><UserCog size={13}/></div>
+                              <select
+                                className="w-full appearance-none text-xs pl-8 pr-8 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                value={newAppointment.professionalId}
+                                onChange={e => setNewAppointment(p => ({...p, professionalId: e.target.value}))}
+                              >
+                                <option value="">Buscar...</option>
+                                {professionals.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                              </select>
+                              <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"/>
+                            </div>
+                          </div>
+
+                          {/* Repetição */}
+                          <button
+                            onClick={() => setIsRepeatModalOpen(true)}
+                            className="w-full flex items-center gap-3 p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl hover:border-amber-300 hover:bg-amber-50/30 transition-all group"
+                          >
+                            <div className="p-1.5 rounded-lg bg-zinc-200 group-hover:bg-amber-100 transition-colors">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500 group-hover:text-amber-600">
+                                <path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
+                              </svg>
+                            </div>
+                            <div className="flex-1 text-left">
+                              <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Repetição Fixa</p>
+                              <p className="text-xs font-bold text-zinc-700 group-hover:text-amber-700">{repeatLabel}</p>
+                            </div>
+                            <ChevronDown size={13} className="text-zinc-400 -rotate-90"/>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Pessoal / Bloqueio layout simples */}
+                    {(newAppointment.type === 'pessoal' || newAppointment.type === 'bloqueio') && (
+                      <div className="space-y-4 py-2">
+                        <div className={cn("p-4 rounded-xl border text-xs font-bold",
+                          newAppointment.type === 'bloqueio' ? "bg-red-50 border-red-200 text-red-600" : "bg-blue-50 border-blue-200 text-blue-600"
+                        )}>
+                          {newAppointment.type === 'bloqueio'
+                            ? "Este horário ficará bloqueado e indisponível para clientes."
+                            : "Compromisso pessoal — não aparece para clientes."}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Data</label>
+                            <input type="date" className="w-full text-[11px] p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold outline-none"
+                              value={format(newAppointment.date, "yyyy-MM-dd")}
+                              onChange={e => setNewAppointment(p => ({...p, date: new Date(e.target.value+'T12:00:00')}))}/>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Hora</label>
+                            <input type="time" className="w-full text-[11px] p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold outline-none"
+                              value={newAppointment.startTime}
+                              onChange={e => setNewAppointment(p => ({...p, startTime: e.target.value}))}/>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Duração (min)</label>
+                            <input type="number" className="w-full text-[11px] p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold outline-none text-center"
+                              value={newAppointment.duration}
+                              onChange={e => setNewAppointment(p => ({...p, duration: parseInt(e.target.value)||60}))}/>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Profissional</label>
+                          <select className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold outline-none"
+                            value={newAppointment.professionalId}
+                            onChange={e => setNewAppointment(p => ({...p, professionalId: e.target.value}))}>
+                            <option value="">Selecionar...</option>
+                            {professionals.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Observações */}
+                    {newAppointment.type === 'atendimento' && (
+                      <div className="mt-4 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1 h-4 rounded-full bg-violet-400" />
+                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Observações e Histórico</p>
+                        </div>
+                        <textarea rows={3}
+                          className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none resize-none placeholder:text-zinc-400"
+                          placeholder="Adicione detalhes sobre o atendimento, avisos importantes..."
+                          value={newAppointment.notes}
+                          onChange={e => setNewAppointment(p => ({...p, notes: e.target.value}))}
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 shrink-0">
+                    <button onClick={closeAppt} className="px-4 py-2 text-sm font-bold text-zinc-400 hover:text-zinc-700 transition-all">
+                      Descartar
+                    </button>
+                    <button
+                      onClick={handleCreateAppointment}
+                      disabled={!newAppointment.professionalId || (newAppointment.type === 'atendimento' && (!newAppointment.clientName || !newAppointment.serviceId))}
+                      className={cn("flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm transition-all disabled:opacity-40",
+                        newAppointment.type === 'bloqueio' ? "bg-red-500 hover:bg-red-600" :
+                        newAppointment.type === 'pessoal' ? "bg-blue-500 hover:bg-blue-600" :
+                        "bg-amber-500 hover:bg-amber-600"
+                      )}
+                    >
+                      <CheckCircle size={15}/>
+                      {newAppointment.type === 'bloqueio' ? 'Bloquear Horário' :
+                       newAppointment.type === 'pessoal' ? 'Salvar Compromisso' :
+                       'Confirmar Agendamento'}
+                    </button>
+                  </div>
+                </motion.div>
               </div>
-            </div>
-          )}
+            </>
+          );
+        })()}
+      </AnimatePresence>
 
-          {/* Bloqueio / Pessoal — show note/reason */}
-          {(newAppointment.type === 'bloqueio' || newAppointment.type === 'pessoal') && (
-            <div className={cn(
-              "p-4 rounded-xl border space-y-2",
-              newAppointment.type === 'bloqueio' ? "bg-red-50 border-red-100" : "bg-blue-50 border-blue-100"
-            )}>
-              <p className={cn("text-[10px] font-bold uppercase tracking-widest",
-                newAppointment.type === 'bloqueio' ? "text-red-500" : "text-blue-500"
-              )}>
-                {newAppointment.type === 'bloqueio'
-                  ? "Este horário ficará bloqueado e indisponível para clientes."
-                  : "Compromisso pessoal — não aparece para clientes."}
-              </p>
-            </div>
-          )}
+      {/* ═══ MODAL SELEÇÃO DE REPETIÇÃO ════════════════════════ */}
+      <AnimatePresence>
+        {isRepeatModalOpen && (() => {
+          const repeatOpts = [
+            { label: 'Não Repete', type:'none', interval:0, count:0 },
+            { label: 'Semanal — 4 sessões',   type:'weekly', interval:7,  count:4  },
+            { label: 'Semanal — 8 sessões',   type:'weekly', interval:7,  count:8  },
+            { label: 'Semanal — 12 sessões',  type:'weekly', interval:7,  count:12 },
+            { label: 'Semanal — 16 sessões',  type:'weekly', interval:7,  count:16 },
+            { label: 'Semanal — 20 sessões',  type:'weekly', interval:7,  count:20 },
+            { label: 'A cada 15 dias — 4 sessões', type:'biweekly', interval:15, count:4 },
+            { label: 'A cada 15 dias — 8 sessões', type:'biweekly', interval:15, count:8 },
+            { label: 'Mensal — 3 sessões',  type:'monthly', interval:30, count:3  },
+            { label: 'Mensal — 6 sessões',  type:'monthly', interval:30, count:6  },
+            { label: 'Mensal — 12 sessões', type:'monthly', interval:30, count:12 },
+            { label: 'Personalizado...', type:'custom', interval:0, count:0 },
+          ];
+          return (
+            <>
+              <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+                onClick={() => setIsRepeatModalOpen(false)} className="fixed inset-0 z-[60] bg-black/30" />
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
+                <motion.div initial={{opacity:0,scale:0.97,y:8}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.97,y:8}} transition={{duration:0.15}}
+                  className="w-full max-w-sm bg-white rounded-2xl shadow-2xl pointer-events-auto border border-zinc-200">
+                  <div className="flex items-start justify-between px-5 pt-5 pb-2">
+                    <div>
+                      <h3 className="text-sm font-bold text-zinc-900">Seleção Atual</h3>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">Escolha uma opção abaixo para mudar a seleção</p>
+                    </div>
+                    <button onClick={() => setIsRepeatModalOpen(false)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-all">
+                      <X size={14}/>
+                    </button>
+                  </div>
 
-          <Button
-            className={cn(
-              "w-full rounded-xl py-3 font-bold shadow-sm text-white",
-              newAppointment.type === 'bloqueio' ? "bg-red-500 hover:bg-red-600" :
-              newAppointment.type === 'pessoal' ? "bg-blue-500 hover:bg-blue-600" :
-              "bg-amber-500 hover:bg-amber-600"
-            )}
-            onClick={handleCreateAppointment}
-            disabled={
-              !newAppointment.professionalId ||
-              (newAppointment.type === 'atendimento' && (!newAppointment.clientName || !newAppointment.serviceId))
-            }
-          >
-            {newAppointment.type === 'bloqueio' ? 'Bloquear Horário' :
-             newAppointment.type === 'pessoal' ? 'Salvar Compromisso' :
-             'Confirmar Agendamento'}
-          </Button>
-        </div>
-      </Modal>
+                  {/* Current selection highlight */}
+                  <div className="px-5 pb-3">
+                    <div className="flex items-center gap-3 p-3.5 bg-blue-50 border border-blue-200 rounded-xl">
+                      <div className="p-1.5 bg-blue-100 rounded-lg">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-blue-600">
+                          <path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-blue-400 uppercase tracking-widest">Opção Atual</p>
+                        <p className="text-sm font-bold text-blue-800">{repeatLabel}</p>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-blue-500 italic mt-2 px-1">
+                      Dica: Escolha repetição semanal caso queira que sempre caia no mesmo dia da semana
+                    </p>
+                  </div>
+
+                  {/* List */}
+                  <div className="max-h-64 overflow-y-auto border-t border-zinc-100 divide-y divide-zinc-100">
+                    {repeatOpts.map(opt => (
+                      <button key={opt.label}
+                        onClick={() => {
+                          if (opt.type === 'custom') {
+                            setIsRepeatModalOpen(false);
+                            setIsCustomRepeatModalOpen(true);
+                            return;
+                          }
+                          setRepeatLabel(opt.label);
+                          setNewAppointment(p => ({...p, recurrence: {type: opt.type, count: opt.count, interval: opt.interval}}));
+                          setIsRepeatModalOpen(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between px-5 py-3.5 text-xs font-bold transition-all hover:bg-zinc-50",
+                          repeatLabel === opt.label ? "text-blue-600 bg-blue-50" : "text-zinc-700"
+                        )}
+                      >
+                        <span className="uppercase tracking-widest">{opt.label}</span>
+                        <ChevronRight size={14} className="text-zinc-400"/>
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              </div>
+            </>
+          );
+        })()}
+      </AnimatePresence>
+
+      {/* ═══ MODAL REPETIÇÃO PERSONALIZADA ═════════════════════ */}
+      <AnimatePresence>
+        {isCustomRepeatModalOpen && (() => {
+          const freqOpts = ['Semanalmente', 'Mensalmente', 'Diariamente', 'A cada 15 dias'];
+          const unitMap: Record<string, string> = {
+            'Semanalmente':'SEMANA(S)', 'Mensalmente':'MÊS(ES)', 'Diariamente':'DIA(S)', 'A cada 15 dias':'SEMANA(S)'
+          };
+          return (
+            <>
+              <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+                onClick={() => setIsCustomRepeatModalOpen(false)} className="fixed inset-0 z-[70] bg-black/30"/>
+              <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 pointer-events-none">
+                <motion.div initial={{opacity:0,scale:0.97,y:8}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.97,y:8}} transition={{duration:0.15}}
+                  className="w-full max-w-sm bg-white rounded-2xl shadow-2xl pointer-events-auto border border-zinc-200">
+                  <div className="flex items-start justify-between px-5 pt-5 pb-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-zinc-900">Configurar Repetição</h3>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">Defina como este agendamento irá se repetir</p>
+                    </div>
+                    <button onClick={() => setIsCustomRepeatModalOpen(false)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-all">
+                      <X size={14}/>
+                    </button>
+                  </div>
+
+                  <div className="px-5 pb-5 space-y-5">
+                    {/* Frequência */}
+                    <div className="border border-zinc-200 rounded-xl overflow-hidden">
+                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-4 py-3 bg-zinc-50 border-b border-zinc-100">Frequência de Repetição</p>
+                      <div className="p-3">
+                        <select
+                          className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold outline-none"
+                          value={customRepeat.frequency}
+                          onChange={e => setCustomRepeat(p => ({...p, frequency: e.target.value, unit: unitMap[e.target.value]||'SEMANA(S)'}))}
+                        >
+                          {freqOpts.map(f => <option key={f} value={f}>{f}</option>)}
+                        </select>
+                        <div className="grid grid-cols-2 gap-3 mt-3">
+                          <div>
+                            <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">A Cada</p>
+                            <input type="number" min={1}
+                              className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold outline-none text-center"
+                              value={customRepeat.interval}
+                              onChange={e => setCustomRepeat(p => ({...p, interval: parseInt(e.target.value)||1}))}
+                            />
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Unidade</p>
+                            <div className="p-3 bg-zinc-100 border border-zinc-200 rounded-xl text-[10px] font-black text-zinc-500 uppercase tracking-widest text-center">
+                              {customRepeat.unit}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Terminar em */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-zinc-400">
+                          <path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/>
+                        </svg>
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Terminar Em</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={() => setCustomRepeat(p => ({...p, endType:'count'}))}
+                          className={cn("p-4 rounded-xl border-2 text-center transition-all",
+                            customRepeat.endType === 'count' ? "border-amber-400 bg-amber-50" : "border-zinc-200 bg-zinc-50 hover:border-zinc-300"
+                          )}
+                        >
+                          <p className={cn("text-[9px] font-black uppercase tracking-widest mb-2", customRepeat.endType==='count'?"text-amber-500":"text-zinc-400")}>Por Vezes</p>
+                          <div className="flex items-center justify-center gap-2">
+                            <input type="number" min={1}
+                              className="w-12 text-center text-sm font-black bg-white border border-zinc-200 rounded-lg p-1 outline-none"
+                              value={customRepeat.count}
+                              onClick={e => { e.stopPropagation(); setCustomRepeat(p => ({...p, endType:'count'})); }}
+                              onChange={e => setCustomRepeat(p => ({...p, count: parseInt(e.target.value)||1}))}
+                            />
+                            <span className="text-[9px] font-bold text-zinc-400 uppercase">Vezes</span>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => setCustomRepeat(p => ({...p, endType:'date'}))}
+                          className={cn("p-4 rounded-xl border-2 text-center transition-all",
+                            customRepeat.endType === 'date' ? "border-amber-400 bg-amber-50" : "border-zinc-200 bg-zinc-50 hover:border-zinc-300"
+                          )}
+                        >
+                          <p className={cn("text-[9px] font-black uppercase tracking-widest mb-2", customRepeat.endType==='date'?"text-amber-500":"text-zinc-400")}>Por Data</p>
+                          <input type="date"
+                            className="w-full text-[10px] text-center bg-white border border-zinc-200 rounded-lg p-1 outline-none font-bold"
+                            value={customRepeat.endDate}
+                            onClick={e => { e.stopPropagation(); setCustomRepeat(p => ({...p, endType:'date'})); }}
+                            onChange={e => setCustomRepeat(p => ({...p, endDate: e.target.value}))}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-3 pt-1">
+                      <button
+                        onClick={() => { setIsCustomRepeatModalOpen(false); setIsRepeatModalOpen(true); }}
+                        className="flex-1 py-3 text-xs font-bold text-zinc-500 hover:text-zinc-700 border border-zinc-200 rounded-xl transition-all"
+                      >
+                        Voltar
+                      </button>
+                      <button
+                        onClick={() => {
+                          const label = `${customRepeat.frequency} — ${customRepeat.endType==='count' ? `${customRepeat.count} sessões` : `até ${customRepeat.endDate}`}`;
+                          setRepeatLabel(label);
+                          setNewAppointment(p => ({...p, recurrence: {type:'custom', count: customRepeat.count, interval: customRepeat.interval}}));
+                          setIsCustomRepeatModalOpen(false);
+                        }}
+                        className="flex-1 py-3 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-all shadow-sm"
+                      >
+                        Salvar
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            </>
+          );
+        })()}
+      </AnimatePresence>
 
       <Modal isOpen={isComandaModalOpen} onClose={() => setIsComandaModalOpen(false)} title="Nova Comanda">
         <div className="space-y-4">
@@ -2594,44 +3261,229 @@ export default function AdminDashboard() {
         </div>
       </Modal>
 
-      <Modal isOpen={isClientModalOpen} onClose={() => setIsClientModalOpen(false)} title="Novo Cliente">
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Nome Completo</label>
-            <input
-              type="text"
-              className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-              placeholder="Ex: João Silva"
-              value={newClient.name}
-              onChange={e => setNewClient({ ...newClient, name: e.target.value })}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Telefone</label>
-              <input
-                type="tel"
-                className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-                placeholder="(00) 00000-0000"
-                value={newClient.phone}
-                onChange={e => setNewClient({ ...newClient, phone: e.target.value })}
-              />
+      <Modal
+        isOpen={isClientModalOpen}
+        onClose={() => { setIsClientModalOpen(false); setEditingClient(null); setNewClient({ ...emptyClient }); setClientPersonalOpen(false); }}
+        title={editingClient ? "Editar Cliente" : "Novo Cliente"}
+        className="max-w-lg"
+      >
+        {/* INPUT STYLE HELPER */}
+        {(() => {
+          const inp = "w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all";
+          const label = "text-[10px] font-bold text-zinc-500 uppercase tracking-widest";
+          const field = "space-y-1.5";
+
+          return (
+            <div className="space-y-5">
+              {/* DADOS BÁSICOS */}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-3 flex items-center gap-1.5"><Users size={11}/> Dados Básicos <span className="text-zinc-400 normal-case font-medium">(obrigatório)</span></p>
+                <div className="space-y-3">
+                  <div className={field}>
+                    <label className={label}>Nome Completo *</label>
+                    <input type="text" className={inp} placeholder="Ex: João Silva"
+                      value={newClient.name} onChange={e => setNewClient(p => ({ ...p, name: e.target.value }))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={field}>
+                      <label className={label}>Telefone *</label>
+                      <input type="tel" className={inp} placeholder="(00) 00000-0000"
+                        value={newClient.phone} onChange={e => setNewClient(p => ({ ...p, phone: maskPhone(e.target.value) }))} />
+                    </div>
+                    <div className={field}>
+                      <label className={label}>E-mail</label>
+                      <input type="email" className={inp} placeholder="email@exemplo.com"
+                        value={newClient.email} onChange={e => setNewClient(p => ({ ...p, email: e.target.value }))} />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <div
+                      onClick={() => setNewClient(p => ({ ...p, whatsapp: !p.whatsapp }))}
+                      className={cn("w-9 h-5 rounded-full transition-all relative shrink-0", newClient.whatsapp ? "bg-green-500" : "bg-zinc-200")}
+                    >
+                      <div className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all", newClient.whatsapp ? "left-4" : "left-0.5")} />
+                    </div>
+                    <span className="text-[11px] font-bold text-zinc-600 flex items-center gap-1"><MessageCircle size={12} className="text-green-500"/>Usa WhatsApp nesse número</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* DOCUMENTOS & NASCIMENTO */}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3 flex items-center gap-1.5"><Hash size={11}/> Documentos & Nascimento</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className={field}>
+                    <label className={label}>CPF</label>
+                    <input type="text" className={inp} placeholder="000.000.000-00"
+                      value={newClient.cpf} onChange={e => setNewClient(p => ({ ...p, cpf: maskCPF(e.target.value) }))} />
+                  </div>
+                  <div className={field}>
+                    <label className={label}>Data de Nascimento</label>
+                    <input type="text" className={inp} placeholder="DD/MM/AAAA"
+                      value={newClient.birthDate} onChange={e => setNewClient(p => ({ ...p, birthDate: maskDate(e.target.value) }))} />
+                  </div>
+                </div>
+                {newClient.birthDate && (() => {
+                  const age = calculateAge(newClient.birthDate);
+                  return age !== null ? (
+                    <p className="mt-1.5 text-[10px] font-bold text-amber-600 flex items-center gap-1">
+                      <Cake size={10}/> {age} anos
+                    </p>
+                  ) : null;
+                })()}
+              </div>
+
+              {/* ENDEREÇO */}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3 flex items-center gap-1.5"><MapPinIcon size={11}/> Endereço</p>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className={cn(field, "col-span-2")}>
+                      <label className={label}>CEP</label>
+                      <div className="relative">
+                        <input type="text" className={inp} placeholder="00000-000"
+                          value={newClient.cep}
+                          onChange={e => {
+                            const v = maskCEP(e.target.value);
+                            setNewClient(p => ({ ...p, cep: v }));
+                            if (v.replace(/\D/g, "").length === 8) handleCepSearch(v);
+                          }} />
+                        {isCepLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />}
+                      </div>
+                    </div>
+                    <div className={field}>
+                      <label className={label}>Número</label>
+                      <input type="text" className={inp} placeholder="123"
+                        value={newClient.number} onChange={e => setNewClient(p => ({ ...p, number: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className={field}>
+                    <label className={label}>Rua / Logradouro</label>
+                    <input type="text" className={inp} placeholder="Rua das Flores"
+                      value={newClient.street} onChange={e => setNewClient(p => ({ ...p, street: e.target.value }))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={field}>
+                      <label className={label}>Complemento</label>
+                      <input type="text" className={inp} placeholder="Apto 12"
+                        value={newClient.complement} onChange={e => setNewClient(p => ({ ...p, complement: e.target.value }))} />
+                    </div>
+                    <div className={field}>
+                      <label className={label}>Bairro</label>
+                      <input type="text" className={inp} placeholder="Centro"
+                        value={newClient.neighborhood} onChange={e => setNewClient(p => ({ ...p, neighborhood: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className={cn(field, "col-span-2")}>
+                      <label className={label}>Cidade</label>
+                      <input type="text" className={inp} placeholder="São Paulo"
+                        value={newClient.city} onChange={e => setNewClient(p => ({ ...p, city: e.target.value }))} />
+                    </div>
+                    <div className={field}>
+                      <label className={label}>UF</label>
+                      <input type="text" className={inp} placeholder="SP" maxLength={2}
+                        value={newClient.state} onChange={e => setNewClient(p => ({ ...p, state: e.target.value.toUpperCase() }))} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* DADOS PESSOAIS — accordion */}
+              <div className="border border-zinc-100 rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setClientPersonalOpen(o => !o)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 transition-colors"
+                >
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
+                    <Heart size={11}/> Dados Pessoais <span className="text-zinc-400 normal-case font-medium">(opcional)</span>
+                  </p>
+                  <ChevronDown size={14} className={cn("text-zinc-400 transition-transform duration-200", clientPersonalOpen && "rotate-180")} />
+                </button>
+                <AnimatePresence initial={false}>
+                  {clientPersonalOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-4 pb-4 space-y-3 border-t border-zinc-100">
+                        <div className="grid grid-cols-2 gap-3 pt-3">
+                          <div className={field}>
+                            <label className={label}>Estado Civil</label>
+                            <select className={inp} value={newClient.maritalStatus} onChange={e => setNewClient(p => ({ ...p, maritalStatus: e.target.value as any }))}>
+                              <option value="">Selecionar</option>
+                              <option value="solteiro">Solteiro(a)</option>
+                              <option value="casado">Casado(a)</option>
+                              <option value="divorciado">Divorciado(a)</option>
+                              <option value="viuvo">Viúvo(a)</option>
+                              <option value="uniao_estavel">União Estável</option>
+                            </select>
+                          </div>
+                          <div className={field}>
+                            <label className={label}>Escolaridade</label>
+                            <select className={inp} value={newClient.education} onChange={e => setNewClient(p => ({ ...p, education: e.target.value as any }))}>
+                              <option value="">Selecionar</option>
+                              <option value="fundamental">Fund. Completo</option>
+                              <option value="medio">Médio Completo</option>
+                              <option value="superior">Superior</option>
+                              <option value="pos">Pós-graduação</option>
+                              <option value="mestrado">Mestrado</option>
+                              <option value="doutorado">Doutorado</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex gap-6">
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <div
+                              onClick={() => setNewClient(p => ({ ...p, isMarried: !p.isMarried }))}
+                              className={cn("w-9 h-5 rounded-full transition-all relative shrink-0", newClient.isMarried ? "bg-amber-500" : "bg-zinc-200")}
+                            >
+                              <div className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all", newClient.isMarried ? "left-4" : "left-0.5")} />
+                            </div>
+                            <span className="text-[11px] font-bold text-zinc-600 flex items-center gap-1"><Heart size={11} className="text-pink-400"/>Casado(a)</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <div
+                              onClick={() => setNewClient(p => ({ ...p, hasChildren: !p.hasChildren }))}
+                              className={cn("w-9 h-5 rounded-full transition-all relative shrink-0", newClient.hasChildren ? "bg-amber-500" : "bg-zinc-200")}
+                            >
+                              <div className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all", newClient.hasChildren ? "left-4" : "left-0.5")} />
+                            </div>
+                            <span className="text-[11px] font-bold text-zinc-600 flex items-center gap-1"><Baby size={11} className="text-blue-400"/>Tem filhos</span>
+                          </label>
+                        </div>
+                        {newClient.isMarried && (
+                          <div className={field}>
+                            <label className={label}>Nome do Cônjuge</label>
+                            <input type="text" className={inp} placeholder="Ex: Maria Silva"
+                              value={newClient.spouseName} onChange={e => setNewClient(p => ({ ...p, spouseName: e.target.value }))} />
+                          </div>
+                        )}
+                        <div className={field}>
+                          <label className={label}>Observações</label>
+                          <textarea className={cn(inp, "resize-none")} rows={3} placeholder="Anotações sobre o cliente..."
+                            value={newClient.notes} onChange={e => setNewClient(p => ({ ...p, notes: e.target.value }))} />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <Button
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-bold shadow-sm"
+                onClick={handleCreateClient}
+                disabled={!newClient.name || !newClient.phone}
+              >
+                {editingClient ? "Salvar Alterações" : "Cadastrar Cliente"}
+              </Button>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Idade (Opcional)</label>
-              <input
-                type="number"
-                className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-                placeholder="25"
-                value={newClient.age}
-                onChange={e => setNewClient({ ...newClient, age: e.target.value })}
-              />
-            </div>
-          </div>
-          <Button className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-bold shadow-sm" onClick={handleCreateClient} disabled={!newClient.name || !newClient.phone}>
-            Cadastrar Cliente
-          </Button>
-        </div>
+          );
+        })()}
       </Modal>
     </div>
   );
