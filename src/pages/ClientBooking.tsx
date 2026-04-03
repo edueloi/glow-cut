@@ -17,6 +17,9 @@ export default function ClientBooking() {
   const customColor = "#0a0a0a"; 
   const customLogo = "https://cdn-icons-png.flaticon.com/512/3233/3233034.png";
 
+  // Mock de feriados/fechamentos que viriam do banco (ex: 16 de abril)
+  const blockedDates = ["2026-04-16"];
+
   const [step, setStep] = useState<"loading" | "home" | "consult" | "service" | "professional" | "date" | "confirm" | "success">("loading");
   const [services, setServices] = useState<any[]>([]);
   const [professionals, setProfessionals] = useState<any[]>([]);
@@ -483,8 +486,12 @@ export default function ClientBooking() {
                         // Determinar status visual do dia (Simulação baseada em lógica realística)
                         let dayStatus: 'closed' | 'full' | 'busy' | 'available' = 'available';
                         
-                        if (dayOfWeek === 0) {
-                          dayStatus = 'closed'; // Domingo fechado
+                        // Verifica se é Domingo OU se está na lista de bloqueios (blockedDates)
+                        const dateString = format(day, "yyyy-MM-dd");
+                        const isBlocked = blockedDates.includes(dateString);
+
+                        if (dayOfWeek === 0 || isBlocked) {
+                          dayStatus = 'closed'; // Bloqueado
                         } else {
                           // Simulação de lotação baseada no número do dia
                           const seed = day.getDate();
@@ -492,46 +499,52 @@ export default function ClientBooking() {
                           else if (seed % 5 === 0) dayStatus = 'busy';
                         }
 
+                        const isDisabled = isPastDay || !isCurrentMonth || dayStatus === 'closed';
+
                         days.push(
                           <button
                             key={day.toISOString()}
-                            disabled={isPastDay || !isCurrentMonth}
+                            disabled={isDisabled}
                             onClick={() => {
                               setSelectedDate(cloneDay);
                               setSelectedSlot(null);
                               fetchAvailability(cloneDay, selectedService.id, selectedProfessional.id);
                             }}
                             className={cn(
-                              "h-10 w-full md:h-11 mx-auto rounded-xl flex flex-col items-center justify-center text-xs font-bold transition-all relative",
+                              "h-10 w-full md:h-11 mx-auto rounded-xl flex flex-col items-center justify-center text-xs font-bold transition-all relative overflow-hidden",
                               isActive ? "text-white shadow-md shadow-black/20" : 
                               (isPastDay || !isCurrentMonth) ? "text-zinc-300 cursor-not-allowed opacity-50" : 
+                              dayStatus === 'closed' ? "bg-rose-50/50 text-rose-300 cursor-not-allowed border-rose-100/50" :
                               "bg-zinc-50 text-zinc-700 hover:bg-zinc-100 border border-zinc-100"
                             )}
                             style={isActive ? { backgroundColor: customColor } : {}}
                           >
-                            <span>{format(day, "d")}</span>
+                            <span className={cn(dayStatus === 'closed' && "opacity-40")}>{format(day, "d")}</span>
                             
                             {/* Indicador de Status Visual */}
                             {!isPastDay && isCurrentMonth && (
                               <div className="absolute bottom-1.5 flex gap-0.5 mt-1">
                                 {dayStatus === 'closed' && (
-                                  <div className="w-1 h-1 rounded-full bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.6)]" title="Fechado" />
+                                  <div className="w-1 h-1 rounded-full bg-rose-400" />
                                 )}
                                 {dayStatus === 'full' && (
-                                  <div className="w-1 h-1 rounded-full bg-zinc-400" title="Lotado" />
+                                  <div className="w-1 h-1 rounded-full bg-zinc-400" />
                                 )}
                                 {dayStatus === 'busy' && (
-                                  <div className="w-1 h-1 rounded-full bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.6)]" title="Poucas vagas" />
+                                  <div className="w-1 h-1 rounded-full bg-amber-500" />
                                 )}
                                 {dayStatus === 'available' && (
-                                  <div className="w-1 h-1 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.6)]" title="Disponível" />
+                                  <div className="w-1 h-1 rounded-full bg-emerald-400" />
                                 )}
                               </div>
                             )}
 
-                            {/* Overlay de Bloqueio Visual (Vermelhão para fechado) */}
-                            {!isPastDay && isCurrentMonth && dayStatus === 'closed' && !isActive && (
-                              <div className="absolute inset-0 bg-rose-50/40 rounded-xl pointer-events-none border border-rose-100" />
+                            {/* Riscado Visual (X) para dias fechados */}
+                            {!isPastDay && isCurrentMonth && dayStatus === 'closed' && (
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+                                <div className="absolute w-full h-[1px] bg-rose-500 rotate-45" />
+                                <div className="absolute w-full h-[1px] bg-rose-500 -rotate-45" />
+                              </div>
                             )}
                           </button>
                         );
