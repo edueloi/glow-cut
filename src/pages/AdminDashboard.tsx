@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { 
   LayoutDashboard,
   Calendar as CalendarIcon,
+  Globe,
   Scissors,
   Users,
   CheckCircle,
@@ -83,6 +84,7 @@ import { SettingsTab } from "@/src/pages/admin/tabs/SettingsTab";
 import { ClientsTab } from "@/src/pages/admin/tabs/ClientsTab";
 import { ServicesTab } from "@/src/pages/admin/tabs/ServicesTab";
 import { AgendaTab } from "@/src/pages/admin/tabs/AgendaTab";
+import { MinhaAgendaTab } from "@/src/pages/admin/tabs/MinhaAgendaTab";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   AreaChart, 
@@ -116,7 +118,7 @@ const servicesData = [
 ];
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios">("dash");
+  const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "minha-agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios">("dash");
   const [appointments, setAppointments] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [professionals, setProfessionals] = useState<any[]>([]);
@@ -685,6 +687,12 @@ export default function AdminDashboard() {
             icon={<CalendarIcon size={18} />}
             label="Agenda & Reservas"
           />
+          <NavItem
+            active={activeTab === 'minha-agenda'}
+            onClick={() => handleTabChange('minha-agenda')}
+            icon={<Globe size={18} />}
+            label="Minha Agenda Online"
+          />
 
           <div className="px-4 mt-8 mb-4">
             <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Operacional</p>
@@ -768,6 +776,7 @@ export default function AdminDashboard() {
                 {activeTab === 'dash' ? 'Painel de Controle' :
                  activeTab === 'agenda' ? 'Agenda' :
                  activeTab === 'services' ? 'Serviços & Pacotes' :
+                 activeTab === 'minha-agenda' ? 'Minha Agenda Online' :
                  activeTab === 'clients' ? 'Clientes' :
                  activeTab === 'comandas' ? 'Comandas' :
                  activeTab === 'fluxo' ? 'Fluxo de Caixa' :
@@ -863,6 +872,10 @@ export default function AdminDashboard() {
             hoveredAppointment={hoveredAppointment}
             setHoveredAppointment={setHoveredAppointment}
           />
+        )}
+
+        {activeTab === 'minha-agenda' && (
+          <MinhaAgendaTab />
         )}
 
         {activeTab === 'services' && (

@@ -154,6 +154,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<ClientBooking />} />
+        <Route path="/agendar/:slug" element={<ClientBooking />} />
+        <Route path="/agendar" element={<Navigate to="/" />} />
         <Route path="/login" element={<Login />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/pro/login" element={<ProfessionalLogin />} />

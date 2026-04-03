@@ -3,10 +3,16 @@ import { Calendar as CalendarIcon, Clock, User, Phone, Instagram, ArrowRight, Ch
 import { motion, AnimatePresence } from "motion/react";
 import { format, addDays, isSameDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useParams } from "react-router-dom";
 import { Button } from "@/src/components/ui/Button";
 import { cn } from "@/src/lib/utils";
 
 export default function ClientBooking() {
+  const { slug } = useParams();
+  // Decode and format the slug to use as the studio name (example: "glowandcut" -> "Glowandcut Studio", "glow-cut" -> "Glow Cut Studio")
+  const defaultTitle = slug ? slug.replace(/-/g, ' ') : "Glow & Cut";
+  const studioName = defaultTitle.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + " Studio";
+
   const [step, setStep] = useState<"loading" | "home" | "consult" | "service" | "professional" | "date" | "confirm" | "success">("loading");
   const [services, setServices] = useState<any[]>([]);
   const [professionals, setProfessionals] = useState<any[]>([]);
@@ -93,9 +99,9 @@ export default function ClientBooking() {
           transition={{ duration: 0.5 }}
           className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4"
         >
-          <span className="text-zinc-950 font-bold text-2xl">G&C</span>
+          <span className="text-zinc-950 font-bold text-2xl">{studioName.charAt(0)}</span>
         </motion.div>
-        <h1 className="text-lg font-bold tracking-tighter">GLOW & CUT</h1>
+        <h1 className="text-lg font-bold tracking-tighter uppercase">{studioName}</h1>
         <p className="text-[10px] text-zinc-500 mt-2 uppercase tracking-widest">Carregando experiência...</p>
       </div>
     );
@@ -113,9 +119,9 @@ export default function ClientBooking() {
             Login Admin
           </button>
           <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-3">
-            <span className="text-zinc-950 font-bold text-lg">G&C</span>
+            <span className="text-zinc-950 font-bold text-lg">{studioName.charAt(0)}</span>
           </div>
-          <h2 className="text-sm font-bold uppercase tracking-tight">Glow & Cut Studio</h2>
+          <h2 className="text-sm font-bold uppercase tracking-tight">{studioName}</h2>
           <p className="text-[10px] text-zinc-400">Beleza e Estilo em cada detalhe</p>
         </div>
 
@@ -392,7 +398,7 @@ export default function ClientBooking() {
         </div>
       </div>
       <div className="mt-6 flex flex-col items-center gap-2">
-        <p className="text-[10px] text-zinc-400">© 2026 Glow & Cut Studio</p>
+        <p className="text-[10px] text-zinc-400">© 2026 {studioName}</p>
         <Button variant="ghost" size="xs" className="text-zinc-300 hover:text-zinc-500" onClick={() => window.location.href = '/login'}>
           Área Administrativa
         </Button>
