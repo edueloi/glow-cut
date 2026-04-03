@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Calendar as CalendarIcon, Clock, User, Phone, Instagram, ArrowRight, CheckCircle2, Search, Loader2, Scissors } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, User, Phone, Instagram, ArrowRight, CheckCircle2, Search, Loader2, Scissors, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { format, addDays, isSameDay, startOfDay, startOfMonth, endOfMonth, endOfWeek, startOfWeek, isSameMonth, isBefore, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -12,6 +12,7 @@ export default function ClientBooking() {
   // Decode and format the slug to use as the studio name (example: "glowandcut" -> "Glowandcut Studio", "glow-cut" -> "Glow Cut Studio")
   const defaultTitle = slug ? slug.replace(/-/g, ' ') : "Glow & Cut";
   const studioName = defaultTitle.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + " Studio";
+  const studioAddress = localStorage.getItem('studioAddress') || "Av. Principal, 1234 - Centro, São Paulo - SP";
 
   // Mock configurações que viriam do Painel Admin
   const [customColor, setCustomColor] = useState(() => localStorage.getItem('themeColor') || "#0a0a0a"); 
@@ -185,6 +186,10 @@ export default function ClientBooking() {
             <p className="text-lg lg:text-xl 2xl:text-3xl text-zinc-400 font-medium max-w-md 2xl:max-w-2xl leading-relaxed">
               Simplifique sua vida. Agende seu horário de forma rápida, sem necessidade de baixar apps ou fazer cadastros demorados.
             </p>
+            <div className="mt-6 flex items-center gap-3 text-zinc-500 bg-white/5 w-fit px-4 py-2 rounded-full border border-white/10 backdrop-blur-sm">
+               <MapPin size={18} className="text-emerald-500" />
+               <span className="text-sm font-bold tracking-tight">{studioAddress}</span>
+            </div>
           </motion.div>
         </div>
       </div>

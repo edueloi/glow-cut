@@ -1,5 +1,5 @@
 import React from "react";
-import { Globe, Copy, ExternalLink, Image as ImageIcon, Link as LinkIcon, X } from "lucide-react";
+import { Globe, Copy, ExternalLink, Image as ImageIcon, Link as LinkIcon, X, MapPin } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
 import { cn } from "@/src/lib/utils";
 
@@ -30,6 +30,7 @@ export function MinhaAgendaTab({ studioName = "Glow & Cut", themeColor = "#f59e0
   const [logoPreview, setLogoPreview] = React.useState<string | null>(() => localStorage.getItem('studioLogo'));
   const [coverPreview, setCoverPreview] = React.useState<string | null>(() => localStorage.getItem('studioCover'));
   const [localColor, setLocalColor] = React.useState<string>(() => localStorage.getItem('themeColor') || "#09090b");
+  const [localAddress, setLocalAddress] = React.useState<string>(() => localStorage.getItem('studioAddress') || "Av. Principal, 1234 - Centro, São Paulo - SP");
   const [isLoading, setIsLoading] = React.useState(false);
 
   const handleSave = async () => {
@@ -39,6 +40,7 @@ export function MinhaAgendaTab({ studioName = "Glow & Cut", themeColor = "#f59e0
       localStorage.setItem('studioLogo', logoPreview || "");
       localStorage.setItem('studioCover', coverPreview || "");
       localStorage.setItem('themeColor', localColor);
+      localStorage.setItem('studioAddress', localAddress);
       setIsLoading(false);
       show("Configurações da agenda salvas com sucesso!", "success");
     }, 800);
@@ -127,9 +129,24 @@ export function MinhaAgendaTab({ studioName = "Glow & Cut", themeColor = "#f59e0
             <p className="text-[9px] text-zinc-400">Título principal no Google e na aba do navegador.</p>
           </div>
 
-          <div className="space-y-2 flex-1 flex flex-col">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center justify-between">
+               Endereço Físico
+               <MapPin size={12} className="text-zinc-400" />
+            </label>
+            <input 
+              type="text" 
+              value={localAddress} 
+              onChange={(e) => setLocalAddress(e.target.value)}
+              placeholder="Ex: Av. Paulista, 1000 - São Paulo, SP"
+              className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all" 
+            />
+            <p className="text-[9px] text-zinc-400">O endereço aparecerá no topo da sua página pública.</p>
+          </div>
+
+          <div className="space-y-2 flex-1 flex flex-col pt-2">
             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Descrição Breve (Meta Description)</label>
-            <textarea rows={4} defaultValue={`Agende rapidamente seu corte ou procedimento no ${studioName}. Profissionais qualificados e um ambiente preparado para você.`} className="w-full flex-1 text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all resize-none" />
+            <textarea rows={3} defaultValue={`Agende rapidamente seu corte ou procedimento no ${studioName}. Profissionais qualificados e um ambiente preparado para você.`} className="w-full flex-1 text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all resize-none" />
             <p className="text-[9px] text-zinc-400">Texto que aparece nas redes sociais (WhatsApp) e no Google abaixo do título.</p>
           </div>
         </div>
@@ -157,15 +174,15 @@ export function MinhaAgendaTab({ studioName = "Glow & Cut", themeColor = "#f59e0
                 
                 {logoPreview ? (
                   <>
-                    <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-2" />
+                    <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
                     <button 
                       onClick={removeLogo}
-                      className="absolute top-2 right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-rose-600 transition-colors z-10"
+                      className="absolute top-2 right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-rose-600 transition-colors z-20"
                     >
                       <X size={14} />
                     </button>
-                    <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                       <p className="text-[10px] font-bold text-zinc-900 bg-white/80 px-2 py-1 rounded-md shadow-sm">Remover / Trocar</p>
+                    <div className="absolute inset-x-0 bottom-0 bg-black/40 backdrop-blur-sm py-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                       <p className="text-[9px] font-black text-white uppercase tracking-tighter">Trocar Imagem</p>
                     </div>
                   </>
                 ) : (
@@ -196,12 +213,12 @@ export function MinhaAgendaTab({ studioName = "Glow & Cut", themeColor = "#f59e0
                     <img src={coverPreview} alt="Capa" className="w-full h-full object-cover" />
                     <button 
                       onClick={removeCover}
-                      className="absolute top-2 right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-rose-600 transition-colors z-10"
+                      className="absolute top-2 right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-rose-600 transition-colors z-20"
                     >
                       <X size={14} />
                     </button>
-                    <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                       <p className="text-[10px] font-bold text-zinc-900 bg-white/80 px-2 py-1 rounded-md shadow-sm">Remover / Trocar</p>
+                    <div className="absolute inset-x-0 bottom-0 bg-black/40 backdrop-blur-sm py-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                       <p className="text-[9px] font-black text-white uppercase tracking-tighter">Trocar Capa</p>
                     </div>
                   </>
                 ) : (
