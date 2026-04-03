@@ -26,28 +26,59 @@ function LoginPage() {
     setError("");
 
     try {
+      // Endpoint unificado (disponível após reinício do servidor)
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier: user, password: pass }),
       });
 
-      if (!res.ok) {
+      if (res.status !== 404) {
+        // Servidor novo com /api/login
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          setError(d.error || "Usuário ou senha inválidos.");
+          return;
+        }
         const d = await res.json();
-        setError(d.error || "Usuário ou senha inválidos.");
+        if (d.type === "superadmin") {
+          localStorage.setItem("superAdminLogged", JSON.stringify(d));
+          window.location.href = "/super-admin";
+        } else {
+          localStorage.setItem("isLogged", "true");
+          localStorage.setItem("adminUser", JSON.stringify(d));
+          window.location.href = "/admin";
+        }
         return;
       }
 
-      const d = await res.json();
-
-      if (d.type === "superadmin") {
+      // Fallback: servidor antigo — tenta as duas rotas separadas
+      const saRes = await fetch("/api/super-admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: user, password: pass }),
+      });
+      if (saRes.ok) {
+        const d = await saRes.json();
         localStorage.setItem("superAdminLogged", JSON.stringify(d));
         window.location.href = "/super-admin";
-      } else {
+        return;
+      }
+
+      const adminRes = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user, password: pass }),
+      });
+      if (adminRes.ok) {
+        const d = await adminRes.json();
         localStorage.setItem("isLogged", "true");
         localStorage.setItem("adminUser", JSON.stringify(d));
         window.location.href = "/admin";
+        return;
       }
+
+      setError("Usuário ou senha inválidos.");
     } catch {
       setError("Erro de conexão. Verifique sua internet.");
     } finally {
