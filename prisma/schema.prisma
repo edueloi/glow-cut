@@ -1,185 +1,198 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
-// To switch to MySQL:
-// 1. Change provider to "mysql"
-// 2. Update DATABASE_URL in .env
-// 3. Run prisma migrate dev
-
 model Professional {
-  id           String        @id @default(uuid())
-  name         String
-  role         String?       // e.g. "Barbeiro", "Manicure"
-  password     String?       // for professional login
+  id           String         @id @db.VarChar(36)
+  name         String         @db.VarChar(255)
+  role         String?        @db.VarChar(100)
+  password     String?        @db.VarChar(255)
   appointments Appointment[]
   workingHours WorkingHours[]
+
+  @@map("Professional")
 }
 
 model Client {
-  id           String        @id @default(uuid())
-  name         String
-  phone        String        @unique
+  id           String        @id @db.VarChar(36)
+  name         String        @db.VarChar(255)
+  phone        String        @unique @db.VarChar(30)
   age          Int?
+  createdAt    DateTime      @default(now()) @db.DateTime(0)
   appointments Appointment[]
   comandas     Comanda[]
-  createdAt    DateTime      @default(now())
+
+  @@map("Client")
 }
 
 model Service {
-  id          String           @id @default(uuid())
-  name        String
-  description String?
-  price       Float
-  duration    Int              // in minutes
-  type        String           // 'service' or 'package'
-  discount    Float?           @default(0)
-  discountType String?         @default("value")
-  
-  appointments Appointment[]
-  packageServices PackageService[] @relation("PackageToService")
+  id                 String           @id @db.VarChar(36)
+  name               String           @db.VarChar(255)
+  description        String?          @db.Text
+  price              Float
+  duration           Int
+  type               String           @default("service") @db.VarChar(20)
+  discount           Float?           @default(0)
+  discountType       String?          @default("value") @db.VarChar(20)
+  appointments       Appointment[]
+  packageServices    PackageService[] @relation("PackageToService")
   includedInPackages PackageService[] @relation("ServiceInPackage")
+
+  @@map("Service")
 }
 
 model PackageService {
-  id        String  @id @default(uuid())
-  packageId String
-  package   Service @relation("PackageToService", fields: [packageId], references: [id])
-  serviceId String
-  service   Service @relation("ServiceInPackage", fields: [serviceId], references: [id])
+  id        String  @id @db.VarChar(36)
+  packageId String  @db.VarChar(36)
+  serviceId String  @db.VarChar(36)
   quantity  Int     @default(1)
-}
+  package   Service @relation("PackageToService", fields: [packageId], references: [id], onDelete: Cascade, map: "fk_pkg_package")
+  service   Service @relation("ServiceInPackage", fields: [serviceId], references: [id], onDelete: Cascade, map: "fk_pkg_service")
 
-model Appointment {
-  id             String       @id @default(uuid())
-  date           DateTime
-  startTime      String
-  endTime        String
-  status         String       @default("scheduled") // scheduled, confirmed, cancelled
-  type           String       @default("atendimento") // atendimento, bloqueio, pessoal
-
-  clientId       String?
-  client         Client?      @relation(fields: [clientId], references: [id])
-
-  serviceId      String?
-  service        Service?     @relation(fields: [serviceId], references: [id])
-
-  professionalId String
-  professional   Professional @relation(fields: [professionalId], references: [id])
-
-  comandaId      String?
-  comanda        Comanda?     @relation(fields: [comandaId], references: [id])
-
-  sessionNumber  Int?         @default(1)
-  totalSessions  Int?         @default(1)
-
-  createdAt      DateTime     @default(now())
+  @@index([packageId], map: "fk_pkg_package")
+  @@index([serviceId], map: "fk_pkg_service")
+  @@map("PackageService")
 }
 
 model Comanda {
-  id           String        @id @default(uuid())
-  status       String        @default("open") // open, paid
+  id           String        @id @db.VarChar(36)
+  status       String        @default("open") @db.VarChar(20)
   total        Float         @default(0)
   discount     Float         @default(0)
-  discountType String        @default("value")
-  
-  clientId     String
-  client       Client        @relation(fields: [clientId], references: [id])
-  
+  discountType String        @default("value") @db.VarChar(20)
+  clientId     String        @db.VarChar(36)
+  createdAt    DateTime      @default(now()) @db.DateTime(0)
+  client       Client        @relation(fields: [clientId], references: [id], map: "fk_comanda_client")
   appointments Appointment[]
-  createdAt    DateTime      @default(now())
+
+  @@index([clientId], map: "fk_comanda_client")
+  @@map("Comanda")
+}
+
+model Appointment {
+  id             String       @id @db.VarChar(36)
+  date           DateTime     @db.DateTime(0)
+  startTime      String       @db.VarChar(5)
+  endTime        String       @db.VarChar(5)
+  status         String       @default("scheduled") @db.VarChar(20)
+  type           String       @default("atendimento") @db.VarChar(20)
+  clientId       String?      @db.VarChar(36)
+  serviceId      String?      @db.VarChar(36)
+  professionalId String       @db.VarChar(36)
+  comandaId      String?      @db.VarChar(36)
+  sessionNumber  Int?         @default(1)
+  totalSessions  Int?         @default(1)
+  createdAt      DateTime     @default(now()) @db.DateTime(0)
+  client         Client?      @relation(fields: [clientId], references: [id], map: "fk_appt_client")
+  comanda        Comanda?     @relation(fields: [comandaId], references: [id], map: "fk_appt_comanda")
+  professional   Professional @relation(fields: [professionalId], references: [id], map: "fk_appt_professional")
+  service        Service?     @relation(fields: [serviceId], references: [id], map: "fk_appt_service")
+
+  @@index([clientId], map: "fk_appt_client")
+  @@index([comandaId], map: "fk_appt_comanda")
+  @@index([professionalId], map: "fk_appt_professional")
+  @@index([serviceId], map: "fk_appt_service")
+  @@map("Appointment")
 }
 
 model WorkingHours {
-  id             String        @id @default(uuid())
+  id             String        @id @db.VarChar(36)
   dayOfWeek      Int
   isOpen         Boolean       @default(true)
-  startTime      String        @default("09:00")
-  endTime        String        @default("18:00")
-  breakStart     String        @default("12:00")
-  breakEnd       String        @default("13:00")
-  
-  professionalId String?
-  professional   Professional? @relation(fields: [professionalId], references: [id])
+  startTime      String        @default("09:00") @db.VarChar(5)
+  endTime        String        @default("18:00") @db.VarChar(5)
+  breakStart     String        @default("12:00") @db.VarChar(5)
+  breakEnd       String        @default("13:00") @db.VarChar(5)
+  professionalId String?       @db.VarChar(36)
+  professional   Professional? @relation(fields: [professionalId], references: [id], map: "fk_wh_professional")
+
+  @@index([professionalId], map: "fk_wh_professional")
+  @@map("WorkingHours")
 }
 
 model ClosedDay {
-  id          String   @id @default(uuid())
-  date        DateTime @unique
-  description String?
+  id          String   @id @db.VarChar(36)
+  date        DateTime @unique @db.DateTime(0)
+  description String?  @db.VarChar(255)
+
+  @@map("ClosedDay")
 }
 
-// ─── Super Admin (único, hardcoded, dono do SaaS) ───────────────────────────
 model SuperAdmin {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  password  String
-  createdAt DateTime @default(now())
+  id        String   @id @db.VarChar(36)
+  username  String   @unique @db.VarChar(100)
+  password  String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+
+  @@map("SuperAdmin")
 }
 
-// ─── Planos de assinatura ────────────────────────────────────────────────────
 model Plan {
-  id                  String   @id @default(uuid())
-  name                String   // "Básico", "Pro", "Enterprise"
+  id                  String   @id @db.VarChar(36)
+  name                String   @db.VarChar(100)
   price               Float    @default(0)
   maxProfessionals    Int      @default(3)
   maxAdminUsers       Int      @default(1)
   canCreateAdminUsers Boolean  @default(false)
   canDeleteAccount    Boolean  @default(false)
-  features            String   @default("[]") // JSON array of feature strings
+  features            String?  @default("[]") @db.VarChar(2000)
   isActive            Boolean  @default(true)
-  createdAt           DateTime @default(now())
+  createdAt           DateTime @default(now()) @db.DateTime(0)
   tenants             Tenant[]
+
+  @@map("Plan")
 }
 
-// ─── Parceiros / Tenants ─────────────────────────────────────────────────────
 model Tenant {
-  id           String      @id @default(uuid())
-  name         String      // Nome do salão/barbearia
-  slug         String      @unique // URL slug
-  ownerName    String
-  ownerEmail   String
-  ownerPhone   String?
-  planId       String
-  plan         Plan        @relation(fields: [planId], references: [id])
-  isActive     Boolean     @default(true)
-  notes        String?
-  createdAt    DateTime    @default(now())
-  adminUsers   AdminUser[]
+  id         String      @id @db.VarChar(36)
+  name       String      @db.VarChar(255)
+  slug       String      @unique @db.VarChar(100)
+  ownerName  String      @db.VarChar(255)
+  ownerEmail String      @db.VarChar(255)
+  ownerPhone String?     @db.VarChar(30)
+  planId     String      @db.VarChar(36)
+  isActive   Boolean     @default(true)
+  notes      String?     @db.VarChar(1000)
+  createdAt  DateTime    @default(now()) @db.DateTime(0)
+  plan       Plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
+  adminUsers AdminUser[]
+
+  @@index([planId], map: "fk_tenant_plan")
+  @@map("Tenant")
 }
 
-// ─── Usuários Admin (criados pelo super admin ou pelo próprio tenant) ─────────
 model AdminUser {
-  id             String   @id @default(uuid())
-  name           String
-  email          String   @unique
-  password       String
-  role           String   @default("admin") // "admin" | "manager" | "viewer"
-  jobTitle       String?  // "Gerente", "Recepcionista"
-  bio            String?
-  phone          String?
-  canCreateUsers Boolean  @default(false)
-  canDeleteAccount Boolean @default(false)
-  isActive       Boolean  @default(true)
-  tenantId       String
-  tenant         Tenant   @relation(fields: [tenantId], references: [id])
-  createdAt      DateTime @default(now())
-  lastLogin      DateTime?
-  permissions    String?  // JSON array ex: ["agenda.ver","clientes.criar"]
+  id               String    @id @db.VarChar(36)
+  name             String    @db.VarChar(255)
+  email            String    @unique @db.VarChar(255)
+  password         String    @db.VarChar(255)
+  role             String    @default("admin") @db.VarChar(20)
+  jobTitle         String?   @db.VarChar(100)
+  bio              String?   @db.VarChar(1000)
+  phone            String?   @db.VarChar(30)
+  canCreateUsers   Boolean   @default(false)
+  canDeleteAccount Boolean   @default(false)
+  isActive         Boolean   @default(true)
+  tenantId         String    @db.VarChar(36)
+  createdAt        DateTime  @default(now()) @db.DateTime(0)
+  lastLogin        DateTime? @db.DateTime(0)
+  permissions      String?   @db.VarChar(4000)
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], map: "fk_adminuser_tenant")
+
+  @@index([tenantId], map: "fk_adminuser_tenant")
+  @@map("AdminUser")
 }
 
-// ─── Legacy user model (mantido por compatibilidade) ─────────────────────────
 model User {
-  id       String @id @default(uuid())
-  username String @unique
-  password String
-  role     String @default("admin")
+  id       String @id @db.VarChar(36)
+  username String @unique @db.VarChar(100)
+  password String @db.VarChar(255)
+  role     String @default("admin") @db.VarChar(20)
+
+  @@map("User")
 }
