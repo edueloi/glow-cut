@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Calendar as CalendarIcon, Clock, User, Phone, Instagram, ArrowRight, CheckCircle2, Search, Loader2 } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, User, Phone, Instagram, ArrowRight, CheckCircle2, Search, Loader2, Scissors } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { format, addDays, isSameDay, startOfDay, startOfMonth, endOfMonth, endOfWeek, startOfWeek, isSameMonth, isBefore, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -14,8 +14,8 @@ export default function ClientBooking() {
   const studioName = defaultTitle.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + " Studio";
 
   // Mock configurações que viriam do Painel Admin
-  const customColor = "#0a0a0a"; 
-  const customLogo = "https://cdn-icons-png.flaticon.com/512/3233/3233034.png";
+  const [customColor, setCustomColor] = useState(() => localStorage.getItem('themeColor') || "#0a0a0a"); 
+  const [customLogo, setCustomLogo] = useState(() => localStorage.getItem('studioLogo') || "https://cdn-icons-png.flaticon.com/512/3233/3233034.png");
 
   // Mock de feriados/fechamentos que viriam do banco (ex: 16 de abril)
   const blockedDates = ["2026-04-16"];
@@ -137,9 +137,15 @@ export default function ClientBooking() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-2xl"
+            className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-2xl overflow-hidden p-3 border border-white/10"
           >
-            <span className="text-zinc-950 font-black text-3xl">{studioName.charAt(0)}</span>
+            {customLogo ? (
+              <img src={customLogo} alt="Logo" className="w-full h-full object-contain" />
+            ) : (
+              <div className="bg-zinc-950 w-full h-full rounded-2xl flex items-center justify-center">
+                <Scissors size={40} className="text-white" />
+              </div>
+            )}
           </motion.div>
           <h1 className="text-xl font-black tracking-tighter uppercase text-white">{studioName}</h1>
           <p className="text-xs text-zinc-500 mt-2 uppercase tracking-widest font-bold">Preparando agendamento...</p>
@@ -164,11 +170,13 @@ export default function ClientBooking() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <div className="w-20 h-20 2xl:w-28 2xl:h-28 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-black/50 overflow-hidden">
+            <div className="w-20 h-20 2xl:w-28 2xl:h-28 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-black/50 overflow-hidden p-2.5 border border-white/10">
               {customLogo ? (
-                <img src={customLogo} alt="Logo" className="w-full h-full object-contain p-2" />
+                <img src={customLogo} alt="Logo" className="w-full h-full object-contain" />
               ) : (
-                <span className="font-black text-4xl 2xl:text-6xl" style={{ color: customColor }}>{studioName.charAt(0)}</span>
+                <div className="bg-zinc-950 w-full h-full rounded-2xl flex items-center justify-center">
+                  <Scissors size={40} className="text-white" />
+                </div>
               )}
             </div>
             <h1 className="text-5xl lg:text-7xl 2xl:text-8xl font-black text-white tracking-tighter leading-none mb-6">
@@ -189,11 +197,13 @@ export default function ClientBooking() {
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent pointer-events-none" />
           
           <div className="relative z-10 flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-xl overflow-hidden">
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-xl overflow-hidden p-2 border border-white/10">
               {customLogo ? (
-                <img src={customLogo} alt="Logo" className="w-full h-full object-contain p-1.5" />
+                <img src={customLogo} alt="Logo" className="w-full h-full object-contain" />
               ) : (
-                <span className="font-black text-2xl" style={{ color: customColor }}>{studioName.charAt(0)}</span>
+                <div className="bg-zinc-950 w-full h-full rounded-xl flex items-center justify-center">
+                  <Scissors size={28} className="text-white" />
+                </div>
               )}
             </div>
             <h2 className="text-2xl font-black uppercase tracking-tight">{studioName}</h2>
@@ -705,6 +715,19 @@ export default function ClientBooking() {
                 animate={{ scale: 1, opacity: 1 }}
                 className="text-center py-12 space-y-6 flex flex-col items-center justify-center min-h-[50vh]"
               >
+                <motion.div 
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="w-28 h-28 bg-white rounded-3xl mb-8 flex items-center justify-center shadow-2xl p-2 border border-white/20 overflow-hidden"
+                >
+                  {customLogo ? (
+                    <img src={customLogo} alt="Logo" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="bg-zinc-950 w-full h-full rounded-2xl flex items-center justify-center">
+                      <Scissors size={48} className="text-white" />
+                    </div>
+                  )}
+                </motion.div>
                 <div className="relative">
                   <div className="absolute inset-0 bg-emerald-500 blur-xl opacity-20 rounded-full" />
                   <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-sm border border-emerald-100 relative z-10">

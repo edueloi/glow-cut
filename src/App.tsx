@@ -158,6 +158,7 @@ export default function App() {
         <Route path="/agendar" element={<Navigate to="/" />} />
         <Route path="/login" element={<Login />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/*" element={<AdminDashboard />} />
         <Route path="/pro/login" element={<ProfessionalLogin />} />
         <Route path="/pro" element={<ProfessionalDashboard />} />
       </Routes>

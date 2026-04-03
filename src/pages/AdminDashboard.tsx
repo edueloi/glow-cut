@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard,
   Calendar as CalendarIcon,
@@ -118,7 +119,54 @@ const servicesData = [
 ];
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "minha-agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios">("dash");
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Mapeamento de abas para Slugs de URL
+  const tabSlugs: Record<string, string> = {
+    'dash': 'painel',
+    'agenda': 'agenda',
+    'minha-agenda': 'meu-link',
+    'services': 'servicos',
+    'clients': 'clientes',
+    'comandas': 'comandas',
+    'fluxo': 'fluxo',
+    'professionals': 'profissionais',
+    'horarios': 'horarios',
+    'settings': 'config'
+  };
+
+  // Inverter o mapa para carregar a aba correta pela URL
+  const slugToTab = Object.fromEntries(Object.entries(tabSlugs).map(([tab, slug]) => [slug, tab]));
+
+  const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "minha-agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios">(() => {
+    const path = location.pathname.split('/').pop();
+    return (slugToTab[path || ''] as any) || "dash";
+  });
+
+  // Sempre que a aba mudar, atualizar a URL (sem recarregar a página)
+  const handleTabChange = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    const slug = tabSlugs[tab] || 'painel';
+    window.history.pushState(null, '', `/admin/${slug}`);
+    
+    if (tab === 'clients') {
+      fetch("/api/clients").then(res => res.json()).then(setClients);
+    }
+    if (tab === 'services') {
+      fetch("/api/services").then(res => res.json()).then(setServices);
+    }
+    if (tab === 'comandas' || tab === 'fluxo') {
+      fetch("/api/comandas").then(res => res.json()).then(setComandas);
+    }
+    if (tab === 'agenda') {
+      fetchAppointments();
+    }
+    if (tab === 'professionals') {
+      fetch("/api/professionals").then(res => res.json()).then(setProfessionals);
+    }
+  };
+
   const [appointments, setAppointments] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [professionals, setProfessionals] = useState<any[]>([]);
@@ -128,6 +176,7 @@ export default function AdminDashboard() {
   const [localWorkingHours, setLocalWorkingHours] = useState<any[]>([]);
   const [settingsOpenCard, setSettingsOpenCard] = useState<string | null>('studio');
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
   const [view, setView] = useState<"day" | "week" | "month">("week");
   const [selectedProfessional, setSelectedProfessional] = useState<string>("all");
   
@@ -581,30 +630,7 @@ export default function AdminDashboard() {
     fetch("/api/comandas").then(res => res.json()).then(setComandas);
   };
 
-  const handleTabChange = (tab: typeof activeTab) => {
-    setActiveTab(tab);
-    if (tab === 'clients') {
-      fetch("/api/clients").then(res => res.json()).then(setClients);
-    }
-    if (tab === 'services') {
-      fetch("/api/services").then(res => res.json()).then(setServices);
-    }
-    if (tab === 'comandas' || tab === 'fluxo') {
-      fetch("/api/comandas").then(res => res.json()).then(setComandas);
-    }
-    if (tab === 'agenda') {
-      fetchAppointments();
-    }
-    if (tab === 'professionals') {
-      fetch("/api/professionals").then(res => res.json()).then(setProfessionals);
-    }
-    if (tab === 'horarios') {
-      fetch("/api/settings/working-hours").then(res => res.json()).then(wh => {
-        setWorkingHours(wh);
-        setLocalWorkingHours(wh.map((w: any) => ({ ...w })));
-      });
-    }
-  };
+
 
   const handleCreateProfessional = async () => {
     const url = editingProfessional ? `/api/professionals/${editingProfessional.id}` : "/api/professionals";
