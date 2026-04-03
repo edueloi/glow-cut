@@ -1,4 +1,5 @@
 ﻿import React, { useState } from "react";
+import { apiFetch } from "@/src/lib/api";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarOff, Clock3, Plus, Sparkles, Sun, X } from "lucide-react";
@@ -157,7 +158,7 @@ export function HorariosTab({
     setSaveStatus("idle");
 
     try {
-      const response = await fetch("/api/settings/working-hours", {
+      const response = await apiFetch("/api/settings/working-hours", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hours: payload }),

@@ -36,16 +36,36 @@ export default function ClientBooking() {
   const [myAppointments, setMyAppointments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const [tenantId, setTenantId] = useState<string | null>(null);
+
   useEffect(() => {
-    setTimeout(() => setStep("home"), 2000);
-    fetch("/api/services").then(res => res.json()).then(setServices);
-    fetch("/api/professionals").then(res => res.json()).then(setProfessionals);
-  }, []);
+    const loadData = async () => {
+      let tid: string | null = null;
+      if (slug) {
+        try {
+          const r = await fetch(`/api/tenant-by-slug/${slug}`);
+          if (r.ok) {
+            const t = await r.json();
+            tid = t.id;
+            setTenantId(t.id);
+          }
+        } catch { /* sem slug válido */ }
+      }
+      const headers: Record<string, string> = {};
+      if (tid) headers["x-tenant-id"] = tid;
+      fetch("/api/services", { headers }).then(r => r.json()).then(setServices);
+      fetch("/api/professionals", { headers }).then(r => r.json()).then(setProfessionals);
+      setTimeout(() => setStep("home"), 2000);
+    };
+    loadData();
+  }, [slug]);
 
   const handleSearchClient = async () => {
     if (phone.length < 10) return;
     setIsLoading(true);
-    const res = await fetch(`/api/clients/search?phone=${phone}`);
+    const headers: Record<string, string> = {};
+    if (tenantId) headers["x-tenant-id"] = tenantId;
+    const res = await fetch(`/api/clients/search?phone=${phone}`, { headers });
     const data = await res.json();
     if (data) {
       setClientData({ name: data.name, age: data.age?.toString() || "" });
@@ -59,7 +79,9 @@ export default function ClientBooking() {
   const handleConsultAppointments = async () => {
     if (phone.length < 10) return;
     setIsLoading(true);
-    const res = await fetch(`/api/appointments/client?phone=${phone}`);
+    const headers: Record<string, string> = {};
+    if (tenantId) headers["x-tenant-id"] = tenantId;
+    const res = await fetch(`/api/appointments/client?phone=${phone}`, { headers });
     const data = await res.json();
     setMyAppointments(data);
     setIsLoading(false);
@@ -67,49 +89,30 @@ export default function ClientBooking() {
 
   const fetchAvailability = async (date: Date, serviceId: string, professionalId: string) => {
     setIsLoading(true);
-    
     try {
-      // Em um cenário real, aqui seria feita uma chamada à sua API mandando a data
-      // const res = await fetch(`/api/availability?date=${date.toISOString()}&serviceId=${serviceId}&professionalId=${professionalId}`);
-      // const data = await res.json();
-      
-      // Mock de disponibilidade realística para o cliente visualizar
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simula delay da rede
-      
-      const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Segunda...
-      
-      if (dayOfWeek === 0) {
-        // Domingo -> Fechado
-        setAvailableSlots([]);
-      } else if (dayOfWeek === 1) {
-        // Segunda -> Só de tarde
-        setAvailableSlots(['13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00']);
-      } else {
-        // Outros dias -> Gera alguns horários aleatórios e preenche os base
-        const allSlots = [
-          '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', 
-          '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00'
-        ];
-        
-        // Simulação: removemos alguns horários aleatórios dependendo do dia para parecer que já foram agendados
-        const pseudoRandomSeed = date.getDate();
-        const slotsDesteDia = allSlots.filter((_, index) => (pseudoRandomSeed + index) % 4 !== 0);
-        
-        setAvailableSlots(slotsDesteDia);
-      }
-    } catch (error) {
-       setAvailableSlots([]);
+      const headers: Record<string, string> = {};
+      if (tenantId) headers["x-tenant-id"] = tenantId;
+      const res = await fetch(
+        `/api/availability?date=${date.toISOString()}&serviceId=${serviceId}&professionalId=${professionalId}`,
+        { headers }
+      );
+      const data = await res.json();
+      setAvailableSlots(Array.isArray(data) ? data : []);
+    } catch {
+      setAvailableSlots([]);
     } finally {
-       setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleBooking = async () => {
     setIsLoading(true);
     // 1. Save/Update Client
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (tenantId) headers["x-tenant-id"] = tenantId;
     const clientRes = await fetch("/api/clients", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ ...clientData, phone })
     });
     const client = await clientRes.json();
@@ -117,7 +120,7 @@ export default function ClientBooking() {
     // 2. Create Appointment
     await fetch("/api/appointments", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         date: selectedDate,
         startTime: selectedSlot,

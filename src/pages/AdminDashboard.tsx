@@ -73,6 +73,7 @@ import {
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/src/lib/utils";
+import { apiFetch } from "@/src/lib/api";
 import { Button } from "@/src/components/ui/Button";
 import { Modal } from "@/src/components/ui/Modal";
 import { StatCard } from "@/src/components/ui/StatCard";
@@ -154,19 +155,19 @@ export default function AdminDashboard() {
     window.history.pushState(null, '', `/admin/${slug}`);
     
     if (tab === 'clients') {
-      fetch("/api/clients").then(res => res.json()).then(setClients);
+      apiFetch("/api/clients").then(res => res.json()).then(setClients);
     }
     if (tab === 'services') {
-      fetch("/api/services").then(res => res.json()).then(setServices);
+      apiFetch("/api/services").then(res => res.json()).then(setServices);
     }
     if (tab === 'comandas' || tab === 'fluxo') {
-      fetch("/api/comandas").then(res => res.json()).then(setComandas);
+      apiFetch("/api/comandas").then(res => res.json()).then(setComandas);
     }
     if (tab === 'agenda') {
       fetchAppointments();
     }
     if (tab === 'professionals') {
-      fetch("/api/professionals").then(res => res.json()).then(setProfessionals);
+      apiFetch("/api/professionals").then(res => res.json()).then(setProfessionals);
     }
   };
 
@@ -282,14 +283,14 @@ export default function AdminDashboard() {
   const [clientPersonalOpen, setClientPersonalOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/services").then(res => res.json()).then(setServices);
-    fetch("/api/professionals").then(res => res.json()).then(profs => {
+    apiFetch("/api/services").then(res => res.json()).then(setServices);
+    apiFetch("/api/professionals").then(res => res.json()).then(profs => {
       setProfessionals(profs);
       if (profs.length > 0) setSelectedProfessional(profs[0].id);
     });
-    fetch("/api/settings/working-hours").then(res => res.json()).then(setWorkingHours);
-    fetch("/api/comandas").then(res => res.json()).then(setComandas);
-    fetch("/api/clients").then(res => res.json()).then(setClients);
+    apiFetch("/api/settings/working-hours").then(res => res.json()).then(setWorkingHours);
+    apiFetch("/api/comandas").then(res => res.json()).then(setComandas);
+    apiFetch("/api/clients").then(res => res.json()).then(setClients);
     fetchAppointments();
   }, [currentMonth, selectedProfessional]);
 
@@ -331,7 +332,7 @@ export default function AdminDashboard() {
     const end = endOfMonth(currentMonth).toISOString();
     let url = `/api/appointments?start=${start}&end=${end}`;
     if (selectedProfessional !== "all") url += `&professionalId=${selectedProfessional}`;
-    fetch(url).then(res => res.json()).then(setAppointments);
+    apiFetch(url).then(res => res.json()).then(setAppointments);
   };
 
   const handleCreateAppointment = async () => {
@@ -344,7 +345,7 @@ export default function AdminDashboard() {
           alert("Por favor, selecione um cliente ou preencha nome e telefone para cadastrar um novo.");
           return;
         }
-        const clientRes = await fetch("/api/clients", {
+        const clientRes = await apiFetch("/api/clients", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: newAppointment.clientName, phone: newAppointment.clientPhone })
@@ -354,7 +355,7 @@ export default function AdminDashboard() {
       }
     }
 
-    await fetch("/api/appointments", {
+    await apiFetch("/api/appointments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -385,7 +386,7 @@ export default function AdminDashboard() {
         alert("Por favor, selecione um cliente ou preencha nome e telefone para cadastrar um novo.");
         return;
       }
-      const newClientRes = await fetch("/api/clients", {
+      const newClientRes = await apiFetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newComanda.clientName, phone: newComanda.clientPhone })
@@ -422,7 +423,7 @@ export default function AdminDashboard() {
       date: newComanda.date
     };
 
-    await fetch("/api/comandas", {
+    await apiFetch("/api/comandas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
@@ -431,14 +432,14 @@ export default function AdminDashboard() {
     setIsComandaModalOpen(false);
     setNewComanda({ ...emptyComanda });
     setComandaClientSearchResults([]);
-    fetch("/api/comandas").then(res => res.json()).then(setComandas);
+    apiFetch("/api/comandas").then(res => res.json()).then(setComandas);
   };
 
   const handleSearchClientForComanda = async (name: string) => {
     setNewComanda(prev => ({ ...prev, clientName: name, clientId: "", clientPhone: "" }));
     if (name.length >= 1) {
       try {
-        const res = await fetch(`/api/clients/search?name=${encodeURIComponent(name)}`);
+        const res = await apiFetch(`/api/clients/search?name=${encodeURIComponent(name)}`);
         const data = await res.json();
         setComandaClientSearchResults(Array.isArray(data) ? data : []);
       } catch { setComandaClientSearchResults([]); }
@@ -460,7 +461,7 @@ export default function AdminDashboard() {
   const handleCreateClient = async () => {
     const url = editingClient ? `/api/clients/${editingClient.id}` : "/api/clients";
     const method = editingClient ? "PUT" : "POST";
-    await fetch(url, {
+    await apiFetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newClient)
@@ -468,13 +469,13 @@ export default function AdminDashboard() {
     setIsClientModalOpen(false);
     setEditingClient(null);
     setNewClient({ ...emptyClient });
-    fetch("/api/clients").then(res => res.json()).then(setClients);
+    apiFetch("/api/clients").then(res => res.json()).then(setClients);
   };
 
   const handleDeleteClient = async (id: string) => {
     if (!confirm("Excluir este cliente?")) return;
-    await fetch(`/api/clients/${id}`, { method: "DELETE" });
-    fetch("/api/clients").then(res => res.json()).then(setClients);
+    await apiFetch(`/api/clients/${id}`, { method: "DELETE" });
+    apiFetch("/api/clients").then(res => res.json()).then(setClients);
   };
 
   const handleEditClient = (client: any) => {
@@ -529,7 +530,7 @@ export default function AdminDashboard() {
     setClientComandaStatus(null);
     if (name.length >= 1) {
       try {
-        const res = await fetch(`/api/clients/search?name=${encodeURIComponent(name)}`);
+        const res = await apiFetch(`/api/clients/search?name=${encodeURIComponent(name)}`);
         const data = await res.json();
         setClientSearchResults(Array.isArray(data) ? data : []);
       } catch {
@@ -651,13 +652,13 @@ export default function AdminDashboard() {
 
   const handleCreateService = async () => {
     if (editingService) {
-      await fetch(`/api/services/${editingService.id}`, {
+      await apiFetch(`/api/services/${editingService.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newService)
       });
     } else {
-      await fetch("/api/services", {
+      await apiFetch("/api/services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newService)
@@ -666,22 +667,22 @@ export default function AdminDashboard() {
     setIsServiceModalOpen(false);
     setEditingService(null);
     setNewService({ name: "", description: "", price: "", duration: "", type: "service", discount: "0", discountType: "value", includedServices: [] });
-    fetch("/api/services").then(res => res.json()).then(setServices);
+    apiFetch("/api/services").then(res => res.json()).then(setServices);
   };
 
   const handleDeleteService = async (id: string) => {
     if (!confirm("Excluir este serviço?")) return;
-    await fetch(`/api/services/${id}`, { method: "DELETE" });
-    fetch("/api/services").then(res => res.json()).then(setServices);
+    await apiFetch(`/api/services/${id}`, { method: "DELETE" });
+    apiFetch("/api/services").then(res => res.json()).then(setServices);
   };
 
   const handlePayComanda = async (comanda: any) => {
-    await fetch(`/api/comandas/${comanda.id}`, {
+    await apiFetch(`/api/comandas/${comanda.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "paid" })
     });
-    fetch("/api/comandas").then(res => res.json()).then(setComandas);
+    apiFetch("/api/comandas").then(res => res.json()).then(setComandas);
   };
 
 
@@ -691,7 +692,7 @@ export default function AdminDashboard() {
     const method = editingProfessional ? "PUT" : "POST";
     const body: any = { name: newProfessional.name, role: newProfessional.role };
     if (newProfessional.password) body.password = newProfessional.password;
-    await fetch(url, {
+    await apiFetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
@@ -699,13 +700,13 @@ export default function AdminDashboard() {
     setIsProfessionalModalOpen(false);
     setEditingProfessional(null);
     setNewProfessional({ name: "", role: "", password: "", showPassword: false });
-    fetch("/api/professionals").then(res => res.json()).then(setProfessionals);
+    apiFetch("/api/professionals").then(res => res.json()).then(setProfessionals);
   };
 
   const handleDeleteProfessional = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este profissional?")) return;
-    await fetch(`/api/professionals/${id}`, { method: "DELETE" });
-    fetch("/api/professionals").then(res => res.json()).then(setProfessionals);
+    await apiFetch(`/api/professionals/${id}`, { method: "DELETE" });
+    apiFetch("/api/professionals").then(res => res.json()).then(setProfessionals);
   };
 
   const daysInMonth = eachDayOfInterval({

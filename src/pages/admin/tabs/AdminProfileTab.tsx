@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { cn } from "@/src/lib/utils";
+import { apiFetch } from "@/src/lib/api";
 import {
   User, Mail, Phone, Briefcase, FileText,
   Lock, Eye, EyeOff, Check, Edit2, Save,
@@ -607,7 +608,7 @@ export function AdminProfileTab() {
   const [viewPermsUser, setViewPermsUser] = useState<any>(null);
 
   const loadTeam = useCallback(async () => {
-    const r = await fetch("/api/super-admin/admin-users");
+    const r = await apiFetch("/api/super-admin/admin-users");
     if (!r.ok) return;
     const all = await r.json();
     const tenantId = adminUser?.tenantId;
@@ -627,7 +628,7 @@ export function AdminProfileTab() {
       const body: any = { name: form.name, jobTitle: form.jobTitle, bio: form.bio, phone: form.phone };
       if (form.password) body.password = form.password;
       if (adminUser?.id) {
-        const r = await fetch(`/api/admin/profile/${adminUser.id}`, {
+        const r = await apiFetch(`/api/admin/profile/${adminUser.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -661,13 +662,13 @@ export function AdminProfileTab() {
       permissions: JSON.stringify(data.permissions),
     };
     if (editingUser) {
-      await fetch(`/api/super-admin/admin-users/${editingUser.id}`, {
+      await apiFetch(`/api/super-admin/admin-users/${editingUser.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
     } else {
-      await fetch("/api/super-admin/admin-users", {
+      await apiFetch("/api/super-admin/admin-users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -680,7 +681,7 @@ export function AdminProfileTab() {
 
   const handleDeleteUser = async (id: string) => {
     if (!confirm("Excluir este usuário da equipe?")) return;
-    await fetch(`/api/super-admin/admin-users/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/super-admin/admin-users/${id}`, { method: "DELETE" });
     loadTeam();
   };
 
