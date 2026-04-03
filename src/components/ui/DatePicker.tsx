@@ -207,6 +207,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   type="button"
                   disabled={disabledDate}
                   onClick={() => handleSelectDate(date)}
+                  title={isHoliday(date)?.name || (disabledDate ? 'Indisponível' : '')}
                   className={[
                     'flex h-8 items-center justify-center rounded-lg text-xs font-bold transition relative',
                     !isCurrentMonth ? 'text-zinc-300' : 'text-zinc-700',
@@ -218,10 +219,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 >
                   {date.getDate()}
                   {isHoliday(date) && (
-                    <div 
-                      className="absolute top-1 right-1 w-1 h-1 rounded-full bg-red-400" 
-                      title={isHoliday(date)?.name} 
-                    />
+                    <div className="absolute top-1 right-1 w-1 h-1 rounded-full bg-red-400" />
                   )}
                 </button>
               );
