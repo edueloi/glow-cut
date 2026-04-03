@@ -34,7 +34,15 @@ import {
   Eye,
   EyeOff,
   Edit2,
-  XCircle
+  XCircle,
+  ChevronDown,
+  Sun,
+  Store,
+  MapPin,
+  Phone,
+  Palette,
+  CalendarOff,
+  AlertTriangle
 } from "lucide-react";
 import { 
   format, 
@@ -89,11 +97,15 @@ const servicesData = [
 ];
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals">("dash");
+  const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios">("dash");
   const [appointments, setAppointments] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [workingHours, setWorkingHours] = useState<any[]>([]);
+  const [holidays, setHolidays] = useState<{ id: string; date: string; name: string }[]>([]);
+  const [newHoliday, setNewHoliday] = useState({ date: '', name: '' });
+  const [localWorkingHours, setLocalWorkingHours] = useState<any[]>([]);
+  const [settingsOpenCard, setSettingsOpenCard] = useState<string | null>('studio');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [view, setView] = useState<"day" | "week" | "month">("week");
   const [selectedProfessional, setSelectedProfessional] = useState<string>("all");
@@ -337,17 +349,47 @@ export default function AdminDashboard() {
   const [themeColor, setThemeColor] = useState<string>(() => localStorage.getItem('themeColor') || 'amber');
 
   const themeColors = [
-    { value: 'amber', label: 'Âmbar', hex: '#f59e0b', light: '#fef3c7', border: '#fcd34d' },
-    { value: 'emerald', label: 'Esmeralda', hex: '#10b981', light: '#d1fae5', border: '#6ee7b7' },
-    { value: 'blue', label: 'Azul', hex: '#3b82f6', light: '#dbeafe', border: '#93c5fd' },
-    { value: 'violet', label: 'Violeta', hex: '#8b5cf6', light: '#ede9fe', border: '#c4b5fd' },
-    { value: 'rose', label: 'Rosa', hex: '#f43f5e', light: '#ffe4e6', border: '#fda4af' },
-    { value: 'zinc', label: 'Carvão', hex: '#18181b', light: '#f4f4f5', border: '#a1a1aa' },
+    { value: 'amber',   label: 'Âmbar',     hex: '#f59e0b', light: '#fffbeb', border: '#fcd34d',
+      shades: { 50:'#fffbeb',100:'#fef3c7',200:'#fde68a',300:'#fcd34d',400:'#fbbf24',500:'#f59e0b',600:'#d97706',700:'#b45309' } },
+    { value: 'orange',  label: 'Laranja',   hex: '#f97316', light: '#fff7ed', border: '#fdba74',
+      shades: { 50:'#fff7ed',100:'#ffedd5',200:'#fed7aa',300:'#fdba74',400:'#fb923c',500:'#f97316',600:'#ea580c',700:'#c2410c' } },
+    { value: 'rose',    label: 'Rosa',      hex: '#f43f5e', light: '#fff1f2', border: '#fda4af',
+      shades: { 50:'#fff1f2',100:'#ffe4e6',200:'#fecdd3',300:'#fda4af',400:'#fb7185',500:'#f43f5e',600:'#e11d48',700:'#be123c' } },
+    { value: 'pink',    label: 'Pink',      hex: '#ec4899', light: '#fdf2f8', border: '#f9a8d4',
+      shades: { 50:'#fdf2f8',100:'#fce7f3',200:'#fbcfe8',300:'#f9a8d4',400:'#f472b6',500:'#ec4899',600:'#db2777',700:'#be185d' } },
+    { value: 'violet',  label: 'Violeta',   hex: '#8b5cf6', light: '#f5f3ff', border: '#c4b5fd',
+      shades: { 50:'#f5f3ff',100:'#ede9fe',200:'#ddd6fe',300:'#c4b5fd',400:'#a78bfa',500:'#8b5cf6',600:'#7c3aed',700:'#6d28d9' } },
+    { value: 'indigo',  label: 'Índigo',    hex: '#6366f1', light: '#eef2ff', border: '#a5b4fc',
+      shades: { 50:'#eef2ff',100:'#e0e7ff',200:'#c7d2fe',300:'#a5b4fc',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca' } },
+    { value: 'blue',    label: 'Azul',      hex: '#3b82f6', light: '#eff6ff', border: '#93c5fd',
+      shades: { 50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8' } },
+    { value: 'cyan',    label: 'Ciano',     hex: '#06b6d4', light: '#ecfeff', border: '#67e8f9',
+      shades: { 50:'#ecfeff',100:'#cffafe',200:'#a5f3fc',300:'#67e8f9',400:'#22d3ee',500:'#06b6d4',600:'#0891b2',700:'#0e7490' } },
+    { value: 'emerald', label: 'Esmeralda', hex: '#10b981', light: '#ecfdf5', border: '#6ee7b7',
+      shades: { 50:'#ecfdf5',100:'#d1fae5',200:'#a7f3d0',300:'#6ee7b7',400:'#34d399',500:'#10b981',600:'#059669',700:'#047857' } },
+    { value: 'zinc',    label: 'Carvão',    hex: '#18181b', light: '#f4f4f5', border: '#a1a1aa',
+      shades: { 50:'#f4f4f5',100:'#f4f4f5',200:'#e4e4e7',300:'#d4d4d8',400:'#a1a1aa',500:'#71717a',600:'#52525b',700:'#3f3f46' } },
   ];
+
+  const applyThemeToDom = (colorValue: string) => {
+    const theme = themeColors.find(c => c.value === colorValue) || themeColors[0];
+    const root = document.documentElement;
+    Object.entries(theme.shades).forEach(([shade, val]) => {
+      root.style.setProperty(`--color-amber-${shade}`, val);
+    });
+    root.style.setProperty('--color-primary', theme.shades[500]);
+    root.style.setProperty('--color-primary-dark', theme.shades[600]);
+    root.style.setProperty('--color-primary-light', theme.shades[400]);
+  };
+
+  useEffect(() => {
+    applyThemeToDom(themeColor);
+  }, []);
 
   const handleThemeChange = (color: string) => {
     setThemeColor(color);
     localStorage.setItem('themeColor', color);
+    applyThemeToDom(color);
   };
 
   const currentTheme = themeColors.find(c => c.value === themeColor) || themeColors[0];
@@ -424,6 +466,12 @@ export default function AdminDashboard() {
     }
     if (tab === 'professionals') {
       fetch("/api/professionals").then(res => res.json()).then(setProfessionals);
+    }
+    if (tab === 'horarios') {
+      fetch("/api/settings/working-hours").then(res => res.json()).then(wh => {
+        setWorkingHours(wh);
+        setLocalWorkingHours(wh.map((w: any) => ({ ...w })));
+      });
     }
   };
 
@@ -525,6 +573,12 @@ export default function AdminDashboard() {
             <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Sistema</p>
           </div>
           <NavItem
+            active={activeTab === 'horarios'}
+            onClick={() => handleTabChange('horarios')}
+            icon={<Clock size={18} />}
+            label="Horários"
+          />
+          <NavItem
             active={activeTab === 'settings'}
             onClick={() => handleTabChange('settings')}
             icon={<Settings size={18} />}
@@ -561,7 +615,8 @@ export default function AdminDashboard() {
                activeTab === 'clients' ? 'Meus Clientes' :
                activeTab === 'comandas' ? 'Comandas' :
                activeTab === 'fluxo' ? 'Fluxo de Caixa' :
-               activeTab === 'professionals' ? 'Profissionais' : 'Configurações'}
+               activeTab === 'professionals' ? 'Profissionais' :
+               activeTab === 'horarios' ? 'Horários & Feriados' : 'Configurações'}
             </h2>
             <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">
               {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
@@ -1939,21 +1994,37 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+              <div className="flex flex-wrap gap-3">
                 {themeColors.map(color => (
                   <button
                     key={color.value}
                     onClick={() => handleThemeChange(color.value)}
+                    title={color.label}
                     className={cn(
-                      "relative flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all",
-                      themeColor === color.value ? "border-zinc-800 bg-zinc-50 shadow-sm" : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50"
+                      "relative group flex flex-col items-center gap-1.5 transition-all",
                     )}
                   >
-                    <div className="w-10 h-10 rounded-xl shadow-sm border border-white/50" style={{ background: color.hex }} />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">{color.label}</span>
-                    {themeColor === color.value && (
-                      <div className="absolute top-2 right-2 w-3 h-3 rounded-full bg-zinc-900 border-2 border-white" />
-                    )}
+                    <div
+                      className={cn(
+                        "w-10 h-10 rounded-full shadow-md transition-all duration-200",
+                        themeColor === color.value
+                          ? "scale-110 ring-3 ring-offset-2 ring-zinc-800"
+                          : "hover:scale-110 hover:shadow-lg ring-2 ring-offset-1 ring-transparent hover:ring-zinc-300"
+                      )}
+                      style={{ background: color.hex }}
+                    >
+                      {themeColor === color.value && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M3 8l3.5 3.5L13 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <span className={cn(
+                      "text-[9px] font-black uppercase tracking-widest transition-colors",
+                      themeColor === color.value ? "text-zinc-800" : "text-zinc-400"
+                    )}>{color.label}</span>
                   </button>
                 ))}
               </div>
@@ -1978,7 +2049,7 @@ export default function AdminDashboard() {
               </div>
 
               <p className="text-[9px] text-zinc-400 font-medium">
-                * A cor é salva localmente. Para aplicar globalmente, será necessário reiniciar o servidor.
+                ✓ A cor é salva e aplicada imediatamente em toda a interface.
               </p>
             </div>
           </div>
