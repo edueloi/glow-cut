@@ -19,6 +19,7 @@ model Professional {
   id           String        @id @default(uuid())
   name         String
   role         String?       // e.g. "Barbeiro", "Manicure"
+  password     String?       // for professional login
   appointments Appointment[]
   workingHours WorkingHours[]
 }
@@ -63,22 +64,23 @@ model Appointment {
   startTime      String
   endTime        String
   status         String       @default("scheduled") // scheduled, confirmed, cancelled
-  
-  clientId       String
-  client         Client       @relation(fields: [clientId], references: [id])
-  
-  serviceId      String
-  service        Service      @relation(fields: [serviceId], references: [id])
-  
+  type           String       @default("atendimento") // atendimento, bloqueio, pessoal
+
+  clientId       String?
+  client         Client?      @relation(fields: [clientId], references: [id])
+
+  serviceId      String?
+  service        Service?     @relation(fields: [serviceId], references: [id])
+
   professionalId String
   professional   Professional @relation(fields: [professionalId], references: [id])
-  
+
   comandaId      String?
   comanda        Comanda?     @relation(fields: [comandaId], references: [id])
-  
+
   sessionNumber  Int?         @default(1)
   totalSessions  Int?         @default(1)
-  
+
   createdAt      DateTime     @default(now())
 }
 

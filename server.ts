@@ -114,8 +114,72 @@ app.post("/api/comandas", async (req, res) => {
 
 // Professionals
 app.get("/api/professionals", async (req, res) => {
-  const profs = await prisma.professional.findMany();
+  const profs = await prisma.professional.findMany({ select: { id: true, name: true, role: true } });
   res.json(profs);
+});
+
+app.post("/api/professionals", async (req, res) => {
+  const { name, role, password } = req.body;
+  if (!name || !password) return res.status(400).json({ error: "Nome e senha são obrigatórios." });
+  try {
+    const prof = await prisma.professional.create({
+      data: { name, role, password },
+      select: { id: true, name: true, role: true }
+    });
+    // Create default working hours for this professional
+    for (let i = 0; i < 7; i++) {
+      await prisma.workingHours.create({
+        data: {
+          dayOfWeek: i,
+          isOpen: i !== 0,
+          startTime: "09:00",
+          endTime: "19:00",
+          breakStart: "12:00",
+          breakEnd: "13:00",
+          professionalId: prof.id
+        }
+      });
+    }
+    res.json(prof);
+  } catch (e) {
+    res.status(400).json({ error: "Erro ao criar profissional." });
+  }
+});
+
+// Professional login (must be before /:id routes)
+app.post("/api/professionals/login", async (req, res) => {
+  const { name, password } = req.body;
+  const prof = await prisma.professional.findFirst({
+    where: { name, password }
+  });
+  if (!prof) return res.status(401).json({ error: "Nome ou senha incorretos." });
+  res.json({ id: prof.id, name: prof.name, role: prof.role });
+});
+
+app.put("/api/professionals/:id", async (req, res) => {
+  const { name, role, password } = req.body;
+  const data: any = { name, role };
+  if (password) data.password = password;
+  try {
+    const prof = await prisma.professional.update({
+      where: { id: req.params.id },
+      data,
+      select: { id: true, name: true, role: true }
+    });
+    res.json(prof);
+  } catch (e) {
+    res.status(400).json({ error: "Erro ao atualizar profissional." });
+  }
+});
+
+app.delete("/api/professionals/:id", async (req, res) => {
+  try {
+    await prisma.workingHours.deleteMany({ where: { professionalId: req.params.id } });
+    await prisma.professional.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(400).json({ error: "Erro ao excluir profissional." });
+  }
 });
 
 // Services & Packages
@@ -151,6 +215,56 @@ app.post("/api/services", async (req, res) => {
   }
 });
 
+app.put("/api/services/:id", async (req, res) => {
+  const { name, price, duration, discount, discountType, description } = req.body;
+  try {
+    const service = await prisma.service.update({
+      where: { id: req.params.id },
+      data: {
+        name,
+        price: parseFloat(price),
+        duration: parseInt(duration),
+        discount: parseFloat(discount || 0),
+        discountType,
+        description
+      }
+    });
+    res.json(service);
+  } catch (e) {
+    res.status(400).json({ error: "Error updating service" });
+  }
+});
+
+app.delete("/api/services/:id", async (req, res) => {
+  try {
+    await prisma.packageService.deleteMany({ where: { OR: [{ packageId: req.params.id }, { serviceId: req.params.id }] } });
+    await prisma.service.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(400).json({ error: "Error deleting service" });
+  }
+});
+
+// Comandas close/pay
+app.put("/api/comandas/:id", async (req, res) => {
+  const { status, discount, discountType, total } = req.body;
+  try {
+    const comanda = await prisma.comanda.update({
+      where: { id: req.params.id },
+      data: {
+        ...(status && { status }),
+        ...(discount !== undefined && { discount: parseFloat(discount) }),
+        ...(discountType && { discountType }),
+        ...(total !== undefined && { total: parseFloat(total) })
+      },
+      include: { client: true, appointments: { include: { service: true } } }
+    });
+    res.json(comanda);
+  } catch (e) {
+    res.status(400).json({ error: "Error updating comanda" });
+  }
+});
+
 // Appointments
 app.get("/api/appointments", async (req, res) => {
   const { start, end, professionalId } = req.query;
@@ -169,13 +283,21 @@ app.get("/api/appointments", async (req, res) => {
 });
 
 app.post("/api/appointments", async (req, res) => {
-  const { date, startTime, clientId, serviceId, professionalId, recurrence, comandaId, sessionNumber, totalSessions } = req.body;
-  const service = await prisma.service.findUnique({ where: { id: serviceId } });
-  if (!service) return res.status(404).json({ error: "Service not found" });
+  const { date, startTime, clientId, serviceId, professionalId, recurrence, comandaId, sessionNumber, totalSessions, type } = req.body;
+  const appointmentType = type || "atendimento";
 
-  const start = parse(startTime, "HH:mm", new Date());
-  const end = addMinutes(start, service.duration);
-  const endTime = format(end, "HH:mm");
+  let endTime = startTime;
+  if (serviceId) {
+    const service = await prisma.service.findUnique({ where: { id: serviceId } });
+    if (!service) return res.status(404).json({ error: "Service not found" });
+    const start = parse(startTime, "HH:mm", new Date());
+    const end = addMinutes(start, service.duration);
+    endTime = format(end, "HH:mm");
+  } else {
+    // Default 1 hour for bloqueio/pessoal
+    const start = parse(startTime, "HH:mm", new Date());
+    endTime = format(addMinutes(start, 60), "HH:mm");
+  }
 
   // Conflict check
   const conflict = await prisma.appointment.findFirst({
@@ -201,17 +323,19 @@ app.post("/api/appointments", async (req, res) => {
 
   for (let i = 0; i < count; i++) {
     const currentDate = addDays(new Date(date), i * (recurrence?.interval || 7));
-    appointmentsToCreate.push({
+    const entry: any = {
       date: currentDate,
       startTime,
       endTime,
-      clientId,
-      serviceId,
       professionalId,
-      comandaId,
+      type: appointmentType,
       sessionNumber: i + 1,
       totalSessions: count
-    });
+    };
+    if (clientId) entry.clientId = clientId;
+    if (serviceId) entry.serviceId = serviceId;
+    if (comandaId) entry.comandaId = comandaId;
+    appointmentsToCreate.push(entry);
   }
 
   const result = await prisma.appointment.createMany({ data: appointmentsToCreate });
