@@ -197,11 +197,14 @@ export default function AdminDashboard() {
   const [profPasswordVisible, setProfPasswordVisible] = useState(false);
   
   // Tooltip hover state for agenda
-  const [hoveredAppointment, setHoveredAppointment] = useState<string | null>(null);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [slotHover, setSlotHover] = useState<{ x: number; y: number; label: string } | null>(null);
-  // Client comanda status for appointment modal
-  const [clientComandaStatus, setClientComandaStatus] = useState<"none" | "open" | "paid" | null>(null);
+  
+  // Tooltip & Hover states
+  const [slotHover, setSlotHover] = useState<{ x: number, y: number, label: string } | null>(null);
+  const [hoveredAppointment, setHoveredAppointment] = useState<any>(null);
+  const [clientComandaStatus, setClientComandaStatus] = useState<"open" | "paid" | "none" | null>(null);
 
   // New Appointment State
   const [newAppointment, setNewAppointment] = useState({
@@ -815,22 +818,117 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-4">
-            <div className="relative hidden lg:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
-              <input
-                type="text"
-                placeholder="Buscar cliente ou serviço..."
-                className="pl-10 pr-4 py-2 bg-zinc-100 border border-zinc-200 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 rounded-xl text-xs w-56 transition-all outline-none text-zinc-700"
-              />
+          <div className="flex items-center gap-2 md:gap-4 relative">
+            {/* Notificações */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                className={cn(
+                  "p-2 md:p-2.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-xl transition-all relative",
+                  isNotificationsOpen && "bg-zinc-100 text-zinc-900 shadow-sm"
+                )}
+              >
+                <Bell size={20} />
+                <span className="absolute top-2 right-2 w-2 h-2 bg-amber-500 rounded-full border-2 border-white"></span>
+              </button>
+
+              <AnimatePresence>
+                {isNotificationsOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 mt-3 w-[320px] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-zinc-100 z-50 overflow-hidden"
+                    >
+                      <div className="px-5 py-4 border-b border-zinc-50 flex items-center justify-between bg-zinc-50/50">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Notificações</p>
+                        <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-2 py-0.5 rounded-full">2 Novas</span>
+                      </div>
+                      <div className="max-h-[350px] overflow-y-auto">
+                        <div className="p-4 border-b border-zinc-50 hover:bg-zinc-50 transition-colors cursor-pointer group">
+                          <div className="flex gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                              <CheckCircle size={16} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-zinc-800">Novo Agendamento</p>
+                              <p className="text-[10px] text-zinc-400 mt-0.5">Eduardo Eloi agendou um Corte Degradê para hoje às 14:30.</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-4 border-b border-zinc-50 hover:bg-zinc-50 transition-colors cursor-pointer group">
+                          <div className="flex gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                              <AlertTriangle size={16} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-zinc-800">Lembrete de Estoque</p>
+                              <p className="text-[10px] text-zinc-400 mt-0.5">O produto "Pomada Efeito Matte" está quase acabando.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <button className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 transition-all border-t border-zinc-50">
+                        Ver Tudo
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
 
-            <button className="p-2 md:p-2.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-xl transition-all relative">
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full border-2 border-white"></span>
-            </button>
+            <div className="h-6 w-px bg-zinc-200 hidden md:block mx-1"></div>
 
-            <div className="h-6 w-px bg-zinc-100 hidden md:block"></div>
+            {/* Menu Perfil */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="flex items-center gap-2 p-1 pl-3 pr-2 rounded-xl hover:bg-zinc-100 transition-all group border border-transparent hover:border-zinc-200"
+              >
+                <div className="hidden md:block text-right">
+                  <p className="text-[11px] font-black text-zinc-900 leading-none">Admin Studio</p>
+                  <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider mt-1">Proprietário</p>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-500 overflow-hidden group-hover:shadow-sm transition-all">
+                  <span className="font-black text-xs">AS</span>
+                </div>
+                <ChevronDown size={14} className={cn("text-zinc-400 transition-transform duration-300", isProfileMenuOpen && "rotate-180")} />
+              </button>
+
+              <AnimatePresence>
+                {isProfileMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsProfileMenuOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-zinc-100 z-50 overflow-hidden"
+                    >
+                      <div className="p-4 bg-zinc-50/50 border-b border-zinc-50">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Conta</p>
+                        <p className="text-xs font-bold text-zinc-800 truncate mt-1">edueloi.EE@gmail.com</p>
+                      </div>
+                      <div className="p-2">
+                        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all">
+                          <UserCog size={16} /> Meu Perfil
+                        </button>
+                        <button onClick={() => { setIsProfileMenuOpen(false); handleTabChange('settings'); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all">
+                          <Settings size={16} /> Configurações
+                        </button>
+                      </div>
+                      <div className="p-2 border-t border-zinc-50 bg-zinc-50/20">
+                        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 transition-all">
+                          <LogOut size={16} /> Sair
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
 
             {activeTab === 'services' && (
               <Button size="sm" onClick={() => { setNewService({ name:"",description:"",price:"",duration:"",type:"service",discount:"0",discountType:"value",includedServices:[] }); setIsServiceModalOpen(true); }} className="rounded-xl shadow-lg shadow-amber-500/20 text-[10px] md:text-xs">
