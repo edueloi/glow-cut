@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { Check, X, AlertTriangle, Info, AlertCircle } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
@@ -14,90 +14,93 @@ interface ToastProps {
 
 const toastConfig = {
   success: {
-    icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
-    color: 'bg-emerald-500',
+    icon: <Check className="w-4 h-4 text-emerald-600" strokeWidth={3} />,
+    bg: 'bg-emerald-500',
+    lightBg: 'bg-emerald-50',
     borderColor: 'border-emerald-100',
+    textColor: 'text-emerald-900',
+    title: 'Sucesso'
   },
   error: {
-    icon: <XCircleIcon />,
-    color: 'bg-rose-500',
+    icon: <X className="w-4 h-4 text-rose-600" strokeWidth={3} />,
+    bg: 'bg-rose-500',
+    lightBg: 'bg-rose-50',
     borderColor: 'border-rose-100',
+    textColor: 'text-rose-900',
+    title: 'Erro'
   },
   warning: {
-    icon: <AlertTriangle className="w-5 h-5 text-amber-500" />,
-    color: 'bg-amber-500',
+    icon: <AlertTriangle className="w-4 h-4 text-amber-600" strokeWidth={3} />,
+    bg: 'bg-amber-500',
+    lightBg: 'bg-amber-50',
     borderColor: 'border-amber-100',
+    textColor: 'text-amber-900',
+    title: 'Atenção'
   },
   info: {
-    icon: <Info className="w-5 h-5 text-blue-500" />,
-    color: 'bg-blue-500',
+    icon: <Info className="w-4 h-4 text-blue-600" strokeWidth={3} />,
+    bg: 'bg-blue-500',
+    lightBg: 'bg-blue-50',
     borderColor: 'border-blue-100',
+    textColor: 'text-blue-900',
+    title: 'Informativo'
   },
 };
-
-function XCircleIcon() {
-  return (
-    <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-sm">
-      <X className="w-5 h-5 text-rose-500" />
-    </div>
-  );
-}
 
 export function Toast({ id, type, message, onClose }: ToastProps) {
   const config = toastConfig[type];
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose(id);
-    }, 5000);
+    const timer = setTimeout(() => onClose(id), 5000);
     return () => clearTimeout(timer);
   }, [id, onClose]);
 
   return (
     <motion.div
-      initial={{ x: 100, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 100, opacity: 0 }}
-      className={cn(
-        "flex w-[400px] overflow-hidden rounded-2xl bg-white shadow-2xl border border-zinc-100",
-        "pointer-events-auto"
-      )}
+      layout
+      initial={{ x: 100, opacity: 0, scale: 0.9 }}
+      animate={{ x: 0, opacity: 1, scale: 1 }}
+      exit={{ x: 100, opacity: 0, scale: 0.9 }}
+      className="group pointer-events-auto relative flex w-[380px] items-stretch overflow-hidden rounded-2xl bg-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-zinc-100"
     >
-      {/* Left Icon Bar */}
-      <div className={cn("w-20 flex items-center justify-center shrink-0", config.color)}>
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm">
-          {type === 'error' ? (
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white">
-               <X className="w-5 h-5 text-rose-500" strokeWidth={3} />
-            </div>
-          ) : (
-             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white">
-                {React.isValidElement(config.icon) ? React.cloneElement(config.icon as React.ReactElement<any>, { className: "w-5 h-5 shadow-none" }) : config.icon}
-             </div>
-          )}
-        </div>
-      </div>
+      {/* Decorative Accent Line */}
+      <div className={cn("w-1.5 shrink-0 transition-all group-hover:w-2", config.bg)} />
 
-      {/* Content */}
-      <div className="flex-1 p-5 flex items-center justify-between gap-4">
-        <p className="text-sm font-bold text-zinc-700 leading-tight">
-          {message}
-        </p>
+      {/* Main Content Area */}
+      <div className="flex flex-1 items-center p-4 gap-4">
+        {/* Icon Circle */}
+        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm border", config.lightBg, config.borderColor)}>
+          {config.icon}
+        </div>
+
+        {/* Text Area */}
+        <div className="flex flex-1 flex-col pr-2">
+          <p className={cn("text-[11px] font-black uppercase tracking-widest", config.textColor.replace('900', '600'))}>
+            {config.title}
+          </p>
+          <p className="text-sm font-bold text-zinc-700 leading-snug mt-0.5">
+            {message}
+          </p>
+        </div>
+
+        {/* Close Button */}
         <button
           onClick={() => onClose(id)}
-          className="p-1 hover:bg-zinc-50 rounded-lg transition-colors text-zinc-400"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-300 hover:bg-zinc-50 hover:text-zinc-500 transition-all font-bold"
         >
           <X size={16} />
         </button>
       </div>
 
-      {/* Progress Bar (Optional Visual) */}
-      <motion.div
-        className={cn("absolute bottom-0 left-0 h-1", config.color)}
-        initial={{ width: "100%" }}
-        animate={{ width: "0%" }}
-        transition={{ duration: 5, ease: "linear" }}
-      />
+      {/* Progress Bar (at the bottom) */}
+      <div className="absolute bottom-0 left-0 w-full h-[3px] bg-zinc-50/50">
+        <motion.div
+          initial={{ width: "100%" }}
+          animate={{ width: "0%" }}
+          transition={{ duration: 5, ease: "linear" }}
+          className={cn("h-full", config.bg)}
+        />
+      </div>
     </motion.div>
   );
 }
@@ -123,8 +126,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ show }}>
       {children}
-      <div className="fixed bottom-8 right-8 z-[100] flex flex-col gap-3">
-        <AnimatePresence>
+      <div className="fixed bottom-10 right-10 z-[9999] flex flex-col items-end gap-4">
+        <AnimatePresence mode="popLayout">
           {toasts.map((toast) => (
             <Toast key={toast.id} {...toast} onClose={remove} />
           ))}
