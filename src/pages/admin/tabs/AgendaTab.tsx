@@ -1,9 +1,11 @@
 import React from "react";
-import { format, isToday, isSameDay, isSameMonth, subMonths, addMonths, startOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addDays } from "date-fns";
+import { format, isToday, isSameDay, isSameMonth, subMonths, addMonths, startOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addDays, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, Filter } from "lucide-react";
+import { isHoliday } from "@/src/lib/holidays";
 import { cn } from "@/src/lib/utils";
 import { Button } from "@/src/components/ui/Button";
+import { DatePicker } from "@/src/components/ui/DatePicker";
 import { motion } from "motion/react";
 
 interface AgendaTabProps {
@@ -58,9 +60,47 @@ export function AgendaTab({
             Hoje
           </button>
           <div className="flex items-center gap-1 bg-white border border-zinc-200 p-1 rounded-xl shadow-sm">
-            <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition-colors"><ChevronLeft size={15}/></button>
-            <span className="text-[11px] font-bold text-zinc-800 px-2 min-w-[110px] text-center uppercase tracking-widest">{format(currentMonth, "MMM yyyy", { locale: ptBR })}</span>
-            <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition-colors"><ChevronRight size={15}/></button>
+            <button 
+              onClick={() => {
+                if (view === 'day') setCurrentMonth(prev => subDays(prev, 1));
+                else if (view === 'week') setCurrentMonth(prev => addDays(prev, -7));
+                else setCurrentMonth(prev => subMonths(prev, 1));
+              }} 
+              className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition-colors"
+            >
+              <ChevronLeft size={15}/>
+            </button>
+            
+            <div className="min-w-[130px] flex items-center justify-center">
+              <DatePicker
+                value={format(currentMonth, 'yyyy-MM-dd')}
+                onChange={(val) => {
+                  if (val) {
+                    const [y, m, d] = val.split('-').map(Number);
+                    setCurrentMonth(new Date(y, m - 1, d));
+                  }
+                }}
+                renderTrigger={() => (
+                  <span className="text-[11px] font-black text-zinc-800 px-2 min-w-[110px] text-center uppercase tracking-widest cursor-pointer hover:bg-zinc-100 rounded-lg py-1 transition-colors">
+                    {view === 'day' ? format(currentMonth, "dd MMM yyyy", { locale: ptBR }) :
+                     view === 'week' ? `${format(startOfWeek(currentMonth), "dd MMM", { locale: ptBR })} - ${format(endOfWeek(currentMonth), "dd MMM", { locale: ptBR })}` :
+                     format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+                  </span>
+                )}
+                className="!w-auto"
+              />
+            </div>
+
+            <button 
+              onClick={() => {
+                if (view === 'day') setCurrentMonth(prev => addDays(prev, 1));
+                else if (view === 'week') setCurrentMonth(prev => addDays(prev, 7));
+                else setCurrentMonth(prev => addMonths(prev, 1));
+              }} 
+              className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition-colors"
+            >
+              <ChevronRight size={15}/>
+            </button>
           </div>
           <Button onClick={() => setIsAppointmentModalOpen(true)}
             className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-3 sm:px-5 font-bold shadow-sm flex items-center gap-2 text-xs">
@@ -106,7 +146,15 @@ export function AgendaTab({
                   {format(currentMonth, 'd')}
                 </div>
                 <div>
-                  <p className="text-sm font-black text-zinc-900 capitalize">{format(currentMonth, "EEEE", { locale: ptBR })}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-black text-zinc-900 capitalize">{format(currentMonth, "EEEE", { locale: ptBR })}</p>
+                    {isHoliday(currentMonth) && (
+                      <span className="bg-red-50 text-red-600 text-[9px] font-black px-2 py-0.5 rounded-full border border-red-100 uppercase tracking-widest flex items-center gap-1">
+                        <div className="w-1 h-1 rounded-full bg-red-400" />
+                        Feriado: {isHoliday(currentMonth)?.name}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">{format(currentMonth, "MMMM yyyy", { locale: ptBR })}</p>
                 </div>
                 <div className="ml-auto text-[10px] font-bold text-zinc-400">
@@ -195,15 +243,21 @@ export function AgendaTab({
                 return (
                   <div
                     key={idx}
+                    onClick={() => { setCurrentMonth(day); setView('day'); }}
                     className={cn(
-                      "min-h-[120px] p-3 border-b border-r border-zinc-100 transition-colors hover:bg-zinc-50 relative group",
+                      "min-h-[120px] p-3 border-b border-r border-zinc-100 transition-colors hover:bg-zinc-50 relative group cursor-pointer",
                       !isSameMonth(day, currentMonth) && "bg-zinc-50/50 opacity-40",
                       isToday(day) && "bg-amber-50/50"
                     )}
                   >
-                    <span className={cn("text-[10px] font-bold mb-2 block", isToday(day) ? "text-amber-600" : "text-zinc-500")}>
-                      {format(day, 'd')}
-                    </span>
+                    <div className="flex items-start justify-between mb-2">
+                      <span className={cn("text-[10px] font-bold block", isToday(day) ? "text-amber-600" : "text-zinc-500")}>
+                        {format(day, 'd')}
+                      </span>
+                      {isHoliday(day) && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-red-400 shadow-sm" title={isHoliday(day)?.name} />
+                      )}
+                    </div>
                     <div className="space-y-1">
                       {dayAppointments.slice(0, 3).map(app => (
                         <div
@@ -261,9 +315,14 @@ export function AgendaTab({
                 <div className="grid border-b border-zinc-100 sticky top-0 z-10 bg-white" style={{ gridTemplateColumns: '56px repeat(7, minmax(90px, 1fr))' }}>
                   <div className="p-3 border-r border-zinc-100 shrink-0" />
                   {eachDayOfInterval({ start: startOfWeek(currentMonth), end: endOfWeek(currentMonth) }).map(day => (
-                    <div key={day.toString()} className={cn("p-3 text-center border-r border-zinc-100 min-w-[90px]", isToday(day) && "bg-amber-50/50")}>
+                    <div key={day.toString()} className={cn("p-3 text-center border-r border-zinc-100 min-w-[90px] relative", isToday(day) && "bg-amber-50/50")}>
                       <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-1">{format(day, 'EEE', { locale: ptBR })}</p>
-                      <p className={cn("text-sm font-black", isToday(day) ? "text-amber-600" : "text-zinc-800")}>{format(day, 'd')}</p>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <p className={cn("text-sm font-black", isToday(day) ? "text-amber-600" : "text-zinc-800")}>{format(day, 'd')}</p>
+                        {isHoliday(day) && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-red-400 shadow-sm" title={isHoliday(day)?.name} />
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

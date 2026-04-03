@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { isHoliday } from '@/src/lib/holidays';
 
 interface DatePickerProps {
   value?: string | null;
@@ -10,6 +11,9 @@ interface DatePickerProps {
   disabled?: boolean;
   min?: string;
   max?: string;
+  variant?: 'default' | 'ghost';
+  showIcon?: boolean;
+  renderTrigger?: (value: string | null) => React.ReactNode;
 }
 
 const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -71,6 +75,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   disabled = false,
   min,
   max,
+  variant = 'default',
+  showIcon = true,
+  renderTrigger,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -201,7 +208,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   disabled={disabledDate}
                   onClick={() => handleSelectDate(date)}
                   className={[
-                    'flex h-8 items-center justify-center rounded-lg text-xs font-bold transition',
+                    'flex h-8 items-center justify-center rounded-lg text-xs font-bold transition relative',
                     !isCurrentMonth ? 'text-zinc-300' : 'text-zinc-700',
                     isSelected ? 'bg-amber-500 text-white shadow-sm hover:bg-amber-600' : '',
                     isToday && !isSelected ? 'bg-amber-50 border border-amber-200 text-amber-700' : '',
@@ -210,6 +217,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   ].join(' ')}
                 >
                   {date.getDate()}
+                  {isHoliday(date) && (
+                    <div 
+                      className="absolute top-1 right-1 w-1 h-1 rounded-full bg-red-400" 
+                      title={isHoliday(date)?.name} 
+                    />
+                  )}
                 </button>
               );
             })}
@@ -256,20 +269,31 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     document.body
   ) : null;
 
+  const inputStyles = variant === 'ghost' 
+    ? "flex h-10 w-full items-center justify-center bg-transparent px-3 text-xs font-black text-zinc-800 transition-all placeholder:text-zinc-400 placeholder:font-normal focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:bg-transparent"
+    : "flex h-10 w-full items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 pr-10 text-xs font-bold text-zinc-800 shadow-sm transition-all placeholder:text-zinc-400 placeholder:font-normal hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400";
+
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
-      <div className="relative group">
-        <input
-          type="text"
-          disabled={disabled}
-          placeholder={placeholder}
-          value={inputValue}
-          onChange={handleInputChange}
-          onBlur={() => { if (inputValue.length > 0 && inputValue.length < 10) setInputValue(value ? formatDisplayDate(value) : ''); }}
-          onClick={() => !disabled && setIsOpen(true)}
-          className={`flex h-10 w-full items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 pr-10 text-xs font-bold text-zinc-800 shadow-sm transition-all placeholder:text-zinc-400 placeholder:font-normal hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 ${className}`}
-        />
-        <CalendarDays size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none group-focus-within:text-amber-500 transition-colors" />
+    <div ref={containerRef} className={`relative ${variant !== 'ghost' ? className : ''}`}>
+      <div className="relative group" onClick={() => !disabled && setIsOpen(true)}>
+        {renderTrigger ? (
+          renderTrigger(value)
+        ) : (
+          <>
+            <input
+              type="text"
+              disabled={disabled}
+              placeholder={placeholder}
+              value={inputValue}
+              onChange={handleInputChange}
+              onBlur={() => { if (inputValue.length > 0 && inputValue.length < 10) setInputValue(value ? formatDisplayDate(value) : ''); }}
+              className={`${inputStyles} ${variant === 'ghost' ? className : ''}`}
+            />
+            {showIcon && variant !== 'ghost' && (
+              <CalendarDays size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none group-focus-within:text-amber-500 transition-colors" />
+            )}
+          </>
+        )}
       </div>
       {dropdown}
     </div>
