@@ -137,10 +137,10 @@ export default function ClientBooking() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-2xl overflow-hidden p-3 border border-white/10"
+            className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-2xl overflow-hidden border border-white/10"
           >
             {customLogo ? (
-              <img src={customLogo} alt="Logo" className="w-full h-full object-contain" />
+              <img src={customLogo} alt="Logo" className="w-full h-full object-cover" />
             ) : (
               <div className="bg-zinc-950 w-full h-full rounded-2xl flex items-center justify-center">
                 <Scissors size={40} className="text-white" />
@@ -170,9 +170,9 @@ export default function ClientBooking() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <div className="w-20 h-20 2xl:w-28 2xl:h-28 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-black/50 overflow-hidden p-2.5 border border-white/10">
+            <div className="w-20 h-20 2xl:w-28 2xl:h-28 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-black/50 overflow-hidden border border-white/10">
               {customLogo ? (
-                <img src={customLogo} alt="Logo" className="w-full h-full object-contain" />
+                <img src={customLogo} alt="Logo" className="w-full h-full object-cover" />
               ) : (
                 <div className="bg-zinc-950 w-full h-full rounded-2xl flex items-center justify-center">
                   <Scissors size={40} className="text-white" />
@@ -197,9 +197,9 @@ export default function ClientBooking() {
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent pointer-events-none" />
           
           <div className="relative z-10 flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-xl overflow-hidden p-2 border border-white/10">
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-xl overflow-hidden border border-white/10">
               {customLogo ? (
-                <img src={customLogo} alt="Logo" className="w-full h-full object-contain" />
+                <img src={customLogo} alt="Logo" className="w-full h-full object-cover" />
               ) : (
                 <div className="bg-zinc-950 w-full h-full rounded-xl flex items-center justify-center">
                   <Scissors size={28} className="text-white" />
@@ -718,10 +718,10 @@ export default function ClientBooking() {
                 <motion.div 
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="w-28 h-28 bg-white rounded-3xl mb-8 flex items-center justify-center shadow-2xl p-2 border border-white/20 overflow-hidden"
+                  className="w-28 h-28 bg-white rounded-3xl mb-8 flex items-center justify-center shadow-2xl border border-white/20 overflow-hidden"
                 >
                   {customLogo ? (
-                    <img src={customLogo} alt="Logo" className="w-full h-full object-contain" />
+                    <img src={customLogo} alt="Logo" className="w-full h-full object-cover" />
                   ) : (
                     <div className="bg-zinc-950 w-full h-full rounded-2xl flex items-center justify-center">
                       <Scissors size={48} className="text-white" />
