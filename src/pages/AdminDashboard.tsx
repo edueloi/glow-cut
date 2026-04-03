@@ -86,6 +86,7 @@ import { ClientsTab } from "@/src/pages/admin/tabs/ClientsTab";
 import { ServicesTab } from "@/src/pages/admin/tabs/ServicesTab";
 import { AgendaTab } from "@/src/pages/admin/tabs/AgendaTab";
 import { MinhaAgendaTab } from "@/src/pages/admin/tabs/MinhaAgendaTab";
+import { AdminProfileTab } from "@/src/pages/admin/tabs/AdminProfileTab";
 import { Combobox, ComboboxOption } from "@/src/components/ui/Combobox";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -134,13 +135,14 @@ export default function AdminDashboard() {
     'fluxo': 'fluxo',
     'professionals': 'profissionais',
     'horarios': 'horarios',
-    'settings': 'config'
+    'settings': 'config',
+    'profile': 'perfil',
   };
 
   // Inverter o mapa para carregar a aba correta pela URL
   const slugToTab = Object.fromEntries(Object.entries(tabSlugs).map(([tab, slug]) => [slug, tab]));
 
-  const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "minha-agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios">(() => {
+  const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "minha-agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios" | "profile">(() => {
     const path = location.pathname.split('/').pop();
     return (slugToTab[path || ''] as any) || "dash";
   });
@@ -833,7 +835,7 @@ export default function AdminDashboard() {
               <p className="text-[10px] text-zinc-400 truncate">edueloi.EE@gmail.com</p>
             </div>
           </div>
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 transition-all">
+          <button onClick={() => { localStorage.removeItem("isLogged"); localStorage.removeItem("adminUser"); window.location.href = "/login"; }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 transition-all">
             <LogOut size={18} />
             <span>Sair do Sistema</span>
           </button>
@@ -859,7 +861,8 @@ export default function AdminDashboard() {
                  activeTab === 'comandas' ? 'Comandas' :
                  activeTab === 'fluxo' ? 'Fluxo de Caixa' :
                  activeTab === 'professionals' ? 'Profissionais' :
-                 activeTab === 'horarios' ? 'Horários' : 'Configurações'}
+                 activeTab === 'horarios' ? 'Horários' :
+                 activeTab === 'profile' ? 'Meu Perfil' : 'Configurações'}
               </h2>
               <p className="text-[9px] md:text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5 hidden sm:block">
                 {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
@@ -961,7 +964,7 @@ export default function AdminDashboard() {
                         <p className="text-xs font-bold text-zinc-800 truncate mt-1">edueloi.EE@gmail.com</p>
                       </div>
                       <div className="p-2">
-                        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all">
+                        <button onClick={() => { setIsProfileMenuOpen(false); handleTabChange('profile'); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all">
                           <UserCog size={16} /> Meu Perfil
                         </button>
                         <button onClick={() => { setIsProfileMenuOpen(false); handleTabChange('settings'); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all">
@@ -969,7 +972,7 @@ export default function AdminDashboard() {
                         </button>
                       </div>
                       <div className="p-2 border-t border-zinc-50 bg-zinc-50/20">
-                        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 transition-all">
+                        <button onClick={() => { localStorage.removeItem("isLogged"); localStorage.removeItem("adminUser"); window.location.href = "/login"; }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 transition-all">
                           <LogOut size={16} /> Sair
                         </button>
                       </div>
@@ -1116,6 +1119,11 @@ export default function AdminDashboard() {
             newHoliday={newHoliday}
             setNewHoliday={setNewHoliday}
           />
+        )}
+
+        {/* ── MEU PERFIL ───────────────────────────────────────── */}
+        {activeTab === 'profile' && (
+          <AdminProfileTab />
         )}
 
         {/* ── CONFIGURAÇÕES ────────────────────────────────────── */}

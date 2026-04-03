@@ -4,16 +4,13 @@ import ClientBooking from "./pages/ClientBooking";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProfessionalDashboard from "./pages/ProfessionalDashboard";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
-import { Eye, EyeOff, Crown, Scissors, UserCog } from "lucide-react";
+import { Eye, EyeOff, Scissors, UserCog } from "lucide-react";
 import { cn } from "./lib/utils";
 
 /* ─────────────────────────────────────────────────────────
-   LOGIN PAGE (Admin + Super Admin)
+   LOGIN PAGE — unified (admin + super admin auto-detect)
 ───────────────────────────────────────────────────────── */
-type LoginMode = "admin" | "superadmin";
-
 function LoginPage() {
-  const [mode, setMode] = useState<LoginMode>("admin");
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -21,10 +18,8 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   // Already logged in?
-  const saSession = localStorage.getItem("superAdminLogged");
-  const adminSession = localStorage.getItem("isLogged");
-  if (saSession) return <Navigate to="/super-admin" />;
-  if (adminSession === "true") return <Navigate to="/admin" />;
+  if (localStorage.getItem("superAdminLogged")) return <Navigate to="/super-admin" />;
+  if (localStorage.getItem("isLogged") === "true") return <Navigate to="/admin" />;
 
   const handleLogin = async () => {
     if (!user || !pass) return;
@@ -32,43 +27,41 @@ function LoginPage() {
     setError("");
 
     try {
-      if (mode === "superadmin") {
-        const r = await fetch("/api/super-admin/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: user, password: pass }),
-        });
-        if (!r.ok) {
-          const d = await r.json();
-          setError(d.error || "Credenciais inválidas.");
-        } else {
-          const d = await r.json();
-          localStorage.setItem("superAdminLogged", JSON.stringify(d));
-          window.location.href = "/super-admin";
-        }
-      } else {
-        // Admin login via DB
-        const r = await fetch("/api/admin/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user, password: pass }),
-        });
-        if (!r.ok) {
-          // Fallback: legacy hardcoded check for existing dev setup
-          if (user === "admin" && pass === "admin") {
-            localStorage.setItem("isLogged", "true");
-            window.location.href = "/admin";
-            return;
-          }
-          const d = await r.json();
-          setError(d.error || "E-mail ou senha inválidos.");
-        } else {
-          const d = await r.json();
-          localStorage.setItem("isLogged", "true");
-          localStorage.setItem("adminUser", JSON.stringify(d));
-          window.location.href = "/admin";
-        }
+      // 1) Try super admin first
+      const saRes = await fetch("/api/super-admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: user, password: pass }),
+      });
+      if (saRes.ok) {
+        const d = await saRes.json();
+        localStorage.setItem("superAdminLogged", JSON.stringify(d));
+        window.location.href = "/super-admin";
+        return;
       }
+
+      // 2) Try admin login
+      const adminRes = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user, password: pass }),
+      });
+      if (adminRes.ok) {
+        const d = await adminRes.json();
+        localStorage.setItem("isLogged", "true");
+        localStorage.setItem("adminUser", JSON.stringify(d));
+        window.location.href = "/admin";
+        return;
+      }
+
+      // 3) Legacy fallback
+      if (user === "admin" && pass === "admin") {
+        localStorage.setItem("isLogged", "true");
+        window.location.href = "/admin";
+        return;
+      }
+
+      setError("Usuário ou senha inválidos.");
     } catch {
       setError("Erro de conexão. Tente novamente.");
     } finally {
@@ -76,94 +69,66 @@ function LoginPage() {
     }
   };
 
-  const isSuperAdmin = mode === "superadmin";
-
   return (
-    <div className={cn(
-      "min-h-screen flex items-center justify-center p-4 transition-colors duration-500",
-      isSuperAdmin ? "bg-zinc-950" : "bg-gradient-to-br from-zinc-50 to-zinc-100"
-    )}>
-      <div className="w-full max-w-sm">
-        {/* Mode toggle pills */}
-        <div className={cn("flex gap-1 p-1 rounded-2xl mb-6 mx-auto w-fit", isSuperAdmin ? "bg-zinc-900" : "bg-zinc-200")}>
-          {([
-            { key: "admin" as const, label: "Admin", icon: <Scissors size={12} /> },
-            { key: "superadmin" as const, label: "Super Admin", icon: <Crown size={12} /> },
-          ]).map(m => (
-            <button
-              key={m.key}
-              onClick={() => { setMode(m.key); setError(""); setUser(""); setPass(""); }}
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-black transition-all uppercase tracking-wider",
-                mode === m.key
-                  ? isSuperAdmin
-                    ? "bg-amber-500 text-white shadow-md shadow-amber-500/30"
-                    : "bg-white text-zinc-900 shadow-sm"
-                  : isSuperAdmin
-                    ? "text-zinc-500 hover:text-zinc-300"
-                    : "text-zinc-500 hover:text-zinc-700"
-              )}
-            >
-              {m.icon} {m.label}
-            </button>
-          ))}
+    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-500/3 rounded-full blur-3xl" />
+        {/* Grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: "linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
+      </div>
+
+      <div className="w-full max-w-sm relative z-10">
+        {/* Logo / Brand */}
+        <div className="text-center mb-8">
+          <div className="relative inline-block">
+            <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-amber-500/30">
+              <Scissors size={26} className="text-white" />
+            </div>
+            <div className="absolute -inset-1 bg-amber-500/20 rounded-3xl blur-lg -z-10" />
+          </div>
+          <h1 className="text-xl font-black text-white mt-4 tracking-tight">Glow & Cut</h1>
+          <p className="text-[11px] font-bold text-amber-500 uppercase tracking-[0.2em] mt-1">Studio Management</p>
         </div>
 
         {/* Card */}
-        <div className={cn(
-          "rounded-3xl border shadow-2xl overflow-hidden",
-          isSuperAdmin
-            ? "bg-zinc-900 border-white/5 shadow-black/50"
-            : "bg-white border-zinc-200 shadow-zinc-200/80"
-        )}>
-          {/* Header */}
-          <div className={cn("px-8 py-7 border-b", isSuperAdmin ? "border-white/5" : "border-zinc-100")}>
-            <div className="flex items-center gap-4">
-              <div className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0",
-                isSuperAdmin
-                  ? "bg-gradient-to-br from-amber-400 to-amber-600 shadow-amber-500/30"
-                  : "bg-zinc-950 shadow-zinc-900/20"
-              )}>
-                {isSuperAdmin
-                  ? <Crown size={20} className="text-white" />
-                  : <Scissors size={18} className="text-amber-400" />}
-              </div>
-              <div>
-                <h1 className={cn("text-sm font-black leading-tight", isSuperAdmin ? "text-white" : "text-zinc-900")}>
-                  {isSuperAdmin ? "Acesso Super Admin" : "Painel Administrativo"}
-                </h1>
-                <p className={cn("text-[10px] font-bold uppercase tracking-widest mt-0.5", isSuperAdmin ? "text-amber-500" : "text-zinc-400")}>
-                  {isSuperAdmin ? "Plataforma Glow & Cut" : "Glow & Cut Studio"}
-                </p>
-              </div>
-            </div>
+        <div className="bg-zinc-900/80 backdrop-blur-sm rounded-3xl border border-white/8 shadow-2xl shadow-black/60 overflow-hidden">
+          {/* Card header */}
+          <div className="px-7 pt-7 pb-5 border-b border-white/5">
+            <h2 className="text-sm font-black text-white">Bem-vindo de volta</h2>
+            <p className="text-[11px] text-zinc-500 mt-1 font-medium">Acesse sua conta para continuar</p>
           </div>
 
           {/* Form */}
-          <div className="px-8 py-6 space-y-4">
+          <div className="px-7 py-6 space-y-4">
+            {/* Usuário */}
             <div className="space-y-1.5">
-              <label className={cn("text-[10px] font-black uppercase tracking-widest", isSuperAdmin ? "text-zinc-500" : "text-zinc-400")}>
-                {isSuperAdmin ? "Usuário" : "E-mail ou Usuário"}
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                Usuário ou E-mail
               </label>
               <input
                 type="text"
                 value={user}
                 autoComplete="username"
+                autoFocus
                 onChange={e => setUser(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleLogin()}
-                placeholder={isSuperAdmin ? "Admin" : "seu@email.com"}
-                className={cn(
-                  "w-full text-xs font-semibold px-4 py-3 rounded-xl border outline-none transition-all",
-                  isSuperAdmin
-                    ? "bg-zinc-800 border-white/5 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10"
-                    : "bg-zinc-50 border-zinc-200 text-zinc-800 placeholder:text-zinc-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
-                )}
+                placeholder="Digite seu usuário"
+                className="w-full text-xs font-semibold px-4 py-3.5 rounded-xl bg-zinc-800/60 border border-white/8 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10 outline-none transition-all"
               />
             </div>
 
+            {/* Senha */}
             <div className="space-y-1.5">
-              <label className={cn("text-[10px] font-black uppercase tracking-widest", isSuperAdmin ? "text-zinc-500" : "text-zinc-400")}>
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
                 Senha
               </label>
               <div className="relative">
@@ -174,49 +139,60 @@ function LoginPage() {
                   onChange={e => setPass(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && handleLogin()}
                   placeholder="••••••••"
-                  className={cn(
-                    "w-full text-xs font-semibold px-4 py-3 pr-11 rounded-xl border outline-none transition-all",
-                    isSuperAdmin
-                      ? "bg-zinc-800 border-white/5 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10"
-                      : "bg-zinc-50 border-zinc-200 text-zinc-800 placeholder:text-zinc-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
-                  )}
+                  className="w-full text-xs font-semibold px-4 py-3.5 pr-12 rounded-xl bg-zinc-800/60 border border-white/8 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10 outline-none transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass(v => !v)}
-                  className={cn("absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors", isSuperAdmin ? "text-zinc-600 hover:text-zinc-400" : "text-zinc-400 hover:text-zinc-600")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
                 >
                   {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
             </div>
 
+            {/* Error */}
             {error && (
-              <div className={cn("text-[10px] font-bold text-center px-3 py-2 rounded-xl", isSuperAdmin ? "bg-red-500/10 text-red-400" : "bg-red-50 text-red-500 border border-red-100")}>
+              <div className="flex items-center gap-2 text-[11px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-4 py-2.5 rounded-xl">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
                 {error}
               </div>
             )}
 
+            {/* Submit */}
             <button
               onClick={handleLogin}
               disabled={loading || !user || !pass}
               className={cn(
-                "w-full py-3.5 rounded-xl text-sm font-black transition-all disabled:opacity-40 disabled:cursor-not-allowed mt-2",
-                isSuperAdmin
-                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20"
-                  : "bg-zinc-950 hover:bg-zinc-800 text-white shadow-md"
+                "w-full py-3.5 rounded-xl text-sm font-black transition-all mt-1",
+                "bg-amber-500 hover:bg-amber-400 text-white shadow-lg shadow-amber-500/25",
+                "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-amber-500",
+                "relative overflow-hidden group"
               )}
             >
-              {loading ? "Entrando..." : "Entrar"}
+              <span className="relative z-10">
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Entrando...
+                  </span>
+                ) : "Entrar"}
+              </span>
+              <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-200" />
             </button>
           </div>
         </div>
 
-        <p className={cn("text-center text-[10px] mt-4 font-medium", isSuperAdmin ? "text-zinc-700" : "text-zinc-400")}>
-          {isSuperAdmin
-            ? "Acesso restrito ao proprietário da plataforma"
-            : "Acesso para gerenciar o estúdio"}
-        </p>
+        {/* Footer */}
+        <div className="mt-6 text-center space-y-1">
+          <p className="text-[10px] text-zinc-600 font-medium">
+            Desenvolvido por{" "}
+            <span className="text-zinc-500 font-black">Develoi Soluções Digitais</span>
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -260,55 +236,95 @@ function ProfessionalLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-xs">
+    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: "linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
+      </div>
+
+      <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/30">
-            <UserCog size={22} className="text-white" />
+          <div className="relative inline-block">
+            <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-amber-500/30">
+              <UserCog size={26} className="text-white" />
+            </div>
+            <div className="absolute -inset-1 bg-amber-500/20 rounded-3xl blur-lg -z-10" />
           </div>
-          <h2 className="text-sm font-black text-white uppercase tracking-tighter">Acesso Profissional</h2>
-          <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest mt-1">Glow & Cut Studio</p>
+          <h1 className="text-xl font-black text-white mt-4 tracking-tight">Acesso Profissional</h1>
+          <p className="text-[11px] font-bold text-amber-500 uppercase tracking-[0.2em] mt-1">Glow & Cut Studio</p>
         </div>
 
-        <div className="bg-zinc-900 rounded-3xl border border-white/5 p-6 space-y-4 shadow-2xl shadow-black/50">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Seu Nome</label>
-            <input
-              type="text"
-              className="w-full text-xs p-3.5 bg-zinc-800 border border-white/5 rounded-xl text-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/40 outline-none font-semibold placeholder:text-zinc-600"
-              placeholder="Ex: João Silva"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleLogin()}
-            />
+        <div className="bg-zinc-900/80 backdrop-blur-sm rounded-3xl border border-white/8 shadow-2xl shadow-black/60 overflow-hidden">
+          <div className="px-7 pt-7 pb-5 border-b border-white/5">
+            <h2 className="text-sm font-black text-white">Bem-vindo de volta</h2>
+            <p className="text-[11px] text-zinc-500 mt-1 font-medium">Entre com suas credenciais</p>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Senha</label>
-            <div className="relative">
+
+          <div className="px-7 py-6 space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Seu Nome</label>
               <input
-                type={showPass ? "text" : "password"}
-                className="w-full text-xs p-3.5 pr-11 bg-zinc-800 border border-white/5 rounded-xl text-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/40 outline-none font-semibold placeholder:text-zinc-600"
-                placeholder="Sua senha"
-                value={pass}
-                onChange={e => setPass(e.target.value)}
+                type="text"
+                className="w-full text-xs font-semibold px-4 py-3.5 rounded-xl bg-zinc-800/60 border border-white/8 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10 outline-none transition-all"
+                placeholder="Ex: João Silva"
+                value={name}
+                onChange={e => setName(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleLogin()}
               />
-              <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors">
-                {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
             </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Senha</label>
+              <div className="relative">
+                <input
+                  type={showPass ? "text" : "password"}
+                  className="w-full text-xs font-semibold px-4 py-3.5 pr-12 rounded-xl bg-zinc-800/60 border border-white/8 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10 outline-none transition-all"
+                  placeholder="••••••••"
+                  value={pass}
+                  onChange={e => setPass(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleLogin()}
+                />
+                <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors">
+                  {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 text-[11px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-4 py-2.5 rounded-xl">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                {error}
+              </div>
+            )}
+
+            <button
+              className={cn(
+                "w-full py-3.5 rounded-xl text-sm font-black transition-all mt-1",
+                "bg-amber-500 hover:bg-amber-400 text-white shadow-lg shadow-amber-500/25",
+                "disabled:opacity-30 disabled:cursor-not-allowed"
+              )}
+              onClick={handleLogin}
+              disabled={loading || !name || !pass}
+            >
+              {loading ? "Entrando..." : "Entrar"}
+            </button>
+            <p className="text-[10px] text-center text-zinc-600 font-medium pt-1">
+              Acesso cadastrado pelo administrador
+            </p>
           </div>
+        </div>
 
-          {error && <p className="text-[10px] text-red-400 font-bold text-center bg-red-500/10 py-2 rounded-xl">{error}</p>}
-
-          <button
-            className="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-black text-sm shadow-lg shadow-amber-500/20 transition-all disabled:opacity-40"
-            onClick={handleLogin}
-            disabled={loading || !name || !pass}
-          >
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
-          <p className="text-[9px] text-center text-zinc-600 font-medium">Acesso cadastrado pelo administrador.</p>
+        <div className="mt-6 text-center">
+          <p className="text-[10px] text-zinc-600 font-medium">
+            Desenvolvido por{" "}
+            <span className="text-zinc-500 font-black">Develoi Soluções Digitais</span>
+          </p>
         </div>
       </div>
     </div>

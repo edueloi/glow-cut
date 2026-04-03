@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { cn } from "@/src/lib/utils";
 import {
-  LayoutDashboard, Users, Building2, CreditCard, Settings,
+  LayoutDashboard, Users, Building2, CreditCard,
   LogOut, Plus, Edit2, Trash2, X, Check, ChevronDown,
   Shield, Eye, EyeOff, ToggleLeft, ToggleRight,
-  TrendingUp, UserCheck, Package, Crown, Search,
-  Phone, Mail, Globe, FileText, AlertTriangle, User,
+  TrendingUp, Crown, Search, Mail, Globe, User, Lock,
 } from "lucide-react";
 
-/* ─── helpers ─────────────────────────────────────────── */
-function cls(...args: (string | undefined | false | null)[]) {
-  return args.filter(Boolean).join(" ");
-}
+/* ═══════════════════════════════════════════
+   TIPOS
+═══════════════════════════════════════════ */
+type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "profile";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
@@ -19,7 +18,9 @@ const ROLE_LABELS: Record<string, string> = {
   viewer: "Visualizador",
 };
 
-/* ─── sub-components ──────────────────────────────────── */
+/* ═══════════════════════════════════════════
+   COMPONENTES BASE
+═══════════════════════════════════════════ */
 function Badge({ children, color = "zinc" }: { children: React.ReactNode; color?: string }) {
   const colors: Record<string, string> = {
     zinc: "bg-zinc-100 text-zinc-600 border-zinc-200",
@@ -65,9 +66,7 @@ function Modal({ open, onClose, title, children, width = "max-w-lg" }: { open: b
       <div className={cn("relative bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full flex flex-col", width)} style={{ maxHeight: "90dvh" }}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 shrink-0">
           <h3 className="text-sm font-black text-zinc-900">{title}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors">
-            <X size={15} />
-          </button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors"><X size={15} /></button>
         </div>
         <div className="overflow-y-auto flex-1 px-6 py-4">{children}</div>
       </div>
@@ -84,22 +83,19 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={cn("w-full text-xs p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 outline-none", props.className)}
+      className={cn("w-full text-xs p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 outline-none disabled:opacity-50", props.className)}
     />
   );
 }
 
-function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+function Sel({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <div className="relative">
-      <select
-        {...props}
-        className={cn("w-full appearance-none text-xs p-2.5 pr-8 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 outline-none", props.className)}
-      >
+      <select {...props} className={cn("w-full appearance-none text-xs p-2.5 pr-8 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 outline-none", props.className)}>
         {children}
       </select>
       <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
@@ -107,25 +103,29 @@ function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectEle
   );
 }
 
-function Textarea({ ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
-    <textarea
-      {...props}
-      className={cn("w-full text-xs p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 outline-none resize-none", props.className)}
-    />
+    <textarea {...props} className={cn("w-full text-xs p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 outline-none resize-none", props.className)} />
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   DASHBOARD TAB
-───────────────────────────────────────────────────────── */
+function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+  return (
+    <div onClick={onChange} className={cn("w-9 h-5 rounded-full border flex items-center cursor-pointer transition-colors shrink-0", checked ? "bg-amber-500 border-amber-500" : "bg-zinc-200 border-zinc-300")}>
+      <div className={cn("w-4 h-4 bg-white rounded-full shadow transition-transform mx-0.5", checked ? "translate-x-4" : "translate-x-0")} />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   ABA: DASHBOARD
+═══════════════════════════════════════════ */
 function DashboardTab() {
   const [stats, setStats] = useState<any>(null);
-  const load = useCallback(async () => {
-    const r = await fetch("/api/super-admin/stats");
-    setStats(await r.json());
+
+  useEffect(() => {
+    fetch("/api/super-admin/stats").then(r => r.json()).then(setStats);
   }, []);
-  useEffect(() => { load(); }, [load]);
 
   if (!stats) return <div className="flex items-center justify-center h-40 text-zinc-400 text-xs font-bold">Carregando...</div>;
 
@@ -133,17 +133,14 @@ function DashboardTab() {
     <div className="space-y-6">
       <div>
         <h2 className="text-base font-black text-zinc-900">Painel Geral</h2>
-        <p className="text-[11px] text-zinc-400 font-medium mt-0.5">Visão geral da plataforma</p>
+        <p className="text-[11px] text-zinc-400 mt-0.5">Visão geral da plataforma</p>
       </div>
-
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard icon={<Building2 size={16} />} label="Parceiros" value={stats.totalTenants} sub={`${stats.activeTenants} ativos`} color="amber" />
         <StatCard icon={<Users size={16} />} label="Usuários Admin" value={stats.totalAdmins} sub={`${stats.activeAdmins} ativos`} color="blue" />
         <StatCard icon={<CreditCard size={16} />} label="Planos Ativos" value={stats.plans?.filter((p: any) => p.isActive).length ?? 0} color="violet" />
-        <StatCard icon={<TrendingUp size={16} />} label="Plano Top" value={stats.plans?.sort((a: any, b: any) => b._count.tenants - a._count.tenants)[0]?.name ?? "-"} color="emerald" />
+        <StatCard icon={<TrendingUp size={16} />} label="Plano Top" value={stats.plans?.sort((a: any, b: any) => b._count.tenants - a._count.tenants)[0]?.name ?? "—"} color="emerald" />
       </div>
-
-      {/* Plans breakdown */}
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
         <div className="px-5 py-3.5 border-b border-zinc-100">
           <h3 className="text-xs font-black text-zinc-800 uppercase tracking-widest">Distribuição por Plano</h3>
@@ -153,17 +150,14 @@ function DashboardTab() {
             <div key={p.id} className="flex items-center gap-3 px-5 py-3">
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-black text-zinc-800">{p.name}</p>
-                <p className="text-[10px] text-zinc-400 font-medium">R$ {Number(p.price).toFixed(2)}/mês</p>
+                <p className="text-[10px] text-zinc-400">R$ {Number(p.price).toFixed(2)}/mês</p>
               </div>
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 <p className="text-sm font-black text-zinc-900">{p._count.tenants}</p>
                 <p className="text-[10px] text-zinc-400">parceiros</p>
               </div>
               <div className="w-20 bg-zinc-100 rounded-full h-1.5 hidden sm:block">
-                <div
-                  className="bg-amber-400 h-1.5 rounded-full"
-                  style={{ width: `${stats.totalTenants > 0 ? (p._count.tenants / stats.totalTenants) * 100 : 0}%` }}
-                />
+                <div className="bg-amber-400 h-1.5 rounded-full" style={{ width: `${stats.totalTenants > 0 ? (p._count.tenants / stats.totalTenants) * 100 : 0}%` }} />
               </div>
             </div>
           ))}
@@ -173,15 +167,15 @@ function DashboardTab() {
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   PLANS TAB
-───────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════
+   ABA: PLANOS
+═══════════════════════════════════════════ */
 function PlansTab() {
   const [plans, setPlans] = useState<any[]>([]);
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const empty = { name: "", price: "", maxProfessionals: "3", maxAdminUsers: "1", canCreateAdminUsers: false, canDeleteAccount: false, features: "" };
-  const [form, setForm] = useState<any>(empty);
+  const emptyForm = { name: "", price: "", maxProfessionals: "3", maxAdminUsers: "1", canCreateAdminUsers: false, canDeleteAccount: false, features: "" };
+  const [form, setForm] = useState<any>(emptyForm);
 
   const load = useCallback(async () => {
     const r = await fetch("/api/super-admin/plans");
@@ -189,7 +183,7 @@ function PlansTab() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const openCreate = () => { setEditing(null); setForm(empty); setModal(true); };
+  const openCreate = () => { setEditing(null); setForm(emptyForm); setModal(true); };
   const openEdit = (p: any) => {
     setEditing(p);
     setForm({ ...p, features: JSON.parse(p.features || "[]").join("\n"), price: String(p.price) });
@@ -205,8 +199,7 @@ function PlansTab() {
       features: form.features.split("\n").map((s: string) => s.trim()).filter(Boolean),
     };
     const url = editing ? `/api/super-admin/plans/${editing.id}` : "/api/super-admin/plans";
-    const method = editing ? "PUT" : "POST";
-    await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    await fetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setModal(false);
     load();
   };
@@ -227,7 +220,7 @@ function PlansTab() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-black text-zinc-900">Planos de Assinatura</h2>
-          <p className="text-[11px] text-zinc-400 font-medium mt-0.5">{plans.length} plano{plans.length !== 1 ? "s" : ""} cadastrado{plans.length !== 1 ? "s" : ""}</p>
+          <p className="text-[11px] text-zinc-400 mt-0.5">{plans.length} plano{plans.length !== 1 ? "s" : ""}</p>
         </div>
         <button onClick={openCreate} className="flex items-center gap-2 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-colors">
           <Plus size={13} /> Novo Plano
@@ -248,14 +241,13 @@ function PlansTab() {
                   <p className="text-lg font-black text-amber-600 mt-0.5">R$ {Number(p.price).toFixed(2)}<span className="text-xs text-zinc-400 font-medium">/mês</span></p>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => toggle(p)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors" title={p.isActive ? "Desativar" : "Ativar"}>
+                  <button onClick={() => toggle(p)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors">
                     {p.isActive ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} />}
                   </button>
                   <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors"><Edit2 size={13} /></button>
                   <button onClick={() => del(p.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-zinc-50 rounded-xl p-2.5 text-center">
                   <p className="text-base font-black text-zinc-800">{p.maxProfessionals === 999 ? "∞" : p.maxProfessionals}</p>
@@ -266,16 +258,14 @@ function PlansTab() {
                   <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">Admins</p>
                 </div>
               </div>
-
               <div className="flex gap-2 flex-wrap">
                 {p.canCreateAdminUsers && <Badge color="violet">Criar usuários</Badge>}
                 {p.canDeleteAccount && <Badge color="red">Excluir conta</Badge>}
               </div>
-
               {features.length > 0 && (
                 <ul className="space-y-1">
                   {features.map((f, i) => (
-                    <li key={i} className="flex items-center gap-2 text-[11px] text-zinc-600 font-medium">
+                    <li key={i} className="flex items-center gap-2 text-[11px] text-zinc-600">
                       <Check size={10} className="text-emerald-500 shrink-0" /> {f}
                     </li>
                   ))}
@@ -288,33 +278,20 @@ function PlansTab() {
 
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Editar Plano" : "Novo Plano"}>
         <div className="space-y-3">
-          <Field label="Nome do Plano">
-            <Input placeholder="Ex: Pro" value={form.name} onChange={e => setForm((p: any) => ({ ...p, name: e.target.value }))} />
-          </Field>
-          <Field label="Preço/mês (R$)">
-            <Input type="number" placeholder="99.90" value={form.price} onChange={e => setForm((p: any) => ({ ...p, price: e.target.value }))} />
-          </Field>
+          <Field label="Nome do Plano"><Input placeholder="Ex: Pro" value={form.name} onChange={e => setForm((p: any) => ({ ...p, name: e.target.value }))} /></Field>
+          <Field label="Preço/mês (R$)"><Input type="number" placeholder="99.90" value={form.price} onChange={e => setForm((p: any) => ({ ...p, price: e.target.value }))} /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Máx. Profissionais">
-              <Input type="number" placeholder="5" value={form.maxProfessionals} onChange={e => setForm((p: any) => ({ ...p, maxProfessionals: e.target.value }))} />
-            </Field>
-            <Field label="Máx. Admin Users">
-              <Input type="number" placeholder="3" value={form.maxAdminUsers} onChange={e => setForm((p: any) => ({ ...p, maxAdminUsers: e.target.value }))} />
-            </Field>
+            <Field label="Máx. Profissionais"><Input type="number" value={form.maxProfessionals} onChange={e => setForm((p: any) => ({ ...p, maxProfessionals: e.target.value }))} /></Field>
+            <Field label="Máx. Admin Users"><Input type="number" value={form.maxAdminUsers} onChange={e => setForm((p: any) => ({ ...p, maxAdminUsers: e.target.value }))} /></Field>
           </div>
           <Field label="Permissões">
-            <div className="space-y-2">
+            <div className="space-y-2.5 pt-1">
               {[
                 { key: "canCreateAdminUsers", label: "Pode criar usuários admin" },
                 { key: "canDeleteAccount", label: "Pode excluir a conta" },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <div
-                    onClick={() => setForm((p: any) => ({ ...p, [key]: !p[key] }))}
-                    className={cn("w-8 h-4.5 rounded-full border transition-colors flex items-center cursor-pointer", form[key] ? "bg-amber-500 border-amber-500" : "bg-zinc-200 border-zinc-300")}
-                  >
-                    <div className={cn("w-3.5 h-3.5 bg-white rounded-full shadow transition-transform mx-0.5", form[key] ? "translate-x-3" : "translate-x-0")} />
-                  </div>
+                  <Toggle checked={!!form[key]} onChange={() => setForm((p: any) => ({ ...p, [key]: !p[key] }))} />
                   <span className="text-xs font-semibold text-zinc-700">{label}</span>
                 </label>
               ))}
@@ -333,32 +310,35 @@ function PlansTab() {
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   TENANTS TAB
-───────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════
+   ABA: PARCEIROS
+═══════════════════════════════════════════ */
 function TenantsTab({ plans }: { plans: any[] }) {
   const [tenants, setTenants] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [detail, setDetail] = useState<any>(null);
-  const empty = { name: "", slug: "", ownerName: "", ownerEmail: "", ownerPhone: "", planId: plans[0]?.id ?? "", notes: "", adminPassword: "" };
-  const [form, setForm] = useState<any>(empty);
+  const emptyForm = { name: "", slug: "", ownerName: "", ownerEmail: "", ownerPhone: "", planId: "", notes: "", adminPassword: "" };
+  const [form, setForm] = useState<any>(emptyForm);
 
   const load = useCallback(async () => {
     const r = await fetch("/api/super-admin/tenants");
     setTenants(await r.json());
   }, []);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { if (plans.length && !form.planId) setForm((p: any) => ({ ...p, planId: plans[0]?.id ?? "" })); }, [plans]);
+  useEffect(() => { if (plans.length) setForm((p: any) => p.planId ? p : { ...p, planId: plans[0]?.id ?? "" }); }, [plans]);
 
-  const openCreate = () => { setEditing(null); setForm({ ...empty, planId: plans[0]?.id ?? "" }); setModal(true); };
-  const openEdit = (t: any) => { setEditing(t); setForm({ name: t.name, slug: t.slug, ownerName: t.ownerName, ownerEmail: t.ownerEmail, ownerPhone: t.ownerPhone ?? "", planId: t.planId, notes: t.notes ?? "", adminPassword: "" }); setModal(true); };
+  const openCreate = () => { setEditing(null); setForm({ ...emptyForm, planId: plans[0]?.id ?? "" }); setModal(true); };
+  const openEdit = (t: any) => {
+    setEditing(t);
+    setForm({ name: t.name, slug: t.slug, ownerName: t.ownerName, ownerEmail: t.ownerEmail, ownerPhone: t.ownerPhone ?? "", planId: t.planId, notes: t.notes ?? "", adminPassword: "" });
+    setModal(true);
+  };
 
   const save = async () => {
     const url = editing ? `/api/super-admin/tenants/${editing.id}` : "/api/super-admin/tenants";
-    const method = editing ? "PUT" : "POST";
-    const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const r = await fetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
     if (!r.ok) { const e = await r.json(); alert(e.error); return; }
     setModal(false);
     load();
@@ -386,16 +366,12 @@ function TenantsTab({ plans }: { plans: any[] }) {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-base font-black text-zinc-900">Parceiros</h2>
-          <p className="text-[11px] text-zinc-400 font-medium mt-0.5">{tenants.length} parceiro{tenants.length !== 1 ? "s" : ""} cadastrado{tenants.length !== 1 ? "s" : ""}</p>
+          <p className="text-[11px] text-zinc-400 mt-0.5">{tenants.length} parceiro{tenants.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-            <input
-              value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar parceiro..."
-              className="text-xs pl-8 pr-3 py-2 bg-white border border-zinc-200 rounded-xl outline-none focus:border-amber-400 w-48 font-medium"
-            />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." className="text-xs pl-8 pr-3 py-2 bg-white border border-zinc-200 rounded-xl outline-none focus:border-amber-400 w-44 font-medium" />
           </div>
           <button onClick={openCreate} className="flex items-center gap-2 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-colors">
             <Plus size={13} /> Novo Parceiro
@@ -407,36 +383,25 @@ function TenantsTab({ plans }: { plans: any[] }) {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-zinc-50 border-b border-zinc-100">
-              <tr>
-                {["Parceiro", "Proprietário", "Plano", "Usuários", "Status", ""].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
+              <tr>{["Parceiro", "Proprietário", "Plano", "Usuários", "Status", ""].map(h => <th key={h} className="text-left px-4 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest whitespace-nowrap">{h}</th>)}</tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {filtered.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-8 text-xs text-zinc-400 font-medium">Nenhum parceiro encontrado</td></tr>
-              )}
+              {filtered.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-xs text-zinc-400">Nenhum parceiro encontrado</td></tr>}
               {filtered.map(t => (
                 <tr key={t.id} className="hover:bg-zinc-50/50 transition-colors">
                   <td className="px-4 py-3">
                     <p className="text-xs font-black text-zinc-900">{t.name}</p>
-                    <p className="text-[10px] text-zinc-400 font-medium flex items-center gap-1"><Globe size={9} />{t.slug}</p>
+                    <p className="text-[10px] text-zinc-400 flex items-center gap-1"><Globe size={9} />{t.slug}</p>
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-xs font-semibold text-zinc-700">{t.ownerName}</p>
                     <p className="text-[10px] text-zinc-400 flex items-center gap-1"><Mail size={9} />{t.ownerEmail}</p>
                   </td>
                   <td className="px-4 py-3"><Badge color="amber">{t.plan?.name}</Badge></td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs font-black text-zinc-700">{t.adminUsers?.length ?? 0}</span>
-                    <span className="text-[10px] text-zinc-400"> usuários</span>
-                  </td>
+                  <td className="px-4 py-3"><span className="text-xs font-black text-zinc-700">{t.adminUsers?.length ?? 0}</span><span className="text-[10px] text-zinc-400"> users</span></td>
                   <td className="px-4 py-3">
                     <button onClick={() => toggleActive(t)}>
-                      {t.isActive
-                        ? <Badge color="emerald">Ativo</Badge>
-                        : <Badge color="red">Inativo</Badge>}
+                      {t.isActive ? <Badge color="emerald">Ativo</Badge> : <Badge color="red">Inativo</Badge>}
                     </button>
                   </td>
                   <td className="px-4 py-3">
@@ -453,90 +418,52 @@ function TenantsTab({ plans }: { plans: any[] }) {
         </div>
       </div>
 
-      {/* Create/Edit Modal */}
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Editar Parceiro" : "Novo Parceiro"} width="max-w-xl">
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Nome do Salão/Barbearia">
-              <Input placeholder="Glow & Cut Studio" value={form.name} onChange={e => setForm((p: any) => ({ ...p, name: e.target.value }))} />
-            </Field>
-            <Field label="Slug (URL)">
-              <Input placeholder="glow-cut" value={form.slug} onChange={e => setForm((p: any) => ({ ...p, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") }))} disabled={!!editing} />
-            </Field>
+            <Field label="Nome do Salão"><Input placeholder="Glow & Cut Studio" value={form.name} onChange={e => setForm((p: any) => ({ ...p, name: e.target.value }))} /></Field>
+            <Field label="Slug (URL)"><Input placeholder="glow-cut" value={form.slug} onChange={e => setForm((p: any) => ({ ...p, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") }))} disabled={!!editing} /></Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Nome do Proprietário">
-              <Input placeholder="João Silva" value={form.ownerName} onChange={e => setForm((p: any) => ({ ...p, ownerName: e.target.value }))} />
-            </Field>
-            <Field label="E-mail do Proprietário">
-              <Input type="email" placeholder="joao@email.com" value={form.ownerEmail} onChange={e => setForm((p: any) => ({ ...p, ownerEmail: e.target.value }))} />
-            </Field>
+            <Field label="Nome do Proprietário"><Input placeholder="João Silva" value={form.ownerName} onChange={e => setForm((p: any) => ({ ...p, ownerName: e.target.value }))} /></Field>
+            <Field label="E-mail"><Input type="email" placeholder="joao@email.com" value={form.ownerEmail} onChange={e => setForm((p: any) => ({ ...p, ownerEmail: e.target.value }))} /></Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Telefone">
-              <Input placeholder="(11) 99999-9999" value={form.ownerPhone} onChange={e => setForm((p: any) => ({ ...p, ownerPhone: e.target.value }))} />
-            </Field>
+            <Field label="Telefone"><Input placeholder="(11) 99999-9999" value={form.ownerPhone} onChange={e => setForm((p: any) => ({ ...p, ownerPhone: e.target.value }))} /></Field>
             <Field label="Plano">
-              <Select value={form.planId} onChange={e => setForm((p: any) => ({ ...p, planId: e.target.value }))}>
+              <Sel value={form.planId} onChange={e => setForm((p: any) => ({ ...p, planId: e.target.value }))}>
                 {plans.map(pl => <option key={pl.id} value={pl.id}>{pl.name} — R$ {Number(pl.price).toFixed(2)}</option>)}
-              </Select>
+              </Sel>
             </Field>
           </div>
-          {!editing && (
-            <Field label="Senha do Admin Inicial">
-              <Input type="password" placeholder="Senha para o proprietário entrar" value={form.adminPassword} onChange={e => setForm((p: any) => ({ ...p, adminPassword: e.target.value }))} />
-            </Field>
-          )}
-          <Field label="Observações">
-            <Textarea rows={2} placeholder="Notas internas..." value={form.notes} onChange={e => setForm((p: any) => ({ ...p, notes: e.target.value }))} />
-          </Field>
+          {!editing && <Field label="Senha do Admin Inicial"><Input type="password" placeholder="Senha para o proprietário entrar" value={form.adminPassword} onChange={e => setForm((p: any) => ({ ...p, adminPassword: e.target.value }))} /></Field>}
+          <Field label="Observações"><Textarea rows={2} placeholder="Notas internas..." value={form.notes} onChange={e => setForm((p: any) => ({ ...p, notes: e.target.value }))} /></Field>
           <div className="flex gap-2 pt-2">
             <button onClick={() => setModal(false)} className="flex-1 py-2.5 text-xs font-bold text-zinc-500 hover:text-zinc-800 transition-colors">Cancelar</button>
-            <button onClick={save} className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-colors">
-              {editing ? "Salvar" : "Criar Parceiro"}
-            </button>
+            <button onClick={save} className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-colors">{editing ? "Salvar" : "Criar Parceiro"}</button>
           </div>
         </div>
       </Modal>
 
-      {/* Detail drawer */}
       <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.name ?? ""} width="max-w-md">
         {detail && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-zinc-50 rounded-xl p-3">
-                <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Plano</p>
-                <p className="text-sm font-black text-zinc-800 mt-0.5">{detail.plan?.name}</p>
-              </div>
-              <div className="bg-zinc-50 rounded-xl p-3">
-                <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Status</p>
-                <p className={cn("text-sm font-black mt-0.5", detail.isActive ? "text-emerald-600" : "text-red-500")}>
-                  {detail.isActive ? "Ativo" : "Inativo"}
-                </p>
-              </div>
+              <div className="bg-zinc-50 rounded-xl p-3"><p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Plano</p><p className="text-sm font-black text-zinc-800 mt-0.5">{detail.plan?.name}</p></div>
+              <div className="bg-zinc-50 rounded-xl p-3"><p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Status</p><p className={cn("text-sm font-black mt-0.5", detail.isActive ? "text-emerald-600" : "text-red-500")}>{detail.isActive ? "Ativo" : "Inativo"}</p></div>
             </div>
             <div className="space-y-2">
               <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Usuários Admin</p>
               {detail.adminUsers?.length === 0 && <p className="text-xs text-zinc-400">Nenhum usuário</p>}
               {detail.adminUsers?.map((u: any) => (
                 <div key={u.id} className="flex items-center gap-2 p-2.5 bg-zinc-50 rounded-xl">
-                  <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-black shrink-0">
-                    {u.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-zinc-800 truncate">{u.name}</p>
-                    <p className="text-[10px] text-zinc-400 truncate">{u.email}</p>
-                  </div>
+                  <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-black shrink-0">{u.name.charAt(0).toUpperCase()}</div>
+                  <div className="flex-1 min-w-0"><p className="text-xs font-bold text-zinc-800 truncate">{u.name}</p><p className="text-[10px] text-zinc-400 truncate">{u.email}</p></div>
                   <Badge color={u.isActive ? "emerald" : "zinc"}>{ROLE_LABELS[u.role] ?? u.role}</Badge>
                 </div>
               ))}
             </div>
-            {detail.notes && (
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-                <p className="text-[9px] font-bold text-amber-600 uppercase tracking-widest mb-1">Observações</p>
-                <p className="text-xs text-zinc-700 font-medium">{detail.notes}</p>
-              </div>
-            )}
+            {detail.notes && <div className="bg-amber-50 border border-amber-100 rounded-xl p-3"><p className="text-[9px] font-bold text-amber-600 uppercase tracking-widest mb-1">Observações</p><p className="text-xs text-zinc-700">{detail.notes}</p></div>}
           </div>
         )}
       </Modal>
@@ -544,26 +471,26 @@ function TenantsTab({ plans }: { plans: any[] }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   USERS TAB
-───────────────────────────────────────────────────────── */
-function UsersTab({ plans: _plans, tenants }: { plans: any[]; tenants: any[] }) {
+/* ═══════════════════════════════════════════
+   ABA: USUÁRIOS ADMIN
+═══════════════════════════════════════════ */
+function UsersTab({ tenants }: { tenants: any[] }) {
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [showPass, setShowPass] = useState(false);
-  const empty = { name: "", email: "", password: "", role: "admin", jobTitle: "", bio: "", phone: "", canCreateUsers: false, canDeleteAccount: false, tenantId: tenants[0]?.id ?? "" };
-  const [form, setForm] = useState<any>(empty);
+  const emptyForm = { name: "", email: "", password: "", role: "admin", jobTitle: "", bio: "", phone: "", canCreateUsers: false, canDeleteAccount: false, tenantId: "" };
+  const [form, setForm] = useState<any>(emptyForm);
 
   const load = useCallback(async () => {
     const r = await fetch("/api/super-admin/admin-users");
     setUsers(await r.json());
   }, []);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { if (tenants.length && !form.tenantId) setForm((p: any) => ({ ...p, tenantId: tenants[0]?.id ?? "" })); }, [tenants]);
+  useEffect(() => { if (tenants.length) setForm((p: any) => p.tenantId ? p : { ...p, tenantId: tenants[0]?.id ?? "" }); }, [tenants]);
 
-  const openCreate = () => { setEditing(null); setForm({ ...empty, tenantId: tenants[0]?.id ?? "" }); setShowPass(false); setModal(true); };
+  const openCreate = () => { setEditing(null); setForm({ ...emptyForm, tenantId: tenants[0]?.id ?? "" }); setShowPass(false); setModal(true); };
   const openEdit = (u: any) => {
     setEditing(u);
     setForm({ name: u.name, email: u.email, password: "", role: u.role, jobTitle: u.jobTitle ?? "", bio: u.bio ?? "", phone: u.phone ?? "", canCreateUsers: u.canCreateUsers, canDeleteAccount: u.canDeleteAccount, tenantId: u.tenantId });
@@ -573,8 +500,7 @@ function UsersTab({ plans: _plans, tenants }: { plans: any[]; tenants: any[] }) 
 
   const save = async () => {
     const url = editing ? `/api/super-admin/admin-users/${editing.id}` : "/api/super-admin/admin-users";
-    const method = editing ? "PUT" : "POST";
-    const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const r = await fetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
     if (!r.ok) { const e = await r.json(); alert(e.error); return; }
     setModal(false);
     load();
@@ -594,7 +520,7 @@ function UsersTab({ plans: _plans, tenants }: { plans: any[]; tenants: any[] }) 
   const filtered = users.filter(u =>
     u.name.toLowerCase().includes(search.toLowerCase()) ||
     u.email.toLowerCase().includes(search.toLowerCase()) ||
-    u.tenant?.name?.toLowerCase().includes(search.toLowerCase())
+    (u.tenant?.name ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -602,12 +528,12 @@ function UsersTab({ plans: _plans, tenants }: { plans: any[]; tenants: any[] }) 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-base font-black text-zinc-900">Usuários Admin</h2>
-          <p className="text-[11px] text-zinc-400 font-medium mt-0.5">{users.length} usuário{users.length !== 1 ? "s" : ""}</p>
+          <p className="text-[11px] text-zinc-400 mt-0.5">{users.length} usuário{users.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar usuário..." className="text-xs pl-8 pr-3 py-2 bg-white border border-zinc-200 rounded-xl outline-none focus:border-amber-400 w-48 font-medium" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." className="text-xs pl-8 pr-3 py-2 bg-white border border-zinc-200 rounded-xl outline-none focus:border-amber-400 w-44 font-medium" />
           </div>
           <button onClick={openCreate} className="flex items-center gap-2 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-colors">
             <Plus size={13} /> Novo Usuário
@@ -619,11 +545,7 @@ function UsersTab({ plans: _plans, tenants }: { plans: any[]; tenants: any[] }) 
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-zinc-50 border-b border-zinc-100">
-              <tr>
-                {["Usuário", "Parceiro", "Cargo/Função", "Permissões", "Status", ""].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
+              <tr>{["Usuário", "Parceiro", "Cargo / Nível", "Permissões", "Status", ""].map(h => <th key={h} className="text-left px-4 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest whitespace-nowrap">{h}</th>)}</tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {filtered.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-xs text-zinc-400">Nenhum usuário encontrado</td></tr>}
@@ -631,16 +553,14 @@ function UsersTab({ plans: _plans, tenants }: { plans: any[]; tenants: any[] }) 
                 <tr key={u.id} className="hover:bg-zinc-50/50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-black shrink-0">
-                        {u.name.charAt(0).toUpperCase()}
-                      </div>
+                      <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-black shrink-0">{u.name.charAt(0).toUpperCase()}</div>
                       <div className="min-w-0">
                         <p className="text-xs font-black text-zinc-900 truncate">{u.name}</p>
                         <p className="text-[10px] text-zinc-400 truncate">{u.email}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3"><p className="text-xs font-semibold text-zinc-600 truncate max-w-[120px]">{u.tenant?.name ?? "—"}</p></td>
+                  <td className="px-4 py-3"><p className="text-xs font-semibold text-zinc-600 truncate max-w-[110px]">{u.tenant?.name ?? "—"}</p></td>
                   <td className="px-4 py-3">
                     <Badge color="amber">{ROLE_LABELS[u.role] ?? u.role}</Badge>
                     {u.jobTitle && <p className="text-[10px] text-zinc-400 mt-0.5">{u.jobTitle}</p>}
@@ -653,9 +573,7 @@ function UsersTab({ plans: _plans, tenants }: { plans: any[]; tenants: any[] }) 
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <button onClick={() => toggleActive(u)}>
-                      {u.isActive ? <Badge color="emerald">Ativo</Badge> : <Badge color="zinc">Inativo</Badge>}
-                    </button>
+                    <button onClick={() => toggleActive(u)}>{u.isActive ? <Badge color="emerald">Ativo</Badge> : <Badge color="zinc">Inativo</Badge>}</button>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
@@ -673,60 +591,42 @@ function UsersTab({ plans: _plans, tenants }: { plans: any[]; tenants: any[] }) 
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Editar Usuário" : "Novo Usuário Admin"} width="max-w-xl">
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Nome Completo">
-              <Input placeholder="João Silva" value={form.name} onChange={e => setForm((p: any) => ({ ...p, name: e.target.value }))} />
-            </Field>
-            <Field label="E-mail">
-              <Input type="email" placeholder="joao@email.com" value={form.email} onChange={e => setForm((p: any) => ({ ...p, email: e.target.value }))} />
-            </Field>
+            <Field label="Nome Completo"><Input placeholder="João Silva" value={form.name} onChange={e => setForm((p: any) => ({ ...p, name: e.target.value }))} /></Field>
+            <Field label="E-mail"><Input type="email" placeholder="joao@email.com" value={form.email} onChange={e => setForm((p: any) => ({ ...p, email: e.target.value }))} /></Field>
           </div>
-          <Field label={editing ? "Nova Senha (deixe em branco para manter)" : "Senha"}>
+          <Field label={editing ? "Nova Senha (em branco = manter)" : "Senha"}>
             <div className="relative">
               <Input type={showPass ? "text" : "password"} placeholder={editing ? "Nova senha..." : "Senha de acesso"} value={form.password} onChange={e => setForm((p: any) => ({ ...p, password: e.target.value }))} className="pr-9" />
-              <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
-                {showPass ? <EyeOff size={13} /> : <Eye size={13} />}
-              </button>
+              <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">{showPass ? <EyeOff size={13} /> : <Eye size={13} />}</button>
             </div>
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Parceiro">
-              <Select value={form.tenantId} onChange={e => setForm((p: any) => ({ ...p, tenantId: e.target.value }))} disabled={!!editing}>
+              <Sel value={form.tenantId} onChange={e => setForm((p: any) => ({ ...p, tenantId: e.target.value }))} disabled={!!editing}>
                 {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </Select>
+              </Sel>
             </Field>
             <Field label="Nível de Acesso">
-              <Select value={form.role} onChange={e => setForm((p: any) => ({ ...p, role: e.target.value }))}>
+              <Sel value={form.role} onChange={e => setForm((p: any) => ({ ...p, role: e.target.value }))}>
                 <option value="admin">Admin</option>
                 <option value="manager">Gerente</option>
                 <option value="viewer">Visualizador</option>
-              </Select>
+              </Sel>
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Cargo/Função">
-              <Input placeholder="Ex: Gerente, Recepcionista" value={form.jobTitle} onChange={e => setForm((p: any) => ({ ...p, jobTitle: e.target.value }))} />
-            </Field>
-            <Field label="Telefone de Contato">
-              <Input placeholder="(11) 99999-9999" value={form.phone} onChange={e => setForm((p: any) => ({ ...p, phone: e.target.value }))} />
-            </Field>
+            <Field label="Cargo / Função"><Input placeholder="Ex: Gerente, Recepcionista" value={form.jobTitle} onChange={e => setForm((p: any) => ({ ...p, jobTitle: e.target.value }))} /></Field>
+            <Field label="Telefone de Contato"><Input placeholder="(11) 99999-9999" value={form.phone} onChange={e => setForm((p: any) => ({ ...p, phone: e.target.value }))} /></Field>
           </div>
-          <Field label="Bio / O que faz no sistema">
-            <Textarea rows={2} placeholder="Descreva brevemente a função deste usuário..." value={form.bio} onChange={e => setForm((p: any) => ({ ...p, bio: e.target.value }))} />
-          </Field>
+          <Field label="Bio / O que faz no sistema"><Textarea rows={2} placeholder="Descreva a função deste usuário..." value={form.bio} onChange={e => setForm((p: any) => ({ ...p, bio: e.target.value }))} /></Field>
           <Field label="Permissões Extras">
-            <div className="space-y-2 pt-1">
+            <div className="space-y-2.5 pt-1">
               {[
                 { key: "canCreateUsers", label: "Pode criar novos usuários admin" },
                 { key: "canDeleteAccount", label: "Pode excluir a conta do parceiro" },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <div
-                    onClick={() => setForm((p: any) => ({ ...p, [key]: !p[key] }))}
-                    className={cn("w-8 h-4 rounded-full border transition-colors flex items-center cursor-pointer", form[key] ? "bg-amber-500 border-amber-500" : "bg-zinc-200 border-zinc-300")}
-                    style={{ minWidth: 32 }}
-                  >
-                    <div className={cn("w-3.5 h-3.5 bg-white rounded-full shadow transition-transform mx-0.5", form[key] ? "translate-x-3" : "translate-x-0")} />
-                  </div>
+                  <Toggle checked={!!form[key]} onChange={() => setForm((p: any) => ({ ...p, [key]: !p[key] }))} />
                   <span className="text-xs font-semibold text-zinc-700">{label}</span>
                 </label>
               ))}
@@ -734,9 +634,7 @@ function UsersTab({ plans: _plans, tenants }: { plans: any[]; tenants: any[] }) 
           </Field>
           <div className="flex gap-2 pt-2">
             <button onClick={() => setModal(false)} className="flex-1 py-2.5 text-xs font-bold text-zinc-500 hover:text-zinc-800 transition-colors">Cancelar</button>
-            <button onClick={save} className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-colors">
-              {editing ? "Salvar Alterações" : "Criar Usuário"}
-            </button>
+            <button onClick={save} className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-colors">{editing ? "Salvar Alterações" : "Criar Usuário"}</button>
           </div>
         </div>
       </Modal>
@@ -744,72 +642,285 @@ function UsersTab({ plans: _plans, tenants }: { plans: any[]; tenants: any[] }) 
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   PROFILE TAB (Super Admin)
-───────────────────────────────────────────────────────── */
-function ProfileTab({ saUsername }: { saUsername: string }) {
+/* ═══════════════════════════════════════════
+   ABA: PERMISSÕES
+═══════════════════════════════════════════ */
+const ALL_PERMISSIONS = [
+  { key: "agenda", label: "Agenda & Reservas", desc: "Ver, criar, editar e cancelar agendamentos" },
+  { key: "clientes", label: "Gestão de Clientes", desc: "Cadastrar, editar e visualizar clientes" },
+  { key: "servicos", label: "Serviços & Pacotes", desc: "Criar e editar serviços e pacotes" },
+  { key: "comandas", label: "Comandas", desc: "Abrir, editar e fechar comandas" },
+  { key: "fluxo", label: "Fluxo de Caixa", desc: "Ver e registrar entradas e saídas" },
+  { key: "profissionais", label: "Profissionais", desc: "Cadastrar e editar profissionais da equipe" },
+  { key: "horarios", label: "Horários", desc: "Definir horários de funcionamento" },
+  { key: "configuracoes", label: "Configurações", desc: "Acessar configurações gerais do sistema" },
+  { key: "relatorios", label: "Relatórios", desc: "Ver relatórios e métricas" },
+  { key: "criar_usuarios", label: "Criar Usuários Admin", desc: "Adicionar novos usuários ao painel" },
+  { key: "excluir_conta", label: "Excluir Conta", desc: "Encerrar definitivamente a conta do parceiro" },
+];
+
+const ROLE_PRESETS: Record<string, string[]> = {
+  admin: ["agenda", "clientes", "servicos", "comandas", "fluxo", "profissionais", "horarios", "configuracoes", "relatorios", "criar_usuarios"],
+  manager: ["agenda", "clientes", "servicos", "comandas", "fluxo", "relatorios"],
+  viewer: ["agenda", "relatorios"],
+};
+
+function PermissionsTab({ tenants }: { tenants: any[] }) {
+  const [users, setUsers] = useState<any[]>([]);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [filterTenant, setFilterTenant] = useState("all");
+
+  const load = useCallback(async () => {
+    const r = await fetch("/api/super-admin/admin-users");
+    setUsers(await r.json());
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const selectUser = (u: any) => {
+    setSelectedUser(u);
+    // Derive current permissions from user flags + role preset
+    const base = ROLE_PRESETS[u.role] ?? [];
+    const extra: string[] = [];
+    if (u.canCreateUsers) extra.push("criar_usuarios");
+    if (u.canDeleteAccount) extra.push("excluir_conta");
+    const merged = [...new Set([...base, ...extra])];
+    setPermissions(merged);
+    setSaved(false);
+  };
+
+  const applyPreset = (role: string) => {
+    setPermissions(ROLE_PRESETS[role] ?? []);
+    setSaved(false);
+  };
+
+  const toggle = (key: string) => {
+    setPermissions(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+    setSaved(false);
+  };
+
+  const savePermissions = async () => {
+    if (!selectedUser) return;
+    setSaving(true);
+    const body = {
+      ...selectedUser,
+      role: selectedUser.role,
+      canCreateUsers: permissions.includes("criar_usuarios"),
+      canDeleteAccount: permissions.includes("excluir_conta"),
+    };
+    await fetch(`/api/super-admin/admin-users/${selectedUser.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    await load();
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const filteredUsers = users.filter(u => filterTenant === "all" || u.tenantId === filterTenant);
+
   return (
-    <div className="space-y-4 max-w-md">
+    <div className="space-y-4">
       <div>
-        <h2 className="text-base font-black text-zinc-900">Meu Perfil</h2>
-        <p className="text-[11px] text-zinc-400 font-medium mt-0.5">Conta do Super Administrador</p>
+        <h2 className="text-base font-black text-zinc-900">Permissões de Acesso</h2>
+        <p className="text-[11px] text-zinc-400 mt-0.5">Defina quais módulos cada usuário pode acessar</p>
       </div>
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-5 space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-md shadow-amber-500/20">
-            <Crown size={24} className="text-white" />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Lista de usuários */}
+        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="px-4 py-3 border-b border-zinc-100 shrink-0">
+            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Selecionar Usuário</p>
+            <Sel value={filterTenant} onChange={e => setFilterTenant(e.target.value)}>
+              <option value="all">Todos os parceiros</option>
+              {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </Sel>
           </div>
-          <div>
-            <p className="text-sm font-black text-zinc-900">{saUsername}</p>
-            <Badge color="amber">Super Admin</Badge>
+          <div className="overflow-y-auto flex-1 divide-y divide-zinc-100" style={{ maxHeight: 420 }}>
+            {filteredUsers.length === 0 && <p className="text-xs text-zinc-400 text-center py-8">Nenhum usuário</p>}
+            {filteredUsers.map(u => (
+              <button
+                key={u.id}
+                onClick={() => selectUser(u)}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-4 py-3 text-left transition-colors",
+                  selectedUser?.id === u.id ? "bg-amber-50 border-l-2 border-amber-500" : "hover:bg-zinc-50 border-l-2 border-transparent"
+                )}
+              >
+                <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-black shrink-0">{u.name.charAt(0).toUpperCase()}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-zinc-800 truncate">{u.name}</p>
+                  <p className="text-[10px] text-zinc-400 truncate">{u.tenant?.name ?? "—"}</p>
+                </div>
+                <Badge color={u.isActive ? "emerald" : "zinc"}>{ROLE_LABELS[u.role] ?? u.role}</Badge>
+              </button>
+            ))}
           </div>
         </div>
-        <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-2">
-          <Shield size={14} className="text-amber-600 shrink-0 mt-0.5" />
-          <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
-            Esta é a conta master da plataforma. Acesso total e irrestrito. Não aparece na lista de usuários dos parceiros.
-          </p>
-        </div>
-        <div className="text-[10px] text-zinc-400 font-medium space-y-1">
-          <p>• Login: <strong className="text-zinc-600">Admin</strong></p>
-          <p>• Senha padrão: <strong className="text-zinc-600">super123</strong></p>
-          <p className="text-[9px] text-amber-600">⚠️ Altere a senha no banco de dados em produção.</p>
+
+        {/* Painel de permissões */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col">
+          {!selectedUser ? (
+            <div className="flex-1 flex flex-col items-center justify-center py-16 text-center px-6">
+              <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center mb-3">
+                <Lock size={20} className="text-zinc-400" />
+              </div>
+              <p className="text-xs font-bold text-zinc-500">Selecione um usuário para editar suas permissões</p>
+            </div>
+          ) : (
+            <>
+              <div className="px-5 py-4 border-b border-zinc-100 shrink-0">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-black shrink-0">{selectedUser.name.charAt(0).toUpperCase()}</div>
+                    <div>
+                      <p className="text-xs font-black text-zinc-900">{selectedUser.name}</p>
+                      <p className="text-[10px] text-zinc-400">{selectedUser.tenant?.name} · {ROLE_LABELS[selectedUser.role]}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Preset:</p>
+                    {Object.keys(ROLE_PRESETS).map(r => (
+                      <button key={r} onClick={() => applyPreset(r)} className="text-[10px] font-black px-2 py-1 rounded-lg border border-zinc-200 hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700 transition-colors uppercase tracking-wider">
+                        {ROLE_LABELS[r]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {ALL_PERMISSIONS.map(perm => {
+                    const active = permissions.includes(perm.key);
+                    return (
+                      <button
+                        key={perm.key}
+                        onClick={() => toggle(perm.key)}
+                        className={cn(
+                          "flex items-start gap-3 p-3 rounded-xl border text-left transition-all",
+                          active ? "bg-amber-50 border-amber-300" : "bg-zinc-50 border-zinc-200 hover:border-zinc-300"
+                        )}
+                      >
+                        <div className={cn("w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 mt-0.5 transition-all", active ? "bg-amber-500 border-amber-500" : "border-zinc-300 bg-white")}>
+                          {active && <Check size={10} className="text-white" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className={cn("text-xs font-bold", active ? "text-amber-800" : "text-zinc-700")}>{perm.label}</p>
+                          <p className="text-[10px] text-zinc-400 mt-0.5">{perm.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="px-5 py-3.5 border-t border-zinc-100 shrink-0 flex items-center justify-between">
+                <p className="text-[10px] text-zinc-400"><span className="font-black text-zinc-700">{permissions.length}</span> de {ALL_PERMISSIONS.length} permissões ativas</p>
+                <button
+                  onClick={savePermissions}
+                  disabled={saving}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all",
+                    saved ? "bg-emerald-500 text-white" : "bg-amber-500 hover:bg-amber-600 text-white"
+                  )}
+                >
+                  {saved ? <><Check size={13} /> Salvo!</> : saving ? "Salvando..." : "Salvar Permissões"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   MAIN SUPER ADMIN DASHBOARD
-───────────────────────────────────────────────────────── */
-export default function SuperAdminDashboard({ username, onLogout }: { username: string; onLogout: () => void }) {
-  const [tab, setTab] = useState<"dash" | "plans" | "tenants" | "users" | "profile">("dash");
-  const [plans, setPlans] = useState<any[]>([]);
-  const [tenants, setTenants] = useState<any[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+/* ═══════════════════════════════════════════
+   ABA: MEU PERFIL
+═══════════════════════════════════════════ */
+function ProfileTab({ username }: { username: string }) {
+  return (
+    <div className="space-y-4 max-w-md">
+      <div>
+        <h2 className="text-base font-black text-zinc-900">Meu Perfil</h2>
+        <p className="text-[11px] text-zinc-400 mt-0.5">Conta do Super Administrador</p>
+      </div>
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-5 space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+            <Crown size={28} className="text-white" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-black text-zinc-900">{username}</p>
+            <Badge color="amber">Super Admin</Badge>
+            <p className="text-[10px] text-zinc-400">Proprietário da Plataforma</p>
+          </div>
+        </div>
 
-  const loadPlans = useCallback(async () => {
-    const r = await fetch("/api/super-admin/plans");
-    setPlans(await r.json());
-  }, []);
-  const loadTenants = useCallback(async () => {
-    const r = await fetch("/api/super-admin/tenants");
-    setTenants(await r.json());
-  }, []);
+        <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5">
+          <Shield size={14} className="text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
+            Esta é a conta master da plataforma. Acesso total e irrestrito a todos os parceiros e usuários. <strong>Não aparece</strong> na lista de usuários de nenhum parceiro.
+          </p>
+        </div>
 
-  useEffect(() => { loadPlans(); loadTenants(); }, [loadPlans, loadTenants]);
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between py-2.5 border-b border-zinc-100">
+            <span className="text-xs text-zinc-500 font-semibold">Usuário</span>
+            <span className="text-xs font-black text-zinc-900">{username}</span>
+          </div>
+          <div className="flex items-center justify-between py-2.5 border-b border-zinc-100">
+            <span className="text-xs text-zinc-500 font-semibold">Nível</span>
+            <Badge color="amber">Super Administrador</Badge>
+          </div>
+          <div className="flex items-center justify-between py-2.5 border-b border-zinc-100">
+            <span className="text-xs text-zinc-500 font-semibold">Acesso</span>
+            <span className="text-xs font-black text-emerald-600">Total — Irrestrito</span>
+          </div>
+          <div className="flex items-center justify-between py-2.5">
+            <span className="text-xs text-zinc-500 font-semibold">Rota</span>
+            <span className="text-[11px] font-mono font-bold text-zinc-400">/super-admin</span>
+          </div>
+        </div>
 
-  const navItems = [
-    { key: "dash" as const, icon: <LayoutDashboard size={17} />, label: "Dashboard" },
-    { key: "plans" as const, icon: <CreditCard size={17} />, label: "Planos" },
-    { key: "tenants" as const, icon: <Building2 size={17} />, label: "Parceiros" },
-    { key: "users" as const, icon: <Users size={17} />, label: "Usuários Admin" },
-    { key: "profile" as const, icon: <User size={17} />, label: "Meu Perfil" },
-  ];
+        <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200">
+          <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1.5">Credenciais padrão</p>
+          <p className="text-[11px] text-zinc-600 font-medium">Login: <strong className="text-zinc-800">Admin</strong> · Senha: <strong className="text-zinc-800">super123</strong></p>
+          <p className="text-[9px] text-amber-600 font-bold mt-1">⚠️ Altere a senha diretamente no banco de dados em produção.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full">
+/* ═══════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════ */
+const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string }[] = [
+  { key: "dash",        icon: <LayoutDashboard size={17} />, label: "Dashboard" },
+  { key: "plans",       icon: <CreditCard size={17} />,      label: "Planos" },
+  { key: "tenants",     icon: <Building2 size={17} />,       label: "Parceiros" },
+  { key: "users",       icon: <Users size={17} />,           label: "Usuários Admin" },
+  { key: "permissions", icon: <Lock size={17} />,            label: "Permissões" },
+  { key: "profile",     icon: <User size={17} />,            label: "Meu Perfil" },
+];
+
+interface SidebarProps {
+  tab: TabKey;
+  setTab: (t: TabKey) => void;
+  username: string;
+  onLogout: () => void;
+  onClose?: () => void;
+}
+
+function Sidebar({ tab, setTab, username, onLogout, onClose }: SidebarProps) {
+  return (
+    <div className="flex flex-col h-full bg-zinc-950">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-3">
@@ -825,10 +936,10 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map(item => (
+        {NAV_ITEMS.map(item => (
           <button
             key={item.key}
-            onClick={() => { setTab(item.key); setSidebarOpen(false); }}
+            onClick={() => { setTab(item.key); onClose?.(); }}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all",
               tab === item.key
@@ -843,9 +954,9 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
       </nav>
 
       {/* User + logout */}
-      <div className="px-3 pb-4 shrink-0 border-t border-white/10 pt-3">
-        <div className="flex items-center gap-2.5 px-3 py-2 mb-2">
-          <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center">
+      <div className="px-3 pb-5 pt-3 shrink-0 border-t border-white/10 space-y-1">
+        <div className="flex items-center gap-2.5 px-3 py-2">
+          <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
             <Shield size={13} className="text-amber-400" />
           </div>
           <div className="min-w-0">
@@ -854,58 +965,74 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
           </div>
         </div>
         <button
+          type="button"
           onClick={onLogout}
           className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-zinc-400 hover:bg-red-500/10 hover:text-red-400 transition-all text-sm font-bold"
         >
-          <LogOut size={15} /> Sair
+          <LogOut size={15} />
+          <span>Sair</span>
         </button>
       </div>
     </div>
   );
+}
+
+/* ═══════════════════════════════════════════
+   MAIN
+═══════════════════════════════════════════ */
+export default function SuperAdminDashboard({ username, onLogout }: { username: string; onLogout: () => void }) {
+  const [tab, setTab] = useState<TabKey>("dash");
+  const [plans, setPlans] = useState<any[]>([]);
+  const [tenants, setTenants] = useState<any[]>([]);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/super-admin/plans").then(r => r.json()).then(setPlans);
+    fetch("/api/super-admin/tenants").then(r => r.json()).then(setTenants);
+  }, []);
 
   return (
     <div className="flex h-screen bg-zinc-100 overflow-hidden">
-      {/* Sidebar — desktop */}
-      <aside className="hidden md:flex w-56 bg-zinc-950 flex-col shrink-0">
-        <SidebarContent />
+      {/* Sidebar desktop */}
+      <aside className="hidden md:block w-56 shrink-0">
+        <Sidebar tab={tab} setTab={setTab} username={username} onLogout={onLogout} />
       </aside>
 
-      {/* Sidebar — mobile overlay */}
-      {sidebarOpen && (
+      {/* Sidebar mobile overlay */}
+      {mobileOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative w-56 bg-zinc-950 flex flex-col h-full shadow-2xl">
-            <SidebarContent />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
+          <aside className="relative w-56 shadow-2xl">
+            <Sidebar tab={tab} setTab={setTab} username={username} onLogout={onLogout} onClose={() => setMobileOpen(false)} />
           </aside>
         </div>
       )}
 
-      {/* Main content */}
+      {/* Main */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
         <div className="bg-white border-b border-zinc-200 px-4 md:px-6 py-3 flex items-center gap-3 shrink-0">
-          <button className="md:hidden p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 transition-colors" onClick={() => setSidebarOpen(true)}>
+          <button className="md:hidden p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 transition-colors" onClick={() => setMobileOpen(true)}>
             <LayoutDashboard size={18} />
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-black text-zinc-900">{navItems.find(n => n.key === tab)?.label}</p>
-            <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">Plataforma Glow & Cut — Painel de Controle</p>
+            <p className="text-xs font-black text-zinc-900">{NAV_ITEMS.find(n => n.key === tab)?.label}</p>
+            <p className="text-[10px] text-zinc-400 hidden sm:block">Plataforma Glow & Cut — Painel de Controle</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-2 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-xl">
-              <Crown size={11} className="text-amber-600" />
-              <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider">Super Admin</span>
-            </div>
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-xl">
+            <Crown size={11} className="text-amber-600" />
+            <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider hidden sm:block">Super Admin</span>
           </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          {tab === "dash" && <DashboardTab />}
-          {tab === "plans" && <PlansTab />}
-          {tab === "tenants" && <TenantsTab plans={plans} />}
-          {tab === "users" && <UsersTab plans={plans} tenants={tenants} />}
-          {tab === "profile" && <ProfileTab saUsername={username} />}
+          {tab === "dash"        && <DashboardTab />}
+          {tab === "plans"       && <PlansTab />}
+          {tab === "tenants"     && <TenantsTab plans={plans} />}
+          {tab === "users"       && <UsersTab tenants={tenants} />}
+          {tab === "permissions" && <PermissionsTab tenants={tenants} />}
+          {tab === "profile"     && <ProfileTab username={username} />}
         </div>
       </main>
     </div>
