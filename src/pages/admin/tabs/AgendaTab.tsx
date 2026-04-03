@@ -244,6 +244,7 @@ export function AgendaTab({
                   <div
                     key={idx}
                     onClick={() => { setCurrentMonth(day); setView('day'); }}
+                    title={isHoliday(day)?.name}
                     className={cn(
                       "min-h-[120px] p-3 border-b border-r border-zinc-100 transition-colors hover:bg-zinc-50 relative group cursor-pointer",
                       !isSameMonth(day, currentMonth) && "bg-zinc-50/50 opacity-40",
@@ -255,7 +256,7 @@ export function AgendaTab({
                         {format(day, 'd')}
                       </span>
                       {isHoliday(day) && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-red-400 shadow-sm" title={isHoliday(day)?.name} />
+                        <div className="w-1.5 h-1.5 rounded-full bg-red-400 shadow-sm" />
                       )}
                     </div>
                     <div className="space-y-1">
@@ -315,12 +316,16 @@ export function AgendaTab({
                 <div className="grid border-b border-zinc-100 sticky top-0 z-10 bg-white" style={{ gridTemplateColumns: '56px repeat(7, minmax(90px, 1fr))' }}>
                   <div className="p-3 border-r border-zinc-100 shrink-0" />
                   {eachDayOfInterval({ start: startOfWeek(currentMonth), end: endOfWeek(currentMonth) }).map(day => (
-                    <div key={day.toString()} className={cn("p-3 text-center border-r border-zinc-100 min-w-[90px] relative", isToday(day) && "bg-amber-50/50")}>
+                    <div 
+                      key={day.toString()} 
+                      className={cn("p-3 text-center border-r border-zinc-100 min-w-[90px] relative", isToday(day) && "bg-amber-50/50")}
+                      title={isHoliday(day)?.name}
+                    >
                       <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-1">{format(day, 'EEE', { locale: ptBR })}</p>
                       <div className="flex items-center justify-center gap-1.5">
                         <p className={cn("text-sm font-black", isToday(day) ? "text-amber-600" : "text-zinc-800")}>{format(day, 'd')}</p>
                         {isHoliday(day) && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-red-400 shadow-sm" title={isHoliday(day)?.name} />
+                          <div className="w-1.5 h-1.5 rounded-full bg-red-400 shadow-sm" />
                         )}
                       </div>
                     </div>
