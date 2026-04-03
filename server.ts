@@ -438,6 +438,220 @@ app.put("/api/settings/working-hours", async (req, res) => {
   res.json({ success: true });
 });
 
+// ═══════════════════════════════════════════════════════════
+//  SUPER ADMIN ROUTES
+// ═══════════════════════════════════════════════════════════
+
+// Seed super admin on startup
+async function seedSuperAdmin() {
+  const count = await prisma.superAdmin.count();
+  if (count === 0) {
+    await prisma.superAdmin.create({ data: { username: "Admin", password: "super123" } });
+    console.log("✅ Super admin criado: Admin / super123");
+  }
+  // Seed default plans
+  const planCount = await prisma.plan.count();
+  if (planCount === 0) {
+    await prisma.plan.createMany({
+      data: [
+        { name: "Básico", price: 49.90, maxProfessionals: 2, maxAdminUsers: 1, canCreateAdminUsers: false, canDeleteAccount: false, features: JSON.stringify(["Agenda", "Clientes", "Serviços"]) },
+        { name: "Pro", price: 99.90, maxProfessionals: 5, maxAdminUsers: 3, canCreateAdminUsers: true, canDeleteAccount: false, features: JSON.stringify(["Agenda", "Clientes", "Serviços", "Comandas", "Fluxo de Caixa", "Relatórios"]) },
+        { name: "Enterprise", price: 199.90, maxProfessionals: 999, maxAdminUsers: 999, canCreateAdminUsers: true, canDeleteAccount: true, features: JSON.stringify(["Tudo do Pro", "Multi-usuários ilimitados", "Profissionais ilimitados", "Suporte prioritário"]) },
+      ]
+    });
+    console.log("✅ Planos padrão criados");
+  }
+}
+seedSuperAdmin();
+
+// Super Admin login
+app.post("/api/super-admin/login", async (req, res) => {
+  const { username, password } = req.body;
+  const sa = await prisma.superAdmin.findFirst({ where: { username, password } });
+  if (!sa) return res.status(401).json({ error: "Credenciais inválidas." });
+  res.json({ id: sa.id, username: sa.username, role: "superadmin" });
+});
+
+// Admin User login
+app.post("/api/admin/login", async (req, res) => {
+  const { email, password } = req.body;
+  const user = await prisma.adminUser.findFirst({
+    where: { email, password, isActive: true },
+    include: { tenant: { include: { plan: true } } }
+  });
+  if (!user) return res.status(401).json({ error: "E-mail ou senha inválidos." });
+  await prisma.adminUser.update({ where: { id: user.id }, data: { lastLogin: new Date() } });
+  res.json({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    jobTitle: user.jobTitle,
+    tenantId: user.tenantId,
+    tenantName: user.tenant.name,
+    planName: user.tenant.plan.name,
+    canCreateUsers: user.canCreateUsers,
+    canDeleteAccount: user.canDeleteAccount,
+  });
+});
+
+// ── Plans ────────────────────────────────────────────────────
+app.get("/api/super-admin/plans", async (_req, res) => {
+  const plans = await prisma.plan.findMany({ orderBy: { price: "asc" } });
+  res.json(plans);
+});
+
+app.post("/api/super-admin/plans", async (req, res) => {
+  const { name, price, maxProfessionals, maxAdminUsers, canCreateAdminUsers, canDeleteAccount, features } = req.body;
+  try {
+    const plan = await prisma.plan.create({
+      data: { name, price: parseFloat(price), maxProfessionals: parseInt(maxProfessionals), maxAdminUsers: parseInt(maxAdminUsers), canCreateAdminUsers: !!canCreateAdminUsers, canDeleteAccount: !!canDeleteAccount, features: JSON.stringify(features || []) }
+    });
+    res.json(plan);
+  } catch (e) { res.status(400).json({ error: "Erro ao criar plano." }); }
+});
+
+app.put("/api/super-admin/plans/:id", async (req, res) => {
+  const { name, price, maxProfessionals, maxAdminUsers, canCreateAdminUsers, canDeleteAccount, features, isActive } = req.body;
+  try {
+    const plan = await prisma.plan.update({
+      where: { id: req.params.id },
+      data: { name, price: parseFloat(price), maxProfessionals: parseInt(maxProfessionals), maxAdminUsers: parseInt(maxAdminUsers), canCreateAdminUsers: !!canCreateAdminUsers, canDeleteAccount: !!canDeleteAccount, features: JSON.stringify(features || []), isActive: isActive !== undefined ? isActive : true }
+    });
+    res.json(plan);
+  } catch (e) { res.status(400).json({ error: "Erro ao atualizar plano." }); }
+});
+
+app.delete("/api/super-admin/plans/:id", async (req, res) => {
+  try {
+    await prisma.plan.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (e) { res.status(400).json({ error: "Erro ao excluir plano." }); }
+});
+
+// ── Tenants (Parceiros) ──────────────────────────────────────
+app.get("/api/super-admin/tenants", async (_req, res) => {
+  const tenants = await prisma.tenant.findMany({
+    include: { plan: true, adminUsers: { select: { id: true, name: true, email: true, role: true, isActive: true, lastLogin: true } } },
+    orderBy: { createdAt: "desc" }
+  });
+  res.json(tenants);
+});
+
+app.post("/api/super-admin/tenants", async (req, res) => {
+  const { name, slug, ownerName, ownerEmail, ownerPhone, planId, notes, adminPassword } = req.body;
+  if (!name || !slug || !ownerName || !ownerEmail || !planId || !adminPassword) {
+    return res.status(400).json({ error: "Campos obrigatórios faltando." });
+  }
+  try {
+    const tenant = await prisma.tenant.create({
+      data: {
+        name, slug, ownerName, ownerEmail, ownerPhone, planId, notes,
+        adminUsers: {
+          create: {
+            name: ownerName,
+            email: ownerEmail,
+            password: adminPassword,
+            role: "admin",
+            jobTitle: "Proprietário",
+            canCreateUsers: true,
+            canDeleteAccount: false,
+          }
+        }
+      },
+      include: { plan: true, adminUsers: true }
+    });
+    res.json(tenant);
+  } catch (e: any) {
+    if (e.code === "P2002") return res.status(400).json({ error: "Slug ou e-mail já em uso." });
+    res.status(400).json({ error: "Erro ao criar parceiro." });
+  }
+});
+
+app.put("/api/super-admin/tenants/:id", async (req, res) => {
+  const { name, ownerName, ownerEmail, ownerPhone, planId, notes, isActive } = req.body;
+  try {
+    const tenant = await prisma.tenant.update({
+      where: { id: req.params.id },
+      data: { name, ownerName, ownerEmail, ownerPhone, planId, notes, isActive },
+      include: { plan: true }
+    });
+    res.json(tenant);
+  } catch (e) { res.status(400).json({ error: "Erro ao atualizar parceiro." }); }
+});
+
+app.delete("/api/super-admin/tenants/:id", async (req, res) => {
+  try {
+    await prisma.adminUser.deleteMany({ where: { tenantId: req.params.id } });
+    await prisma.tenant.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (e) { res.status(400).json({ error: "Erro ao excluir parceiro." }); }
+});
+
+// ── Admin Users ──────────────────────────────────────────────
+app.get("/api/super-admin/admin-users", async (_req, res) => {
+  const users = await prisma.adminUser.findMany({
+    include: { tenant: { select: { name: true } } },
+    orderBy: { createdAt: "desc" }
+  });
+  res.json(users);
+});
+
+app.post("/api/super-admin/admin-users", async (req, res) => {
+  const { name, email, password, role, jobTitle, bio, phone, canCreateUsers, canDeleteAccount, tenantId } = req.body;
+  if (!name || !email || !password || !tenantId) return res.status(400).json({ error: "Campos obrigatórios faltando." });
+  try {
+    const user = await prisma.adminUser.create({
+      data: { name, email, password, role: role || "admin", jobTitle, bio, phone, canCreateUsers: !!canCreateUsers, canDeleteAccount: !!canDeleteAccount, tenantId },
+      include: { tenant: { select: { name: true } } }
+    });
+    res.json(user);
+  } catch (e: any) {
+    if (e.code === "P2002") return res.status(400).json({ error: "E-mail já em uso." });
+    res.status(400).json({ error: "Erro ao criar usuário." });
+  }
+});
+
+app.put("/api/super-admin/admin-users/:id", async (req, res) => {
+  const { name, email, password, role, jobTitle, bio, phone, canCreateUsers, canDeleteAccount, isActive } = req.body;
+  const data: any = { name, email, role, jobTitle, bio, phone, canCreateUsers: !!canCreateUsers, canDeleteAccount: !!canDeleteAccount, isActive };
+  if (password) data.password = password;
+  try {
+    const user = await prisma.adminUser.update({ where: { id: req.params.id }, data, include: { tenant: { select: { name: true } } } });
+    res.json(user);
+  } catch (e) { res.status(400).json({ error: "Erro ao atualizar usuário." }); }
+});
+
+app.delete("/api/super-admin/admin-users/:id", async (req, res) => {
+  try {
+    await prisma.adminUser.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (e) { res.status(400).json({ error: "Erro ao excluir usuário." }); }
+});
+
+// Admin user updates own profile
+app.put("/api/admin/profile/:id", async (req, res) => {
+  const { name, jobTitle, bio, phone, password } = req.body;
+  const data: any = { name, jobTitle, bio, phone };
+  if (password) data.password = password;
+  try {
+    const user = await prisma.adminUser.update({ where: { id: req.params.id }, data });
+    res.json(user);
+  } catch (e) { res.status(400).json({ error: "Erro ao salvar perfil." }); }
+});
+
+// ── Stats for super admin dashboard ─────────────────────────
+app.get("/api/super-admin/stats", async (_req, res) => {
+  const [totalTenants, activeTenants, totalAdmins, activeAdmins, plans] = await Promise.all([
+    prisma.tenant.count(),
+    prisma.tenant.count({ where: { isActive: true } }),
+    prisma.adminUser.count(),
+    prisma.adminUser.count({ where: { isActive: true } }),
+    prisma.plan.findMany({ include: { _count: { select: { tenants: true } } } }),
+  ]);
+  res.json({ totalTenants, activeTenants, totalAdmins, activeAdmins, plans });
+});
+
 // --- Vite Middleware ---
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

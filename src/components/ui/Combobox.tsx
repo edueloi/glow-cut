@@ -7,6 +7,12 @@ export interface ComboboxOption {
   value: string;
   label: string;
   subtitle?: string;
+  /** Group name — options with the same group are shown under a shared header */
+  group?: string;
+  /** Short badge displayed on the right (e.g. price, tag) */
+  badge?: string;
+  /** Tailwind color classes for the badge background+text (default amber) */
+  badgeColor?: string;
 }
 
 interface ComboboxProps {
@@ -29,6 +35,23 @@ function normalizeStr(str: string) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+}
+
+/** Groups filtered options by their `group` field, preserving order of first appearance */
+function groupOptions(opts: ComboboxOption[]): { group: string | null; items: ComboboxOption[] }[] {
+  const groups: { group: string | null; items: ComboboxOption[] }[] = [];
+  const groupMap = new Map<string | null, ComboboxOption[]>();
+
+  for (const opt of opts) {
+    const key = opt.group ?? null;
+    if (!groupMap.has(key)) {
+      const arr: ComboboxOption[] = [];
+      groupMap.set(key, arr);
+      groups.push({ group: key, items: arr });
+    }
+    groupMap.get(key)!.push(opt);
+  }
+  return groups;
 }
 
 export const Combobox: React.FC<ComboboxProps> = ({
@@ -59,8 +82,12 @@ export const Combobox: React.FC<ComboboxProps> = ({
 
   const filtered = options.filter(o =>
     normalizeStr(o.label).includes(normalizeStr(search)) ||
-    (o.subtitle && normalizeStr(o.subtitle).includes(normalizeStr(search)))
+    (o.subtitle && normalizeStr(o.subtitle).includes(normalizeStr(search))) ||
+    (o.group && normalizeStr(o.group).includes(normalizeStr(search)))
   );
+
+  const grouped = groupOptions(filtered);
+  const hasGroups = options.some(o => o.group);
 
   const canAddCustom =
     allowCustom &&
@@ -72,7 +99,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
     const rect = triggerRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
-    const dropdownHeight = 280;
+    const dropdownHeight = 300;
     const goUp = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
     setOpenUpward(goUp);
     setDropdownStyle({
@@ -163,8 +190,18 @@ export const Combobox: React.FC<ComboboxProps> = ({
     .filter(Boolean);
 
   const sizeClasses = {
-    sm: "text-xs px-3 py-2 min-h-[34px]",
-    md: "text-sm px-3 py-2.5 min-h-[40px]",
+    sm: "text-xs px-3 py-2 min-h-[38px]",
+    md: "text-sm px-3 py-2.5 min-h-[42px]",
+  };
+
+  /* ── Group header icon colours ── */
+  const GROUP_STYLES: Record<string, string> = {
+    "Serviços":  "text-amber-600 bg-amber-50 border-amber-200",
+    "Pacotes":   "text-violet-600 bg-violet-50 border-violet-200",
+  };
+  const GROUP_DOT: Record<string, string> = {
+    "Serviços": "bg-amber-400",
+    "Pacotes":  "bg-violet-400",
   };
 
   return (
@@ -175,7 +212,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
         disabled={disabled}
         onClick={() => { if (!disabled) setOpen(v => !v); }}
         className={cn(
-          "w-full flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white text-left transition-all",
+          "w-full flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 text-left transition-all",
           "focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400",
           "disabled:opacity-50 disabled:cursor-not-allowed",
           sizeClasses[size],
@@ -203,7 +240,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
               </span>
             ))
           ) : (
-            <span className="truncate text-zinc-900 font-medium">{selectedLabels[0]}</span>
+            <span className="truncate text-zinc-900 font-semibold text-xs">{selectedLabels[0]}</span>
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -231,16 +268,16 @@ export const Combobox: React.FC<ComboboxProps> = ({
           ref={dropdownRef}
           style={dropdownStyle}
           className={cn(
-            "bg-white border border-zinc-200 rounded-xl shadow-xl overflow-hidden",
+            "bg-white border border-zinc-200 rounded-xl shadow-2xl overflow-hidden",
             openUpward ? "flex flex-col-reverse" : "flex flex-col"
           )}
         >
           {/* Search */}
           <div className={cn(
-            "flex items-center gap-2 px-3 border-zinc-100",
-            openUpward ? "border-t pt-2 pb-1" : "border-b pb-2 pt-2"
+            "flex items-center gap-2 px-3 border-zinc-100 bg-white",
+            openUpward ? "border-t pt-2 pb-1.5" : "border-b pb-2 pt-2"
           )}>
-            <Search size={13} className="text-zinc-400 shrink-0" />
+            <Search size={12} className="text-zinc-400 shrink-0" />
             <input
               ref={searchRef}
               type="text"
@@ -253,50 +290,132 @@ export const Combobox: React.FC<ComboboxProps> = ({
                 if (e.key === "Enter" && canAddCustom) handleCustomAdd();
               }}
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="text-zinc-300 hover:text-zinc-500 transition-colors"
+              >
+                <X size={11} />
+              </button>
+            )}
           </div>
 
           {/* Options list */}
-          <div className="overflow-y-auto max-h-[200px]">
+          <div className="overflow-y-auto max-h-[240px]">
             {filtered.length === 0 && !canAddCustom ? (
-              <div className="px-3 py-4 text-xs text-zinc-400 text-center">{emptyMessage}</div>
+              <div className="px-3 py-5 text-xs text-zinc-400 text-center">{emptyMessage}</div>
             ) : (
               <>
-                {filtered.map(opt => {
-                  const isSelected = selectedValues.includes(opt.value);
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => handleSelect(opt.value)}
-                      className={cn(
-                        "w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors",
-                        "hover:bg-amber-50",
-                        isSelected && "bg-amber-50/60"
+                {hasGroups
+                  /* ── Grouped rendering ── */
+                  ? grouped.map(({ group, items }, gi) => (
+                    <div key={group ?? `g-${gi}`}>
+                      {/* Group header */}
+                      {group && (
+                        <div className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 sticky top-0 bg-white border-b",
+                          gi > 0 && "border-t",
+                          "border-zinc-100"
+                        )}>
+                          <div className={cn(
+                            "w-1.5 h-1.5 rounded-full shrink-0",
+                            GROUP_DOT[group] ?? "bg-zinc-400"
+                          )} />
+                          <span className={cn(
+                            "text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md border",
+                            GROUP_STYLES[group] ?? "text-zinc-500 bg-zinc-50 border-zinc-200"
+                          )}>
+                            {group}
+                          </span>
+                          <span className="text-[9px] text-zinc-400 ml-auto">{items.length}</span>
+                        </div>
                       )}
-                    >
-                      <div className={cn(
-                        "w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-all",
-                        isSelected
-                          ? "bg-amber-500 border-amber-500"
-                          : "border-zinc-300"
-                      )}>
-                        {isSelected && <Check size={10} className="text-white" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-zinc-800 truncate">{opt.label}</div>
-                        {opt.subtitle && (
-                          <div className="text-[10px] text-zinc-400 truncate">{opt.subtitle}</div>
+
+                      {/* Items */}
+                      {items.map(opt => {
+                        const isSelected = selectedValues.includes(opt.value);
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => handleSelect(opt.value)}
+                            className={cn(
+                              "w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors",
+                              "hover:bg-amber-50",
+                              isSelected && "bg-amber-50/60"
+                            )}
+                          >
+                            <div className={cn(
+                              "w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-all",
+                              isSelected ? "bg-amber-500 border-amber-500" : "border-zinc-300"
+                            )}>
+                              {isSelected && <Check size={10} className="text-white" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-semibold text-zinc-800 truncate">{opt.label}</div>
+                              {opt.subtitle && (
+                                <div className="text-[10px] text-zinc-400 truncate">{opt.subtitle}</div>
+                              )}
+                            </div>
+                            {opt.badge && (
+                              <span className={cn(
+                                "text-[9px] font-black px-1.5 py-0.5 rounded-md border shrink-0",
+                                opt.badgeColor ?? "bg-zinc-50 text-zinc-500 border-zinc-200"
+                              )}>
+                                {opt.badge}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))
+
+                  /* ── Flat rendering (no groups) ── */
+                  : filtered.map(opt => {
+                    const isSelected = selectedValues.includes(opt.value);
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => handleSelect(opt.value)}
+                        className={cn(
+                          "w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors",
+                          "hover:bg-amber-50",
+                          isSelected && "bg-amber-50/60"
                         )}
-                      </div>
-                    </button>
-                  );
-                })}
+                      >
+                        <div className={cn(
+                          "w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-all",
+                          isSelected ? "bg-amber-500 border-amber-500" : "border-zinc-300"
+                        )}>
+                          {isSelected && <Check size={10} className="text-white" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold text-zinc-800 truncate">{opt.label}</div>
+                          {opt.subtitle && (
+                            <div className="text-[10px] text-zinc-400 truncate">{opt.subtitle}</div>
+                          )}
+                        </div>
+                        {opt.badge && (
+                          <span className={cn(
+                            "text-[9px] font-black px-1.5 py-0.5 rounded-md border shrink-0",
+                            opt.badgeColor ?? "bg-zinc-50 text-zinc-500 border-zinc-200"
+                          )}>
+                            {opt.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })
+                }
 
                 {canAddCustom && (
                   <button
                     type="button"
                     onClick={handleCustomAdd}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-amber-50 border-t border-zinc-100 mt-1"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-amber-50 border-t border-zinc-100"
                   >
                     <div className="w-4 h-4 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center shrink-0">
                       <Plus size={9} className="text-amber-600" />

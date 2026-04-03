@@ -117,6 +117,65 @@ model ClosedDay {
   description String?
 }
 
+// ─── Super Admin (único, hardcoded, dono do SaaS) ───────────────────────────
+model SuperAdmin {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+}
+
+// ─── Planos de assinatura ────────────────────────────────────────────────────
+model Plan {
+  id                  String   @id @default(uuid())
+  name                String   // "Básico", "Pro", "Enterprise"
+  price               Float    @default(0)
+  maxProfessionals    Int      @default(3)
+  maxAdminUsers       Int      @default(1)
+  canCreateAdminUsers Boolean  @default(false)
+  canDeleteAccount    Boolean  @default(false)
+  features            String   @default("[]") // JSON array of feature strings
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  tenants             Tenant[]
+}
+
+// ─── Parceiros / Tenants ─────────────────────────────────────────────────────
+model Tenant {
+  id           String      @id @default(uuid())
+  name         String      // Nome do salão/barbearia
+  slug         String      @unique // URL slug
+  ownerName    String
+  ownerEmail   String
+  ownerPhone   String?
+  planId       String
+  plan         Plan        @relation(fields: [planId], references: [id])
+  isActive     Boolean     @default(true)
+  notes        String?
+  createdAt    DateTime    @default(now())
+  adminUsers   AdminUser[]
+}
+
+// ─── Usuários Admin (criados pelo super admin ou pelo próprio tenant) ─────────
+model AdminUser {
+  id             String   @id @default(uuid())
+  name           String
+  email          String   @unique
+  password       String
+  role           String   @default("admin") // "admin" | "manager" | "viewer"
+  jobTitle       String?  // "Gerente", "Recepcionista"
+  bio            String?
+  phone          String?
+  canCreateUsers Boolean  @default(false)
+  canDeleteAccount Boolean @default(false)
+  isActive       Boolean  @default(true)
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt      DateTime @default(now())
+  lastLogin      DateTime?
+}
+
+// ─── Legacy user model (mantido por compatibilidade) ─────────────────────────
 model User {
   id       String @id @default(uuid())
   username String @unique

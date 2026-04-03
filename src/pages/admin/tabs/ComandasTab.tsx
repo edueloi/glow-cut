@@ -103,11 +103,26 @@ export function ComandasTab({
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1.5">
-                      {c.appointments.length > 0 ? c.appointments.map((a: any, i: number) => (
-                        <span key={i} className="text-[9px] font-bold bg-zinc-100 text-zinc-600 px-2 py-1 rounded-lg">
-                          {a.service.name}
-                        </span>
-                      )) : (
+                      {c.appointments.length > 0 ? (() => {
+                        const groups: { [key: string]: { total: number, performed: number } } = {};
+                        c.appointments.forEach((a: any) => {
+                          const name = a.service.name;
+                          if (!groups[name]) groups[name] = { total: 0, performed: 0 };
+                          groups[name].total++;
+                          if (a.status === 'realizado') groups[name].performed++;
+                        });
+                        return Object.entries(groups).map(([name, stats], i) => (
+                          <span key={i} className="text-[9px] font-bold bg-zinc-100 text-zinc-600 px-2 py-1 rounded-lg flex items-center gap-1.5">
+                            {name}
+                            <span className={cn(
+                              "px-1 rounded-md text-[8px]",
+                              stats.performed === stats.total ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                            )}>
+                              {stats.performed}/{stats.total}
+                            </span>
+                          </span>
+                        ));
+                      })() : (
                         <span className="text-[10px] text-zinc-400 italic">Sem agendamentos vinculados</span>
                       )}
                     </div>
@@ -197,18 +212,38 @@ export function ComandasTab({
               <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Agendamentos vinculados</p>
               {selectedComanda.appointments.length > 0 ? (
                 <div className="space-y-2">
-                  {selectedComanda.appointments.map((a: any) => (
-                    <div key={a.id} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100">
-                      <div className="flex items-center gap-2">
-                        <Scissors size={14} className="text-amber-500" />
-                        <div>
-                          <p className="text-xs font-bold text-zinc-900">{a.service.name}</p>
-                          <p className="text-[10px] text-zinc-400">{format(new Date(a.date), "dd/MM")} • {a.startTime}–{a.endTime}</p>
+                  {(() => {
+                    const groups: { [key: string]: { total: number, performed: number, price: number, ids: string[] } } = {};
+                    selectedComanda.appointments.forEach((a: any) => {
+                      const name = a.service.name;
+                      if (!groups[name]) groups[name] = { total: 0, performed: 0, price: a.service.price, ids: [] };
+                      groups[name].total++;
+                      groups[name].ids.push(a.id);
+                      if (a.status === 'realizado') groups[name].performed++;
+                    });
+                    return Object.entries(groups).map(([name, stats]) => (
+                      <div key={name} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100 group hover:border-amber-200 transition-all">
+                        <div className="flex items-center gap-2">
+                          <Scissors size={14} className="text-amber-500" />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-bold text-zinc-900">{name}</p>
+                              <span className={cn(
+                                "px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest",
+                                stats.performed === stats.total ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                              )}>
+                                {stats.performed}/{stats.total} sessões
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-zinc-400 font-medium italic">
+                              {stats.total > 1 ? `${stats.total} sessões vinculadas` : 'Serviço único'}
+                            </p>
+                          </div>
                         </div>
+                        <p className="text-sm font-black text-zinc-900">R$ {(stats.price * stats.total).toFixed(2)}</p>
                       </div>
-                      <p className="text-sm font-black text-zinc-900">R$ {a.service.price.toFixed(2)}</p>
-                    </div>
-                  ))}
+                    ));
+                  })()}
                 </div>
               ) : (
                 <p className="text-xs text-zinc-400 italic py-3">Nenhum agendamento vinculado a esta comanda.</p>
