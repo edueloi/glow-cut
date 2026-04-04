@@ -90,6 +90,7 @@ import { ServicesTab } from "@/src/pages/admin/tabs/ServicesTab";
 import { AgendaTab } from "@/src/pages/admin/tabs/AgendaTab";
 import { MinhaAgendaTab } from "@/src/pages/admin/tabs/MinhaAgendaTab";
 import { AdminProfileTab } from "@/src/pages/admin/tabs/AdminProfileTab";
+import { WppTab } from "@/src/pages/admin/tabs/WppTab";
 import { Combobox, ComboboxOption } from "@/src/components/ui/Combobox";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -128,6 +129,7 @@ export default function AdminDashboard() {
     'horarios': 'horarios',
     'settings': 'config',
     'profile': 'perfil',
+    'wpp': 'whatsapp',
   };
 
   // Inverter o mapa para carregar a aba correta pela URL
@@ -143,7 +145,7 @@ export default function AdminDashboard() {
     window.history.pushState(null, '', sub === 'permissoes' ? '/admin/profissionais/permissoes' : '/admin/profissionais');
   };
 
-  const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "minha-agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios" | "profile">(() => {
+  const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "minha-agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios" | "profile" | "wpp">(() => {
     const parts = location.pathname.replace('/admin/', '').split('/');
     const slug = parts[0];
     // Se URL é /admin/profissionais/permissoes, seta tab professionals
@@ -923,6 +925,13 @@ export default function AdminDashboard() {
             collapsed={sidebarCollapsed}
           />
           <NavItem
+            active={activeTab === 'wpp'}
+            onClick={() => handleTabChange('wpp')}
+            icon={<MessageCircle size={18} />}
+            label="WhatsApp"
+            collapsed={sidebarCollapsed}
+          />
+          <NavItem
             active={activeTab === 'settings'}
             onClick={() => handleTabChange('settings')}
             icon={<Settings size={18} />}
@@ -976,6 +985,7 @@ export default function AdminDashboard() {
                  activeTab === 'fluxo' ? 'Fluxo de Caixa' :
                  activeTab === 'professionals' ? 'Profissionais' :
                  activeTab === 'horarios' ? 'Horários' :
+                 activeTab === 'wpp' ? 'WhatsApp' :
                  activeTab === 'profile' ? 'Meu Perfil' : 'Configurações'}
               </h2>
               <p className="text-[9px] md:text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5 hidden sm:block">
@@ -1259,6 +1269,10 @@ export default function AdminDashboard() {
         {/* ── MEU PERFIL ───────────────────────────────────────── */}
         {activeTab === 'profile' && (
           <AdminProfileTab />
+        )}
+
+        {activeTab === 'wpp' && (
+          <WppTab />
         )}
 
         {/* ── CONFIGURAÇÕES ────────────────────────────────────── */}

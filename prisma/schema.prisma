@@ -214,3 +214,56 @@ model workinghours {
 
   @@index([professionalId], map: "fk_wh_professional")
 }
+
+// ─── WhatsApp ───────────────────────────────────────────────
+
+model wpp_instance {
+  id           String   @id @db.VarChar(36)
+  tenantId     String   @unique @db.VarChar(36)
+  instanceName String   @db.VarChar(100)
+  apiUrl       String   @db.VarChar(500)
+  apiKey       String?  @db.VarChar(255)
+  phone        String?  @db.VarChar(30)
+  status       String   @default("disconnected") @db.VarChar(20)
+  qrCode       String?  @db.Text
+  isActive     Boolean  @default(false)
+  createdAt    DateTime @default(now()) @db.DateTime(0)
+  updatedAt    DateTime @updatedAt @db.DateTime(0)
+
+  @@index([tenantId], map: "idx_wpp_instance_tenant")
+}
+
+model wpp_bot_config {
+  id                     String   @id @db.VarChar(36)
+  tenantId               String   @unique @db.VarChar(36)
+  botEnabled             Boolean  @default(false)
+  // Notificações automáticas
+  sendConfirmation       Boolean  @default(true)
+  sendReminder24h        Boolean  @default(true)
+  sendBirthday           Boolean  @default(true)
+  sendCobranca           Boolean  @default(false)
+  sendWelcome            Boolean  @default(true)
+  // Menu interativo
+  menuEnabled            Boolean  @default(false)
+  menuWelcomeMsg         String?  @db.VarChar(2000)
+  menuOptions            String?  @default("[]") @db.Text
+  createdAt              DateTime @default(now()) @db.DateTime(0)
+  updatedAt              DateTime @updatedAt @db.DateTime(0)
+
+  @@index([tenantId], map: "idx_wpp_botconfig_tenant")
+}
+
+model wpp_message_template {
+  id        String   @id @db.VarChar(36)
+  tenantId  String   @db.VarChar(36)
+  type      String   @db.VarChar(30)
+  name      String   @db.VarChar(100)
+  body      String   @db.Text
+  isActive  Boolean  @default(true)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @updatedAt @db.DateTime(0)
+
+  @@unique([tenantId, type], map: "uq_wpp_template_tenant_type")
+  @@index([tenantId], map: "idx_wpp_template_tenant")
+}
