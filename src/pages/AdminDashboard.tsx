@@ -132,14 +132,32 @@ export default function AdminDashboard() {
   // Inverter o mapa para carregar a aba correta pela URL
   const slugToTab = Object.fromEntries(Object.entries(tabSlugs).map(([tab, slug]) => [slug, tab]));
 
+  // Sub-aba de profissionais
+  const [profSubTab, setProfSubTab] = useState<"lista" | "permissoes">(() => {
+    return location.pathname.includes('permissoes') ? 'permissoes' : 'lista';
+  });
+
+  const handleProfSubTab = (sub: "lista" | "permissoes") => {
+    setProfSubTab(sub);
+    window.history.pushState(null, '', sub === 'permissoes' ? '/admin/profissionais/permissoes' : '/admin/profissionais');
+  };
+
   const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "minha-agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios" | "profile">(() => {
-    const path = location.pathname.split('/').pop();
-    return (slugToTab[path || ''] as any) || "dash";
+    const parts = location.pathname.replace('/admin/', '').split('/');
+    const slug = parts[0];
+    // Se URL é /admin/profissionais/permissoes, seta tab professionals
+    if (parts[0] === 'profissionais') return 'professionals';
+    return (slugToTab[slug || ''] as any) || "dash";
   });
 
   // Sempre que a aba mudar, atualizar a URL (sem recarregar a página)
   const handleTabChange = (tab: typeof activeTab) => {
     setActiveTab(tab);
+    if (tab === 'professionals') {
+      setProfSubTab('lista');
+      window.history.pushState(null, '', '/admin/profissionais');
+      return;
+    }
     const slug = tabSlugs[tab] || 'painel';
     window.history.pushState(null, '', `/admin/${slug}`);
     
@@ -186,12 +204,13 @@ export default function AdminDashboard() {
   const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
   const [isProfessionalModalOpen, setIsProfessionalModalOpen] = useState(false);
   const [editingProfessional, setEditingProfessional] = useState<any>(null);
+  // Estrutura de permissões granulares com escopo "proprio" (só o que ele criou) vs "todos"
   const emptyPermissions = {
     dashboard: { ver: false },
-    agenda:    { ver: false, criar: false, editar: false, excluir: false },
-    comandas:  { ver: false, criar: false, editar: false, excluir: false },
+    agenda:    { ver: false, criar: false, editar_proprio: false, editar_todos: false, excluir_proprio: false, excluir_todos: false },
+    comandas:  { ver: false, criar: false, editar_proprio: false, editar_todos: false, excluir_proprio: false, excluir_todos: false },
     services:  { ver: false },
-    clients:   { ver: false, criar: false, editar: false },
+    clients:   { ver: false, criar: false, editar_proprio: false, editar_todos: false },
     fluxo:     { ver: false },
   };
   const emptyProfessional = { name: "", role: "", password: "", phone: "", email: "", bio: "", photo: "", permissions: emptyPermissions };
@@ -1174,6 +1193,8 @@ export default function AdminDashboard() {
             handleDeleteProfessional={handleDeleteProfessional}
             emptyProfessional={emptyProfessional}
             permissionProfiles={permissionProfiles}
+            profSubTab={profSubTab}
+            onSubTabChange={handleProfSubTab}
             onOpenPermProfileModal={() => { setEditingPermProfile(null); setNewPermProfile({ ...emptyPermProfile }); setIsPermProfileModalOpen(true); }}
             onEditPermProfile={(p: any) => { setEditingPermProfile(p); setNewPermProfile({ name: p.name, permissions: { ...p.permissions } }); setIsPermProfileModalOpen(true); }}
             onDeletePermProfile={(id: string) => savePermProfiles(permissionProfiles.filter(p => p.id !== id))}
@@ -2237,14 +2258,24 @@ export default function AdminDashboard() {
             ...p, permissions: { ...p.permissions, [mod]: { ...p.permissions[mod], [action]: !p.permissions[mod]?.[action] } }
           }));
           const PERM_LIST = [
-            { key: "dashboard", label: "Dashboard",        icon: "📊", actions: ["ver"] },
-            { key: "agenda",    label: "Agenda",           icon: "📅", actions: ["ver", "criar", "editar", "excluir"] },
-            { key: "comandas",  label: "Comandas",         icon: "🧾", actions: ["ver", "criar", "editar", "excluir"] },
-            { key: "services",  label: "Serviços",         icon: "✂️",  actions: ["ver"] },
-            { key: "clients",   label: "Clientes",         icon: "👤", actions: ["ver", "criar", "editar"] },
-            { key: "fluxo",     label: "Fluxo de Caixa",  icon: "💰", actions: ["ver"] },
+            { key: "dashboard", label: "Dashboard",       icon: "📊", groups: [] },
+            { key: "agenda",    label: "Agenda",          icon: "📅", groups: [
+              { label: "Criar", actions: ["criar"] },
+              { label: "Editar",  actions: ["editar_proprio", "editar_todos"],  labels: ["Próprios", "Todos"] },
+              { label: "Excluir", actions: ["excluir_proprio", "excluir_todos"], labels: ["Próprios", "Todos"] },
+            ]},
+            { key: "comandas",  label: "Comandas",        icon: "🧾", groups: [
+              { label: "Criar", actions: ["criar"] },
+              { label: "Editar",  actions: ["editar_proprio", "editar_todos"],  labels: ["Próprios", "Todos"] },
+              { label: "Excluir", actions: ["excluir_proprio", "excluir_todos"], labels: ["Próprios", "Todos"] },
+            ]},
+            { key: "services",  label: "Serviços",        icon: "✂️",  groups: [] },
+            { key: "clients",   label: "Clientes",        icon: "👤", groups: [
+              { label: "Criar", actions: ["criar"] },
+              { label: "Editar",  actions: ["editar_proprio", "editar_todos"],  labels: ["Próprios", "Todos"] },
+            ]},
+            { key: "fluxo",     label: "Fluxo de Caixa", icon: "💰", groups: [] },
           ];
-          const ACTION_LABELS: Record<string, string> = { ver: "Ver", criar: "Criar", editar: "Editar", excluir: "Excluir" };
           const isModuleActive = (mod: string) => Object.values(perms[mod] || {}).some(Boolean);
           return (
             <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
@@ -2328,39 +2359,47 @@ export default function AdminDashboard() {
               <div className="space-y-2">
                 <label className={lbl}>Permissões de Acesso</label>
                 <div className="space-y-2">
-                  {PERM_LIST.map(({ key, label, icon, actions }) => {
+                  {PERM_LIST.map(({ key, label, icon, groups }) => {
                     const modPerms = perms[key] || {};
                     const active = isModuleActive(key);
                     return (
-                      <div key={key} className={`rounded-2xl border transition-all ${active ? 'border-zinc-300 bg-white' : 'border-zinc-100 bg-zinc-50'}`}>
-                        {/* Cabeçalho do módulo */}
+                      <div key={key} className={`rounded-2xl border transition-all overflow-hidden ${active ? 'border-zinc-200 bg-white shadow-sm' : 'border-zinc-100 bg-zinc-50'}`}>
                         <div className="flex items-center justify-between px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm">{icon}</span>
+                            <span className="text-sm leading-none">{icon}</span>
                             <p className="text-xs font-black text-zinc-800">{label}</p>
                           </div>
-                          {/* Ativar "Ver" liga o módulo */}
                           <button type="button" onClick={() => toggleAction(key, "ver")}
-                            className="relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0"
+                            className="relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 outline-none"
                             style={{ background: modPerms.ver ? currentTheme.hex : '#e4e4e7' }}
                           >
                             <span className="absolute top-0.5 h-4 w-4 bg-white rounded-full shadow transition-all duration-200" style={{ left: modPerms.ver ? '1.25rem' : '0.125rem' }} />
                           </button>
                         </div>
-                        {/* Ações extras (só aparecem se "ver" estiver ativo) */}
-                        {modPerms.ver && actions.length > 1 && (
-                          <div className="border-t border-zinc-100 px-4 pb-3 pt-2 flex flex-wrap gap-2">
-                            {actions.filter(a => a !== "ver").map(action => (
-                              <button key={action} type="button" onClick={() => toggleAction(key, action)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all cursor-pointer outline-none focus:outline-none"
-                                style={modPerms[action]
-                                  ? { background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }
-                                  : { background: '#f4f4f5', color: '#71717a', borderColor: '#e4e4e7' }
-                                }
-                              >
-                                <span className={`w-1.5 h-1.5 rounded-full`} style={{ background: modPerms[action] ? currentTheme.hex : '#a1a1aa' }} />
-                                {ACTION_LABELS[action]}
-                              </button>
+                        {modPerms.ver && groups.length > 0 && (
+                          <div className="border-t border-zinc-100 px-4 pb-3 pt-3 space-y-3">
+                            {groups.map(group => (
+                              <div key={group.label} className="space-y-1.5">
+                                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{group.label}</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {group.actions.map((action, ai) => {
+                                    const chipLabel = group.labels ? group.labels[ai] : group.label;
+                                    const on = !!modPerms[action];
+                                    return (
+                                      <button key={action} type="button" onClick={() => toggleAction(key, action)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all cursor-pointer outline-none focus:outline-none"
+                                        style={on
+                                          ? { background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }
+                                          : { background: '#f4f4f5', color: '#71717a', borderColor: '#e4e4e7' }
+                                        }
+                                      >
+                                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: on ? currentTheme.hex : '#d4d4d8' }} />
+                                        {chipLabel}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
                             ))}
                           </div>
                         )}
@@ -2416,14 +2455,24 @@ export default function AdminDashboard() {
           const inp = "w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none";
           const lbl = "text-[10px] font-bold text-zinc-500 uppercase tracking-widest";
           const PP_LIST = [
-            { key: "dashboard", label: "Dashboard",       icon: "📊", actions: ["ver"] },
-            { key: "agenda",    label: "Agenda",          icon: "📅", actions: ["ver", "criar", "editar", "excluir"] },
-            { key: "comandas",  label: "Comandas",        icon: "🧾", actions: ["ver", "criar", "editar", "excluir"] },
-            { key: "services",  label: "Serviços",        icon: "✂️",  actions: ["ver"] },
-            { key: "clients",   label: "Clientes",        icon: "👤", actions: ["ver", "criar", "editar"] },
-            { key: "fluxo",     label: "Fluxo de Caixa", icon: "💰", actions: ["ver"] },
+            { key: "dashboard", label: "Dashboard",       icon: "📊", groups: [] },
+            { key: "agenda",    label: "Agenda",          icon: "📅", groups: [
+              { label: "Criar",   actions: ["criar"] },
+              { label: "Editar",  actions: ["editar_proprio", "editar_todos"],  labels: ["Próprios", "Todos"] },
+              { label: "Excluir", actions: ["excluir_proprio", "excluir_todos"], labels: ["Próprios", "Todos"] },
+            ]},
+            { key: "comandas",  label: "Comandas",        icon: "🧾", groups: [
+              { label: "Criar",   actions: ["criar"] },
+              { label: "Editar",  actions: ["editar_proprio", "editar_todos"],  labels: ["Próprios", "Todos"] },
+              { label: "Excluir", actions: ["excluir_proprio", "excluir_todos"], labels: ["Próprios", "Todos"] },
+            ]},
+            { key: "services",  label: "Serviços",        icon: "✂️",  groups: [] },
+            { key: "clients",   label: "Clientes",        icon: "👤", groups: [
+              { label: "Criar",   actions: ["criar"] },
+              { label: "Editar",  actions: ["editar_proprio", "editar_todos"],  labels: ["Próprios", "Todos"] },
+            ]},
+            { key: "fluxo",     label: "Fluxo de Caixa", icon: "💰", groups: [] },
           ];
-          const ACTION_LABELS_P: Record<string, string> = { ver: "Ver", criar: "Criar", editar: "Editar", excluir: "Excluir" };
           const perms = newPermProfile.permissions || emptyPermissions;
           const toggleP = (mod: string, action: string) => setNewPermProfile((p: any) => ({
             ...p, permissions: { ...p.permissions, [mod]: { ...p.permissions[mod], [action]: !p.permissions[mod]?.[action] } }
@@ -2437,36 +2486,47 @@ export default function AdminDashboard() {
               <div className="space-y-2">
                 <label className={lbl}>Permissões</label>
                 <div className="space-y-2">
-                  {PP_LIST.map(({ key, label, icon, actions }) => {
+                  {PP_LIST.map(({ key, label, icon, groups }) => {
                     const modPerms = perms[key] || {};
                     const active = Object.values(modPerms).some(Boolean);
                     return (
-                      <div key={key} className={`rounded-2xl border transition-all ${active ? 'border-zinc-300 bg-white' : 'border-zinc-100 bg-zinc-50'}`}>
+                      <div key={key} className={`rounded-2xl border transition-all overflow-hidden ${active ? 'border-zinc-200 bg-white shadow-sm' : 'border-zinc-100 bg-zinc-50'}`}>
                         <div className="flex items-center justify-between px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm">{icon}</span>
+                            <span className="text-sm leading-none">{icon}</span>
                             <p className="text-xs font-black text-zinc-800">{label}</p>
                           </div>
                           <button type="button" onClick={() => toggleP(key, "ver")}
-                            className="relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0"
+                            className="relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 outline-none"
                             style={{ background: modPerms.ver ? currentTheme.hex : '#e4e4e7' }}
                           >
                             <span className="absolute top-0.5 h-4 w-4 bg-white rounded-full shadow transition-all duration-200" style={{ left: modPerms.ver ? '1.25rem' : '0.125rem' }} />
                           </button>
                         </div>
-                        {modPerms.ver && actions.length > 1 && (
-                          <div className="border-t border-zinc-100 px-4 pb-3 pt-2 flex flex-wrap gap-2">
-                            {actions.filter(a => a !== "ver").map(action => (
-                              <button key={action} type="button" onClick={() => toggleP(key, action)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all cursor-pointer outline-none focus:outline-none"
-                                style={modPerms[action]
-                                  ? { background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }
-                                  : { background: '#f4f4f5', color: '#71717a', borderColor: '#e4e4e7' }
-                                }
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full" style={{ background: modPerms[action] ? currentTheme.hex : '#a1a1aa' }} />
-                                {ACTION_LABELS_P[action]}
-                              </button>
+                        {modPerms.ver && groups.length > 0 && (
+                          <div className="border-t border-zinc-100 px-4 pb-3 pt-3 space-y-3">
+                            {groups.map((group: any) => (
+                              <div key={group.label} className="space-y-1.5">
+                                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{group.label}</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {group.actions.map((action: string, ai: number) => {
+                                    const chipLabel = group.labels ? group.labels[ai] : group.label;
+                                    const on = !!modPerms[action];
+                                    return (
+                                      <button key={action} type="button" onClick={() => toggleP(key, action)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all cursor-pointer outline-none focus:outline-none"
+                                        style={on
+                                          ? { background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }
+                                          : { background: '#f4f4f5', color: '#71717a', borderColor: '#e4e4e7' }
+                                        }
+                                      >
+                                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: on ? currentTheme.hex : '#d4d4d8' }} />
+                                        {chipLabel}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
                             ))}
                           </div>
                         )}
