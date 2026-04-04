@@ -23,6 +23,7 @@ import {
   LayoutGrid,
   List,
   X,
+  Check,
   CalendarDays,
   ArrowUpRight,
   ArrowDownRight,
@@ -199,7 +200,8 @@ export default function AdminDashboard() {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [comandas, setComandas] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
-  const [clientView, setClientView] = useState<"list" | "grid">("grid");
+  const [clientView, setClientView] = useState<"list" | "grid">(() => (localStorage.getItem("adminClientView") as any) || "grid");
+  const [serviceView, setServiceView] = useState<"list" | "grid">(() => (localStorage.getItem("adminServiceView") as any) || "grid");
   const [serviceSubTab, setServiceSubTab] = useState<"services" | "packages">("services");
   const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
   const [isProfessionalModalOpen, setIsProfessionalModalOpen] = useState(false);
@@ -259,6 +261,14 @@ export default function AdminDashboard() {
     comandaId: "" as string | null,
     type: "atendimento" as "atendimento" | "bloqueio" | "pessoal"
   });
+  useEffect(() => {
+    localStorage.setItem("adminClientView", clientView);
+  }, [clientView]);
+
+  useEffect(() => {
+    localStorage.setItem("adminServiceView", serviceView);
+  }, [serviceView]);
+
   const [isRepeatModalOpen, setIsRepeatModalOpen] = useState(false);
   const [isCustomRepeatModalOpen, setIsCustomRepeatModalOpen] = useState(false);
   const [repeatLabel, setRepeatLabel] = useState("Não Repete");
@@ -1258,179 +1268,214 @@ export default function AdminDashboard() {
             setSettingsOpenCard={setSettingsOpenCard}
           />
         )}
-
       </motion.div>
     </AnimatePresence>
   </div>
 </main>
 
       {/* Modals */}
-      <Modal isOpen={isServiceModalOpen} onClose={() => { setIsServiceModalOpen(false); setEditingService(null); }} title={editingService ? `Editar ${newService.type === 'service' ? 'Serviço' : 'Pacote'}` : newService.type === 'service' ? "Novo Serviço" : "Novo Pacote"}>
-        <div className="space-y-5">
+      <Modal 
+        isOpen={isServiceModalOpen} 
+        onClose={() => { setIsServiceModalOpen(false); setEditingService(null); }} 
+        title={editingService ? `Editar ${newService.type === 'service' ? 'Serviço' : 'Pacote'}` : newService.type === 'service' ? "Novo Serviço" : "Novo Pacote"}
+        className={newService.type === 'package' ? "max-w-2xl" : "max-w-lg"}
+      >
+        <div className="space-y-6">
           {!editingService && (
-            <div className="flex gap-2 p-1 bg-zinc-100 rounded-xl">
-              <button
-                onClick={() => setNewService({ ...newService, type: 'service' })}
-                className={cn("flex-1 py-2 text-[10px] font-bold rounded-lg transition-all uppercase tracking-wider", newService.type === 'service' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700")}
-              >
-                Serviço
-              </button>
-              <button
-                onClick={() => setNewService({ ...newService, type: 'package' })}
-                className={cn("flex-1 py-2 text-[10px] font-bold rounded-lg transition-all uppercase tracking-wider", newService.type === 'package' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700")}
-              >
-                Pacote
-              </button>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Nome</label>
-            <input
-              type="text"
-              className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-              placeholder={newService.type === 'service' ? "Ex: Corte Degradê" : "Ex: Pacote 5 Cortes"}
-              value={newService.name}
-              onChange={e => setNewService({ ...newService, name: e.target.value })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Descrição (opcional)</label>
-            <textarea
-              className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all resize-none"
-              placeholder="Descreva o serviço..."
-              rows={2}
-              value={newService.description}
-              onChange={e => setNewService({ ...newService, description: e.target.value })}
-            />
-          </div>
-
-          {newService.type === 'package' && (
-            <div className="space-y-3">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Serviços Inclusos</label>
-              <select
-                className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-                onChange={(e) => handleAddServiceToPackage(e.target.value)}
-                value=""
-              >
-                <option value="" disabled>Adicionar serviço...</option>
-                {services.filter(s => s.type === 'service').map(s => (
-                  <option key={s.id} value={s.id}>{s.name} – R$ {s.price}</option>
-                ))}
-              </select>
-              <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
-                {newService.includedServices.map(s => (
-                  <div key={s.id} className="flex items-center justify-between p-2.5 bg-zinc-50 rounded-xl border border-zinc-100">
-                    <span className="text-xs font-bold text-zinc-800">{s.name}</span>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        className="w-12 text-[10px] p-1.5 bg-white border border-zinc-200 rounded-lg text-center text-zinc-800 font-bold"
-                        value={s.quantity}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value);
-                          setNewService(prev => ({ ...prev, includedServices: prev.includedServices.map(item => item.id === s.id ? { ...item, quantity: val } : item) }));
-                        }}
-                      />
-                      <button onClick={() => setNewService(prev => ({ ...prev, includedServices: prev.includedServices.filter(item => item.id !== s.id) }))} className="text-red-400 hover:text-red-600 transition-colors">
-                        <XCircle size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Preço (R$)</label>
-              <input
-                type="number"
-                className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-                placeholder="0.00"
-                value={newService.price}
-                onChange={e => setNewService({ ...newService, price: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Duração (min)</label>
-              <input
-                type="number"
-                className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-                placeholder="30"
-                value={newService.duration}
-                onChange={e => setNewService({ ...newService, duration: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Desconto</label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  className="flex-1 text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-                  placeholder="0"
-                  value={newService.discount}
-                  onChange={e => setNewService({ ...newService, discount: e.target.value })}
-                />
-                <select
-                  className="w-16 text-[10px] p-2 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-700 font-bold outline-none"
-                  value={newService.discountType}
-                  onChange={e => setNewService({ ...newService, discountType: e.target.value as any })}
-                >
-                  <option value="value">R$</option>
-                  <option value="percentage">%</option>
-                </select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Preço Final</label>
-              <div className="w-full text-sm p-3 bg-amber-50 border border-amber-200 rounded-xl font-black text-amber-700 flex items-center justify-center">
-                R$ {(() => {
-                  const p = parseFloat(newService.price) || 0;
-                  const d = parseFloat(newService.discount) || 0;
-                  return newService.discountType === 'percentage' ? (p * (1 - d / 100)).toFixed(2) : (p - d).toFixed(2);
-                })()}
-              </div>
-            </div>
-          </div>
-
-          {/* Profissionais */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">
-              Profissionais que realizam este {newService.type === 'service' ? 'serviço' : 'pacote'}
-            </label>
-            {professionals.length === 0 ? (
-              <p className="text-[10px] text-zinc-400 italic ml-1">Nenhum profissional cadastrado.</p>
-            ) : (
-              <div className="space-y-3">
+            <div className="flex gap-2 p-1.5 bg-zinc-100 rounded-[20px] mb-2">
+              {(['service', 'package'] as const).map((t) => (
                 <button
-                  type="button"
-                  onClick={() => setNewService({ ...newService, professionalIds: [] })}
+                  key={t}
+                  onClick={() => setNewService({ ...newService, type: t })}
                   className={cn(
-                    "w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all",
-                    (newService.professionalIds || []).length === 0
-                      ? "bg-amber-50 border-amber-300 text-amber-800"
-                      : "bg-white border-zinc-200 text-zinc-600 hover:border-zinc-300"
+                    "flex-1 py-3 text-[11px] font-black rounded-xl transition-all uppercase tracking-widest flex items-center justify-center gap-2",
+                    newService.type === t 
+                      ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200" 
+                      : "text-zinc-500 hover:text-zinc-700"
                   )}
                 >
-                  <div className={cn(
-                    "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
-                    (newService.professionalIds || []).length === 0 ? "bg-amber-500 border-amber-500" : "border-zinc-300"
-                  )}>
-                    {(newService.professionalIds || []).length === 0 && <span className="text-white text-[9px] font-black">✓</span>}
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold">Todos os Profissionais</p>
-                    <p className="text-[10px] font-medium opacity-80 mt-0.5">Qualquer profissional da equipe pode realizar</p>
-                  </div>
+                  {t === 'service' ? <Scissors size={14} /> : <Package size={14} />}
+                  {t === 'service' ? 'Serviço Individual' : 'Pacote Estimado'}
                 </button>
+              ))}
+            </div>
+          )}
+
+          <div className={cn("grid gap-6", newService.type === 'package' ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1")}>
+            {/* ── LADO ESQUERDO: Informações Básicas ── */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-1 h-4 rounded-full bg-amber-500" />
+                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Informações Básicas</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Nome</label>
+                <input
+                  type="text"
+                  className="w-full text-xs p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+                  placeholder={newService.type === 'service' ? "Ex: Corte Degradê" : "Ex: Combo Barba & Cabelo"}
+                  value={newService.name}
+                  onChange={e => setNewService({ ...newService, name: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Descrição</label>
+                <textarea
+                  className="w-full text-xs p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all resize-none"
+                  placeholder="Explique o que este serviço inclui..."
+                  rows={3}
+                  value={newService.description}
+                  onChange={e => setNewService({ ...newService, description: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-bold text-zinc-400 ml-1">Ou selecione profissionais específicos:</p>
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Preço Sugerido (R$)</label>
+                  <input
+                    type="number"
+                    className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+                    placeholder="0.00"
+                    value={newService.price}
+                    onChange={e => setNewService({ ...newService, price: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Duração (min)</label>
+                  <input
+                    type="number"
+                    className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all text-center"
+                    placeholder="30"
+                    value={newService.duration}
+                    onChange={e => setNewService({ ...newService, duration: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-center justify-between">
+                <div>
+                  <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">Preço Final no Sistema</p>
+                  <p className="text-xl font-black text-amber-700">
+                    R$ {(() => {
+                      const p = parseFloat(newService.price) || 0;
+                      const d = parseFloat(newService.discount) || 0;
+                      return newService.discountType === 'percentage' ? (p * (1 - d / 100)).toFixed(2) : (p - d).toFixed(2);
+                    })()}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex border border-amber-200 rounded-lg overflow-hidden h-7">
+                    {(['value', 'percentage'] as const).map(dt => (
+                      <button 
+                        key={dt} 
+                        onClick={() => setNewService({ ...newService, discountType: dt })}
+                        className={cn("px-2 text-[9px] font-black transition-all", newService.discountType === dt ? "bg-amber-500 text-white" : "bg-white text-amber-400")}
+                      >
+                        {dt === 'value' ? 'R$' : '%'}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="number"
+                    className="w-16 h-7 text-[10px] p-1 bg-white border border-amber-200 rounded-lg text-center font-bold outline-none"
+                    placeholder="Desc."
+                    value={newService.discount}
+                    onChange={e => setNewService({ ...newService, discount: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ── LADO DIREITO: Configurações Avançadas ── */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-1 h-4 rounded-full bg-indigo-500" />
+                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Configurações de {newService.type === 'service' ? 'Atendimento' : 'Pacote'}</p>
+              </div>
+
+              {newService.type === 'package' && (
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Serviços que compõem o pacote</label>
+                  <div className="relative">
+                    <select
+                      className="w-full text-xs p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all appearance-none"
+                      onChange={(e) => handleAddServiceToPackage(e.target.value)}
+                      value=""
+                    >
+                      <option value="" disabled>Selecione para adicionar...</option>
+                      {services.filter(s => s.type === 'service').map(s => (
+                        <option key={s.id} value={s.id}>{s.name} – R$ {s.price}</option>
+                      ))}
+                    </select>
+                    <Plus size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                  </div>
+                  <div className="space-y-2 max-h-48 overflow-y-auto bg-zinc-50/50 p-2 rounded-2xl border border-zinc-100 min-h-[100px] flex flex-col items-center justify-center">
+                    {newService.includedServices.length === 0 ? (
+                      <p className="text-[10px] text-zinc-400 italic">Nenhum serviço adicionado ainda.</p>
+                    ) : (
+                      <div className="w-full space-y-2">
+                        {newService.includedServices.map(s => (
+                          <div key={s.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-zinc-100 shadow-sm">
+                            <div className="flex flex-col">
+                              <span className="text-[11px] font-bold text-zinc-800">{s.name}</span>
+                              <span className="text-[9px] text-zinc-400 font-medium">{s.sessions || 1} sessões estimadas</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center border border-zinc-200 rounded-lg overflow-hidden h-7">
+                                <button onClick={() => {
+                                  const val = Math.max(1, (s.quantity || 1) - 1);
+                                  setNewService(prev => ({ ...prev, includedServices: prev.includedServices.map(item => item.id === s.id ? { ...item, quantity: val } : item) }));
+                                }} className="px-2 bg-zinc-50 hover:bg-zinc-100 text-zinc-500 text-lg font-medium leading-none">-</button>
+                                <div className="px-3 bg-white text-[11px] font-black text-zinc-900 border-x border-zinc-200 flex items-center justify-center min-w-[32px]">{s.quantity}</div>
+                                <button onClick={() => {
+                                  const val = (s.quantity || 1) + 1;
+                                  setNewService(prev => ({ ...prev, includedServices: prev.includedServices.map(item => item.id === s.id ? { ...item, quantity: val } : item) }));
+                                }} className="px-2 bg-zinc-50 hover:bg-zinc-100 text-zinc-500 text-lg font-medium leading-none">+</button>
+                              </div>
+                              <button onClick={() => setNewService(prev => ({ ...prev, includedServices: prev.includedServices.filter(item => item.id !== s.id) }))} className="text-red-400 hover:text-red-600 transition-colors bg-red-50 p-1.5 rounded-lg border border-red-100">
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Profissionais */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">
+                  Profissionais que realizam este {newService.type === 'service' ? 'serviço' : 'pacote'}
+                </label>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewService({ ...newService, professionalIds: [] })}
+                    className={cn(
+                      "w-full flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all",
+                      (newService.professionalIds || []).length === 0
+                        ? "bg-emerald-50 border-emerald-300 ring-2 ring-emerald-500/10"
+                        : "bg-white border-zinc-200 hover:border-zinc-300"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                        (newService.professionalIds || []).length === 0 ? "bg-emerald-500 border-emerald-500" : "border-zinc-300"
+                      )}>
+                        {(newService.professionalIds || []).length === 0 && <Check className="text-white" size={10} strokeWidth={4} />}
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-zinc-900">Todos os Profissionais</p>
+                        <p className="text-[10px] font-medium text-zinc-500">Qualquer membro da equipe</p>
+                      </div>
+                    </div>
+                  </button>
+
                   <div className="grid grid-cols-2 gap-2">
                     {professionals.filter((p: any) => p.isActive !== false).map((p: any) => {
                       const isSelected = (newService.professionalIds || []).includes(p.id);
@@ -1446,34 +1491,35 @@ export default function AdminDashboard() {
                             });
                           }}
                           className={cn(
-                            "flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all text-[11px] font-bold",
+                            "flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all group",
                             isSelected
-                              ? "bg-emerald-50 border-emerald-300 text-emerald-800"
-                              : "bg-white border-zinc-200 text-zinc-600 hover:border-zinc-300"
+                              ? "bg-amber-50 border-amber-300 ring-1 ring-amber-500/20"
+                              : "bg-white border-zinc-200 hover:border-zinc-300"
                           )}
                         >
                           <div className={cn(
-                            "w-4 h-4 rounded-sm flex items-center justify-center shrink-0 transition-all",
-                            isSelected ? "bg-emerald-500 text-white" : "bg-zinc-100 border border-zinc-300 text-transparent"
+                            "w-4 h-4 rounded-lg flex items-center justify-center shrink-0 transition-all",
+                            isSelected ? "bg-amber-500 text-white shadow-sm" : "bg-zinc-100 border border-zinc-200 text-transparent"
                           )}>
-                            ✓
+                            <Check size={10} strokeWidth={4} />
                           </div>
-                          <span className="truncate">{p.name}</span>
+                          <span className={cn("text-[11px] font-bold truncate", isSelected ? "text-amber-800" : "text-zinc-600")}>{p.name}</span>
                         </button>
                       );
                     })}
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
 
           <Button
-            className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-bold shadow-sm transition-all"
+            className="w-full bg-zinc-900 hover:bg-black text-white rounded-[24px] py-4 text-sm font-black shadow-xl shadow-zinc-900/20 transition-all flex items-center justify-center gap-2 mt-2"
             onClick={handleCreateService}
             disabled={!newService.name || !newService.price}
           >
-            {editingService ? "Salvar Alterações" : (newService.type === 'service' ? "Criar Serviço" : "Criar Pacote")}
+            {editingService ? <Edit2 size={18} /> : <Plus size={18} />}
+            {editingService ? "Salvar Alterações" : (newService.type === 'service' ? "Cadastrar Serviço" : "Cadastrar Pacote")}
           </Button>
         </div>
       </Modal>

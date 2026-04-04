@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   CalendarIcon, Scissors, Clock, LogOut,
-  ChevronLeft, ChevronRight, UserCog,
+  ChevronLeft, ChevronRight, UserCog, Check,
 } from "lucide-react";
 import { format, addDays, subDays, isToday, parseISO, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -111,51 +111,62 @@ export default function ProfessionalDashboard() {
   const perms = parsePerms(prof.permissions);
   const canSeeAgenda   = canDo(perms, "agenda");
   const canSeeComandas = canDo(perms, "comandas");
+  const canSeeAllAgenda = canDo(perms, "agenda", "ver_todos") || canDo(perms, "agenda", "editar_todos");
 
-  const todayApps = appointments.filter((a) => isSameDay(parseISO(a.date), selectedDate));
-  const weekDays  = Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i));
-
-  const displayApps = (view === "day" ? todayApps : appointments)
+  const displayApps = appointments
     .filter((a) => a.status !== "cancelled")
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  const stats = {
+    today: appointments.filter(a => isToday(parseISO(a.date)) && a.status !== "cancelled").length,
+    period: appointments.filter(a => a.status !== "cancelled").length
+  };
+
+  const weekDays  = Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i));
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-800 flex flex-col">
       {/* ── Header ─────────────────────────────────────── */}
-      <header className="bg-white border-b border-zinc-200 px-6 py-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-500 rounded-2xl flex items-center justify-center shadow-md shadow-amber-500/20">
-            <Scissors className="text-white" size={18} />
+      <header className="bg-white border-b border-zinc-200 px-6 py-4 flex items-center justify-between shadow-sm sticky top-0 z-40 backdrop-blur-md bg-white/80">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 bg-white border border-zinc-200 rounded-2xl flex items-center justify-center shadow-sm overflow-hidden p-1.5 relative group">
+            <img src="/src/images/system/logo-favicon.png" alt="Agendelle" className="w-full h-full object-contain relative z-10" />
+            <div className="absolute inset-0 bg-indigo-500/5 group-hover:bg-indigo-500/10 transition-colors" />
           </div>
-          <div>
-            <h1 className="text-sm font-black text-zinc-900 tracking-tight">{prof.name}</h1>
-            <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest">
-              {prof.role || "Profissional"}
+          <div className="overflow-hidden">
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-base font-black text-zinc-900 tracking-tighter leading-none">Agendelle</h1>
+              <div className="w-1 h-1 rounded-full bg-amber-500 mt-0.5" />
+            </div>
+            <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-[0.2em] mt-1.5 leading-none">
+              Portal Profissional
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          {/* Stats rápidas */}
-          <div className="hidden md:flex items-center gap-5">
-            <div className="text-center">
-              <p className="text-lg font-black text-zinc-900">{todayApps.filter(a => a.status !== "cancelled").length}</p>
-              <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">Hoje</p>
+        <div className="flex items-center gap-4">
+          {/* Menu Desktop */}
+          <div className="hidden md:flex items-center gap-6 mr-6">
+            <div className="text-right">
+              <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Status</p>
+              <div className="flex items-center gap-2 justify-end">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[11px] font-bold text-zinc-700">Online</span>
+              </div>
             </div>
             <div className="w-px h-8 bg-zinc-100" />
-            <div className="text-center">
-              <p className="text-lg font-black text-zinc-900">{appointments.filter(a => a.status !== "cancelled").length}</p>
-              <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">
-                {view === "week" ? "Semana" : "Período"}
-              </p>
+            <div className="text-left">
+              <p className="text-[11px] font-black text-zinc-900">{stats.today}</p>
+              <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">Hoje</p>
             </div>
           </div>
 
-          <button
+          <button 
             onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 transition-all border border-red-100 cursor-pointer"
+            className="p-2.5 rounded-xl hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-all border border-transparent hover:border-red-100"
+            title="Sair"
           >
-            <LogOut size={14} /> Sair
+            <LogOut size={18} />
           </button>
         </div>
       </header>

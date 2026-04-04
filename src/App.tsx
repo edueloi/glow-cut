@@ -148,20 +148,21 @@ function LoginPage() {
       <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white">
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
-          <div className="flex lg:hidden items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-500 rounded-2xl flex items-center justify-center">
-              <Scissors size={18} className="text-white" />
+          <div className="flex lg:hidden items-center gap-3 mb-12">
+            <div className="w-12 h-12 bg-white border border-zinc-200 rounded-2xl flex items-center justify-center p-2 shadow-sm relative overflow-hidden">
+              <img src="/src/images/system/logo-favicon.png" alt="Agendelle" className="w-full h-full object-contain" />
+              <div className="absolute inset-0 bg-indigo-500/5" />
             </div>
             <div>
-              <p className="text-sm font-black text-zinc-900">Glow &amp; Cut</p>
-              <p className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Studio</p>
+              <p className="text-lg font-black text-zinc-900 tracking-tight leading-none">Agendelle</p>
+              <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-[0.2em] mt-1.5 opacity-80">Dashboard Administrativo</p>
             </div>
           </div>
 
-          <h2 className="text-2xl font-black text-zinc-900 mb-1">Bem-vindo de volta</h2>
-          <p className="text-xs text-zinc-400 font-medium mb-8">Entre com suas credenciais para continuar</p>
+          <h2 className="text-2xl font-black text-zinc-900 mb-1 lg:text-3xl">Bem-vindo</h2>
+          <p className="text-xs text-zinc-400 font-medium mb-8">Acesse seu painel exclusivo Agendelle</p>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1.5">
                 E-mail ou usuário
@@ -239,8 +240,13 @@ function App() {
         <Route path="/admin"           element={<AdminDashboard />} />
         <Route path="/admin/*"         element={<AdminDashboard />} />
         <Route path="/super-admin"     element={<SuperAdminDashboard username={(() => { try { return JSON.parse(localStorage.getItem("superAdminLogged") || "{}").username || "Admin"; } catch { return "Admin"; } })()} onLogout={() => { localStorage.removeItem("superAdminLogged"); window.location.href = "/login"; }} />} />
-        <Route path="/:slug"           element={<ClientBooking />} />
-        <Route path="/"                element={<Navigate to="/login" replace />} />
+        <Route path="/" element={(() => {
+          if (localStorage.getItem("superAdminLogged")) return <Navigate to="/super-admin" replace />;
+          if (localStorage.getItem("isLogged") === "true") return <Navigate to="/admin" replace />;
+          if (localStorage.getItem("professionalLogged")) return <Navigate to="/pro" replace />;
+          return <Navigate to="/login" replace />;
+        })()} />
+        <Route path="/:slug" element={<ClientBooking />} />
       </Routes>
     </BrowserRouter>
   );

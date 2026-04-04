@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Scissors, Package, Edit2, Trash2, Clock } from "lucide-react";
+import { Plus, Scissors, Package, Edit2, Trash2, Clock, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { Button } from "@/src/components/ui/Button";
 import { motion } from "motion/react";
@@ -12,6 +12,8 @@ interface ServicesTabProps {
   setNewService: (s: any) => void;
   setIsServiceModalOpen: (b: boolean) => void;
   handleDeleteService: (id: string) => void;
+  viewMode: 'grid' | 'list';
+  setViewMode: (val: 'grid' | 'list') => void;
 }
 
 export function ServicesTab({
@@ -21,8 +23,12 @@ export function ServicesTab({
   setEditingService,
   setNewService,
   setIsServiceModalOpen,
-  handleDeleteService
+  handleDeleteService,
+  viewMode,
+  setViewMode
 }: ServicesTabProps) {
+  const filteredServices = services.filter(s => s.type === (serviceSubTab === 'services' ? 'service' : 'package'));
+
   return (
     <div className="space-y-6">
       {/* Summary stats */}
@@ -38,102 +44,105 @@ export function ServicesTab({
         <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Ticket Médio</p>
           <p className="text-2xl font-black text-amber-600 mt-1">
-            R$ {services.length ? (services.reduce((a, s) => a + s.price, 0) / services.length).toFixed(0) : '0'}
+            R$ {services.length ? (services.reduce((a, s) => a + (Number(s.price) || 0), 0) / services.length).toFixed(0) : '0'}
           </p>
         </div>
         <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Duração Média</p>
           <p className="text-2xl font-black text-zinc-900 mt-1">
-            {services.length ? Math.round(services.reduce((a, s) => a + s.duration, 0) / services.length) : 0} min
+            {services.length ? Math.round(services.reduce((a, s) => a + (Number(s.duration) || 0), 0) / services.length) : 0} min
           </p>
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex p-1 bg-zinc-100 rounded-xl w-fit">
-          <button
-            onClick={() => setServiceSubTab('services')}
-            className={cn(
-              "px-6 py-2 text-xs font-bold rounded-lg transition-all uppercase tracking-wider",
-              serviceSubTab === 'services' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
-            )}
-          >
-            Serviços ({services.filter(s => s.type === 'service').length})
-          </button>
-          <button
-            onClick={() => setServiceSubTab('packages')}
-            className={cn(
-              "px-6 py-2 text-xs font-bold rounded-lg transition-all uppercase tracking-wider",
-              serviceSubTab === 'packages' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
-            )}
-          >
-            Pacotes ({services.filter(s => s.type === 'package').length})
-          </button>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/50 p-4 rounded-2xl border border-zinc-200/50">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className="flex p-1 bg-zinc-100 rounded-xl w-full sm:w-fit shadow-inner">
+            <button
+              onClick={() => setServiceSubTab('services')}
+              className={cn(
+                "flex-1 sm:flex-none px-6 py-2.5 text-xs font-bold rounded-lg transition-all uppercase tracking-wider",
+                serviceSubTab === 'services' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+              )}
+            >
+              Serviços
+            </button>
+            <button
+              onClick={() => setServiceSubTab('packages')}
+              className={cn(
+                "flex-1 sm:flex-none px-6 py-2.5 text-xs font-bold rounded-lg transition-all uppercase tracking-wider",
+                serviceSubTab === 'packages' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+              )}
+            >
+              Pacotes
+            </button>
+          </div>
+
+          <div className="flex p-1 bg-zinc-100 rounded-xl shadow-inner shrink-0 scale-90 sm:scale-100">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={cn("p-2 rounded-lg transition-all", viewMode === 'grid' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400 hover:text-zinc-600")}
+            >
+              <LayoutGrid size={18} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={cn("p-2 rounded-lg transition-all", viewMode === 'list' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400 hover:text-zinc-600")}
+            >
+              <List size={18} />
+            </button>
+          </div>
         </div>
+
         <Button
           onClick={() => {
             setEditingService(null);
             setNewService({ name: "", description: "", price: "", duration: "", type: serviceSubTab === 'services' ? 'service' : 'package', discount: "0", discountType: "value", includedServices: [], professionalIds: [] });
             setIsServiceModalOpen(true);
           }}
-          className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-6 font-bold shadow-lg shadow-amber-500/20 flex items-center gap-2"
+          className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl px-8 py-6 font-bold shadow-xl shadow-zinc-900/10 flex items-center justify-center gap-2"
         >
-          <Plus size={18} />
-          Novo {serviceSubTab === 'services' ? 'Serviço' : 'Pacote'}
+          <Plus size={20} />
+          <span className="hidden xs:inline">Novo {serviceSubTab === 'services' ? 'Serviço' : 'Pacote'}</span>
+          <span className="xs:hidden">Criar</span>
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {services.filter(s => s.type === (serviceSubTab === 'services' ? 'service' : 'package')).map((item, idx) => (
-          <motion.div
-            key={item.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.05 }}
-            className="group bg-white rounded-3xl border border-zinc-200 shadow-sm hover:shadow-lg hover:border-amber-300 transition-all relative overflow-hidden flex flex-col"
-          >
-            {/* Top color strip */}
-            <div className={cn("h-1.5 w-full", item.type === 'package' ? "bg-gradient-to-r from-amber-400 to-orange-400" : "bg-gradient-to-r from-amber-300 to-amber-500")} />
-
-            <div className="p-6 flex-1 flex flex-col">
-              <div className="flex items-start gap-4 mb-4">
-                <div className={cn(
-                  "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
-                  item.type === 'package' ? "bg-orange-50 border border-orange-200 text-orange-500" : "bg-amber-50 border border-amber-200 text-amber-600"
-                )}>
-                  {item.type === 'package' ? <Package size={22} /> : <Scissors size={22} />}
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredServices.map((item) => (
+            <motion.div
+              layout
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              key={item.id}
+              className="bg-white rounded-3xl border border-zinc-200 p-5 shadow-sm hover:shadow-md transition-all flex flex-col group"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-400 group-hover:scale-110 group-hover:bg-amber-50 group-hover:text-amber-500 transition-all">
+                  {item.type === 'service' ? <Scissors size={24} /> : <Package size={24} />}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-bold text-zinc-900 leading-tight">{item.name}</h4>
-                  {item.description && <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed line-clamp-2">{item.description}</p>}
+                <div className="text-right">
+                  <p className="text-lg font-black text-zinc-900">R$ {Number(item.price).toFixed(0)}</p>
+                  <p className="text-[10px] text-zinc-400 font-bold flex items-center justify-end gap-1">
+                    <Clock size={10} /> {item.duration} min
+                  </p>
                 </div>
               </div>
 
-              {/* Price row */}
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex-1 bg-zinc-50 rounded-xl p-3 border border-zinc-100">
-                  <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Valor</p>
-                  <p className="text-base font-black text-zinc-900 mt-0.5">R$ {item.price.toFixed(2)}</p>
-                </div>
-                <div className="flex-1 bg-zinc-50 rounded-xl p-3 border border-zinc-100">
-                  <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Duração</p>
-                  <p className="text-base font-black text-zinc-900 mt-0.5 flex items-center gap-1"><Clock size={13} className="text-amber-500" />{item.duration}min</p>
-                </div>
-                {(item.discount > 0) && (
-                  <div className="flex-1 bg-green-50 rounded-xl p-3 border border-green-100">
-                    <p className="text-[9px] font-bold text-green-400 uppercase tracking-widest">Desconto</p>
-                    <p className="text-base font-black text-green-600 mt-0.5">{item.discountType === 'percentage' ? `${item.discount}%` : `R$ ${item.discount}`}</p>
-                  </div>
-                )}
+              <div className="mb-4">
+                <h3 className="text-sm font-black text-zinc-900 group-hover:text-amber-600 transition-colors uppercase tracking-tight">{item.name}</h3>
+                <p className="text-[11px] text-zinc-500 mt-1 line-clamp-2 leading-relaxed">
+                  {item.description || "Sem descrição disponível."}
+                </p>
               </div>
 
-              {/* Package items */}
               {item.type === 'package' && item.packageServices?.length > 0 && (
-                <div className="mb-4 p-3 bg-orange-50 rounded-2xl border border-orange-100">
-                  <p className="text-[9px] font-bold text-orange-400 uppercase tracking-widest mb-2">Incluído no pacote</p>
-                  <div className="flex flex-wrap gap-1.5">
+                <div className="mb-4 p-3 bg-zinc-50 rounded-2xl border border-zinc-100">
+                  <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Incluído no pacote</p>
+                  <div className="flex flex-wrap gap-1">
                     {item.packageServices.map((ps: any, i: number) => (
-                      <span key={i} className="text-[9px] font-bold bg-white text-orange-600 px-2.5 py-1 rounded-lg border border-orange-200">
+                      <span key={i} className="text-[9px] font-bold bg-white text-zinc-600 px-2 py-0.5 rounded-lg border border-zinc-100">
                         {ps.quantity}x {ps.service.name}
                       </span>
                     ))}
@@ -141,19 +150,7 @@ export function ServicesTab({
                 </div>
               )}
 
-              {/* Final price if discounted */}
-              {item.discount > 0 && (
-                <div className="mb-4 flex items-center justify-between px-4 py-2.5 bg-amber-50 rounded-xl border border-amber-100">
-                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Preço Final</span>
-                  <span className="text-sm font-black text-amber-700">
-                    R$ {item.discountType === 'percentage'
-                      ? (item.price * (1 - item.discount / 100)).toFixed(2)
-                      : (item.price - item.discount).toFixed(2)}
-                  </span>
-                </div>
-              )}
-
-              <div className="mt-auto flex gap-2">
+              <div className="mt-auto flex gap-2 pt-4 border-t border-zinc-50">
                 <button
                   onClick={() => {
                     setEditingService(item);
@@ -165,7 +162,8 @@ export function ServicesTab({
                       type: item.type,
                       discount: (item.discount || 0).toString(),
                       discountType: item.discountType || "value",
-                      includedServices: item.packageServices?.map((ps: any) => ({ id: ps.serviceId, name: ps.service.name, quantity: ps.quantity })) || []
+                      includedServices: item.packageServices?.map((ps: any) => ({ id: ps.serviceId, name: ps.service.name, quantity: ps.quantity })) || [],
+                      professionalIds: item.professionalIds ? (typeof item.professionalIds === 'string' ? JSON.parse(item.professionalIds) : item.professionalIds) : []
                     });
                     setIsServiceModalOpen(true);
                   }}
@@ -180,17 +178,88 @@ export function ServicesTab({
                   <Trash2 size={13} /> Excluir
                 </button>
               </div>
-            </div>
-          </motion.div>
-        ))}
-        {services.filter(s => s.type === (serviceSubTab === 'services' ? 'service' : 'package')).length === 0 && (
-          <div className="col-span-full py-24 bg-white rounded-[40px] border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-400">
-            {serviceSubTab === 'services' ? <Scissors size={48} className="mb-4 opacity-20" /> : <Package size={48} className="mb-4 opacity-20" />}
-            <p className="text-sm font-bold text-zinc-500">Nenhum {serviceSubTab === 'services' ? 'serviço' : 'pacote'} cadastrado.</p>
-            <p className="text-xs mt-1 font-medium">Clique no botão acima para começar.</p>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-[32px] border border-zinc-200 overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-zinc-50 border-b border-zinc-100">
+                  <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Nome</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Duração</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-right">Preço</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {filteredServices.map((item) => (
+                  <tr key={item.id} className="hover:bg-zinc-50/50 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-500 group-hover:bg-amber-50 group-hover:text-amber-500 transition-all">
+                          {item.type === 'service' ? <Scissors size={14} /> : <Package size={14} />}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-zinc-900 uppercase tracking-tight">{item.name}</p>
+                          <p className="text-[10px] text-zinc-400 truncate max-w-[200px]">{item.description || "Sem descrição"}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-medium text-zinc-600 flex items-center gap-1.5">
+                        <Clock size={12} className="text-zinc-400" /> {item.duration} min
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className="text-xs font-black text-zinc-900">R$ {Number(item.price).toFixed(2)}</span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingService(item);
+                            setNewService({
+                              name: item.name,
+                              description: item.description || "",
+                              price: item.price.toString(),
+                              duration: item.duration.toString(),
+                              type: item.type,
+                              discount: (item.discount || 0).toString(),
+                              discountType: item.discountType || "value",
+                              includedServices: item.packageServices?.map((ps: any) => ({ id: ps.serviceId, name: ps.service.name, quantity: ps.quantity })) || [],
+                              professionalIds: item.professionalIds ? (typeof item.professionalIds === 'string' ? JSON.parse(item.professionalIds) : item.professionalIds) : []
+                            });
+                            setIsServiceModalOpen(true);
+                          }}
+                          className="p-2 text-zinc-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteService(item.id)}
+                          className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {filteredServices.length === 0 && (
+        <div className="py-24 bg-white rounded-[40px] border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-400">
+          {serviceSubTab === 'services' ? <Scissors size={48} className="mb-4 opacity-20" /> : <Package size={48} className="mb-4 opacity-20" />}
+          <p className="text-sm font-bold text-zinc-500">Nenhum {serviceSubTab === 'services' ? 'serviço' : 'pacote'} cadastrado.</p>
+          <p className="text-xs mt-1 font-medium">Clique no botão acima para começar.</p>
+        </div>
+      )}
     </div>
   );
 }
