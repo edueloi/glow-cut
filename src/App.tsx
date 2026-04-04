@@ -95,7 +95,7 @@ function LoginPage() {
       <div className="hidden lg:flex lg:w-[45%] bg-zinc-950 flex-col items-center justify-center p-12 relative overflow-hidden">
         {/* Glow effects */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl" />
+          <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl" />
           <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-amber-600/8 rounded-full blur-3xl" />
           <div
             className="absolute inset-0 opacity-[0.04]"
@@ -106,33 +106,30 @@ function LoginPage() {
           />
         </div>
 
-        <div className="relative z-10 text-center max-w-xs">
+        <div className="relative z-10 text-center max-w-sm">
           <div className="relative inline-block mb-8">
-            <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-amber-500/40">
-              <Scissors size={32} className="text-white" />
+            <div className="w-24 h-24 bg-white/5 backdrop-blur-sm rounded-3xl flex items-center justify-center p-4 border border-white/10 shadow-2xl">
+              <img src="/src/images/system/logo-favicon.png" alt="Agendelle Logo" className="w-full h-full object-contain" />
             </div>
-            <div className="absolute -inset-2 bg-amber-500/15 rounded-[28px] blur-xl" />
-            <div className="absolute -top-1 -right-1 w-6 h-6 bg-amber-400 rounded-lg flex items-center justify-center">
-              <Sparkles size={12} className="text-white" />
-            </div>
+            <div className="absolute -inset-4 bg-indigo-500/10 rounded-[40px] blur-2xl -z-10" />
           </div>
 
-          <h1 className="text-3xl font-black text-white tracking-tight leading-tight">
-            Glow & Cut
+          <h1 className="text-4xl font-black text-white tracking-tight leading-tight flex items-center justify-center gap-2">
+            Agendelle
           </h1>
-          <p className="text-[11px] font-bold text-amber-400 uppercase tracking-[0.25em] mt-2">
-            Studio Management
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.4em] mt-3 opacity-80">
+            AGENDAMENTOS INTELIGENTES
           </p>
 
-          <div className="mt-10 space-y-3">
+          <div className="mt-12 space-y-3 max-w-[240px] mx-auto">
             {[
-              "Agendamentos em tempo real",
-              "Gestão completa de clientes",
-              "Controle financeiro e comandas",
-              "Múltiplos profissionais",
+              "Agendamentos automatizados",
+              "Gestão 360 do seu negócio",
+              "Link de auto-agendamento",
+              "Relatórios inteligentes",
             ].map((item) => (
               <div key={item} className="flex items-center gap-3 text-left">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
                 <p className="text-[12px] text-zinc-400 font-medium">{item}</p>
               </div>
             ))}
@@ -140,9 +137,8 @@ function LoginPage() {
         </div>
 
         <div className="absolute bottom-8 text-center z-10">
-          <p className="text-[10px] text-zinc-700 font-medium">
-            Desenvolvido por{" "}
-            <span className="text-zinc-500 font-black">Develoi Soluções Digitais</span>
+          <p className="text-[10px] text-zinc-600 font-medium tracking-wide">
+            © 2026 <span className="text-zinc-400 font-black">Agendelle</span> • <span className="opacity-60">Sua agenda de forma inteligente</span>
           </p>
         </div>
       </div>

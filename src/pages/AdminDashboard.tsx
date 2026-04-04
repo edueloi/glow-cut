@@ -814,13 +814,13 @@ export default function AdminDashboard() {
         {/* Logo */}
         <div className={cn("p-4 flex items-center transition-all duration-300", sidebarCollapsed ? "justify-center" : "p-8")}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
-              <Scissors className="text-white" size={22} />
+            <div className={cn("bg-zinc-50 rounded-xl flex items-center justify-center border border-zinc-100 shadow-sm shrink-0", sidebarCollapsed ? "w-10 h-10 p-1.5" : "w-11 h-11 p-2")}>
+              <img src="/src/images/system/logo-favicon.png" alt="Agendelle" className="w-full h-full object-contain" />
             </div>
             {!sidebarCollapsed && (
               <div className="overflow-hidden">
-                <h1 className="text-lg font-black text-zinc-900 tracking-tighter font-display leading-none uppercase">{tenantName}</h1>
-                <p className="text-[10px] text-amber-500 font-bold tracking-[0.2em] uppercase mt-1">Studio Admin</p>
+                <h1 className="text-lg font-black text-zinc-900 tracking-tight font-display leading-none">Agendelle</h1>
+                <p className="text-[8px] text-zinc-400 font-bold tracking-[0.1em] uppercase mt-1">Smart Schedulings</p>
               </div>
             )}
           </div>

@@ -10,8 +10,8 @@ import { cn } from "@/src/lib/utils";
 export default function ClientBooking() {
   const { slug } = useParams();
   // Decode and format the slug to use as the studio name (example: "glowandcut" -> "Glowandcut Studio", "glow-cut" -> "Glow Cut Studio")
-  const defaultTitle = slug ? slug.replace(/-/g, ' ') : "Glow & Cut";
-  const studioName = defaultTitle.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + " Studio";
+  const defaultTitle = slug ? slug.replace(/-/g, ' ') : "Agendelle";
+  const studioName = defaultTitle.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   const studioAddress = localStorage.getItem('studioAddress') || "Av. Principal, 1234 - Centro, São Paulo - SP";
 
   // Mock configurações que viriam do Painel Admin

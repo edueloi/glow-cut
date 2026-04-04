@@ -32,8 +32,8 @@ export function SettingsTab({
       content: (
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5"><Store size={10}/> Nome do Studio</label>
-            <input type="text" defaultValue="Glow & Cut Studio" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none" />
+            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5"><Store size={10}/> Nome do Negócio</label>
+            <input type="text" defaultValue="Agendelle" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none" />
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5"><Phone size={10}/> Telefone</label>
