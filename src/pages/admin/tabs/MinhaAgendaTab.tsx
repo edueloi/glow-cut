@@ -7,6 +7,7 @@ import { useToast } from "@/src/components/ui/Toast";
 
 interface MinhaAgendaTabProps {
   studioName?: string;
+  tenantSlug?: string;
   themeColor?: string;
 }
 
@@ -25,22 +26,33 @@ const PRESET_COLORS = [
   "#78350f", // Brown
 ];
 
-export function MinhaAgendaTab({ studioName = "Glow & Cut", themeColor = "#f59e0b" }: MinhaAgendaTabProps) {
+export function MinhaAgendaTab({ studioName = "Studio", tenantSlug = "", themeColor = "#f59e0b" }: MinhaAgendaTabProps) {
   const { show } = useToast();
-  const [logoPreview, setLogoPreview] = React.useState<string | null>(() => localStorage.getItem('studioLogo'));
-  const [coverPreview, setCoverPreview] = React.useState<string | null>(() => localStorage.getItem('studioCover'));
-  const [localColor, setLocalColor] = React.useState<string>(() => localStorage.getItem('themeColor') || "#09090b");
-  const [localAddress, setLocalAddress] = React.useState<string>(() => localStorage.getItem('studioAddress') || "Av. Principal, 1234 - Centro, São Paulo - SP");
+
+  // Chaves isoladas por tenant para evitar dados cruzados
+  const adminUser = (() => { try { return JSON.parse(localStorage.getItem("adminUser") || "{}"); } catch { return {}; } })();
+  const tid = adminUser.tenantId || "default";
+  const key = (k: string) => `${tid}:${k}`;
+
+  const [logoPreview, setLogoPreview] = React.useState<string | null>(() => localStorage.getItem(key('logo')) || null);
+  const [coverPreview, setCoverPreview] = React.useState<string | null>(() => localStorage.getItem(key('cover')) || null);
+  const [localColor, setLocalColor] = React.useState<string>(() => localStorage.getItem(key('color')) || "#09090b");
+  const [localAddress, setLocalAddress] = React.useState<string>(() => localStorage.getItem(key('address')) || "");
+  const [localTitle, setLocalTitle] = React.useState<string>(() => localStorage.getItem(key('title')) || "");
+  const [localDesc, setLocalDesc] = React.useState<string>(() => localStorage.getItem(key('desc')) || "");
+  const [localWelcome, setLocalWelcome] = React.useState<string>(() => localStorage.getItem(key('welcome')) || "");
   const [isLoading, setIsLoading] = React.useState(false);
 
   const handleSave = async () => {
     setIsLoading(true);
-    // Simula um delay de salvamento no banco
     setTimeout(() => {
-      localStorage.setItem('studioLogo', logoPreview || "");
-      localStorage.setItem('studioCover', coverPreview || "");
-      localStorage.setItem('themeColor', localColor);
-      localStorage.setItem('studioAddress', localAddress);
+      localStorage.setItem(key('logo'), logoPreview || "");
+      localStorage.setItem(key('cover'), coverPreview || "");
+      localStorage.setItem(key('color'), localColor);
+      localStorage.setItem(key('address'), localAddress);
+      localStorage.setItem(key('title'), localTitle);
+      localStorage.setItem(key('desc'), localDesc);
+      localStorage.setItem(key('welcome'), localWelcome);
       setIsLoading(false);
       show("Configurações da agenda salvas com sucesso!", "success");
     }, 800);
@@ -75,8 +87,7 @@ export function MinhaAgendaTab({ studioName = "Glow & Cut", themeColor = "#f59e0
     const input = document.getElementById('cover-upload') as HTMLInputElement;
     if (input) input.value = '';
   };
-  // Formata o nome para a URL (slug)
-  const slug = studioName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const slug = tenantSlug || studioName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   const link = `glow-cut.com.br/agendar/${slug}`;
 
   return (
@@ -125,7 +136,7 @@ export function MinhaAgendaTab({ studioName = "Glow & Cut", themeColor = "#f59e0
 
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Título da Página (Meta Title)</label>
-            <input type="text" defaultValue={`${studioName} | Agende seu horário`} className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all" />
+            <input type="text" value={localTitle} onChange={e => setLocalTitle(e.target.value)} placeholder={`${studioName} | Agende seu horário`} className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all" />
             <p className="text-[9px] text-zinc-400">Título principal no Google e na aba do navegador.</p>
           </div>
 
@@ -146,7 +157,7 @@ export function MinhaAgendaTab({ studioName = "Glow & Cut", themeColor = "#f59e0
 
           <div className="space-y-2 flex-1 flex flex-col pt-2">
             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Descrição Breve (Meta Description)</label>
-            <textarea rows={3} defaultValue={`Agende rapidamente seu corte ou procedimento no ${studioName}. Profissionais qualificados e um ambiente preparado para você.`} className="w-full flex-1 text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all resize-none" />
+            <textarea rows={3} value={localDesc} onChange={e => setLocalDesc(e.target.value)} placeholder={`Agende seu horário no ${studioName}. Profissionais qualificados.`} className="w-full flex-1 text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all resize-none" />
             <p className="text-[9px] text-zinc-400">Texto que aparece nas redes sociais (WhatsApp) e no Google abaixo do título.</p>
           </div>
         </div>
@@ -157,7 +168,7 @@ export function MinhaAgendaTab({ studioName = "Glow & Cut", themeColor = "#f59e0
           
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Mensagem de Boas Vindas</label>
-            <input type="text" defaultValue="Bem-vindo ao nosso agendamento online!" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all" />
+            <input type="text" value={localWelcome} onChange={e => setLocalWelcome(e.target.value)} placeholder="Bem-vindo ao nosso agendamento online!" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all" />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

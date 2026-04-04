@@ -74,10 +74,31 @@ app.post("/api/login", async (req, res) => {
       jobTitle: adminUser.jobTitle,
       tenantId: adminUser.tenantId,
       tenantName: adminUser.tenant.name,
+      tenantSlug: adminUser.tenant.slug,
       planName: adminUser.tenant.plan.name,
       canCreateUsers: adminUser.canCreateUsers,
       canDeleteAccount: adminUser.canDeleteAccount,
       permissions: adminUser.permissions,
+    });
+  }
+
+  // 3) Profissional (por email ou nome)
+  const prof = await prisma.professional.findFirst({
+    where: {
+      OR: [
+        { email: identifier, password, isActive: true },
+        { name: identifier, password, isActive: true },
+      ],
+    },
+  });
+  if (prof) {
+    return res.json({
+      type: "professional",
+      id: prof.id,
+      name: prof.name,
+      role: prof.role,
+      tenantId: prof.tenantId,
+      permissions: prof.permissions,
     });
   }
 
@@ -536,7 +557,7 @@ app.get("/api/professionals", async (req, res) => {
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
   const profs = await prisma.professional.findMany({
     where: { tenantId },
-    select: { id: true, name: true, role: true }
+    select: { id: true, name: true, role: true, phone: true, email: true, bio: true, photo: true, permissions: true, isActive: true }
   });
   res.json(profs);
 });
@@ -544,12 +565,20 @@ app.get("/api/professionals", async (req, res) => {
 app.post("/api/professionals", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { name, role, password } = req.body;
+  const { name, role, password, phone, email, bio, photo, permissions } = req.body;
   if (!name || !password) return res.status(400).json({ error: "Nome e senha são obrigatórios." });
   try {
     const prof = await prisma.professional.create({
-      data: { id: randomUUID(), name, role, password, tenantId },
-      select: { id: true, name: true, role: true }
+      data: {
+        id: randomUUID(), name, role, password, tenantId,
+        phone: phone || null,
+        email: email || null,
+        bio: bio || null,
+        photo: photo || null,
+        permissions: permissions ? JSON.stringify(permissions) : "{}",
+        isActive: true,
+      },
+      select: { id: true, name: true, role: true, phone: true, email: true, bio: true, photo: true, permissions: true, isActive: true }
     });
     for (let i = 0; i < 7; i++) {
       await prisma.workingHours.create({
@@ -563,22 +592,39 @@ app.post("/api/professionals", async (req, res) => {
 });
 
 app.post("/api/professionals/login", async (req, res) => {
-  const { name, password } = req.body;
-  // Profissional pode logar por nome+senha — encontra o registro dele
-  const prof = await prisma.professional.findFirst({ where: { name, password } });
-  if (!prof) return res.status(401).json({ error: "Nome ou senha incorretos." });
-  res.json({ id: prof.id, name: prof.name, role: prof.role, tenantId: prof.tenantId });
+  const { name, email, password } = req.body;
+  const identifier = email || name;
+  const prof = await prisma.professional.findFirst({
+    where: {
+      OR: [
+        { email: identifier, password, isActive: true },
+        { name: identifier, password, isActive: true },
+      ],
+    },
+  });
+  if (!prof) return res.status(401).json({ error: "Nome/e-mail ou senha incorretos." });
+  res.json({ id: prof.id, name: prof.name, role: prof.role, tenantId: prof.tenantId, permissions: prof.permissions });
 });
 
 app.put("/api/professionals/:id", async (req, res) => {
   const tenantId = getTenantId(req);
-  const { name, role, password } = req.body;
+  const { name, role, password, phone, email, bio, photo, permissions, isActive } = req.body;
   const data: any = { name, role };
   if (password) data.password = password;
+  if (phone !== undefined) data.phone = phone || null;
+  if (email !== undefined) data.email = email || null;
+  if (bio !== undefined) data.bio = bio || null;
+  if (photo !== undefined) data.photo = photo || null;
+  if (permissions !== undefined) data.permissions = typeof permissions === "object" ? JSON.stringify(permissions) : permissions;
+  if (isActive !== undefined) data.isActive = isActive;
   try {
-    const prof = await prisma.professional.updateMany({
+    await prisma.professional.updateMany({
       where: { id: req.params.id, tenantId: tenantId || undefined },
       data
+    });
+    const prof = await prisma.professional.findFirst({
+      where: { id: req.params.id },
+      select: { id: true, name: true, role: true, phone: true, email: true, bio: true, photo: true, permissions: true, isActive: true }
     });
     res.json(prof);
   } catch (e) {
@@ -672,8 +718,12 @@ app.delete("/api/services/:id", async (req, res) => {
 app.get('/api/appointments', async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: 'tenantId obrigatório.' });
+  const { start, end, professionalId } = req.query as Record<string, string>;
+  const where: any = { tenantId };
+  if (professionalId) where.professionalId = professionalId;
+  if (start && end) where.date = { gte: new Date(start), lte: new Date(end) };
   const appointments = await prisma.appointment.findMany({
-    where: { tenantId },
+    where,
     include: {
       client: true,
       professional: { select: { id: true, name: true } },
@@ -757,7 +807,7 @@ app.get('/api/comandas', async (req, res) => {
   if (!tenantId) return res.status(400).json({ error: 'tenantId obrigatório.' });
   const comandas = await prisma.comanda.findMany({
     where: { tenantId },
-    include: { client: true, professional: { select: { id: true, name: true } } },
+    include: { client: true },
     orderBy: { createdAt: 'desc' }
   });
   res.json(comandas);

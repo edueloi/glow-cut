@@ -12,6 +12,12 @@ model Professional {
   name         String         @db.VarChar(255)
   role         String?        @db.VarChar(100)
   password     String?        @db.VarChar(255)
+  phone        String?        @db.VarChar(30)
+  email        String?        @db.VarChar(255)
+  bio          String?        @db.VarChar(1000)
+  photo        String?        @db.Text
+  permissions  String?        @default("{}") @db.VarChar(2000)
+  isActive     Boolean        @default(true)
   tenantId     String?        @db.VarChar(36)
   appointments Appointment[]
   workingHours WorkingHours[]

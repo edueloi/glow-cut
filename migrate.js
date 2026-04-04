@@ -439,6 +439,38 @@ const MIGRATIONS = [
     ignoreIfExists: true,
   },
 
+  // 025 — Professional: novos campos
+  {
+    name: '025a_professional_add_phone',
+    sql: `ALTER TABLE Professional ADD COLUMN phone VARCHAR(30) NULL AFTER password`,
+    ignoreIfExists: true,
+  },
+  {
+    name: '025b_professional_add_email',
+    sql: `ALTER TABLE Professional ADD COLUMN email VARCHAR(255) NULL AFTER phone`,
+    ignoreIfExists: true,
+  },
+  {
+    name: '025c_professional_add_bio',
+    sql: `ALTER TABLE Professional ADD COLUMN bio VARCHAR(1000) NULL AFTER email`,
+    ignoreIfExists: true,
+  },
+  {
+    name: '025d_professional_add_photo',
+    sql: `ALTER TABLE Professional ADD COLUMN photo TEXT NULL AFTER bio`,
+    ignoreIfExists: true,
+  },
+  {
+    name: '025e_professional_add_permissions',
+    sql: `ALTER TABLE Professional ADD COLUMN permissions VARCHAR(2000) NULL DEFAULT '{}' AFTER photo`,
+    ignoreIfExists: true,
+  },
+  {
+    name: '025f_professional_add_isActive',
+    sql: `ALTER TABLE Professional ADD COLUMN isActive TINYINT(1) NOT NULL DEFAULT 1 AFTER permissions`,
+    ignoreIfExists: true,
+  },
+
 ];
 
 // ─────────────────────────────────────────────────────────────

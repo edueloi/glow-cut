@@ -44,6 +44,9 @@ function LoginPage() {
         if (d.type === "superadmin") {
           localStorage.setItem("superAdminLogged", JSON.stringify(d));
           window.location.href = "/super-admin";
+        } else if (d.type === "professional") {
+          localStorage.setItem("professionalLogged", JSON.stringify(d));
+          window.location.href = "/pro";
         } else {
           localStorage.setItem("isLogged", "true");
           localStorage.setItem("adminUser", JSON.stringify(d));

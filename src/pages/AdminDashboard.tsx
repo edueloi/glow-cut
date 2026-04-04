@@ -52,7 +52,8 @@ import {
   Baby,
   MessageCircle,
   MapPin as MapPinIcon,
-  Hash
+  Hash,
+  Camera
 } from "lucide-react";
 import { maskPhone, maskCPF, maskCEP, maskDate, calculateAge } from "@/src/lib/masks";
 import { 
@@ -104,25 +105,13 @@ import {
 } from 'recharts';
 
 // Mock data for charts
-const revenueData = [
-  { name: 'Seg', value: 400 },
-  { name: 'Ter', value: 300 },
-  { name: 'Qua', value: 600 },
-  { name: 'Qui', value: 800 },
-  { name: 'Sex', value: 1200 },
-  { name: 'Sáb', value: 1500 },
-  { name: 'Dom', value: 500 },
-];
-
-const servicesData = [
-  { name: 'Corte', value: 45, color: '#f59e0b' },
-  { name: 'Barba', value: 25, color: '#10b981' },
-  { name: 'Combo', value: 20, color: '#3b82f6' },
-  { name: 'Outros', value: 10, color: '#8b5cf6' },
-];
+// revenueData e servicesData são calculados dinamicamente dentro do componente
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const adminUser = (() => { try { return JSON.parse(localStorage.getItem("adminUser") || "{}"); } catch { return {}; } })();
+  const tenantName: string = adminUser.tenantName || "Studio Admin";
+  const tenantSlug: string = adminUser.tenantSlug || "";
   const location = useLocation();
 
   // Mapeamento de abas para Slugs de URL
@@ -197,9 +186,32 @@ export default function AdminDashboard() {
   const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
   const [isProfessionalModalOpen, setIsProfessionalModalOpen] = useState(false);
   const [editingProfessional, setEditingProfessional] = useState<any>(null);
-  const [newProfessional, setNewProfessional] = useState({ name: "", role: "", password: "", showPassword: false });
+  const emptyPermissions = {
+    dashboard: { ver: false },
+    agenda:    { ver: false, criar: false, editar: false, excluir: false },
+    comandas:  { ver: false, criar: false, editar: false, excluir: false },
+    services:  { ver: false },
+    clients:   { ver: false, criar: false, editar: false },
+    fluxo:     { ver: false },
+  };
+  const emptyProfessional = { name: "", role: "", password: "", phone: "", email: "", bio: "", photo: "", permissions: emptyPermissions };
+  const [newProfessional, setNewProfessional] = useState<any>({ ...emptyProfessional });
   const [profPasswordVisible, setProfPasswordVisible] = useState(false);
-  
+
+  // Perfis de permissão (salvos em localStorage por tenant)
+  const permProfilesKey = `${adminUser.tenantId}:permissionProfiles`;
+  const [permissionProfiles, setPermissionProfiles] = useState<{ id: string; name: string; permissions: Record<string, Record<string, boolean>> }[]>(() => {
+    try { return JSON.parse(localStorage.getItem(permProfilesKey) || "[]"); } catch { return []; }
+  });
+  const savePermProfiles = (profiles: typeof permissionProfiles) => {
+    setPermissionProfiles(profiles);
+    localStorage.setItem(permProfilesKey, JSON.stringify(profiles));
+  };
+  const [isPermProfileModalOpen, setIsPermProfileModalOpen] = useState(false);
+  const [editingPermProfile, setEditingPermProfile] = useState<any>(null);
+  const emptyPermProfile = { name: "", permissions: emptyPermissions };
+  const [newPermProfile, setNewPermProfile] = useState<any>({ ...emptyPermProfile });
+
   // Tooltip hover state for agenda
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -574,8 +586,17 @@ export default function AdminDashboard() {
   const [selectedComanda, setSelectedComanda] = useState<any>(null);
   const [isComandaDetailOpen, setIsComandaDetailOpen] = useState(false);
 
-  // Theme color
-  const [themeColor, setThemeColor] = useState<string>(() => localStorage.getItem('themeColor') || 'amber');
+  // User preferences — chaveadas por userId para isolar preferências por usuário
+  const userPrefsKey = `prefs:${adminUser.id || 'default'}`;
+  const loadUserPrefs = () => { try { return JSON.parse(localStorage.getItem(userPrefsKey) || '{}'); } catch { return {}; } };
+  const saveUserPref = (key: string, value: any) => {
+    const prefs = loadUserPrefs();
+    prefs[key] = value;
+    localStorage.setItem(userPrefsKey, JSON.stringify(prefs));
+  };
+
+  // Theme color — lê da preferência do usuário, fallback para chave legada
+  const [themeColor, setThemeColor] = useState<string>(() => loadUserPrefs().themeColor || localStorage.getItem('themeColor') || 'amber');
 
   const themeColors = [
     { value: 'amber',   label: 'Âmbar',     hex: '#f59e0b', light: '#fffbeb', border: '#fcd34d',
@@ -586,6 +607,8 @@ export default function AdminDashboard() {
       shades: { 50:'#fff1f2',100:'#ffe4e6',200:'#fecdd3',300:'#fda4af',400:'#fb7185',500:'#f43f5e',600:'#e11d48',700:'#be123c' } },
     { value: 'pink',    label: 'Pink',      hex: '#ec4899', light: '#fdf2f8', border: '#f9a8d4',
       shades: { 50:'#fdf2f8',100:'#fce7f3',200:'#fbcfe8',300:'#f9a8d4',400:'#f472b6',500:'#ec4899',600:'#db2777',700:'#be185d' } },
+    { value: 'crimson', label: 'Vinho',     hex: '#9f1239', light: '#fff1f2', border: '#fda4af',
+      shades: { 50:'#fff1f2',100:'#ffe4e6',200:'#fecdd3',300:'#fda4af',400:'#fb7185',500:'#e11d48',600:'#be123c',700:'#9f1239' } },
     { value: 'violet',  label: 'Violeta',   hex: '#8b5cf6', light: '#f5f3ff', border: '#c4b5fd',
       shades: { 50:'#f5f3ff',100:'#ede9fe',200:'#ddd6fe',300:'#c4b5fd',400:'#a78bfa',500:'#8b5cf6',600:'#7c3aed',700:'#6d28d9' } },
     { value: 'indigo',  label: 'Índigo',    hex: '#6366f1', light: '#eef2ff', border: '#a5b4fc',
@@ -594,8 +617,14 @@ export default function AdminDashboard() {
       shades: { 50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8' } },
     { value: 'cyan',    label: 'Ciano',     hex: '#06b6d4', light: '#ecfeff', border: '#67e8f9',
       shades: { 50:'#ecfeff',100:'#cffafe',200:'#a5f3fc',300:'#67e8f9',400:'#22d3ee',500:'#06b6d4',600:'#0891b2',700:'#0e7490' } },
+    { value: 'teal',    label: 'Teal',      hex: '#14b8a6', light: '#f0fdfa', border: '#5eead4',
+      shades: { 50:'#f0fdfa',100:'#ccfbf1',200:'#99f6e4',300:'#5eead4',400:'#2dd4bf',500:'#14b8a6',600:'#0d9488',700:'#0f766e' } },
     { value: 'emerald', label: 'Esmeralda', hex: '#10b981', light: '#ecfdf5', border: '#6ee7b7',
       shades: { 50:'#ecfdf5',100:'#d1fae5',200:'#a7f3d0',300:'#6ee7b7',400:'#34d399',500:'#10b981',600:'#059669',700:'#047857' } },
+    { value: 'lime',    label: 'Limão',     hex: '#84cc16', light: '#f7fee7', border: '#bef264',
+      shades: { 50:'#f7fee7',100:'#ecfccb',200:'#d9f99d',300:'#bef264',400:'#a3e635',500:'#84cc16',600:'#65a30d',700:'#4d7c0f' } },
+    { value: 'slate',   label: 'Grafite',   hex: '#475569', light: '#f8fafc', border: '#cbd5e1',
+      shades: { 50:'#f8fafc',100:'#f1f5f9',200:'#e2e8f0',300:'#cbd5e1',400:'#94a3b8',500:'#64748b',600:'#475569',700:'#334155' } },
     { value: 'zinc',    label: 'Carvão',    hex: '#18181b', light: '#f4f4f5', border: '#a1a1aa',
       shades: { 50:'#f4f4f5',100:'#f4f4f5',200:'#e4e4e7',300:'#d4d4d8',400:'#a1a1aa',500:'#71717a',600:'#52525b',700:'#3f3f46' } },
   ];
@@ -617,7 +646,8 @@ export default function AdminDashboard() {
 
   const handleThemeChange = (color: string) => {
     setThemeColor(color);
-    localStorage.setItem('themeColor', color);
+    saveUserPref('themeColor', color);
+    localStorage.setItem('themeColor', color); // mantém compatibilidade
     applyThemeToDom(color);
   };
 
@@ -690,23 +720,37 @@ export default function AdminDashboard() {
   const handleCreateProfessional = async () => {
     const url = editingProfessional ? `/api/professionals/${editingProfessional.id}` : "/api/professionals";
     const method = editingProfessional ? "PUT" : "POST";
-    const body: any = { name: newProfessional.name, role: newProfessional.role };
+    const body: any = {
+      name: newProfessional.name,
+      role: newProfessional.role,
+      phone: newProfessional.phone,
+      email: newProfessional.email,
+      bio: newProfessional.bio,
+      photo: newProfessional.photo,
+      permissions: newProfessional.permissions,
+    };
     if (newProfessional.password) body.password = newProfessional.password;
-    await apiFetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
+    await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setIsProfessionalModalOpen(false);
     setEditingProfessional(null);
-    setNewProfessional({ name: "", role: "", password: "", showPassword: false });
+    setNewProfessional({ ...emptyProfessional });
     apiFetch("/api/professionals").then(res => res.json()).then(setProfessionals);
   };
 
-  const handleDeleteProfessional = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este profissional?")) return;
-    await apiFetch(`/api/professionals/${id}`, { method: "DELETE" });
-    apiFetch("/api/professionals").then(res => res.json()).then(setProfessionals);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
+
+  const handleDeleteProfessional = (id: string) => {
+    const prof = professionals.find((p: any) => p.id === id);
+    setDeleteConfirm({ type: "professional", id, name: prof?.name || "este profissional" });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
+    if (deleteConfirm.type === "professional") {
+      await apiFetch(`/api/professionals/${deleteConfirm.id}`, { method: "DELETE" });
+      apiFetch("/api/professionals").then(res => res.json()).then(setProfessionals);
+    }
+    setDeleteConfirm(null);
   };
 
   const daysInMonth = eachDayOfInterval({
@@ -746,7 +790,7 @@ export default function AdminDashboard() {
               <Scissors className="text-white" size={22} />
             </div>
             <div>
-              <h1 className="text-lg font-black text-zinc-900 tracking-tighter font-display leading-none uppercase">ELITE</h1>
+              <h1 className="text-lg font-black text-zinc-900 tracking-tighter font-display leading-none uppercase">{tenantName}</h1>
               <p className="text-[10px] text-amber-500 font-bold tracking-[0.2em] uppercase mt-1">Studio Admin</p>
             </div>
           </div>
@@ -1003,11 +1047,6 @@ export default function AdminDashboard() {
                 <Plus size={14} className="mr-1" /><span className="hidden sm:inline">Novo </span>Agendamento
               </Button>
             )}
-            {activeTab === 'professionals' && (
-              <Button size="sm" onClick={() => { setEditingProfessional(null); setNewProfessional({ name:"",role:"",password:"",showPassword:false }); setIsProfessionalModalOpen(true); }} className="rounded-xl shadow-lg shadow-amber-500/20 text-[10px] md:text-xs">
-                <Plus size={14} className="mr-1" /><span className="hidden sm:inline">Novo </span>Profissional
-              </Button>
-            )}
           </div>
         </header>
 
@@ -1021,19 +1060,47 @@ export default function AdminDashboard() {
               transition={{ duration: 0.2 }}
             >
 
-        {activeTab === 'dash' && (
-          <DashboardTab
-            revenueData={revenueData}
-            servicesData={servicesData}
-            appointments={appointments}
-            comandas={comandas}
-            clients={clients}
-            handleTabChange={handleTabChange}
-            setIsAppointmentModalOpen={setIsAppointmentModalOpen}
-            setIsComandaModalOpen={setIsComandaModalOpen}
-            setIsClientModalOpen={setIsClientModalOpen}
-          />
-        )}
+        {activeTab === 'dash' && (() => {
+          // Calcula revenueData: faturamento por dia da semana atual (comandas fechadas)
+          const DAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+          const today = new Date();
+          const startOfWeek = new Date(today); startOfWeek.setDate(today.getDate() - today.getDay());
+          startOfWeek.setHours(0,0,0,0);
+          const revenueByDay: Record<number, number> = {0:0,1:0,2:0,3:0,4:0,5:0,6:0};
+          comandas.forEach((c: any) => {
+            if (c.status === 'closed' && c.total > 0) {
+              const d = new Date(c.createdAt);
+              if (d >= startOfWeek) revenueByDay[d.getDay()] = (revenueByDay[d.getDay()] || 0) + c.total;
+            }
+          });
+          const revenueData = DAYS.map((name, i) => ({ name, value: revenueByDay[i] || 0 }));
+
+          // Calcula servicesData: top serviços por count de agendamentos
+          const COLORS = ['#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#ef4444'];
+          const svcCount: Record<string, number> = {};
+          appointments.forEach((a: any) => {
+            if (a.service?.name) svcCount[a.service.name] = (svcCount[a.service.name] || 0) + 1;
+          });
+          const total = Object.values(svcCount).reduce((s, v) => s + v, 0) || 1;
+          const servicesData = Object.entries(svcCount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([name, count], i) => ({ name, value: Math.round(count / total * 100), color: COLORS[i] }));
+
+          return (
+            <DashboardTab
+              revenueData={revenueData}
+              servicesData={servicesData}
+              appointments={appointments}
+              comandas={comandas}
+              clients={clients}
+              handleTabChange={handleTabChange}
+              setIsAppointmentModalOpen={setIsAppointmentModalOpen}
+              setIsComandaModalOpen={setIsComandaModalOpen}
+              setIsClientModalOpen={setIsClientModalOpen}
+            />
+          );
+        })()}
 
         {activeTab === 'agenda' && (
           <AgendaTab
@@ -1055,7 +1122,7 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === 'minha-agenda' && (
-          <MinhaAgendaTab />
+          <MinhaAgendaTab studioName={tenantName} tenantSlug={tenantSlug} />
         )}
 
         {activeTab === 'services' && (
@@ -1105,6 +1172,11 @@ export default function AdminDashboard() {
             setNewProfessional={setNewProfessional}
             setIsProfessionalModalOpen={setIsProfessionalModalOpen}
             handleDeleteProfessional={handleDeleteProfessional}
+            emptyProfessional={emptyProfessional}
+            permissionProfiles={permissionProfiles}
+            onOpenPermProfileModal={() => { setEditingPermProfile(null); setNewPermProfile({ ...emptyPermProfile }); setIsPermProfileModalOpen(true); }}
+            onEditPermProfile={(p: any) => { setEditingPermProfile(p); setNewPermProfile({ name: p.name, permissions: { ...p.permissions } }); setIsPermProfileModalOpen(true); }}
+            onDeletePermProfile={(id: string) => savePermProfiles(permissionProfiles.filter(p => p.id !== id))}
           />
         )}
 
@@ -2156,56 +2228,270 @@ export default function AdminDashboard() {
         })()}
       </AnimatePresence>
 
-      <Modal isOpen={isProfessionalModalOpen} onClose={() => { setIsProfessionalModalOpen(false); setEditingProfessional(null); }} title={editingProfessional ? "Editar Profissional" : "Novo Profissional"}>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Nome Completo</label>
-            <input
-              type="text"
-              className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-              placeholder="Ex: João Silva"
-              value={newProfessional.name}
-              onChange={e => setNewProfessional({ ...newProfessional, name: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Cargo / Especialidade</label>
-            <input
-              type="text"
-              className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-              placeholder="Ex: Barbeiro, Manicure..."
-              value={newProfessional.role}
-              onChange={e => setNewProfessional({ ...newProfessional, role: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">
-              {editingProfessional ? "Nova Senha (vazio = manter)" : "Senha de Acesso"}
-            </label>
-            <div className="relative">
-              <input
-                type={profPasswordVisible ? "text" : "password"}
-                className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none pr-10"
-                placeholder="Mínimo 4 caracteres"
-                value={newProfessional.password}
-                onChange={e => setNewProfessional({ ...newProfessional, password: e.target.value })}
-              />
-              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 transition-colors" onClick={() => setProfPasswordVisible(v => !v)}>
-                {profPasswordVisible ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
+      <Modal isOpen={isProfessionalModalOpen} onClose={() => { setIsProfessionalModalOpen(false); setEditingProfessional(null); }} title={editingProfessional ? "Editar Profissional" : "Novo Profissional"} className="max-w-lg">
+        {(() => {
+          const inp = "w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none";
+          const lbl = "text-[10px] font-bold text-zinc-500 uppercase tracking-widest";
+          const perms = newProfessional.permissions || emptyPermissions;
+          const toggleAction = (mod: string, action: string) => setNewProfessional((p: any) => ({
+            ...p, permissions: { ...p.permissions, [mod]: { ...p.permissions[mod], [action]: !p.permissions[mod]?.[action] } }
+          }));
+          const PERM_LIST = [
+            { key: "dashboard", label: "Dashboard",        icon: "📊", actions: ["ver"] },
+            { key: "agenda",    label: "Agenda",           icon: "📅", actions: ["ver", "criar", "editar", "excluir"] },
+            { key: "comandas",  label: "Comandas",         icon: "🧾", actions: ["ver", "criar", "editar", "excluir"] },
+            { key: "services",  label: "Serviços",         icon: "✂️",  actions: ["ver"] },
+            { key: "clients",   label: "Clientes",         icon: "👤", actions: ["ver", "criar", "editar"] },
+            { key: "fluxo",     label: "Fluxo de Caixa",  icon: "💰", actions: ["ver"] },
+          ];
+          const ACTION_LABELS: Record<string, string> = { ver: "Ver", criar: "Criar", editar: "Editar", excluir: "Excluir" };
+          const isModuleActive = (mod: string) => Object.values(perms[mod] || {}).some(Boolean);
+          return (
+            <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
+              {/* Foto */}
+              <div className="flex items-center gap-4">
+                <div className="relative shrink-0">
+                  {newProfessional.photo ? (
+                    <img src={newProfessional.photo} className="w-20 h-20 rounded-2xl object-cover border border-zinc-200" />
+                  ) : (
+                    <div className="w-20 h-20 rounded-2xl bg-amber-50 border-2 border-dashed border-amber-200 flex items-center justify-center text-amber-400 text-2xl font-black">
+                      {newProfessional.name ? newProfessional.name.charAt(0).toUpperCase() : "?"}
+                    </div>
+                  )}
+                  <label className="absolute -bottom-2 -right-2 w-7 h-7 bg-amber-500 rounded-xl flex items-center justify-center cursor-pointer shadow-md hover:bg-amber-600 transition-colors">
+                    <Camera size={13} className="text-white" />
+                    <input type="file" accept="image/*" className="hidden" onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) { const r = new FileReader(); r.onload = ev => setNewProfessional((p: any) => ({ ...p, photo: ev.target?.result as string })); r.readAsDataURL(file); }
+                    }} />
+                  </label>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div className="space-y-1">
+                    <label className={lbl}>Nome Completo *</label>
+                    <input className={inp} placeholder="Ex: João Silva" value={newProfessional.name} onChange={e => setNewProfessional((p: any) => ({ ...p, name: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className={lbl}>Cargo / Especialidade</label>
+                    <input className={inp} placeholder="Ex: Barbeiro, Manicure..." value={newProfessional.role} onChange={e => setNewProfessional((p: any) => ({ ...p, role: e.target.value }))} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Contato */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className={lbl}>Telefone / WhatsApp</label>
+                  <input className={inp} placeholder="(11) 99999-9999" value={newProfessional.phone} onChange={e => {
+                    const d = e.target.value.replace(/\D/g,"").slice(0,11);
+                    const v = d.length <= 10 ? d.replace(/(\d{2})(\d{4})(\d{0,4})/,"($1) $2-$3") : d.replace(/(\d{2})(\d{5})(\d{0,4})/,"($1) $2-$3");
+                    setNewProfessional((p: any) => ({ ...p, phone: v.replace(/-$/,"") }));
+                  }} />
+                </div>
+                <div className="space-y-1">
+                  <label className={lbl}>E-mail</label>
+                  <input className={inp} type="email" placeholder="joao@email.com" value={newProfessional.email} onChange={e => setNewProfessional((p: any) => ({ ...p, email: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className={lbl}>Bio / Descrição</label>
+                <textarea className={inp + " resize-none"} rows={2} placeholder="Especialidades, anos de experiência..." value={newProfessional.bio} onChange={e => setNewProfessional((p: any) => ({ ...p, bio: e.target.value }))} />
+              </div>
+
+              {/* Senha */}
+              <div className="space-y-1">
+                <label className={lbl}>{editingProfessional ? "Nova Senha (vazio = manter)" : "Senha de Acesso *"}</label>
+                <div className="relative">
+                  <input type={profPasswordVisible ? "text" : "password"} className={inp + " pr-10"} placeholder="Mínimo 4 caracteres" value={newProfessional.password} onChange={e => setNewProfessional((p: any) => ({ ...p, password: e.target.value }))} />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700" onClick={() => setProfPasswordVisible(v => !v)}>
+                    {profPasswordVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Perfil de permissão */}
+              {permissionProfiles.length > 0 && (
+                <div className="space-y-1">
+                  <label className={lbl}>Aplicar Perfil de Permissão</label>
+                  <select className={inp} defaultValue="" onChange={e => {
+                    const profile = permissionProfiles.find(p => p.id === e.target.value);
+                    if (profile) setNewProfessional((p: any) => ({ ...p, permissions: { ...profile.permissions } }));
+                  }}>
+                    <option value="">Selecionar perfil...</option>
+                    {permissionProfiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Permissões granulares */}
+              <div className="space-y-2">
+                <label className={lbl}>Permissões de Acesso</label>
+                <div className="space-y-2">
+                  {PERM_LIST.map(({ key, label, icon, actions }) => {
+                    const modPerms = perms[key] || {};
+                    const active = isModuleActive(key);
+                    return (
+                      <div key={key} className={`rounded-2xl border transition-all ${active ? 'border-zinc-300 bg-white' : 'border-zinc-100 bg-zinc-50'}`}>
+                        {/* Cabeçalho do módulo */}
+                        <div className="flex items-center justify-between px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{icon}</span>
+                            <p className="text-xs font-black text-zinc-800">{label}</p>
+                          </div>
+                          {/* Ativar "Ver" liga o módulo */}
+                          <button type="button" onClick={() => toggleAction(key, "ver")}
+                            className="relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0"
+                            style={{ background: modPerms.ver ? currentTheme.hex : '#e4e4e7' }}
+                          >
+                            <span className="absolute top-0.5 h-4 w-4 bg-white rounded-full shadow transition-all duration-200" style={{ left: modPerms.ver ? '1.25rem' : '0.125rem' }} />
+                          </button>
+                        </div>
+                        {/* Ações extras (só aparecem se "ver" estiver ativo) */}
+                        {modPerms.ver && actions.length > 1 && (
+                          <div className="border-t border-zinc-100 px-4 pb-3 pt-2 flex flex-wrap gap-2">
+                            {actions.filter(a => a !== "ver").map(action => (
+                              <button key={action} type="button" onClick={() => toggleAction(key, action)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all cursor-pointer outline-none focus:outline-none"
+                                style={modPerms[action]
+                                  ? { background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }
+                                  : { background: '#f4f4f5', color: '#71717a', borderColor: '#e4e4e7' }
+                                }
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full`} style={{ background: modPerms[action] ? currentTheme.hex : '#a1a1aa' }} />
+                                {ACTION_LABELS[action]}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl border" style={{ background: currentTheme.light, borderColor: currentTheme.border }}>
+                <p className="text-[10px] font-bold" style={{ color: currentTheme.hex }}>Acesso em <span className="font-black">/pro/login</span> ou pela tela de login com e-mail/nome e senha.</p>
+              </div>
+              <Button
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-bold shadow-sm"
+                onClick={handleCreateProfessional}
+                disabled={!newProfessional.name || (!editingProfessional && !newProfessional.password)}
+              >
+                {editingProfessional ? "Salvar Alterações" : "Cadastrar Profissional"}
+              </Button>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* Modal de confirmação de exclusão */}
+      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Confirmar Exclusão" className="max-w-sm">
+        <div className="space-y-5">
+          <div className="flex items-start gap-3 p-4 bg-red-50 rounded-2xl border border-red-100">
+            <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+              <Trash2 size={16} className="text-red-500" />
+            </div>
+            <div>
+              <p className="text-sm font-black text-zinc-900">Excluir profissional</p>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Tem certeza que deseja excluir <span className="font-bold text-zinc-800">{deleteConfirm?.name}</span>? Esta ação não pode ser desfeita.
+              </p>
             </div>
           </div>
-          <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
-            <p className="text-[10px] text-amber-600 font-bold">Acesso em <span className="font-black">/pro/login</span> com nome e senha.</p>
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1 rounded-xl font-bold border-zinc-200 text-zinc-600 cursor-pointer" onClick={() => setDeleteConfirm(null)}>
+              Cancelar
+            </Button>
+            <Button className="flex-1 rounded-xl font-bold bg-red-500 hover:bg-red-600 text-white cursor-pointer" onClick={confirmDelete}>
+              Excluir
+            </Button>
           </div>
-          <Button
-            className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-bold shadow-sm"
-            onClick={handleCreateProfessional}
-            disabled={!newProfessional.name || (!editingProfessional && !newProfessional.password)}
-          >
-            {editingProfessional ? "Salvar Alterações" : "Cadastrar Profissional"}
-          </Button>
         </div>
+      </Modal>
+
+      {/* Modal de Perfil de Permissão */}
+      <Modal isOpen={isPermProfileModalOpen} onClose={() => setIsPermProfileModalOpen(false)} title={editingPermProfile ? "Editar Perfil" : "Novo Perfil de Permissão"} className="max-w-md">
+        {(() => {
+          const inp = "w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none";
+          const lbl = "text-[10px] font-bold text-zinc-500 uppercase tracking-widest";
+          const PP_LIST = [
+            { key: "dashboard", label: "Dashboard",       icon: "📊", actions: ["ver"] },
+            { key: "agenda",    label: "Agenda",          icon: "📅", actions: ["ver", "criar", "editar", "excluir"] },
+            { key: "comandas",  label: "Comandas",        icon: "🧾", actions: ["ver", "criar", "editar", "excluir"] },
+            { key: "services",  label: "Serviços",        icon: "✂️",  actions: ["ver"] },
+            { key: "clients",   label: "Clientes",        icon: "👤", actions: ["ver", "criar", "editar"] },
+            { key: "fluxo",     label: "Fluxo de Caixa", icon: "💰", actions: ["ver"] },
+          ];
+          const ACTION_LABELS_P: Record<string, string> = { ver: "Ver", criar: "Criar", editar: "Editar", excluir: "Excluir" };
+          const perms = newPermProfile.permissions || emptyPermissions;
+          const toggleP = (mod: string, action: string) => setNewPermProfile((p: any) => ({
+            ...p, permissions: { ...p.permissions, [mod]: { ...p.permissions[mod], [action]: !p.permissions[mod]?.[action] } }
+          }));
+          return (
+            <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
+              <div className="space-y-1">
+                <label className={lbl}>Nome do Perfil *</label>
+                <input className={inp} placeholder="Ex: Barbeiro Completo, Recepcionista..." value={newPermProfile.name} onChange={e => setNewPermProfile((p: any) => ({ ...p, name: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <label className={lbl}>Permissões</label>
+                <div className="space-y-2">
+                  {PP_LIST.map(({ key, label, icon, actions }) => {
+                    const modPerms = perms[key] || {};
+                    const active = Object.values(modPerms).some(Boolean);
+                    return (
+                      <div key={key} className={`rounded-2xl border transition-all ${active ? 'border-zinc-300 bg-white' : 'border-zinc-100 bg-zinc-50'}`}>
+                        <div className="flex items-center justify-between px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{icon}</span>
+                            <p className="text-xs font-black text-zinc-800">{label}</p>
+                          </div>
+                          <button type="button" onClick={() => toggleP(key, "ver")}
+                            className="relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0"
+                            style={{ background: modPerms.ver ? currentTheme.hex : '#e4e4e7' }}
+                          >
+                            <span className="absolute top-0.5 h-4 w-4 bg-white rounded-full shadow transition-all duration-200" style={{ left: modPerms.ver ? '1.25rem' : '0.125rem' }} />
+                          </button>
+                        </div>
+                        {modPerms.ver && actions.length > 1 && (
+                          <div className="border-t border-zinc-100 px-4 pb-3 pt-2 flex flex-wrap gap-2">
+                            {actions.filter(a => a !== "ver").map(action => (
+                              <button key={action} type="button" onClick={() => toggleP(key, action)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all cursor-pointer outline-none focus:outline-none"
+                                style={modPerms[action]
+                                  ? { background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }
+                                  : { background: '#f4f4f5', color: '#71717a', borderColor: '#e4e4e7' }
+                                }
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full" style={{ background: modPerms[action] ? currentTheme.hex : '#a1a1aa' }} />
+                                {ACTION_LABELS_P[action]}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <Button
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-bold shadow-sm"
+                disabled={!newPermProfile.name.trim()}
+                onClick={() => {
+                  if (editingPermProfile) {
+                    savePermProfiles(permissionProfiles.map(p => p.id === editingPermProfile.id ? { ...p, name: newPermProfile.name, permissions: newPermProfile.permissions } : p));
+                  } else {
+                    savePermProfiles([...permissionProfiles, { id: crypto.randomUUID(), name: newPermProfile.name, permissions: newPermProfile.permissions }]);
+                  }
+                  setIsPermProfileModalOpen(false);
+                }}
+              >
+                {editingPermProfile ? "Salvar Perfil" : "Criar Perfil"}
+              </Button>
+            </div>
+          );
+        })()}
       </Modal>
 
       <Modal

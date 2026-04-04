@@ -203,12 +203,27 @@ export function DashboardTab({
       </div>
 
       {/* ── STATS ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <StatCard title="Faturamento Hoje" value="R$ 1.250,00" icon={DollarSign} trend={{ value: 12, isUp: true }} description="vs. ontem" hidden={!showFinancials} />
-        <StatCard title="Agendamentos" value="18" icon={CalendarIcon} trend={{ value: 3, isUp: true }} description="para hoje" />
-        <StatCard title="Novos Clientes" value="5" icon={UserPlus} trend={{ value: 2, isUp: true }} description="esta semana" />
-        <StatCard title="Ticket Médio" value="R$ 68,00" icon={TrendingUp} trend={{ value: 5, isUp: false }} description="vs. mês anterior" hidden={!showFinancials} />
-      </div>
+      {(() => {
+        const today = new Date().toDateString();
+        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+        const todayAppts = appointments.filter(a => new Date(a.date).toDateString() === today);
+        const revenueToday = comandas
+          .filter(c => c.status === "closed" && new Date(c.createdAt).toDateString() === today)
+          .reduce((s: number, c: any) => s + (c.total || 0), 0);
+        const newClientsWeek = clients.filter(c => new Date(c.createdAt) >= weekAgo).length;
+        const closedComandas = comandas.filter((c: any) => c.status === "closed" && c.total > 0);
+        const avgTicket = closedComandas.length > 0
+          ? closedComandas.reduce((s: number, c: any) => s + (c.total || 0), 0) / closedComandas.length
+          : 0;
+        return (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <StatCard title="Faturamento Hoje" value={revenueToday.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} icon={DollarSign} description="comandas fechadas hoje" hidden={!showFinancials} />
+            <StatCard title="Agendamentos Hoje" value={String(todayAppts.length)} icon={CalendarIcon} description="para hoje" />
+            <StatCard title="Novos Clientes" value={String(newClientsWeek)} icon={UserPlus} description="esta semana" />
+            <StatCard title="Ticket Médio" value={avgTicket > 0 ? avgTicket.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"} icon={TrendingUp} description="comandas fechadas" hidden={!showFinancials} />
+          </div>
+        );
+      })()}
 
       {/* ── CHARTS ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
