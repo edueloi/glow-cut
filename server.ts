@@ -466,10 +466,53 @@ app.post("/api/admin/login", async (req, res) => {
 app.get("/api/tenant-by-slug/:slug", async (req, res) => {
   const tenant = await (prisma.tenant as any).findFirst({
     where: { slug: req.params.slug, isActive: true },
-    select: { id: true, name: true }
+    select: { 
+      id: true, 
+      name: true, 
+      themeColor: true, 
+      logoUrl: true, 
+      coverUrl: true, 
+      address: true, 
+      instagram: true, 
+      welcomeMessage: true 
+    }
   });
   if (!tenant) return res.status(404).json({ error: "Estúdio não encontrado." });
   res.json(tenant);
+});
+
+app.get("/api/admin/tenant", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  const tenant = await (prisma.tenant as any).findUnique({ where: { id: tenantId } });
+  if (!tenant) return res.status(404).json({ error: "Estúdio não encontrado." });
+  res.json(tenant);
+});
+
+// Atualizar branding do tenant (dashboard admin)
+app.post("/api/admin/tenant/branding", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  
+  const { themeColor, logoUrl, coverUrl, address, instagram, welcomeMessage, title } = req.body;
+  
+  try {
+    const tenant = await (prisma.tenant as any).update({
+      where: { id: tenantId },
+      data: {
+        themeColor: themeColor || undefined,
+        logoUrl: logoUrl || undefined,
+        coverUrl: coverUrl || undefined,
+        address: address || undefined,
+        instagram: instagram || undefined,
+        welcomeMessage: welcomeMessage || undefined,
+        name: title || undefined // Usamos name como título do estúdio se provido
+      }
+    });
+    res.json(tenant);
+  } catch (e: any) {
+    res.status(400).json({ error: "Erro ao salvar configurações do estúdio." });
+  }
 });
 
 // ═════════════════════════════════════════════════════════════

@@ -1,5 +1,5 @@
 import React from "react";
-import { Globe, Copy, ExternalLink, Image as ImageIcon, Link as LinkIcon, X, MapPin } from "lucide-react";
+import { Globe, Copy, ExternalLink, Image as ImageIcon, Link as LinkIcon, X, MapPin, CheckCircle2 } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
 import { cn } from "@/src/lib/utils";
 
@@ -26,36 +26,72 @@ const PRESET_COLORS = [
   "#78350f", // Brown
 ];
 
-export function MinhaAgendaTab({ studioName = "Studio", tenantSlug = "", themeColor = "#f59e0b" }: MinhaAgendaTabProps) {
+export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSlug = "", themeColor = "#f59e0b" }: MinhaAgendaTabProps) {
   const { show } = useToast();
 
-  // Chaves isoladas por tenant para evitar dados cruzados
-  const adminUser = (() => { try { return JSON.parse(localStorage.getItem("adminUser") || "{}"); } catch { return {}; } })();
-  const tid = adminUser.tenantId || "default";
-  const key = (k: string) => `${tid}:${k}`;
-
-  const [logoPreview, setLogoPreview] = React.useState<string | null>(() => localStorage.getItem(key('logo')) || null);
-  const [coverPreview, setCoverPreview] = React.useState<string | null>(() => localStorage.getItem(key('cover')) || null);
-  const [localColor, setLocalColor] = React.useState<string>(() => localStorage.getItem(key('color')) || "#09090b");
-  const [localAddress, setLocalAddress] = React.useState<string>(() => localStorage.getItem(key('address')) || "");
-  const [localTitle, setLocalTitle] = React.useState<string>(() => localStorage.getItem(key('title')) || "");
-  const [localDesc, setLocalDesc] = React.useState<string>(() => localStorage.getItem(key('desc')) || "");
-  const [localWelcome, setLocalWelcome] = React.useState<string>(() => localStorage.getItem(key('welcome')) || "");
+  const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
+  const [coverPreview, setCoverPreview] = React.useState<string | null>(null);
+  const [localColor, setLocalColor] = React.useState<string>("#09090b");
+  const [localAddress, setLocalAddress] = React.useState<string>("");
+  const [localInstagram, setLocalInstagram] = React.useState<string>("");
+  const [localTitle, setLocalTitle] = React.useState<string>("");
+  const [localDesc, setLocalDesc] = React.useState<string>("");
+  const [localWelcome, setLocalWelcome] = React.useState<string>("");
   const [isLoading, setIsLoading] = React.useState(false);
+  const [studioName, setStudioName] = React.useState(propStudioName);
+
+  const adminUser = (() => { try { return JSON.parse(localStorage.getItem("adminUser") || "{}"); } catch { return {}; } })();
+  const headers = { "Content-Type": "application/json", "x-tenant-id": adminUser.tenantId || "" };
+
+  React.useEffect(() => {
+    const fetchBranding = async () => {
+      try {
+        const res = await fetch("/api/admin/tenant", { headers });
+        if (res.ok) {
+          const t = await res.json();
+          setLogoPreview(t.logoUrl || null);
+          setCoverPreview(t.coverUrl || null);
+          setLocalColor(t.themeColor || "#09090b");
+          setLocalAddress(t.address || "");
+          setLocalInstagram(t.instagram || "");
+          setLocalTitle(t.name || "");
+          setStudioName(t.name || propStudioName);
+          setLocalWelcome(t.welcomeMessage || "");
+        }
+      } catch (e) {
+        console.error("Erro ao carregar branding:", e);
+      }
+    };
+    fetchBranding();
+  }, [adminUser.tenantId]);
 
   const handleSave = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      localStorage.setItem(key('logo'), logoPreview || "");
-      localStorage.setItem(key('cover'), coverPreview || "");
-      localStorage.setItem(key('color'), localColor);
-      localStorage.setItem(key('address'), localAddress);
-      localStorage.setItem(key('title'), localTitle);
-      localStorage.setItem(key('desc'), localDesc);
-      localStorage.setItem(key('welcome'), localWelcome);
+    try {
+      const res = await fetch("/api/admin/tenant/branding", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          themeColor: localColor,
+          logoUrl: logoPreview,
+          coverUrl: coverPreview,
+          address: localAddress,
+          instagram: localInstagram,
+          welcomeMessage: localWelcome,
+          title: localTitle
+        }),
+      });
+
+      if (res.ok) {
+        show("Configurações da agenda salvas com sucesso!", "success");
+      } else {
+        show("Erro ao salvar configurações.", "error");
+      }
+    } catch {
+      show("Erro de conexão.", "error");
+    } finally {
       setIsLoading(false);
-      show("Configurações da agenda salvas com sucesso!", "success");
-    }, 800);
+    }
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -204,6 +240,20 @@ export function MinhaAgendaTab({ studioName = "Studio", tenantSlug = "", themeCo
                 onChange={e => setLocalDesc(e.target.value)} 
                 placeholder={`Agende seu horário no ${studioName}. Profissionais qualificados e atendimento exclusivo.`} 
                 className="w-full flex-1 text-sm p-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all resize-none placeholder:font-medium" 
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1 flex items-center justify-between">
+                 Instagram (Link Completo)
+                 <LinkIcon size={14} className="text-zinc-400" />
+              </label>
+              <input 
+                type="text" 
+                value={localInstagram} 
+                onChange={(e) => setLocalInstagram(e.target.value)}
+                placeholder="Ex: https://instagram.com/seu-estudio"
+                className="w-full text-sm p-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all placeholder:font-medium" 
               />
             </div>
           </div>
@@ -360,9 +410,18 @@ export function MinhaAgendaTab({ studioName = "Studio", tenantSlug = "", themeCo
         <Button 
           onClick={handleSave}
           disabled={isLoading}
-          className="w-full sm:w-auto bg-zinc-950 hover:bg-black text-white px-12 rounded-xl h-11 font-bold shadow-xl shadow-zinc-900/20 text-xs transition-all active:scale-95 disabled:opacity-50"
+          className="w-full sm:w-auto bg-zinc-950 hover:bg-black text-white px-8 rounded-xl h-10 font-bold shadow-xl shadow-zinc-900/20 text-xs transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {isLoading ? "Salvando..." : "Salvar Configurações"}
+          {isLoading ? (
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <>
+              <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+                <CheckCircle2 size={12} className="text-white" />
+              </div>
+              Salvar Configurações
+            </>
+          )}
         </Button>
       </div>
     </div>

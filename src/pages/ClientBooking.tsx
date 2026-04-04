@@ -9,14 +9,13 @@ import { cn } from "@/src/lib/utils";
 
 export default function ClientBooking() {
   const { slug } = useParams();
-  // Decode and format the slug to use as the studio name (example: "glowandcut" -> "Glowandcut Studio", "glow-cut" -> "Glow Cut Studio")
-  const defaultTitle = slug ? slug.replace(/-/g, ' ') : "Agendelle";
-  const studioName = defaultTitle.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  const studioAddress = localStorage.getItem('studioAddress') || "Av. Principal, 1234 - Centro, São Paulo - SP";
+  const [studioName, setStudioName] = useState("Agendelle");
+  const [studioAddress, setStudioAddress] = useState("");
+  const [instagram, setInstagram] = useState("");
 
   // Mock configurações que viriam do Painel Admin
-  const [customColor, setCustomColor] = useState(() => localStorage.getItem('themeColor') || "#0a0a0a"); 
-  const [customLogo, setCustomLogo] = useState(() => localStorage.getItem('studioLogo') || "https://cdn-icons-png.flaticon.com/512/3233/3233034.png");
+  const [customColor, setCustomColor] = useState("#0a0a0a"); 
+  const [customLogo, setCustomLogo] = useState("");
 
   // Mock de feriados/fechamentos que viriam do banco (ex: 16 de abril)
   const blockedDates = ["2026-04-16"];
@@ -48,6 +47,11 @@ export default function ClientBooking() {
             const t = await r.json();
             tid = t.id;
             setTenantId(t.id);
+            setStudioName(t.name);
+            setStudioAddress(t.address || "");
+            setCustomLogo(t.logoUrl || "");
+            setCustomColor(t.themeColor || "#0a0a0a");
+            setInstagram(t.instagram || "");
           }
         } catch { /* sem slug válido */ }
       }
@@ -174,25 +178,23 @@ export default function ClientBooking() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <div className="w-20 h-20 2xl:w-28 2xl:h-28 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-black/50 overflow-hidden border border-white/10">
-              {customLogo ? (
+            {customLogo && (
+              <div className="w-20 h-20 2xl:w-28 2xl:h-28 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-black/50 overflow-hidden border border-white/10">
                 <img src={customLogo} alt="Logo" className="w-full h-full object-cover" />
-              ) : (
-                <div className="bg-zinc-950 w-full h-full rounded-2xl flex items-center justify-center">
-                  <Scissors size={40} className="text-white" />
-                </div>
-              )}
-            </div>
+              </div>
+            )}
             <h1 className="text-5xl lg:text-7xl 2xl:text-8xl font-black text-white tracking-tighter leading-none mb-6">
               {studioName}
             </h1>
             <p className="text-lg lg:text-xl 2xl:text-3xl text-zinc-400 font-medium max-w-md 2xl:max-w-2xl leading-relaxed">
               Simplifique sua vida. Agende seu horário de forma rápida, sem necessidade de baixar apps ou fazer cadastros demorados.
             </p>
-            <div className="mt-6 flex items-center gap-3 text-zinc-500 bg-white/5 w-fit px-4 py-2 rounded-full border border-white/10 backdrop-blur-sm">
-               <MapPin size={18} className="text-emerald-500" />
-               <span className="text-sm font-bold tracking-tight">{studioAddress}</span>
-            </div>
+            {studioAddress && (
+              <div className="mt-6 flex items-center gap-3 text-zinc-500 bg-white/5 w-fit px-4 py-2 rounded-full border border-white/10 backdrop-blur-sm">
+                 <MapPin size={18} className="text-emerald-500" />
+                 <span className="text-sm font-bold tracking-tight">{studioAddress}</span>
+              </div>
+            )}
           </motion.div>
         </div>
       </div>
@@ -205,15 +207,11 @@ export default function ClientBooking() {
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent pointer-events-none" />
           
           <div className="relative z-10 flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-xl overflow-hidden border border-white/10">
-              {customLogo ? (
+            {customLogo && (
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-xl overflow-hidden border border-white/10">
                 <img src={customLogo} alt="Logo" className="w-full h-full object-cover" />
-              ) : (
-                <div className="bg-zinc-950 w-full h-full rounded-xl flex items-center justify-center">
-                  <Scissors size={28} className="text-white" />
-                </div>
-              )}
-            </div>
+              </div>
+            )}
             <h2 className="text-2xl font-black uppercase tracking-tight">{studioName}</h2>
             <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold mt-1">Bem-vindo ao nosso agendamento</p>
           </div>
@@ -258,13 +256,15 @@ export default function ClientBooking() {
                     </div>
                   </Button>
                   
-                  <div className="pt-2">
-                    <a href="https://instagram.com" target="_blank" rel="noreferrer" className="block">
-                      <Button variant="ghost" className="w-full justify-center py-3 rounded-lg text-xs font-bold text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100">
-                        <Instagram size={14} className="mr-2" /> Visite nosso Instagram
-                      </Button>
-                    </a>
-                  </div>
+                  {instagram && (
+                    <div className="pt-2">
+                      <a href={instagram} target="_blank" rel="noreferrer" className="block">
+                        <Button variant="ghost" className="w-full justify-center py-3 rounded-lg text-xs font-bold text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100">
+                          <Instagram size={14} className="mr-2" /> Visite nosso Instagram
+                        </Button>
+                      </a>
+                    </div>
+                  )}
                 </motion.div>
               )}
 
