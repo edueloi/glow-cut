@@ -67,17 +67,25 @@ model PackageService {
 }
 
 model Comanda {
-  id           String        @id @default(uuid()) @db.VarChar(36)
-  status       String        @default("open") @db.VarChar(20)
-  total        Float         @default(0)
-  discount     Float         @default(0)
-  discountType String        @default("value") @db.VarChar(20)
-  clientId     String        @db.VarChar(36)
-  createdAt    DateTime      @default(now()) @db.DateTime(0)
-  client       Client        @relation(fields: [clientId], references: [id], map: "fk_comanda_client")
-  appointments Appointment[]
+  id             String        @id @default(uuid()) @db.VarChar(36)
+  status         String        @default("open") @db.VarChar(20)
+  total          Float         @default(0)
+  discount       Float         @default(0)
+  discountType   String        @default("value") @db.VarChar(20)
+  clientId       String?       @db.VarChar(36)
+  tenantId       String?       @db.VarChar(36)
+  professionalId String?       @db.VarChar(36)
+  description    String?       @db.VarChar(1000)
+  paymentMethod  String?       @db.VarChar(30)
+  sessionCount   Int?          @default(1)
+  type           String?       @default("normal") @db.VarChar(20)
+  createdAt      DateTime      @default(now()) @db.DateTime(0)
+  client         Client?       @relation(fields: [clientId], references: [id], map: "fk_comanda_client")
+  appointments   Appointment[]
 
   @@index([clientId], map: "fk_comanda_client")
+  @@index([tenantId])
+  @@index([professionalId])
   @@map("Comanda")
 }
 
@@ -92,6 +100,9 @@ model Appointment {
   serviceId      String?      @db.VarChar(36)
   professionalId String       @db.VarChar(36)
   comandaId      String?      @db.VarChar(36)
+  duration       Int?         @default(60)
+  notes          String?      @db.VarChar(2000)
+  tenantId       String?      @db.VarChar(36)
   sessionNumber  Int?         @default(1)
   totalSessions  Int?         @default(1)
   createdAt      DateTime     @default(now()) @db.DateTime(0)
@@ -166,11 +177,14 @@ model Tenant {
   ownerEmail String      @db.VarChar(255)
   ownerPhone String?     @db.VarChar(30)
   planId     String      @db.VarChar(36)
-  isActive   Boolean     @default(true)
-  notes      String?     @db.VarChar(1000)
-  createdAt  DateTime    @default(now()) @db.DateTime(0)
-  plan       Plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
-  adminUsers AdminUser[]
+  isActive              Boolean     @default(true)
+  expiresAt             DateTime?   @db.DateTime(0)
+  blockedAt             DateTime?   @db.DateTime(0)
+  maxAdminUsersOverride Int?
+  notes                 String?     @db.VarChar(1000)
+  createdAt             DateTime    @default(now()) @db.DateTime(0)
+  plan                  Plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
+  adminUsers            AdminUser[]
 
   @@index([planId], map: "fk_tenant_plan")
   @@map("Tenant")

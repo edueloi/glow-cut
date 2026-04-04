@@ -92,6 +92,341 @@ app.post("/api/super-admin/login", async (req, res) => {
   res.json({ id: sa.id, username: sa.username, role: "superadmin" });
 });
 
+// ═════════════════════════════════════════════════════════════
+//  SUPER-ADMIN — Planos
+// ═════════════════════════════════════════════════════════════
+app.get("/api/super-admin/plans", async (req, res) => {
+  try {
+    const plans = await prisma.plan.findMany({ where: { isActive: true }, orderBy: { price: "asc" } });
+    res.json(plans);
+  } catch (e) {
+    res.status(500).json({ error: "Erro ao buscar planos." });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════
+//  SUPER-ADMIN — Tenants (parceiros / estúdios)
+// ═════════════════════════════════════════════════════════════
+
+// Listar todos os tenants
+app.get("/api/super-admin/tenants", async (req, res) => {
+  try {
+    const tenants = await prisma.tenant.findMany({
+      include: {
+        plan: { select: { id: true, name: true, price: true } },
+        adminUsers: { select: { id: true, name: true, email: true, role: true, isActive: true, lastLogin: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json(tenants);
+  } catch (e) {
+    res.status(500).json({ error: "Erro ao buscar parceiros." });
+  }
+});
+
+// Criar novo tenant + admin owner
+app.post("/api/super-admin/tenants", async (req, res) => {
+  const { name, slug, ownerName, ownerEmail, ownerPhone, planId, notes, adminPassword, expiresAt } = req.body;
+
+  if (!name || !slug || !ownerName || !ownerEmail || !planId || !adminPassword) {
+    return res.status(400).json({ error: "Campos obrigatórios: name, slug, ownerName, ownerEmail, planId, adminPassword." });
+  }
+
+  // Verifica slug único
+  const existing = await prisma.tenant.findFirst({ where: { slug } });
+  if (existing) return res.status(400).json({ error: "Slug já está em uso. Escolha outro." });
+
+  // Verifica email único
+  const existingEmail = await prisma.adminUser.findFirst({ where: { email: ownerEmail } });
+  if (existingEmail) return res.status(400).json({ error: "E-mail já está cadastrado." });
+
+  // Verifica plano
+  const plan = await prisma.plan.findFirst({ where: { id: planId, isActive: true } });
+  if (!plan) return res.status(400).json({ error: "Plano não encontrado." });
+
+  try {
+    // Cria o tenant
+    const tenantId = randomUUID();
+    // Validade padrão: 30 dias a partir da criação (+ 7 dias de graça = 37 dias até bloquear)
+    const defaultExpires = new Date();
+    defaultExpires.setDate(defaultExpires.getDate() + 30);
+
+    const tenant = await prisma.tenant.create({
+      data: {
+        id: tenantId,
+        name,
+        slug,
+        ownerName,
+        ownerEmail,
+        ownerPhone: ownerPhone || null,
+        planId,
+        notes: notes || null,
+        isActive: true,
+        expiresAt: expiresAt ? new Date(expiresAt) : defaultExpires,
+      },
+    });
+
+    // Cria o admin owner com permissões máximas
+    const adminUser = await prisma.adminUser.create({
+      data: {
+        id: randomUUID(),
+        name: ownerName,
+        email: ownerEmail,
+        password: adminPassword,
+        role: "owner",
+        jobTitle: "Proprietário",
+        phone: ownerPhone || null,
+        canCreateUsers: plan.canCreateAdminUsers,
+        canDeleteAccount: plan.canDeleteAccount,
+        isActive: true,
+        tenantId,
+        permissions: JSON.stringify(["all"]),
+      },
+    });
+
+    res.json({
+      tenant,
+      adminUser: { id: adminUser.id, name: adminUser.name, email: adminUser.email, role: adminUser.role },
+    });
+  } catch (e: any) {
+    console.error("Erro ao criar parceiro:", e);
+    res.status(400).json({ error: e.message || "Erro ao criar parceiro." });
+  }
+});
+
+// Atualizar tenant
+app.patch("/api/super-admin/tenants/:id", async (req, res) => {
+  const { name, slug, ownerName, ownerEmail, ownerPhone, planId, notes, isActive, expiresAt, maxAdminUsersOverride } = req.body;
+  try {
+    const current = await prisma.tenant.findUnique({ where: { id: req.params.id } });
+    if (!current) return res.status(404).json({ error: "Parceiro não encontrado." });
+
+    // Gerencia blockedAt: ao reativar, limpa blockedAt; ao desativar, registra se ainda não tiver
+    let blockedAt = current.blockedAt;
+    if (isActive === true) blockedAt = null;
+    if (isActive === false && !current.blockedAt) blockedAt = new Date();
+
+    const tenant = await prisma.tenant.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(slug !== undefined && { slug }),
+        ...(ownerName !== undefined && { ownerName }),
+        ...(ownerEmail !== undefined && { ownerEmail }),
+        ...(ownerPhone !== undefined && { ownerPhone }),
+        ...(planId !== undefined && { planId }),
+        ...(notes !== undefined && { notes }),
+        ...(isActive !== undefined && { isActive }),
+        ...(expiresAt !== undefined && { expiresAt: expiresAt ? new Date(expiresAt) : null }),
+        ...(maxAdminUsersOverride !== undefined && { maxAdminUsersOverride: maxAdminUsersOverride || null }),
+        blockedAt,
+      },
+      include: { plan: { select: { id: true, name: true, price: true } } },
+    });
+    res.json(tenant);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Erro ao atualizar parceiro." });
+  }
+});
+
+// Deletar tenant (cuidado — remove tudo)
+app.delete("/api/super-admin/tenants/:id", async (req, res) => {
+  try {
+    await prisma.adminUser.deleteMany({ where: { tenantId: req.params.id } });
+    await prisma.tenant.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Erro ao excluir parceiro." });
+  }
+});
+
+// PUT alias para PATCH (compatibilidade com frontend)
+app.put("/api/super-admin/tenants/:id", async (req, res) => {
+  const { name, slug, ownerName, ownerEmail, ownerPhone, planId, notes, isActive, expiresAt, maxAdminUsersOverride } = req.body;
+  try {
+    const current = await prisma.tenant.findUnique({ where: { id: req.params.id } });
+    if (!current) return res.status(404).json({ error: "Parceiro não encontrado." });
+
+    let blockedAt = current.blockedAt;
+    if (isActive === true) blockedAt = null;
+    if (isActive === false && !current.blockedAt) blockedAt = new Date();
+
+    const tenant = await prisma.tenant.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(slug !== undefined && { slug }),
+        ...(ownerName !== undefined && { ownerName }),
+        ...(ownerEmail !== undefined && { ownerEmail }),
+        ...(ownerPhone !== undefined && { ownerPhone }),
+        ...(planId !== undefined && { planId }),
+        ...(notes !== undefined && { notes }),
+        ...(isActive !== undefined && { isActive }),
+        ...(expiresAt !== undefined && { expiresAt: expiresAt ? new Date(expiresAt) : null }),
+        ...(maxAdminUsersOverride !== undefined && { maxAdminUsersOverride: maxAdminUsersOverride || null }),
+        blockedAt,
+      },
+      include: { plan: { select: { id: true, name: true, price: true } } },
+    });
+    res.json(tenant);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Erro ao atualizar parceiro." });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════
+//  SUPER-ADMIN — Stats
+// ═════════════════════════════════════════════════════════════
+app.get("/api/super-admin/stats", async (req, res) => {
+  try {
+    const [totalTenants, activeTenants, totalAdminUsers, plans] = await Promise.all([
+      prisma.tenant.count(),
+      prisma.tenant.count({ where: { isActive: true } }),
+      prisma.adminUser.count({ where: { isActive: true } }),
+      prisma.plan.findMany({ select: { id: true, name: true }, where: { isActive: true } }),
+    ]);
+    const tenantsByPlan = await Promise.all(
+      plans.map(async (p) => ({
+        planName: p.name,
+        count: await prisma.tenant.count({ where: { planId: p.id } }),
+      }))
+    );
+    res.json({ totalTenants, activeTenants, totalAdminUsers, tenantsByPlan });
+  } catch (e) {
+    res.status(500).json({ error: "Erro ao buscar stats." });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════
+//  SUPER-ADMIN — Planos (CRUD completo)
+// ═════════════════════════════════════════════════════════════
+app.post("/api/super-admin/plans", async (req, res) => {
+  const { name, price, maxProfessionals, maxAdminUsers, canCreateAdminUsers, canDeleteAccount, features } = req.body;
+  if (!name) return res.status(400).json({ error: "Nome do plano obrigatório." });
+  try {
+    const plan = await prisma.plan.create({
+      data: {
+        id: randomUUID(),
+        name,
+        price: price || 0,
+        maxProfessionals: maxProfessionals || 3,
+        maxAdminUsers: maxAdminUsers || 1,
+        canCreateAdminUsers: canCreateAdminUsers || false,
+        canDeleteAccount: canDeleteAccount || false,
+        features: Array.isArray(features) ? JSON.stringify(features) : (features || "[]"),
+      },
+    });
+    res.json(plan);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Erro ao criar plano." });
+  }
+});
+
+app.put("/api/super-admin/plans/:id", async (req, res) => {
+  const { name, price, maxProfessionals, maxAdminUsers, canCreateAdminUsers, canDeleteAccount, features, isActive } = req.body;
+  try {
+    const plan = await prisma.plan.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(price !== undefined && { price }),
+        ...(maxProfessionals !== undefined && { maxProfessionals }),
+        ...(maxAdminUsers !== undefined && { maxAdminUsers }),
+        ...(canCreateAdminUsers !== undefined && { canCreateAdminUsers }),
+        ...(canDeleteAccount !== undefined && { canDeleteAccount }),
+        ...(isActive !== undefined && { isActive }),
+        ...(features !== undefined && { features: Array.isArray(features) ? JSON.stringify(features) : features }),
+      },
+    });
+    res.json(plan);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Erro ao atualizar plano." });
+  }
+});
+
+app.delete("/api/super-admin/plans/:id", async (req, res) => {
+  try {
+    await prisma.plan.update({ where: { id: req.params.id }, data: { isActive: false } });
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Erro ao excluir plano." });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════
+//  SUPER-ADMIN — Admin Users
+// ═════════════════════════════════════════════════════════════
+app.get("/api/super-admin/admin-users", async (req, res) => {
+  try {
+    const users = await prisma.adminUser.findMany({
+      include: { tenant: { select: { id: true, name: true, slug: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json(users);
+  } catch (e) {
+    res.status(500).json({ error: "Erro ao buscar usuários." });
+  }
+});
+
+app.post("/api/super-admin/admin-users", async (req, res) => {
+  const { name, email, password, role, jobTitle, phone, tenantId, canCreateUsers, canDeleteAccount, permissions } = req.body;
+  if (!name || !email || !password || !tenantId) return res.status(400).json({ error: "name, email, password e tenantId são obrigatórios." });
+  const existing = await prisma.adminUser.findFirst({ where: { email } });
+  if (existing) return res.status(400).json({ error: "E-mail já cadastrado." });
+  try {
+    const user = await prisma.adminUser.create({
+      data: {
+        id: randomUUID(),
+        name, email, password,
+        role: role || "admin",
+        jobTitle: jobTitle || null,
+        phone: phone || null,
+        tenantId,
+        canCreateUsers: canCreateUsers || false,
+        canDeleteAccount: canDeleteAccount || false,
+        isActive: true,
+        permissions: permissions ? JSON.stringify(permissions) : null,
+      },
+    });
+    res.json(user);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Erro ao criar usuário." });
+  }
+});
+
+app.put("/api/super-admin/admin-users/:id", async (req, res) => {
+  const { name, email, password, role, jobTitle, phone, isActive, canCreateUsers, canDeleteAccount, permissions } = req.body;
+  try {
+    const user = await prisma.adminUser.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(email !== undefined && { email }),
+        ...(password !== undefined && { password }),
+        ...(role !== undefined && { role }),
+        ...(jobTitle !== undefined && { jobTitle }),
+        ...(phone !== undefined && { phone }),
+        ...(isActive !== undefined && { isActive }),
+        ...(canCreateUsers !== undefined && { canCreateUsers }),
+        ...(canDeleteAccount !== undefined && { canDeleteAccount }),
+        ...(permissions !== undefined && { permissions: Array.isArray(permissions) ? JSON.stringify(permissions) : permissions }),
+      },
+    });
+    res.json(user);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Erro ao atualizar usuário." });
+  }
+});
+
+app.delete("/api/super-admin/admin-users/:id", async (req, res) => {
+  try {
+    await prisma.adminUser.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Erro ao excluir usuário." });
+  }
+});
+
 app.post("/api/admin/login", async (req, res) => {
   const { email, password } = req.body;
   const user = await prisma.adminUser.findFirst({
@@ -323,415 +658,191 @@ app.delete("/api/services/:id", async (req, res) => {
   const tenantId = getTenantId(req);
   try {
     const svc = await prisma.service.findFirst({ where: { id: req.params.id, tenantId: tenantId || undefined } });
-    if (!svc) return res.status(404).json({ error: "Serviço não encontrado." });
-    await prisma.packageService.deleteMany({ where: { OR: [{ packageId: req.params.id }, { serviceId: req.params.id }] } });
+    if (!svc) return res.status(404).json({ error: 'Serviço não encontrado.' });
     await prisma.service.delete({ where: { id: req.params.id } });
     res.json({ success: true });
   } catch (e) {
-    res.status(400).json({ error: "Erro ao excluir serviço." });
+    res.status(400).json({ error: 'Erro ao excluir serviço.' });
   }
 });
 
 // ═════════════════════════════════════════════════════════════
-//  COMANDAS — isolado por tenant (via client.tenantId)
+//  APPOINTMENTS — isolado por tenant
 // ═════════════════════════════════════════════════════════════
-app.get("/api/comandas", async (req, res) => {
+app.get('/api/appointments', async (req, res) => {
   const tenantId = getTenantId(req);
-  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const comandas = await prisma.comanda.findMany({
-    where: { client: { tenantId } },
-    include: { client: true, appointments: { include: { service: true } } }
-  });
-  res.json(comandas);
-});
-
-app.post("/api/comandas", async (req, res) => {
-  const { clientId, discount, discountType, total } = req.body;
-  const comanda = await prisma.comanda.create({
-    data: { id: randomUUID(), clientId, discount: parseFloat(discount || 0), discountType, total: parseFloat(total || 0) }
-  });
-  res.json(comanda);
-});
-
-app.put("/api/comandas/:id", async (req, res) => {
-  const { status, discount, discountType, total } = req.body;
-  try {
-    const comanda = await prisma.comanda.update({
-      where: { id: req.params.id },
-      data: {
-        ...(status && { status }),
-        ...(discount !== undefined && { discount: parseFloat(discount) }),
-        ...(discountType && { discountType }),
-        ...(total !== undefined && { total: parseFloat(total) })
-      },
-      include: { client: true, appointments: { include: { service: true } } }
-    });
-    res.json(comanda);
-  } catch (e) {
-    res.status(400).json({ error: "Erro ao atualizar comanda." });
-  }
-});
-
-// ═════════════════════════════════════════════════════════════
-//  APPOINTMENTS — isolado por tenant (via professional.tenantId)
-// ═════════════════════════════════════════════════════════════
-app.get("/api/appointments", async (req, res) => {
-  const tenantId = getTenantId(req);
-  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { start, end, professionalId } = req.query;
-  const where: any = { professional: { tenantId } };
-  if (start && end) {
-    where.date = { gte: new Date(String(start)), lte: new Date(String(end)) };
-  }
-  if (professionalId) where.professionalId = String(professionalId);
+  if (!tenantId) return res.status(400).json({ error: 'tenantId obrigatório.' });
   const appointments = await prisma.appointment.findMany({
-    where,
-    include: { client: true, service: true, professional: true, comanda: true }
+    where: { tenantId },
+    include: {
+      client: true,
+      professional: { select: { id: true, name: true } },
+      service: true,
+    },
+    orderBy: [{ date: 'asc' }, { startTime: 'asc' }]
   });
   res.json(appointments);
 });
 
-app.post("/api/appointments", async (req, res) => {
+app.post('/api/appointments', async (req, res) => {
   const tenantId = getTenantId(req);
-  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { date, startTime, clientId, serviceId, professionalId, recurrence, comandaId, type } = req.body;
-  const appointmentType = type || "atendimento";
-
-  // Verifica que o profissional pertence ao tenant
-  const prof = await prisma.professional.findFirst({ where: { id: professionalId, tenantId } });
-  if (!prof) return res.status(403).json({ error: "Profissional não pertence a este tenant." });
-
-  let endTime = startTime;
-  if (serviceId) {
-    const service = await prisma.service.findFirst({ where: { id: serviceId, tenantId } });
-    if (!service) return res.status(404).json({ error: "Serviço não encontrado." });
-    endTime = format(addMinutes(parse(startTime, "HH:mm", new Date()), service.duration), "HH:mm");
-  } else {
-    endTime = format(addMinutes(parse(startTime, "HH:mm", new Date()), 60), "HH:mm");
+  if (!tenantId) return res.status(400).json({ error: 'tenantId obrigatório.' });
+  const { clientId, serviceId, professionalId, date, startTime, duration, type, status, notes, recurrence } = req.body;
+  try {
+    const dur = parseInt(duration) || 60;
+    const [sh, sm] = startTime.split(':').map(Number);
+    const totalM = sh * 60 + sm + dur;
+    const endTime = String(Math.floor(totalM/60)%24).padStart(2,'0') + ':' + String(totalM%60).padStart(2,'0');
+    const appt = await prisma.appointment.create({
+      data: {
+        id: randomUUID(),
+        tenantId,
+        clientId: clientId || null,
+        serviceId: serviceId || null,
+        professionalId: professionalId || '',
+        date: new Date(date),
+        startTime,
+        endTime,
+        duration: dur,
+        type: type || 'atendimento',
+        status: status || 'agendado',
+        notes: notes || null,
+      },
+      include: { client: true, professional: { select: { id: true, name: true } }, service: true }
+    });
+    res.json(appt);
+  } catch (e: any) {
+    console.error(e);
+    res.status(400).json({ error: 'Erro ao criar agendamento.' });
   }
-
-  const conflict = await prisma.appointment.findFirst({
-    where: {
-      professionalId, date: new Date(date), status: { not: "cancelled" },
-      OR: [{ startTime: { lte: startTime }, endTime: { gt: startTime } }, { startTime: { lt: endTime }, endTime: { gte: endTime } }]
-    }
-  });
-  if (conflict) return res.status(400).json({ error: "Horário já ocupado para este profissional." });
-
-  let count = 1;
-  if (recurrence && recurrence.type !== "none") count = recurrence.count || 1;
-
-  const appointmentsToCreate = [];
-  for (let i = 0; i < count; i++) {
-    const currentDate = addDays(new Date(date), i * (recurrence?.interval || 7));
-    const entry: any = { id: randomUUID(), date: currentDate, startTime, endTime, professionalId, type: appointmentType, sessionNumber: i + 1, totalSessions: count };
-    if (clientId) entry.clientId = clientId;
-    if (serviceId) entry.serviceId = serviceId;
-    if (comandaId) entry.comandaId = comandaId;
-    appointmentsToCreate.push(entry);
-  }
-
-  const result = await prisma.appointment.createMany({ data: appointmentsToCreate });
-  res.json(result);
 });
 
-app.put("/api/appointments/:id", async (req, res) => {
-  const { status } = req.body;
+app.put('/api/appointments/:id', async (req, res) => {
+  const tenantId = getTenantId(req);
+  const { status, notes, date, startTime, duration, professionalId, serviceId } = req.body;
   try {
-    const appt = await prisma.appointment.update({ where: { id: req.params.id }, data: { status } });
+    const appt = await prisma.appointment.updateMany({
+      where: { id: req.params.id, tenantId: tenantId || undefined },
+      data: {
+        ...(status !== undefined && { status }),
+        ...(notes !== undefined && { notes }),
+        ...(date !== undefined && { date: new Date(date) }),
+        ...(startTime !== undefined && { startTime }),
+        ...(duration !== undefined && { duration: parseInt(duration) }),
+        ...(professionalId !== undefined && { professionalId }),
+        ...(serviceId !== undefined && { serviceId }),
+      }
+    });
     res.json(appt);
   } catch (e) {
-    res.status(400).json({ error: "Erro ao atualizar agendamento." });
+    res.status(400).json({ error: 'Erro ao atualizar agendamento.' });
   }
 });
 
-app.delete("/api/appointments/:id", async (req, res) => {
+app.delete('/api/appointments/:id', async (req, res) => {
+  const tenantId = getTenantId(req);
   try {
-    await prisma.appointment.delete({ where: { id: req.params.id } });
+    await prisma.appointment.deleteMany({ where: { id: req.params.id, tenantId: tenantId || undefined } });
     res.json({ success: true });
   } catch (e) {
-    res.status(400).json({ error: "Erro ao excluir agendamento." });
+    res.status(400).json({ error: 'Erro ao excluir agendamento.' });
   }
 });
 
-app.get("/api/appointments/client", async (req, res) => {
+// ═════════════════════════════════════════════════════════════
+//  COMANDAS — isolado por tenant
+// ═════════════════════════════════════════════════════════════
+app.get('/api/comandas', async (req, res) => {
   const tenantId = getTenantId(req);
-  const { phone } = req.query;
-  const client = await prisma.client.findFirst({
-    where: { phone: String(phone), tenantId: tenantId || undefined },
-    include: { appointments: { include: { service: true }, orderBy: { date: "asc" } } }
+  if (!tenantId) return res.status(400).json({ error: 'tenantId obrigatório.' });
+  const comandas = await prisma.comanda.findMany({
+    where: { tenantId },
+    include: { client: true, professional: { select: { id: true, name: true } } },
+    orderBy: { createdAt: 'desc' }
   });
-  res.json(client?.appointments || []);
+  res.json(comandas);
+});
+
+app.post('/api/comandas', async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: 'tenantId obrigatório.' });
+  const { clientId, description, value, professionalId, status, paymentMethod, discount, discountType, sessionCount, type } = req.body;
+  try {
+    const comanda = await prisma.comanda.create({
+      data: {
+        id: randomUUID(),
+        tenantId,
+        clientId: clientId || null,
+        professionalId: professionalId || null,
+        description: description || null,
+        total: parseFloat(value) || 0,
+        status: status || 'open',
+        paymentMethod: paymentMethod || null,
+        discount: parseFloat(discount || 0),
+        discountType: discountType || 'value',
+        sessionCount: parseInt(sessionCount || 1),
+        type: type || 'normal',
+      },
+      include: { client: true }
+    });
+    res.json(comanda);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || 'Erro ao criar comanda.' });
+  }
+});
+
+app.put('/api/comandas/:id', async (req, res) => {
+  const tenantId = getTenantId(req);
+  const { status, paymentMethod, value, discount, discountType } = req.body;
+  try {
+    const comanda = await prisma.comanda.updateMany({
+      where: { id: req.params.id, tenantId: tenantId || undefined },
+      data: {
+        ...(status !== undefined && { status }),
+        ...(paymentMethod !== undefined && { paymentMethod }),
+        ...(value !== undefined && { value: parseFloat(value) }),
+        ...(discount !== undefined && { discount: parseFloat(discount) }),
+        ...(discountType !== undefined && { discountType }),
+      }
+    });
+    res.json(comanda);
+  } catch (e) {
+    res.status(400).json({ error: 'Erro ao atualizar comanda.' });
+  }
 });
 
 // ═════════════════════════════════════════════════════════════
-//  AVAILABILITY — isolado por tenant
+//  WORKING HOURS
 // ═════════════════════════════════════════════════════════════
-app.get("/api/availability", async (req, res) => {
-  const tenantId = getTenantId(req);
-  const { date, serviceId, professionalId } = req.query;
-  if (!date || !serviceId || !professionalId) return res.status(400).json({ error: "date, serviceId e professionalId obrigatórios." });
-
-  const targetDate = startOfDay(new Date(String(date)));
-  const dayOfWeek = targetDate.getDay();
-
-  // Valida que profissional pertence ao tenant (se tenantId fornecido)
-  if (tenantId) {
-    const prof = await prisma.professional.findFirst({ where: { id: String(professionalId), tenantId } });
-    if (!prof) return res.json([]);
-  }
-
-  const workingHours = await prisma.workingHours.findFirst({ where: { dayOfWeek, professionalId: String(professionalId) } });
-  const isClosed = await prisma.closedDay.findFirst({ where: { date: targetDate, tenantId: tenantId || undefined } });
-  if (!workingHours || !workingHours.isOpen || isClosed) return res.json([]);
-
-  const service = await prisma.service.findFirst({ where: { id: String(serviceId), tenantId: tenantId || undefined } });
-  if (!service) return res.status(404).json({ error: "Serviço não encontrado." });
-
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      professionalId: String(professionalId),
-      date: { gte: targetDate, lt: new Date(targetDate.getTime() + 86400000) },
-      status: { not: "cancelled" }
-    }
-  });
-
-  const slots = [];
-  let current = parse(workingHours.startTime, "HH:mm", targetDate);
-  const end = parse(workingHours.endTime, "HH:mm", targetDate);
-  const breakStart = parse(workingHours.breakStart, "HH:mm", targetDate);
-  const breakEnd = parse(workingHours.breakEnd, "HH:mm", targetDate);
-
-  while (current < end) {
-    const timeStr = format(current, "HH:mm");
-    const slotEnd = addMinutes(current, service.duration);
-    const isDuringBreak = (current >= breakStart && current < breakEnd) || (slotEnd > breakStart && slotEnd <= breakEnd);
-    if (!isDuringBreak && slotEnd <= end) {
-      const isOccupied = appointments.some(app => {
-        const appStart = parse(app.startTime, "HH:mm", targetDate);
-        const appEnd = parse(app.endTime, "HH:mm", targetDate);
-        return current < appEnd && slotEnd > appStart;
-      });
-      if (!isOccupied) slots.push(timeStr);
-    }
-    current = addMinutes(current, 30);
-  }
-  res.json(slots);
-});
-
-// ═════════════════════════════════════════════════════════════
-//  SETTINGS — isolado por tenant (working hours do profissional)
-// ═════════════════════════════════════════════════════════════
-app.get("/api/settings/working-hours", async (req, res) => {
-  const tenantId = getTenantId(req);
-  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+app.get('/api/working-hours/:professionalId', async (req, res) => {
   const wh = await prisma.workingHours.findMany({
-    where: { professional: { tenantId } },
-    orderBy: { dayOfWeek: "asc" }
+    where: { professionalId: req.params.professionalId },
+    orderBy: { dayOfWeek: 'asc' }
   });
   res.json(wh);
 });
 
-app.put("/api/settings/working-hours", async (req, res) => {
+app.put('/api/working-hours/:professionalId', async (req, res) => {
   const { hours } = req.body;
-  for (const h of hours) {
-    await prisma.workingHours.update({
-      where: { id: h.id },
-      data: { isOpen: h.isOpen, startTime: h.startTime, endTime: h.endTime, breakStart: h.breakStart, breakEnd: h.breakEnd }
-    });
-  }
-  res.json({ success: true });
-});
-
-// Closed days — isolado por tenant
-app.get("/api/settings/closed-days", async (req, res) => {
-  const tenantId = getTenantId(req);
-  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const days = await prisma.closedDay.findMany({ where: { tenantId } });
-  res.json(days);
-});
-
-app.post("/api/settings/closed-days", async (req, res) => {
-  const tenantId = getTenantId(req);
-  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { date, description } = req.body;
   try {
-    const day = await prisma.closedDay.create({ data: { id: randomUUID(), date: new Date(date), description, tenantId } });
-    res.json(day);
-  } catch (e) {
-    res.status(400).json({ error: "Erro ao criar feriado." });
-  }
-});
-
-app.delete("/api/settings/closed-days/:id", async (req, res) => {
-  const tenantId = getTenantId(req);
-  try {
-    await prisma.closedDay.deleteMany({ where: { id: req.params.id, tenantId: tenantId || undefined } });
+    for (const h of hours) {
+      await prisma.workingHours.updateMany({
+        where: { professionalId: req.params.professionalId, dayOfWeek: h.dayOfWeek },
+        data: { isOpen: h.isOpen, startTime: h.startTime, endTime: h.endTime, breakStart: h.breakStart, breakEnd: h.breakEnd }
+      });
+    }
     res.json({ success: true });
   } catch (e) {
-    res.status(400).json({ error: "Erro ao excluir feriado." });
+    res.status(400).json({ error: 'Erro ao atualizar horários.' });
   }
 });
 
-// ═════════════════════════════════════════════════════════════
-//  SUPER ADMIN — planos, tenants, admin users, stats
-// ═════════════════════════════════════════════════════════════
-app.get("/api/super-admin/plans", async (_req, res) => {
-  const plans = await prisma.plan.findMany({ orderBy: { price: "asc" } });
-  res.json(plans);
-});
-
-app.post("/api/super-admin/plans", async (req, res) => {
-  const { name, price, maxProfessionals, maxAdminUsers, canCreateAdminUsers, canDeleteAccount, features } = req.body;
-  try {
-    const plan = await prisma.plan.create({
-      data: { id: randomUUID(), name, price: parseFloat(price), maxProfessionals: parseInt(maxProfessionals), maxAdminUsers: parseInt(maxAdminUsers), canCreateAdminUsers: !!canCreateAdminUsers, canDeleteAccount: !!canDeleteAccount, features: JSON.stringify(features || []) }
-    });
-    res.json(plan);
-  } catch (e) { res.status(400).json({ error: "Erro ao criar plano." }); }
-});
-
-app.put("/api/super-admin/plans/:id", async (req, res) => {
-  const { name, price, maxProfessionals, maxAdminUsers, canCreateAdminUsers, canDeleteAccount, features, isActive } = req.body;
-  try {
-    const plan = await prisma.plan.update({
-      where: { id: req.params.id },
-      data: { name, price: parseFloat(price), maxProfessionals: parseInt(maxProfessionals), maxAdminUsers: parseInt(maxAdminUsers), canCreateAdminUsers: !!canCreateAdminUsers, canDeleteAccount: !!canDeleteAccount, features: JSON.stringify(features || []), isActive: isActive !== undefined ? isActive : true }
-    });
-    res.json(plan);
-  } catch (e) { res.status(400).json({ error: "Erro ao atualizar plano." }); }
-});
-
-app.delete("/api/super-admin/plans/:id", async (req, res) => {
-  try {
-    await prisma.plan.delete({ where: { id: req.params.id } });
-    res.json({ success: true });
-  } catch (e) { res.status(400).json({ error: "Erro ao excluir plano." }); }
-});
-
-app.get("/api/super-admin/tenants", async (_req, res) => {
-  const tenants = await prisma.tenant.findMany({
-    include: { plan: true, adminUsers: { select: { id: true, name: true, email: true, role: true, isActive: true, lastLogin: true } } },
-    orderBy: { createdAt: "desc" }
-  });
-  res.json(tenants);
-});
-
-app.post("/api/super-admin/tenants", async (req, res) => {
-  const { name, slug, ownerName, ownerEmail, ownerPhone, planId, notes, adminPassword } = req.body;
-  if (!name || !slug || !ownerName || !ownerEmail || !planId || !adminPassword)
-    return res.status(400).json({ error: "Campos obrigatórios faltando." });
-  try {
-    const tenant = await prisma.tenant.create({
-      data: { id: randomUUID(),
-        name, slug, ownerName, ownerEmail, ownerPhone, planId, notes,
-        adminUsers: {
-          create: { id: randomUUID(), name: ownerName, email: ownerEmail, password: adminPassword, role: "admin", jobTitle: "Proprietário", canCreateUsers: true, canDeleteAccount: false }
-        }
-      },
-      include: { plan: true, adminUsers: true }
-    });
-    res.json(tenant);
-  } catch (e: any) {
-    if (e.code === "P2002") return res.status(400).json({ error: "Slug ou e-mail já em uso." });
-    res.status(400).json({ error: "Erro ao criar parceiro." });
-  }
-});
-
-app.put("/api/super-admin/tenants/:id", async (req, res) => {
-  const { name, ownerName, ownerEmail, ownerPhone, planId, notes, isActive } = req.body;
-  try {
-    const tenant = await prisma.tenant.update({
-      where: { id: req.params.id },
-      data: { name, ownerName, ownerEmail, ownerPhone, planId, notes, isActive },
-      include: { plan: true }
-    });
-    res.json(tenant);
-  } catch (e) { res.status(400).json({ error: "Erro ao atualizar parceiro." }); }
-});
-
-app.delete("/api/super-admin/tenants/:id", async (req, res) => {
-  try {
-    await prisma.adminUser.deleteMany({ where: { tenantId: req.params.id } });
-    await prisma.tenant.delete({ where: { id: req.params.id } });
-    res.json({ success: true });
-  } catch (e) { res.status(400).json({ error: "Erro ao excluir parceiro." }); }
-});
-
-app.get("/api/super-admin/admin-users", async (_req, res) => {
-  const users = await prisma.adminUser.findMany({
-    include: { tenant: { select: { name: true } } },
-    orderBy: { createdAt: "desc" }
-  });
-  res.json(users);
-});
-
-app.post("/api/super-admin/admin-users", async (req, res) => {
-  const { name, email, password, role, jobTitle, bio, phone, canCreateUsers, canDeleteAccount, tenantId, permissions } = req.body;
-  if (!name || !email || !password || !tenantId) return res.status(400).json({ error: "Campos obrigatórios faltando." });
-  try {
-    const user = await prisma.adminUser.create({
-      data: { id: randomUUID(), name, email, password, role: role || "manager", jobTitle, bio, phone, canCreateUsers: !!canCreateUsers, canDeleteAccount: !!canDeleteAccount, tenantId, permissions },
-      include: { tenant: { select: { name: true } } }
-    });
-    res.json(user);
-  } catch (e: any) {
-    if (e.code === "P2002") return res.status(400).json({ error: "E-mail já em uso." });
-    res.status(400).json({ error: "Erro ao criar usuário." });
-  }
-});
-
-app.put("/api/super-admin/admin-users/:id", async (req, res) => {
-  const { name, email, password, role, jobTitle, bio, phone, canCreateUsers, canDeleteAccount, isActive, permissions } = req.body;
-  const data: any = { name, email, role, jobTitle, bio, phone, canCreateUsers: !!canCreateUsers, canDeleteAccount: !!canDeleteAccount, isActive, permissions };
-  if (password) data.password = password;
-  try {
-    const user = await prisma.adminUser.update({ where: { id: req.params.id }, data, include: { tenant: { select: { name: true } } } });
-    res.json(user);
-  } catch (e) { res.status(400).json({ error: "Erro ao atualizar usuário." }); }
-});
-
-app.delete("/api/super-admin/admin-users/:id", async (req, res) => {
-  try {
-    await prisma.adminUser.delete({ where: { id: req.params.id } });
-    res.json({ success: true });
-  } catch (e) { res.status(400).json({ error: "Erro ao excluir usuário." }); }
-});
-
-app.put("/api/admin/profile/:id", async (req, res) => {
-  const { name, jobTitle, bio, phone, password } = req.body;
-  const data: any = { name, jobTitle, bio, phone };
-  if (password) data.password = password;
-  try {
-    const user = await prisma.adminUser.update({ where: { id: req.params.id }, data });
-    res.json(user);
-  } catch (e) { res.status(400).json({ error: "Erro ao salvar perfil." }); }
-});
-
-app.get("/api/super-admin/stats", async (_req, res) => {
-  const [totalTenants, activeTenants, totalAdmins, activeAdmins, plans] = await Promise.all([
-    prisma.tenant.count(),
-    prisma.tenant.count({ where: { isActive: true } }),
-    prisma.adminUser.count(),
-    prisma.adminUser.count({ where: { isActive: true } }),
-    prisma.plan.findMany({ include: { _count: { select: { tenants: true } } } }),
-  ]);
-  res.json({ totalTenants, activeTenants, totalAdmins, activeAdmins, plans });
-});
-
-// ═════════════════════════════════════════════════════════════
-//  VITE / STATIC
-// ═════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────
+//  Vite dev server (SPA fallback)
+// ─────────────────────────────────────────────────────────────
 async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html")));
-  }
-  app.listen(PORT, "0.0.0.0", () => console.log(`Server running on http://localhost:${PORT}`));
+  const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
+  app.use(vite.middlewares);
+  app.listen(PORT, () => console.log(`🚀 Server on http://localhost:${PORT}`));
 }
-
 startServer();

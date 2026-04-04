@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/src/lib/utils";
 import {
   LayoutDashboard, Users, Building2, CreditCard,
@@ -313,14 +314,59 @@ function PlansTab() {
 /* ═══════════════════════════════════════════
    ABA: PARCEIROS
 ═══════════════════════════════════════════ */
+// Calcula status visual do tenant baseado em datas
+// Status automático:
+// Ativo           → dentro do prazo
+// Vence em Xd     → faltam ≤7 dias para vencer
+// Graça: Xd       → venceu, mas ainda nos 7 dias de tolerância
+// Bloqueado       → venceu há mais de 7 dias, ou desativado manualmente (<90 dias)
+// Inativo         → bloqueado há mais de 90 dias
+function getTenantStatus(t: any): { label: string; color: string } {
+  const now = new Date();
+
+  if (!t.isActive) {
+    if (t.blockedAt) {
+      const blockedDays = (now.getTime() - new Date(t.blockedAt).getTime()) / (1000 * 60 * 60 * 24);
+      if (blockedDays > 90) return { label: "Inativo", color: "red" };
+    }
+    return { label: "Bloqueado", color: "zinc" };
+  }
+
+  if (t.expiresAt) {
+    const diffDays = (new Date(t.expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays < -7) return { label: "Bloqueado", color: "zinc" };           // venceu > 7 dias atrás
+    if (diffDays < 0)  return { label: `Graça: ${7 + Math.ceil(diffDays)}d`, color: "amber" }; // dentro dos 7 dias de graça
+    if (diffDays <= 7) return { label: `Vence em ${Math.ceil(diffDays)}d`, color: "amber" };   // prestes a vencer
+  }
+
+  return { label: "Ativo", color: "emerald" };
+}
+
 function TenantsTab({ plans }: { plans: any[] }) {
   const [tenants, setTenants] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [detail, setDetail] = useState<any>(null);
-  const emptyForm = { name: "", slug: "", ownerName: "", ownerEmail: "", ownerPhone: "", planId: "", notes: "", adminPassword: "" };
+  const emptyForm = { name: "", slug: "", ownerName: "", ownerEmail: "", ownerPhone: "", planId: "", notes: "", adminPassword: "", expiresAt: "", maxAdminUsersOverride: "", isActive: true };
   const [form, setForm] = useState<any>(emptyForm);
+  const [showPwd, setShowPwd] = useState(false);
+
+  const maskPhone = (v: string) => {
+    const d = v.replace(/\D/g, "").slice(0, 11);
+    if (d.length <= 10) return d.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3").replace(/-$/, "");
+    return d.replace(/(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3").replace(/-$/, "");
+  };
+
+  const fmtDate = (d: string | null | undefined) => {
+    if (!d) return "—";
+    return new Date(d).toLocaleDateString("pt-BR");
+  };
+
+  const toInputDate = (d: string | null | undefined) => {
+    if (!d) return "";
+    return new Date(d).toISOString().slice(0, 10);
+  };
 
   const load = useCallback(async () => {
     const r = await fetch("/api/super-admin/tenants");
@@ -329,16 +375,30 @@ function TenantsTab({ plans }: { plans: any[] }) {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (plans.length) setForm((p: any) => p.planId ? p : { ...p, planId: plans[0]?.id ?? "" }); }, [plans]);
 
-  const openCreate = () => { setEditing(null); setForm({ ...emptyForm, planId: plans[0]?.id ?? "" }); setModal(true); };
+  const openCreate = () => {
+    const expires = new Date(); expires.setDate(expires.getDate() + 30);
+    setEditing(null);
+    setForm({ ...emptyForm, planId: plans[0]?.id ?? "", _slugEdited: false, expiresAt: expires.toISOString().slice(0, 10) });
+    setModal(true);
+  };
   const openEdit = (t: any) => {
     setEditing(t);
-    setForm({ name: t.name, slug: t.slug, ownerName: t.ownerName, ownerEmail: t.ownerEmail, ownerPhone: t.ownerPhone ?? "", planId: t.planId, notes: t.notes ?? "", adminPassword: "" });
+    setForm({
+      name: t.name, slug: t.slug, ownerName: t.ownerName, ownerEmail: t.ownerEmail,
+      ownerPhone: t.ownerPhone ?? "", planId: t.planId, notes: t.notes ?? "",
+      adminPassword: "", isActive: t.isActive,
+      expiresAt: toInputDate(t.expiresAt),
+      maxAdminUsersOverride: t.maxAdminUsersOverride ?? "",
+    });
     setModal(true);
   };
 
   const save = async () => {
+    const payload: any = { ...form };
+    if (payload.maxAdminUsersOverride === "") payload.maxAdminUsersOverride = null;
+    if (payload.expiresAt === "") payload.expiresAt = null;
     const url = editing ? `/api/super-admin/tenants/${editing.id}` : "/api/super-admin/tenants";
-    const r = await fetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const r = await fetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     if (!r.ok) { const e = await r.json(); alert(e.error); return; }
     setModal(false);
     load();
@@ -351,7 +411,7 @@ function TenantsTab({ plans }: { plans: any[] }) {
   };
 
   const toggleActive = async (t: any) => {
-    await fetch(`/api/super-admin/tenants/${t.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...t, isActive: !t.isActive }) });
+    await fetch(`/api/super-admin/tenants/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !t.isActive }) });
     load();
   };
 
@@ -383,36 +443,51 @@ function TenantsTab({ plans }: { plans: any[] }) {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-zinc-50 border-b border-zinc-100">
-              <tr>{["Parceiro", "Proprietário", "Plano", "Usuários", "Status", ""].map(h => <th key={h} className="text-left px-4 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest whitespace-nowrap">{h}</th>)}</tr>
+              <tr>{["Parceiro", "Proprietário", "Plano", "Usuários", "Criado em", "Validade", "Status", ""].map(h => <th key={h} className="text-left px-4 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest whitespace-nowrap">{h}</th>)}</tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {filtered.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-xs text-zinc-400">Nenhum parceiro encontrado</td></tr>}
-              {filtered.map(t => (
-                <tr key={t.id} className="hover:bg-zinc-50/50 transition-colors">
-                  <td className="px-4 py-3">
-                    <p className="text-xs font-black text-zinc-900">{t.name}</p>
-                    <p className="text-[10px] text-zinc-400 flex items-center gap-1"><Globe size={9} />{t.slug}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="text-xs font-semibold text-zinc-700">{t.ownerName}</p>
-                    <p className="text-[10px] text-zinc-400 flex items-center gap-1"><Mail size={9} />{t.ownerEmail}</p>
-                  </td>
-                  <td className="px-4 py-3"><Badge color="amber">{t.plan?.name}</Badge></td>
-                  <td className="px-4 py-3"><span className="text-xs font-black text-zinc-700">{t.adminUsers?.length ?? 0}</span><span className="text-[10px] text-zinc-400"> users</span></td>
-                  <td className="px-4 py-3">
-                    <button onClick={() => toggleActive(t)}>
-                      {t.isActive ? <Badge color="emerald">Ativo</Badge> : <Badge color="red">Inativo</Badge>}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => setDetail(t)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors"><Eye size={13} /></button>
-                      <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors"><Edit2 size={13} /></button>
-                      <button onClick={() => del(t.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filtered.length === 0 && <tr><td colSpan={8} className="text-center py-8 text-xs text-zinc-400">Nenhum parceiro encontrado</td></tr>}
+              {filtered.map(t => {
+                const status = getTenantStatus(t);
+                return (
+                  <tr key={t.id} className="hover:bg-zinc-50/50 transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="text-xs font-black text-zinc-900">{t.name}</p>
+                      <p className="text-[10px] text-zinc-400 flex items-center gap-1"><Globe size={9} />{t.slug}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-xs font-semibold text-zinc-700">{t.ownerName}</p>
+                      <p className="text-[10px] text-zinc-400 flex items-center gap-1"><Mail size={9} />{t.ownerEmail}</p>
+                    </td>
+                    <td className="px-4 py-3"><Badge color="amber">{t.plan?.name}</Badge></td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs font-black text-zinc-700">{t.adminUsers?.length ?? 0}</span>
+                      {t.maxAdminUsersOverride && <span className="text-[10px] text-zinc-400">/{t.maxAdminUsersOverride}</span>}
+                      <span className="text-[10px] text-zinc-400"> users</span>
+                    </td>
+                    <td className="px-4 py-3 text-[11px] text-zinc-500 whitespace-nowrap">{fmtDate(t.createdAt)}</td>
+                    <td className="px-4 py-3 text-[11px] whitespace-nowrap">
+                      {t.expiresAt ? (
+                        <span className={new Date(t.expiresAt) < new Date() ? "text-red-500 font-bold" : "text-zinc-500"}>
+                          {fmtDate(t.expiresAt)}
+                        </span>
+                      ) : <span className="text-zinc-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => toggleActive(t)}>
+                        <Badge color={status.color}>{status.label}</Badge>
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setDetail(t)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors"><Eye size={13} /></button>
+                        <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors"><Edit2 size={13} /></button>
+                        <button onClick={() => del(t.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -421,22 +496,50 @@ function TenantsTab({ plans }: { plans: any[] }) {
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Editar Parceiro" : "Novo Parceiro"} width="max-w-xl">
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Nome do Salão"><Input placeholder="Glow & Cut Studio" value={form.name} onChange={e => setForm((p: any) => ({ ...p, name: e.target.value }))} /></Field>
-            <Field label="Slug (URL)"><Input placeholder="glow-cut" value={form.slug} onChange={e => setForm((p: any) => ({ ...p, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") }))} disabled={!!editing} /></Field>
+            <Field label="Nome do Salão"><Input placeholder="Glow & Cut Studio" value={form.name} onChange={e => {
+              const name = e.target.value;
+              const slug = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+              setForm((p: any) => ({ ...p, name, ...(!p._slugEdited && { slug }) }));
+            }} /></Field>
+            <Field label="Slug (URL)"><Input placeholder="glow-cut" value={form.slug} onChange={e => {
+              const slug = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-");
+              setForm((p: any) => ({ ...p, slug, _slugEdited: true }));
+            }} disabled={!!editing} /></Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Nome do Proprietário"><Input placeholder="João Silva" value={form.ownerName} onChange={e => setForm((p: any) => ({ ...p, ownerName: e.target.value }))} /></Field>
             <Field label="E-mail"><Input type="email" placeholder="joao@email.com" value={form.ownerEmail} onChange={e => setForm((p: any) => ({ ...p, ownerEmail: e.target.value }))} /></Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Telefone"><Input placeholder="(11) 99999-9999" value={form.ownerPhone} onChange={e => setForm((p: any) => ({ ...p, ownerPhone: e.target.value }))} /></Field>
+            <Field label="Telefone"><Input placeholder="(11) 99999-9999" value={form.ownerPhone} onChange={e => setForm((p: any) => ({ ...p, ownerPhone: maskPhone(e.target.value) }))} /></Field>
             <Field label="Plano">
               <Sel value={form.planId} onChange={e => setForm((p: any) => ({ ...p, planId: e.target.value }))}>
                 {plans.map(pl => <option key={pl.id} value={pl.id}>{pl.name} — R$ {Number(pl.price).toFixed(2)}</option>)}
               </Sel>
             </Field>
           </div>
-          {!editing && <Field label="Senha do Admin Inicial"><Input type="password" placeholder="Senha para o proprietário entrar" value={form.adminPassword} onChange={e => setForm((p: any) => ({ ...p, adminPassword: e.target.value }))} /></Field>}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Validade (vencimento)"><Input type="date" value={form.expiresAt} onChange={e => setForm((p: any) => ({ ...p, expiresAt: e.target.value }))} /></Field>
+            <Field label="Limite de Usuários Admin (override)"><Input type="number" min={1} placeholder="Padrão do plano" value={form.maxAdminUsersOverride} onChange={e => setForm((p: any) => ({ ...p, maxAdminUsersOverride: e.target.value }))} /></Field>
+          </div>
+          {editing && (
+            <Field label="Status">
+              <Sel value={form.isActive ? "1" : "0"} onChange={e => setForm((p: any) => ({ ...p, isActive: e.target.value === "1" }))}>
+                <option value="1">Ativo</option>
+                <option value="0">Bloqueado / Inativo</option>
+              </Sel>
+            </Field>
+          )}
+          {!editing && (
+            <Field label="Senha do Admin Inicial">
+              <div className="relative">
+                <Input type={showPwd ? "text" : "password"} placeholder="Senha para o proprietário entrar" value={form.adminPassword} onChange={e => setForm((p: any) => ({ ...p, adminPassword: e.target.value }))} className="pr-10" />
+                <button type="button" onClick={() => setShowPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
+                  {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </Field>
+          )}
           <Field label="Observações"><Textarea rows={2} placeholder="Notas internas..." value={form.notes} onChange={e => setForm((p: any) => ({ ...p, notes: e.target.value }))} /></Field>
           <div className="flex gap-2 pt-2">
             <button onClick={() => setModal(false)} className="flex-1 py-2.5 text-xs font-bold text-zinc-500 hover:text-zinc-800 transition-colors">Cancelar</button>
@@ -446,26 +549,41 @@ function TenantsTab({ plans }: { plans: any[] }) {
       </Modal>
 
       <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.name ?? ""} width="max-w-md">
-        {detail && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-zinc-50 rounded-xl p-3"><p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Plano</p><p className="text-sm font-black text-zinc-800 mt-0.5">{detail.plan?.name}</p></div>
-              <div className="bg-zinc-50 rounded-xl p-3"><p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Status</p><p className={cn("text-sm font-black mt-0.5", detail.isActive ? "text-emerald-600" : "text-red-500")}>{detail.isActive ? "Ativo" : "Inativo"}</p></div>
-            </div>
-            <div className="space-y-2">
-              <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Usuários Admin</p>
-              {detail.adminUsers?.length === 0 && <p className="text-xs text-zinc-400">Nenhum usuário</p>}
-              {detail.adminUsers?.map((u: any) => (
-                <div key={u.id} className="flex items-center gap-2 p-2.5 bg-zinc-50 rounded-xl">
-                  <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-black shrink-0">{u.name.charAt(0).toUpperCase()}</div>
-                  <div className="flex-1 min-w-0"><p className="text-xs font-bold text-zinc-800 truncate">{u.name}</p><p className="text-[10px] text-zinc-400 truncate">{u.email}</p></div>
-                  <Badge color={u.isActive ? "emerald" : "zinc"}>{ROLE_LABELS[u.role] ?? u.role}</Badge>
+        {detail && (() => {
+          const status = getTenantStatus(detail);
+          const now = new Date();
+          const daysLeft = detail.expiresAt ? Math.ceil((new Date(detail.expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-zinc-50 rounded-xl p-3"><p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Plano</p><p className="text-sm font-black text-zinc-800 mt-0.5">{detail.plan?.name}</p></div>
+                <div className="bg-zinc-50 rounded-xl p-3"><p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Status</p><p className={cn("text-sm font-black mt-0.5", status.color === "emerald" ? "text-emerald-600" : status.color === "red" ? "text-red-500" : "text-amber-500")}>{status.label}</p></div>
+                <div className="bg-zinc-50 rounded-xl p-3"><p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Usuários</p><p className="text-sm font-black text-zinc-800 mt-0.5">{detail.adminUsers?.length ?? 0}{detail.maxAdminUsersOverride ? `/${detail.maxAdminUsersOverride}` : ""}</p></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-zinc-50 rounded-xl p-3"><p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Criado em</p><p className="text-xs font-bold text-zinc-700 mt-0.5">{fmtDate(detail.createdAt)}</p></div>
+                <div className={cn("rounded-xl p-3", daysLeft !== null && daysLeft <= 7 ? "bg-amber-50 border border-amber-200" : "bg-zinc-50")}>
+                  <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Validade</p>
+                  <p className={cn("text-xs font-bold mt-0.5", daysLeft !== null && daysLeft <= 0 ? "text-red-500" : daysLeft !== null && daysLeft <= 7 ? "text-amber-600" : "text-zinc-700")}>
+                    {detail.expiresAt ? `${fmtDate(detail.expiresAt)}${daysLeft !== null ? ` (${daysLeft > 0 ? `${daysLeft}d restantes` : `${Math.abs(daysLeft)}d vencido`})` : ""}` : "Sem validade"}
+                  </p>
                 </div>
-              ))}
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Usuários Admin</p>
+                {detail.adminUsers?.length === 0 && <p className="text-xs text-zinc-400">Nenhum usuário</p>}
+                {detail.adminUsers?.map((u: any) => (
+                  <div key={u.id} className="flex items-center gap-2 p-2.5 bg-zinc-50 rounded-xl">
+                    <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-black shrink-0">{u.name.charAt(0).toUpperCase()}</div>
+                    <div className="flex-1 min-w-0"><p className="text-xs font-bold text-zinc-800 truncate">{u.name}</p><p className="text-[10px] text-zinc-400 truncate">{u.email}</p></div>
+                    <Badge color={u.isActive ? "emerald" : "zinc"}>{ROLE_LABELS[u.role] ?? u.role}</Badge>
+                  </div>
+                ))}
+              </div>
+              {detail.notes && <div className="bg-amber-50 border border-amber-100 rounded-xl p-3"><p className="text-[9px] font-bold text-amber-600 uppercase tracking-widest mb-1">Observações</p><p className="text-xs text-zinc-700">{detail.notes}</p></div>}
             </div>
-            {detail.notes && <div className="bg-amber-50 border border-amber-100 rounded-xl p-3"><p className="text-[9px] font-bold text-amber-600 uppercase tracking-widest mb-1">Observações</p><p className="text-xs text-zinc-700">{detail.notes}</p></div>}
-          </div>
-        )}
+          );
+        })()}
       </Modal>
     </div>
   );
@@ -481,6 +599,11 @@ function UsersTab({ tenants }: { tenants: any[] }) {
   const [editing, setEditing] = useState<any>(null);
   const [showPass, setShowPass] = useState(false);
   const emptyForm = { name: "", email: "", password: "", role: "admin", jobTitle: "", bio: "", phone: "", canCreateUsers: false, canDeleteAccount: false, tenantId: "" };
+  const maskPhone = (v: string) => {
+    const d = v.replace(/\D/g, "").slice(0, 11);
+    if (d.length <= 10) return d.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3").replace(/-$/, "");
+    return d.replace(/(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3").replace(/-$/, "");
+  };
   const [form, setForm] = useState<any>(emptyForm);
 
   const load = useCallback(async () => {
@@ -616,7 +739,7 @@ function UsersTab({ tenants }: { tenants: any[] }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Cargo / Função"><Input placeholder="Ex: Gerente, Recepcionista" value={form.jobTitle} onChange={e => setForm((p: any) => ({ ...p, jobTitle: e.target.value }))} /></Field>
-            <Field label="Telefone de Contato"><Input placeholder="(11) 99999-9999" value={form.phone} onChange={e => setForm((p: any) => ({ ...p, phone: e.target.value }))} /></Field>
+            <Field label="Telefone de Contato"><Input placeholder="(11) 99999-9999" value={form.phone} onChange={e => setForm((p: any) => ({ ...p, phone: maskPhone(e.target.value) }))} /></Field>
           </div>
           <Field label="Bio / O que faz no sistema"><Textarea rows={2} placeholder="Descreva a função deste usuário..." value={form.bio} onChange={e => setForm((p: any) => ({ ...p, bio: e.target.value }))} /></Field>
           <Field label="Permissões Extras">
@@ -901,14 +1024,24 @@ function ProfileTab({ username }: { username: string }) {
 /* ═══════════════════════════════════════════
    SIDEBAR
 ═══════════════════════════════════════════ */
-const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string }[] = [
-  { key: "dash",        icon: <LayoutDashboard size={17} />, label: "Dashboard" },
-  { key: "plans",       icon: <CreditCard size={17} />,      label: "Planos" },
-  { key: "tenants",     icon: <Building2 size={17} />,       label: "Parceiros" },
-  { key: "users",       icon: <Users size={17} />,           label: "Usuários Admin" },
-  { key: "permissions", icon: <Lock size={17} />,            label: "Permissões" },
-  { key: "profile",     icon: <User size={17} />,            label: "Meu Perfil" },
+const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: string }[] = [
+  { key: "dash",        icon: <LayoutDashboard size={17} />, label: "Dashboard",      path: "/super-admin" },
+  { key: "plans",       icon: <CreditCard size={17} />,      label: "Planos",         path: "/super-admin/planos" },
+  { key: "tenants",     icon: <Building2 size={17} />,       label: "Parceiros",      path: "/super-admin/parceiros" },
+  { key: "users",       icon: <Users size={17} />,           label: "Usuários Admin", path: "/super-admin/usuarios" },
+  { key: "permissions", icon: <Lock size={17} />,            label: "Permissões",     path: "/super-admin/permissoes" },
+  { key: "profile",     icon: <User size={17} />,            label: "Meu Perfil",     path: "/super-admin/perfil" },
 ];
+
+function pathToTab(pathname: string): TabKey {
+  if (pathname === "/super-admin" || pathname === "/super-admin/") return "dash";
+  if (pathname.includes("/planos"))      return "plans";
+  if (pathname.includes("/parceiros"))   return "tenants";
+  if (pathname.includes("/usuarios"))    return "users";
+  if (pathname.includes("/permissoes"))  return "permissions";
+  if (pathname.includes("/perfil"))      return "profile";
+  return "dash";
+}
 
 interface SidebarProps {
   tab: TabKey;
@@ -919,6 +1052,7 @@ interface SidebarProps {
 }
 
 function Sidebar({ tab, setTab, username, onLogout, onClose }: SidebarProps) {
+  const navigate = useNavigate();
   return (
     <div className="flex flex-col h-full bg-zinc-950">
       {/* Logo */}
@@ -939,7 +1073,7 @@ function Sidebar({ tab, setTab, username, onLogout, onClose }: SidebarProps) {
         {NAV_ITEMS.map(item => (
           <button
             key={item.key}
-            onClick={() => { setTab(item.key); onClose?.(); }}
+            onClick={() => { setTab(item.key); navigate(item.path); onClose?.(); }}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all",
               tab === item.key
@@ -981,7 +1115,12 @@ function Sidebar({ tab, setTab, username, onLogout, onClose }: SidebarProps) {
    MAIN
 ═══════════════════════════════════════════ */
 export default function SuperAdminDashboard({ username, onLogout }: { username: string; onLogout: () => void }) {
-  const [tab, setTab] = useState<TabKey>("dash");
+  const location = useLocation();
+  const [tab, setTab] = useState<TabKey>(() => pathToTab(location.pathname));
+
+  useEffect(() => {
+    setTab(pathToTab(location.pathname));
+  }, [location.pathname]);
   const [plans, setPlans] = useState<any[]>([]);
   const [tenants, setTenants] = useState<any[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
