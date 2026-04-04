@@ -4,6 +4,7 @@ import ClientBooking from "./pages/ClientBooking";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProfessionalDashboard from "./pages/ProfessionalDashboard";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
+import LandingPage from "./pages/LandingPage";
 import { Eye, EyeOff, Scissors, UserCog, ArrowRight, Sparkles } from "lucide-react";
 import { cn } from "./lib/utils";
 
@@ -244,7 +245,7 @@ function App() {
           if (localStorage.getItem("superAdminLogged")) return <Navigate to="/super-admin" replace />;
           if (localStorage.getItem("isLogged") === "true") return <Navigate to="/admin" replace />;
           if (localStorage.getItem("professionalLogged")) return <Navigate to="/pro" replace />;
-          return <Navigate to="/login" replace />;
+          return <LandingPage />;
         })()} />
         <Route path="/:slug" element={<ClientBooking />} />
         <Route path="/agendar/:slug" element={<ClientBooking />} />
