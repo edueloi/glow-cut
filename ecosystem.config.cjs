@@ -4,7 +4,7 @@ module.exports = {
       name: "agendelle",
       script: "server.ts",
       interpreter: "tsx",
-      cwd: "/var/www/agendelle",
+      cwd: "/root/agendelle",
       env: {
         NODE_ENV: "production",
         PORT: 3000,
