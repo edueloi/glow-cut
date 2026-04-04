@@ -247,6 +247,7 @@ function App() {
           return <Navigate to="/login" replace />;
         })()} />
         <Route path="/:slug" element={<ClientBooking />} />
+        <Route path="/agendar/:slug" element={<ClientBooking />} />
       </Routes>
     </BrowserRouter>
   );

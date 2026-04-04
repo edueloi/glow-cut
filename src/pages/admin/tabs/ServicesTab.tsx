@@ -100,49 +100,49 @@ export function ServicesTab({
             setNewService({ name: "", description: "", price: "", duration: "", type: serviceSubTab === 'services' ? 'service' : 'package', discount: "0", discountType: "value", includedServices: [], professionalIds: [] });
             setIsServiceModalOpen(true);
           }}
-          className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl px-8 py-6 font-bold shadow-xl shadow-zinc-900/10 flex items-center justify-center gap-2"
+          className="bg-zinc-900 hover:bg-black text-white rounded-xl px-5 font-bold shadow-sm flex items-center gap-1.5 text-xs h-9 transition-all active:scale-95"
         >
-          <Plus size={20} />
-          <span className="hidden xs:inline">Novo {serviceSubTab === 'services' ? 'Serviço' : 'Pacote'}</span>
-          <span className="xs:hidden">Criar</span>
+          <Plus size={14} />
+          <span>Criar {serviceSubTab === 'services' ? 'Serviço' : 'Pacote'}</span>
         </Button>
       </div>
 
       {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredServices.map((item) => (
             <motion.div
               layout
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               key={item.id}
-              className="bg-white rounded-3xl border border-zinc-200 p-5 shadow-sm hover:shadow-md transition-all flex flex-col group"
+              className="bg-white rounded-[32px] border border-zinc-200 p-6 shadow-sm hover:shadow-xl hover:border-zinc-300 transition-all flex flex-col group relative overflow-hidden"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-400 group-hover:scale-110 group-hover:bg-amber-50 group-hover:text-amber-500 transition-all">
-                  {item.type === 'service' ? <Scissors size={24} /> : <Package size={24} />}
+              <div className="flex items-start justify-between mb-5">
+                <div className="w-14 h-14 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-400 group-hover:scale-110 group-hover:bg-amber-50 group-hover:text-amber-500 transition-all duration-300 shadow-inner">
+                  {item.type === 'service' ? <Scissors size={24} strokeWidth={1.5} /> : <Package size={24} strokeWidth={1.5} />}
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-black text-zinc-900">R$ {Number(item.price).toFixed(0)}</p>
-                  <p className="text-[10px] text-zinc-400 font-bold flex items-center justify-end gap-1">
-                    <Clock size={10} /> {item.duration} min
-                  </p>
+                  <p className="text-xl font-black text-zinc-900 tracking-tight">R$ {Number(item.price).toFixed(0)}</p>
+                  <div className="flex items-center justify-end gap-1 mt-1">
+                    <Clock size={10} className="text-zinc-400" />
+                    <span className="text-[10px] text-zinc-400 font-black uppercase tracking-tighter">{item.duration} min</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="mb-4">
-                <h3 className="text-sm font-black text-zinc-900 group-hover:text-amber-600 transition-colors uppercase tracking-tight">{item.name}</h3>
-                <p className="text-[11px] text-zinc-500 mt-1 line-clamp-2 leading-relaxed">
-                  {item.description || "Sem descrição disponível."}
+              <div className="mb-6">
+                <h3 className="text-[13px] font-black text-zinc-900 group-hover:text-amber-600 transition-colors uppercase tracking-tight leading-tight">{item.name}</h3>
+                <p className="text-[11px] text-zinc-500 mt-2 line-clamp-2 leading-relaxed font-medium">
+                  {item.description || "Nenhuma descrição detalhada disponível para este item."}
                 </p>
               </div>
 
               {item.type === 'package' && item.packageServices?.length > 0 && (
-                <div className="mb-4 p-3 bg-zinc-50 rounded-2xl border border-zinc-100">
-                  <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Incluído no pacote</p>
-                  <div className="flex flex-wrap gap-1">
+                <div className="mb-6 p-4 bg-zinc-50 rounded-2xl border border-zinc-100/50">
+                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.15em] mb-3">Serviços no Pacote</p>
+                  <div className="flex flex-wrap gap-1.5">
                     {item.packageServices.map((ps: any, i: number) => (
-                      <span key={i} className="text-[9px] font-bold bg-white text-zinc-600 px-2 py-0.5 rounded-lg border border-zinc-100">
+                      <span key={i} className="text-[9px] font-bold bg-white text-zinc-600 px-2.5 py-1 rounded-lg border border-zinc-100 shadow-sm">
                         {ps.quantity}x {ps.service.name}
                       </span>
                     ))}
@@ -150,7 +150,7 @@ export function ServicesTab({
                 </div>
               )}
 
-              <div className="mt-auto flex gap-2 pt-4 border-t border-zinc-50">
+              <div className="mt-auto flex gap-3 pt-5 border-t border-zinc-50">
                 <button
                   onClick={() => {
                     setEditingService(item);
@@ -167,15 +167,15 @@ export function ServicesTab({
                     });
                     setIsServiceModalOpen(true);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-bold border border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-all"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 hover:text-zinc-900 transition-all active:scale-95"
                 >
-                  <Edit2 size={13} /> Editar
+                  <Edit2 size={12} /> Editar
                 </button>
                 <button
                   onClick={() => handleDeleteService(item.id)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-bold border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 transition-all"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-red-50 text-red-500 hover:bg-red-50/50 hover:border-red-100 transition-all active:scale-95"
                 >
-                  <Trash2 size={13} /> Excluir
+                  <Trash2 size={12} /> Excluir
                 </button>
               </div>
             </motion.div>

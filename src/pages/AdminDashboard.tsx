@@ -731,10 +731,9 @@ export default function AdminDashboard() {
     apiFetch("/api/services").then(res => res.json()).then(setServices);
   };
 
-  const handleDeleteService = async (id: string) => {
-    if (!confirm("Excluir este serviço?")) return;
-    await apiFetch(`/api/services/${id}`, { method: "DELETE" });
-    apiFetch("/api/services").then(res => res.json()).then(setServices);
+  const handleDeleteService = (id: string) => {
+    const service = services.find((s: any) => s.id === id);
+    setDeleteConfirm({ type: "service", id, name: service?.name || "este serviço" });
   };
 
   const handlePayComanda = async (comanda: any) => {
@@ -785,6 +784,9 @@ export default function AdminDashboard() {
     if (deleteConfirm.type === "professional") {
       await apiFetch(`/api/professionals/${deleteConfirm.id}`, { method: "DELETE" });
       apiFetch("/api/professionals").then(res => res.json()).then(setProfessionals);
+    } else if (deleteConfirm.type === "service") {
+      await apiFetch(`/api/services/${deleteConfirm.id}`, { method: "DELETE" });
+      apiFetch("/api/services").then(res => res.json()).then(setServices);
     }
     setDeleteConfirm(null);
   };
@@ -1190,6 +1192,8 @@ export default function AdminDashboard() {
             setNewService={setNewService}
             setIsServiceModalOpen={setIsServiceModalOpen}
             handleDeleteService={handleDeleteService}
+            viewMode={serviceView}
+            setViewMode={setServiceView}
           />
         )}
 
@@ -2919,6 +2923,38 @@ export default function AdminDashboard() {
             </div>
           );
         })()}
+      </Modal>
+
+      {/* ═══ MODAL CONFIRMAÇÃO DE EXCLUSÃO ════════════════════════ */}
+      <Modal 
+        isOpen={!!deleteConfirm} 
+        onClose={() => setDeleteConfirm(null)} 
+        title="Confirmar Exclusão"
+        className="max-w-sm"
+      >
+        <div className="flex flex-col items-center text-center p-2">
+          <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-4 border-4 border-white shadow-xl">
+            <Trash2 size={24} strokeWidth={2.5} />
+          </div>
+          <h4 className="text-sm font-black text-zinc-900 uppercase tracking-tight">Você tem certeza?</h4>
+          <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
+            Esta ação não pode ser desfeita. Você está prestes a excluir <strong className="text-zinc-900">"{deleteConfirm?.name}"</strong> permanentemente.
+          </p>
+          <div className="grid grid-cols-2 gap-3 w-full mt-6">
+            <button 
+              onClick={() => setDeleteConfirm(null)}
+              className="py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:bg-zinc-100 transition-all border border-zinc-100"
+            >
+              Cancelar
+            </button>
+            <button 
+              onClick={confirmDelete}
+              className="py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all active:scale-95"
+            >
+              Sim, Excluir
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
