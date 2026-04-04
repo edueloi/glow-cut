@@ -241,7 +241,7 @@ function App() {
         <Route path="/pro/login"   element={<Navigate to="/login" replace />} />
         <Route path="/pro"         element={<ProfessionalDashboard />} />
         <Route path="/admin"       element={<AdminDashboard />} />
-        <Route path="/super-admin" element={<SuperAdminDashboard />} />
+        <Route path="/super-admin" element={<SuperAdminDashboard username={(() => { try { return JSON.parse(localStorage.getItem("superAdminLogged") || "{}").username || "Admin"; } catch { return "Admin"; } })()} onLogout={() => { localStorage.removeItem("superAdminLogged"); window.location.href = "/login"; }} />} />
         <Route path="/:slug"       element={<ClientBooking />} />
         <Route path="/"            element={<Navigate to="/login" replace />} />
       </Routes>

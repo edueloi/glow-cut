@@ -1,0 +1,3 @@
+server.ts(1255,11): error TS1155: 'const' declarations must be initialized.
+src/App.tsx(244,46): error TS2739: Type '{}' is missing the following properties from type '{ username: string; onLogout: () => void; }': username, onLogout
+src/pages/AdminDashboard.tsx(176,9): error TS2367: This comparison appears to be unintentional because the types '"comandas" | "services" | "fluxo" | "clients" | "agenda" | "horarios" | "dash" | "minha-agenda" | "settings" | "profile"' and '"professionals"' have no overlap.

@@ -1,0 +1,9 @@
+762: const appointments = await prisma.appointment.findMany({
+785: const appointments = await prisma.appointment.findMany({
+805: const appt = await prisma.appointment.create({
+839: await prisma.appointment.updateMany({
+854: const appt = await prisma.appointment.findFirst({
+878: await prisma.appointment.updateMany({ where: { id: req.params.id, tenantId: tenantId || undefined }, data });
+879: const appt = await prisma.appointment.findFirst({ where: { id: req.params.id } });
+889: await prisma.appointment.deleteMany({ where: { id: req.params.id, tenantId: tenantId || undefined } });
+1168: const existing = await prisma.appointment.findMany({

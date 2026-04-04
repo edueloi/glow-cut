@@ -50,6 +50,7 @@ model Service {
   type               String           @default("service") @db.VarChar(20)
   discount           Float?           @default(0)
   discountType       String?          @default("value") @db.VarChar(20)
+  professionalIds    String?          @default("[]") @db.VarChar(2000)
   tenantId           String?          @db.VarChar(36)
   appointments       Appointment[]
   packageServices    PackageService[] @relation("PackageToService")
@@ -210,19 +211,4 @@ model AdminUser {
   isActive         Boolean   @default(true)
   tenantId         String    @db.VarChar(36)
   createdAt        DateTime  @default(now()) @db.DateTime(0)
-  lastLogin        DateTime? @db.DateTime(0)
-  permissions      String?   @db.VarChar(2000)
-  tenant           Tenant    @relation(fields: [tenantId], references: [id], map: "fk_admin_tenant")
-
-  @@index([tenantId], map: "fk_admin_tenant")
-  @@map("AdminUser")
-}
-
-model User {
-  id       String @id @default(uuid()) @db.VarChar(36)
-  username String @unique @db.VarChar(100)
-  password String @db.VarChar(255)
-  role     String @default("admin") @db.VarChar(20)
-
-  @@map("User")
-}
+  lastLogin  
