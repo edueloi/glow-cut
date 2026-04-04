@@ -485,76 +485,40 @@ async function run() {
 
   // Cria o banco
   await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
-  await rootConn.query(`USE \`${DB_NAME}\``);
-  console.log(`✅  Banco '${DB_NAME}' selecionado`);
+    await rootConn.query(`USE \`${DB_NAME}\``);
 
-  // Cria tabela de controle
-  await rootConn.query(`
-    CREATE TABLE IF NOT EXISTS _migrations (
-      id     INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      name   VARCHAR(255) NOT NULL UNIQUE,
-      ran_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  // Reconecta com o banco selecionado
+  await rootConn.end();
+  const conn = await mysql.createConnection({ ...DB_CONFIG, database: DB_NAME });
+  console.log("\uD83D\uDCBE  Banco selecionado: " + DB_NAME);
 
-  // Verifica quais já rodaram
-  const [ran] = await rootConn.query(`SELECT name FROM _migrations`);
-  const ranNames = new Set(ran.map((r) => r.name));
+  let ran = 0, skipped = 0, errors = 0;
 
-  let executed = 0;
-  let skipped = 0;
-
-  for (const migration of MIGRATIONS) {
-    if (migration.name === "001_create_database" || migration.name === "002_create_migrations_table") {
-      skipped++;
-      continue; // já feito acima
-    }
-
-    if (ranNames.has(migration.name)) {
-      console.log(`  ⏭   ${migration.name}`);
-      skipped++;
-      continue;
-    }
-
+  for (const m of MIGRATIONS) {
+    if (m.useDb === false) { skipped++; continue; }
     try {
-      // Executa cada statement separado (mysql2 não aceita múltiplos por padrão sem flag)
-      const statements = migration.sql
-        .split(";")
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
+      // Verifica se ja foi executada
+      const [rows] = await conn.query("SELECT id FROM _migrations WHERE name = ?", [m.name]);
+      if (rows.length > 0) { skipped++; continue; }
 
-      for (const stmt of statements) {
-        await rootConn.query(stmt);
-      }
-
-      await rootConn.query(`INSERT IGNORE INTO _migrations (name) VALUES (?)`, [migration.name]);
-      console.log(`  ✅  ${migration.name}`);
-      executed++;
+      await conn.query(m.sql);
+      await conn.query("INSERT INTO _migrations (name) VALUES (?)", [m.name]);
+      console.log("  \u2705  " + m.name);
+      ran++;
     } catch (err) {
-      const e = err;
-      // Ignora erros de chave duplicada / constraint já existe se marcado
-      if (migration.ignoreIfExists && (e.code === "ER_DUP_KEYNAME" || e.code === "ER_FK_DUP_NAME" || e.code === "ER_DUP_FIELDNAME" || e.errno === 1060 || e.errno === 1061 || e.errno === 1826)) {
-        await rootConn.query(`INSERT IGNORE INTO _migrations (name) VALUES (?)`, [migration.name]);
-        console.log(`  ✅  ${migration.name} (já existia, ignorado)`);
+      if (m.ignoreIfExists && (err.code === "ER_DUP_FIELDNAME" || err.code === "ER_TABLE_EXISTS_ERROR" || err.message.includes("Duplicate column"))) {
+        await conn.query("INSERT IGNORE INTO _migrations (name) VALUES (?)", [m.name]);
         skipped++;
       } else {
-        console.error(`  ❌  ${migration.name} — ERRO: ${e.message}`);
-        await rootConn.end();
-        process.exit(1);
+        console.error("  \u274C  " + m.name + ": " + err.message);
+        errors++;
       }
     }
   }
 
-  await rootConn.end();
-
-  console.log(`\n🎉  Migration concluída!`);
-  console.log(`    Executadas : ${executed}`);
-  console.log(`    Ignoradas  : ${skipped}`);
-  console.log(`\n    Login Super Admin: Admin / super123`);
-  console.log(`    Planos criados   : Básico, Pro, Enterprise\n`);
+  await conn.end();
+  console.log("\n\u2728  Conclu\u00EDdo: " + ran + " executadas, " + skipped + " j\u00E1 aplicadas, " + errors + " erros\n");
+  if (errors > 0) process.exit(1);
 }
 
-run().catch((err) => {
-  console.error("❌  Erro fatal:", err.message);
-  process.exit(1);
-});
+run().catch(err => { console.error(err); process.exit(1); });

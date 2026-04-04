@@ -211,10 +211,10 @@ model AdminUser {
   tenantId         String    @db.VarChar(36)
   createdAt        DateTime  @default(now()) @db.DateTime(0)
   lastLogin        DateTime? @db.DateTime(0)
-  permissions      String?   @db.VarChar(4000)
-  tenant           Tenant    @relation(fields: [tenantId], references: [id], map: "fk_adminuser_tenant")
+  permissions      String?   @db.VarChar(2000)
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], map: "fk_admin_tenant")
 
-  @@index([tenantId], map: "fk_adminuser_tenant")
+  @@index([tenantId], map: "fk_admin_tenant")
   @@map("AdminUser")
 }
 

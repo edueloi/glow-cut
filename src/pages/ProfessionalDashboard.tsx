@@ -67,7 +67,7 @@ export default function ProfessionalDashboard() {
     if (stored) {
       setProf(JSON.parse(stored));
     } else {
-      window.location.href = "/pro/login";
+      window.location.href = "/login";
     }
   }, []);
 
@@ -103,7 +103,7 @@ export default function ProfessionalDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem("professionalLogged");
-    window.location.href = "/pro/login";
+    window.location.href = "/login";
   };
 
   if (!prof) return null;
@@ -294,38 +294,32 @@ export default function ProfessionalDashboard() {
                           )}
                         </div>
 
-                        <div className="w-px h-10 bg-zinc-100" />
-
-                        {/* Avatar cliente */}
-                        <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 font-black text-sm shrink-0">
-                          {app.client?.name?.charAt(0).toUpperCase() ?? "?"}
-                        </div>
-
+                        {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-zinc-900 truncate">{app.client?.name ?? "—"}</p>
-                          <div className="flex items-center gap-3 mt-1 flex-wrap">
-                            <span className="text-[10px] text-zinc-500 font-medium flex items-center gap-1">
-                              <Scissors size={10} className="text-amber-500/60" />
-                              {app.service?.name ?? "—"}
-                            </span>
-                            {app.service?.duration && (
-                              <span className="text-[10px] text-zinc-400 flex items-center gap-1">
-                                <Clock size={10} /> {app.service.duration}min
+                          <p className="text-sm font-bold text-zinc-900 truncate">
+                            {app.client?.name || "Sem cliente"}
+                          </p>
+                          {app.service && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <Scissors size={10} className="text-amber-500" />
+                              <span className="text-xs text-zinc-500">{app.service.name}</span>
+                              <span className="text-[10px] font-bold text-amber-600">
+                                R$ {app.service.price.toFixed(2)}
                               </span>
-                            )}
-                          </div>
+                            </div>
+                          )}
+                          {app.service?.duration && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Clock size={10} className="text-zinc-300" />
+                              <span className="text-[10px] text-zinc-400">{app.service.duration} min</span>
+                            </div>
+                          )}
                         </div>
 
-                        <div className="flex items-center gap-3 shrink-0">
-                          {app.service?.price != null && (
-                            <span className="text-sm font-black text-zinc-900">
-                              R$ {app.service.price.toFixed(2)}
-                            </span>
-                          )}
-                          <span className={cn("text-[9px] font-bold px-3 py-1.5 rounded-xl border uppercase tracking-widest", statusColor(app.status))}>
-                            {statusLabel(app.status)}
-                          </span>
-                        </div>
+                        {/* Status badge */}
+                        <span className={cn("text-[9px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border", statusColor(app.status))}>
+                          {statusLabel(app.status)}
+                        </span>
                       </motion.div>
                     ))
                   )}

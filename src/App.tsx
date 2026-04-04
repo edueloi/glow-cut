@@ -147,308 +147,106 @@ function LoginPage() {
         </div>
       </div>
 
-      {/* ── Painel direito — form ──────────────────────── */}
-      <div className="flex-1 bg-white flex flex-col items-center justify-center p-6 sm:p-10 min-h-screen lg:min-h-0">
-        {/* Mobile logo */}
-        <div className="lg:hidden text-center mb-8">
-          <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-amber-500/25 mb-4">
-            <Scissors size={22} className="text-white" />
-          </div>
-          <h1 className="text-lg font-black text-zinc-900">Glow & Cut</h1>
-          <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mt-1">Studio Management</p>
-        </div>
-
+      
+      {/* Right panel: login form */}
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white">
         <div className="w-full max-w-sm">
-          {/* Heading */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-black text-zinc-900 tracking-tight">Bem-vindo!</h2>
-            <p className="text-sm text-zinc-500 mt-1.5 font-medium">Acesse sua conta para continuar</p>
+          {/* Mobile logo */}
+          <div className="flex lg:hidden items-center gap-3 mb-8">
+            <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-500 rounded-2xl flex items-center justify-center">
+              <Scissors size={18} className="text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-black text-zinc-900">Glow &amp; Cut</p>
+              <p className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Studio</p>
+            </div>
           </div>
 
-          {/* Form */}
-          <div className="space-y-5">
-            {/* Usuário */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
-                Usuário ou E-mail
+          <h2 className="text-2xl font-black text-zinc-900 mb-1">Bem-vindo de volta</h2>
+          <p className="text-xs text-zinc-400 font-medium mb-8">Entre com suas credenciais para continuar</p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1.5">
+                E-mail ou usuário
               </label>
               <input
                 type="text"
-                value={user}
                 autoComplete="username"
-                autoFocus
-                onChange={e => { setUser(e.target.value); setError(""); }}
+                value={user}
+                onChange={e => setUser(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleLogin()}
-                placeholder="Digite seu usuário ou e-mail"
-                className="w-full text-sm font-semibold px-4 py-3.5 rounded-2xl bg-zinc-50 border-2 border-zinc-200 text-zinc-900 placeholder:text-zinc-300 focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-400/10 outline-none transition-all"
+                placeholder="admin@exemplo.com"
+                className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-800 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all placeholder:text-zinc-400"
               />
             </div>
 
-            {/* Senha */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+            <div>
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1.5">
                 Senha
               </label>
               <div className="relative">
                 <input
                   type={showPass ? "text" : "password"}
-                  value={pass}
                   autoComplete="current-password"
-                  onChange={e => { setPass(e.target.value); setError(""); }}
+                  value={pass}
+                  onChange={e => setPass(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && handleLogin()}
                   placeholder="••••••••"
-                  className="w-full text-sm font-semibold px-4 py-3.5 pr-12 rounded-2xl bg-zinc-50 border-2 border-zinc-200 text-zinc-900 placeholder:text-zinc-300 focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-400/10 outline-none transition-all"
+                  className="w-full text-sm p-3.5 pr-12 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-800 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all placeholder:text-zinc-400"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPass(v => !v)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                  onClick={() => setShowPass(p => !p)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 transition-colors"
                 >
                   {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
 
-            {/* Error */}
             {error && (
-              <div className="flex items-center gap-2.5 text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-4 py-3 rounded-xl">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-bold text-red-600">
                 {error}
               </div>
             )}
 
-            {/* Submit */}
             <button
               onClick={handleLogin}
               disabled={loading || !user || !pass}
-              className={cn(
-                "w-full py-4 rounded-2xl text-sm font-black transition-all",
-                "bg-zinc-900 hover:bg-zinc-800 text-white shadow-lg shadow-zinc-900/20",
-                "disabled:opacity-30 disabled:cursor-not-allowed",
-                "flex items-center justify-center gap-2 group"
-              )}
+              className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-bold rounded-2xl py-3.5 text-sm transition-all shadow-lg shadow-amber-500/20"
             >
               {loading ? (
-                <>
-                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Verificando...
-                </>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                <>
-                  Entrar
-                  <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
-                </>
+                <>Entrar <ArrowRight size={16} /></>
               )}
             </button>
           </div>
 
-          {/* Mobile footer */}
-          <div className="lg:hidden mt-8 text-center">
-            <p className="text-[10px] text-zinc-400 font-medium">
-              Desenvolvido por{" "}
-              <span className="text-zinc-500 font-black">Develoi Soluções Digitais</span>
-            </p>
-          </div>
+          <p className="text-center text-[10px] text-zinc-400 mt-8 font-medium">
+            Acesso exclusivo para equipe autorizada
+          </p>
         </div>
       </div>
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   PROFESSIONAL LOGIN
-───────────────────────────────────────────────────────── */
-function ProfessionalLogin() {
-  const [name, setName] = useState("");
-  const [pass, setPass] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [showPass, setShowPass] = useState(false);
-
-  if (localStorage.getItem("professionalLogged")) return <Navigate to="/pro" />;
-
-  const handleLogin = async () => {
-    if (!name || !pass) return;
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/professionals/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, password: pass }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Erro ao entrar.");
-      } else {
-        const prof = await res.json();
-        localStorage.setItem("professionalLogged", JSON.stringify(prof));
-        window.location.href = "/pro";
-      }
-    } catch {
-      setError("Erro de conexão.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      <div className="hidden lg:flex lg:w-[45%] bg-zinc-950 flex-col items-center justify-center p-12 relative overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl" />
-          <div
-            className="absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage: "linear-gradient(rgba(255,255,255,.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.4) 1px, transparent 1px)",
-              backgroundSize: "50px 50px",
-            }}
-          />
-        </div>
-        <div className="relative z-10 text-center max-w-xs">
-          <div className="relative inline-block mb-8">
-            <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-amber-500/40">
-              <UserCog size={32} className="text-white" />
-            </div>
-            <div className="absolute -inset-2 bg-amber-500/15 rounded-[28px] blur-xl" />
-          </div>
-          <h1 className="text-3xl font-black text-white tracking-tight">Glow & Cut</h1>
-          <p className="text-[11px] font-bold text-amber-400 uppercase tracking-[0.25em] mt-2">Acesso Profissional</p>
-          <p className="text-xs text-zinc-500 mt-6 leading-relaxed font-medium">
-            Área exclusiva para profissionais cadastrados pelo administrador do estúdio.
-          </p>
-        </div>
-        <div className="absolute bottom-8 text-center z-10">
-          <p className="text-[10px] text-zinc-700 font-medium">
-            Desenvolvido por <span className="text-zinc-500 font-black">Develoi Soluções Digitais</span>
-          </p>
-        </div>
-      </div>
-
-      <div className="flex-1 bg-white flex flex-col items-center justify-center p-6 sm:p-10 min-h-screen lg:min-h-0">
-        <div className="lg:hidden text-center mb-8">
-          <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-amber-500/25 mb-4">
-            <UserCog size={22} className="text-white" />
-          </div>
-          <h1 className="text-lg font-black text-zinc-900">Glow & Cut</h1>
-          <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mt-1">Acesso Profissional</p>
-        </div>
-
-        <div className="w-full max-w-sm">
-          <div className="mb-8">
-            <h2 className="text-2xl font-black text-zinc-900 tracking-tight">Bem-vindo!</h2>
-            <p className="text-sm text-zinc-500 mt-1.5 font-medium">Entre com suas credenciais</p>
-          </div>
-
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Seu Nome</label>
-              <input
-                type="text"
-                className="w-full text-sm font-semibold px-4 py-3.5 rounded-2xl bg-zinc-50 border-2 border-zinc-200 text-zinc-900 placeholder:text-zinc-300 focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-400/10 outline-none transition-all"
-                placeholder="Ex: João Silva"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleLogin()}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Senha</label>
-              <div className="relative">
-                <input
-                  type={showPass ? "text" : "password"}
-                  className="w-full text-sm font-semibold px-4 py-3.5 pr-12 rounded-2xl bg-zinc-50 border-2 border-zinc-200 text-zinc-900 placeholder:text-zinc-300 focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-400/10 outline-none transition-all"
-                  placeholder="••••••••"
-                  value={pass}
-                  onChange={e => setPass(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleLogin()}
-                />
-                <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors">
-                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2.5 text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-4 py-3 rounded-xl">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-                {error}
-              </div>
-            )}
-
-            <button
-              className={cn(
-                "w-full py-4 rounded-2xl text-sm font-black transition-all",
-                "bg-zinc-900 hover:bg-zinc-800 text-white shadow-lg shadow-zinc-900/20",
-                "disabled:opacity-30 disabled:cursor-not-allowed",
-                "flex items-center justify-center gap-2 group"
-              )}
-              onClick={handleLogin}
-              disabled={loading || !name || !pass}
-            >
-              {loading ? "Verificando..." : <><span>Entrar</span><ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" /></>}
-            </button>
-            <p className="text-[10px] text-center text-zinc-400 font-medium">
-              Acesso cadastrado pelo administrador
-            </p>
-          </div>
-
-          <div className="lg:hidden mt-8 text-center">
-            <p className="text-[10px] text-zinc-400 font-medium">
-              Desenvolvido por <span className="text-zinc-500 font-black">Develoi Soluções Digitais</span>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────
-   GUARDS
-───────────────────────────────────────────────────────── */
-function RequireAdmin({ children }: { children: React.ReactNode }) {
-  if (localStorage.getItem("isLogged") !== "true") return <Navigate to="/login" />;
-  return <>{children}</>;
-}
-
-function RequireSuperAdmin({ children }: { children: React.ReactNode }) {
-  if (!localStorage.getItem("superAdminLogged")) return <Navigate to="/login" />;
-  return <>{children}</>;
-}
-
-function SuperAdminPage() {
-  const raw = localStorage.getItem("superAdminLogged");
-  if (!raw) return <Navigate to="/login" />;
-  const sa = JSON.parse(raw);
-  const handleLogout = () => {
-    localStorage.removeItem("superAdminLogged");
-    window.location.href = "/login";
-  };
-  return <SuperAdminDashboard username={sa.username} onLogout={handleLogout} />;
-}
-
-/* ─────────────────────────────────────────────────────────
-   APP ROUTER
-───────────────────────────────────────────────────────── */
-export default function App() {
+function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<ClientBooking />} />
-        <Route path="/agendar/:slug" element={<ClientBooking />} />
-        <Route path="/agendar" element={<Navigate to="/" />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
-        <Route path="/admin/*" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
-        <Route path="/super-admin" element={<SuperAdminPage />} />
-        <Route path="/super-admin/*" element={<SuperAdminPage />} />
-        <Route path="/pro/login" element={<ProfessionalLogin />} />
-        <Route path="/pro" element={<ProfessionalDashboard />} />
+        <Route path="/login"       element={<LoginPage />} />
+        <Route path="/pro/login"   element={<Navigate to="/login" replace />} />
+        <Route path="/pro"         element={<ProfessionalDashboard />} />
+        <Route path="/admin"       element={<AdminDashboard />} />
+        <Route path="/super-admin" element={<SuperAdminDashboard />} />
+        <Route path="/:slug"       element={<ClientBooking />} />
+        <Route path="/"            element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );
 }
+
+export default App;

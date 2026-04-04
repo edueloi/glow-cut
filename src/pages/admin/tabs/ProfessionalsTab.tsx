@@ -10,6 +10,7 @@ const MODULE_LABELS: Record<string, string> = {
 };
 const ACTION_LABELS: Record<string, string> = {
   ver: "Ver", criar: "Criar",
+  editar: "Editar", excluir: "Excluir",
   editar_proprio: "Editar próprios", editar_todos: "Editar todos",
   excluir_proprio: "Excluir próprios", excluir_todos: "Excluir todos",
 };
@@ -49,26 +50,26 @@ function parsePerms(raw: any): Record<string, Record<string, boolean>> {
   } catch { return {}; }
 }
 
-// ── Badges no card do profissional ──────────────────────────
+// ── Badges no card do profissional — agrupa por módulo ───────
 function PermBadges({ perms }: { perms: Record<string, Record<string, boolean>> }) {
-  type Chip = { mod: string; action: string };
-  const chips: Chip[] = [];
-  for (const [mod, actions] of Object.entries(perms)) {
-    for (const [action, enabled] of Object.entries(actions)) {
-      if (enabled) chips.push({ mod, action });
-    }
-  }
-  if (chips.length === 0) return null;
-  const shown = chips.slice(0, 4);
-  const rest  = chips.length - shown.length;
+  const modules = Object.entries(perms)
+    .filter(([, actions]) => Object.values(actions).some(Boolean))
+    .map(([mod, actions]) => {
+      const activeActions = Object.entries(actions).filter(([, v]) => v).map(([a]) => ACTION_LABELS[a] || a);
+      return { mod, activeActions };
+    });
+  if (modules.length === 0) return null;
+  const shown = modules.slice(0, 3);
+  const rest  = modules.length - shown.length;
   return (
     <div className="flex flex-wrap gap-1">
-      {shown.map(({ mod, action }) => (
-        <span key={`${mod}-${action}`} className="text-[9px] bg-zinc-100 text-zinc-600 rounded-full px-2 py-0.5 font-bold">
-          {MODULE_LABELS[mod] || mod} · {ACTION_LABELS[action] || action}
+      {shown.map(({ mod, activeActions }) => (
+        <span key={mod} className="text-[9px] bg-zinc-100 text-zinc-600 rounded-full px-2 py-0.5 font-bold">
+          {MODULE_LABELS[mod] || mod}
+          {activeActions.length > 1 && ` (${activeActions.length})`}
         </span>
       ))}
-      {rest > 0 && <span className="text-[9px] bg-zinc-100 text-zinc-400 rounded-full px-2 py-0.5 font-bold">+{rest}</span>}
+      {rest > 0 && <span className="text-[9px] bg-zinc-100 text-zinc-400 rounded-full px-2 py-0.5 font-bold">+{rest} módulo(s)</span>}
     </div>
   );
 }
@@ -202,17 +203,24 @@ export function ProfessionalsTab({
 
   const openCreate = () => {
     setEditingProfessional(null);
-    setNewProfessional({ ...emptyProfessional });
+    setNewProfessional(JSON.parse(JSON.stringify(emptyProfessional)));
     setIsProfessionalModalOpen(true);
   };
 
   const openEdit = (prof: any) => {
     setEditingProfessional(prof);
+    // Mescla com emptyProfessional.permissions para garantir todas as chaves no modal
+    const parsedPerms = parsePerms(prof.permissions);
+    const basePerms = emptyProfessional.permissions || {};
+    const mergedPerms: Record<string, Record<string, boolean>> = {};
+    for (const mod of Object.keys(basePerms)) {
+      mergedPerms[mod] = { ...basePerms[mod], ...(parsedPerms[mod] || {}) };
+    }
     setNewProfessional({
       name: prof.name, role: prof.role || "", password: "",
       phone: prof.phone || "", email: prof.email || "",
       bio: prof.bio || "", photo: prof.photo || "",
-      permissions: parsePerms(prof.permissions),
+      permissions: mergedPerms,
     });
     setIsProfessionalModalOpen(true);
   };
@@ -313,7 +321,22 @@ export function ProfessionalsTab({
                         {prof.phone && <p className="text-[10px] text-zinc-500 flex items-center gap-1.5"><Phone size={9} /> {prof.phone}</p>}
                         {prof.email && <p className="text-[10px] text-zinc-500 flex items-center gap-1.5"><Mail size={9} className="shrink-0" /><span className="truncate">{prof.email}</span></p>}
                       </div>
-                      <PermBadges perms={perms} />
+                      {/* Permissões expandidas */}
+                      {Object.values(perms).some(m => Object.values(m).some(Boolean)) ? (
+                        <div className="bg-zinc-50 rounded-xl p-2.5 space-y-1">
+                          {Object.entries(perms).filter(([, m]) => Object.values(m).some(Boolean)).map(([mod, actions]) => {
+                            const activeActions = Object.entries(actions).filter(([, v]) => v).map(([a]) => ACTION_LABELS[a] || a);
+                            return (
+                              <p key={mod} className="text-[9px] text-zinc-500 leading-relaxed">
+                                <span className="font-black text-zinc-700">{MODULE_LABELS[mod] || mod}:</span>{" "}
+                                {activeActions.join(" · ")}
+                              </p>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-[9px] text-zinc-400 italic">Sem permissões</p>
+                      )}
                       <div className="flex gap-2 pt-1">
                         <Button variant="outline"
                           className="flex-1 rounded-xl text-[10px] font-bold border-zinc-200 text-zinc-600 hover:bg-zinc-50 py-3 flex items-center justify-center gap-1.5 cursor-pointer"

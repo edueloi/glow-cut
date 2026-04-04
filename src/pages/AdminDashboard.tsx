@@ -739,6 +739,11 @@ export default function AdminDashboard() {
   const handleCreateProfessional = async () => {
     const url = editingProfessional ? `/api/professionals/${editingProfessional.id}` : "/api/professionals";
     const method = editingProfessional ? "PUT" : "POST";
+    // Mescla com emptyPermissions para garantir todas as chaves no JSON salvo
+    const mergedPerms: Record<string, Record<string, boolean>> = {};
+    for (const mod of Object.keys(emptyPermissions)) {
+      mergedPerms[mod] = { ...(emptyPermissions as any)[mod], ...((newProfessional.permissions || {})[mod] || {}) };
+    }
     const body: any = {
       name: newProfessional.name,
       role: newProfessional.role,
@@ -746,13 +751,13 @@ export default function AdminDashboard() {
       email: newProfessional.email,
       bio: newProfessional.bio,
       photo: newProfessional.photo,
-      permissions: newProfessional.permissions,
+      permissions: mergedPerms,
     };
     if (newProfessional.password) body.password = newProfessional.password;
     await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setIsProfessionalModalOpen(false);
     setEditingProfessional(null);
-    setNewProfessional({ ...emptyProfessional });
+    setNewProfessional(JSON.parse(JSON.stringify(emptyProfessional)));
     apiFetch("/api/professionals").then(res => res.json()).then(setProfessionals);
   };
 
