@@ -799,15 +799,25 @@ app.get("/api/services", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
   try {
-    const services = await (prisma.service as any).findMany({
+    const servicesRaw = await (prisma.service as any).findMany({
       where: { tenantId },
       include: {
-        packageServices: {
-          include: { service: { select: { id: true, name: true, duration: true, price: true } } }
+        packageservice_packageservice_packageIdToservice: {
+          include: { service_packageservice_serviceIdToservice: { select: { id: true, name: true, duration: true, price: true } } }
         }
       },
       orderBy: { name: "asc" }
     });
+    
+    const services = servicesRaw.map((s: any) => ({
+      ...s,
+      packageServices: s.packageservice_packageservice_packageIdToservice?.map((ps: any) => ({
+        ...ps,
+        service: ps.service_packageservice_serviceIdToservice
+      })) || [],
+      packageservice_packageservice_packageIdToservice: undefined
+    }));
+    
     res.json(services);
   } catch (e: any) {
     res.status(500).json({ error: "Erro ao buscar serviços." });
@@ -843,10 +853,18 @@ app.post("/api/services", async (req, res) => {
         });
       }
     }
-    const full = await (prisma.service as any).findFirst({
+    const fullRaw = await (prisma.service as any).findFirst({
       where: { id: serviceId },
-      include: { packageServices: { include: { service: { select: { id: true, name: true } } } } }
+      include: { packageservice_packageservice_packageIdToservice: { include: { service_packageservice_serviceIdToservice: { select: { id: true, name: true } } } } }
     });
+    const full = fullRaw ? {
+      ...fullRaw,
+      packageServices: fullRaw.packageservice_packageservice_packageIdToservice?.map((ps: any) => ({
+        ...ps,
+        service: ps.service_packageservice_serviceIdToservice
+      })) || [],
+      packageservice_packageservice_packageIdToservice: undefined
+    } : null;
     res.json(full);
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Erro ao criar serviço." });
@@ -879,10 +897,18 @@ app.put("/api/services/:id", async (req, res) => {
         });
       }
     }
-    const full = await (prisma.service as any).findFirst({
+    const fullRaw = await (prisma.service as any).findFirst({
       where: { id: req.params.id },
-      include: { packageServices: { include: { service: { select: { id: true, name: true } } } } }
+      include: { packageservice_packageservice_packageIdToservice: { include: { service_packageservice_serviceIdToservice: { select: { id: true, name: true } } } } }
     });
+    const full = fullRaw ? {
+      ...fullRaw,
+      packageServices: fullRaw.packageservice_packageservice_packageIdToservice?.map((ps: any) => ({
+        ...ps,
+        service: ps.service_packageservice_serviceIdToservice
+      })) || [],
+      packageservice_packageservice_packageIdToservice: undefined
+    } : null;
     res.json(full);
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Erro ao atualizar serviço." });

@@ -1,0 +1,23 @@
+{
+  "name": "Agendelle",
+  "short_name": "Agendelle",
+  "description": "Smart Schedulings platform",
+  "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#18181b",
+  "theme_color": "#f59e0b",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

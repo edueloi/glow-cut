@@ -992,6 +992,9 @@ function StaffTab() {
   const [showPass, setShowPass] = useState(false);
   const [form, setForm] = useState({ username: "", password: "" });
 
+  const sessionUser = (() => { try { return JSON.parse(localStorage.getItem("superAdminLogged") || "{}").username || ""; } catch { return ""; } })();
+  const isMaster = sessionUser.toLowerCase() === "admin" || sessionUser.toLowerCase() === "flavio_sikorsky";
+
   const load = useCallback(async () => {
     const r = await fetch("/api/super-admin/staff");
     setUsers(await r.json());
@@ -1018,6 +1021,9 @@ function StaffTab() {
   };
 
   const openForm = (u?: any) => {
+    if (!isMaster && !u) return; // Não adm não pode criar novo
+    if (!isMaster && u && u.username !== sessionUser) return; // Não adm não pode editar os outros
+    
     setEditing(u || null);
     setForm({ username: u?.username || "", password: "" });
     setModal(true);
@@ -1032,9 +1038,11 @@ function StaffTab() {
           <h2 className="text-base font-black text-zinc-900">Minha Equipe (Super Admins)</h2>
           <p className="text-[11px] text-zinc-400 mt-0.5">{users.length} usuário(s) com acesso mestre</p>
         </div>
-        <button onClick={() => openForm()} className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors">
-          <Plus size={13} /> Adicionar Equipe
-        </button>
+        {isMaster && (
+          <button onClick={() => openForm()} className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors">
+            <Plus size={13} /> Adicionar Equipe
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
@@ -1058,8 +1066,12 @@ function StaffTab() {
                 <td className="px-4 py-3 text-[11px] text-zinc-500">{new Date(u.createdAt).toLocaleDateString("pt-BR")}</td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <button onClick={() => openForm(u)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors"><Edit2 size={13} /></button>
-                    <button onClick={() => del(u.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
+                    {(isMaster || u.username === sessionUser) && (
+                      <button onClick={() => openForm(u)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors"><Edit2 size={13} /></button>
+                    )}
+                    {isMaster && u.username !== sessionUser && (
+                      <button onClick={() => del(u.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -1135,11 +1147,13 @@ function ProfileTab({ username }: { username: string }) {
           </div>
         </div>
 
-        <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200">
-          <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1.5">Credenciais padrão</p>
-          <p className="text-[11px] text-zinc-600 font-medium">Login: <strong className="text-zinc-800">Admin</strong> · Senha: <strong className="text-zinc-800">super123</strong></p>
-          <p className="text-[9px] text-amber-600 font-bold mt-1">⚠️ Altere a senha diretamente no banco de dados em produção.</p>
-        </div>
+        {username.toLowerCase() === "admin" || username.toLowerCase() === "flavio_sikorsky" ? (
+          <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200">
+            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1.5">Credenciais padrão</p>
+            <p className="text-[11px] text-zinc-600 font-medium">Login: <strong className="text-zinc-800">Admin</strong> · Senha: <strong className="text-zinc-800">super123</strong></p>
+            <p className="text-[9px] text-amber-600 font-bold mt-1">⚠️ Altere a senha diretamente no banco de dados em produção.</p>
+          </div>
+        ) : null}
       </div>
     </div>
   );
