@@ -28,45 +28,60 @@ interface AgendaTabProps {
   setNewAppointment: (o: any) => void;
   hoveredAppointment: string | null;
   setHoveredAppointment: (val: string | null) => void;
+  onAppointmentClick?: (app: any) => void;
 }
 
 /* ─── legend dots ─────────────────────────────────── */
 const LEGEND = [
-  { color: "bg-amber-400", label: "Atendimento" },
-  { color: "bg-red-400",   label: "Bloqueio" },
-  { color: "bg-blue-400",  label: "Pessoal" },
+  { color: "bg-amber-400", label: "Agendado" },
+  { color: "bg-emerald-500", label: "Confirmado" },
+  { color: "bg-red-500", label: "Falta" },
+  { color: "bg-zinc-400",  label: "Cancelado" },
 ];
 
-function appColor(type: string) {
+function appColor(type: string, status?: string) {
+  if (status === 'confirmed') return "bg-emerald-500";
+  if (status === 'noshow') return "bg-red-500";
+  if (status === 'cancelled') return "bg-zinc-400";
   return type === "bloqueio" ? "bg-red-400" : type === "pessoal" ? "bg-blue-400" : "bg-amber-400";
 }
-function appBg(type: string) {
+function appBg(type: string, status?: string) {
+  if (status === 'confirmed') return "bg-emerald-50 border-emerald-200";
+  if (status === 'noshow') return "bg-red-50 border-red-200";
+  if (status === 'cancelled') return "bg-zinc-100 border-zinc-200 opacity-60";
   return type === "bloqueio"
     ? "bg-red-50 border-red-200"
     : type === "pessoal"
     ? "bg-blue-50 border-blue-200"
     : "bg-amber-50 border-amber-200";
 }
-function appText(type: string) {
+function appText(type: string, status?: string) {
+  if (status === 'confirmed') return "text-emerald-700";
+  if (status === 'noshow') return "text-red-700";
+  if (status === 'cancelled') return "text-zinc-500";
   return type === "bloqueio" ? "text-red-700" : type === "pessoal" ? "text-blue-700" : "text-zinc-900";
 }
-function appTimeText(type: string) {
+function appTimeText(type: string, status?: string) {
+  if (status === 'confirmed') return "text-emerald-400";
+  if (status === 'noshow') return "text-red-400";
+  if (status === 'cancelled') return "text-zinc-400";
   return type === "bloqueio" ? "text-red-400" : type === "pessoal" ? "text-blue-400" : "text-zinc-500";
 }
 
 /* ─── Appointment pill (shared) ───────────────────── */
-function AppPill({ app, hovered, setHovered }: { app: any; hovered: boolean; setHovered: (v: string | null) => void }) {
+function AppPill({ app, hovered, setHovered, onClick }: { app: any; hovered: boolean; setHovered: (v: string | null) => void; onClick?: () => void }) {
   return (
     <div
       onMouseEnter={() => setHovered(app.id)}
       onMouseLeave={() => setHovered(null)}
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
       className={cn(
-        "relative text-[9px] px-1.5 py-1 rounded-lg border truncate font-semibold flex items-center gap-1 cursor-default",
-        appBg(app.type)
+        "relative text-[9px] px-1.5 py-1 rounded-lg border truncate font-semibold flex items-center gap-1 cursor-pointer transition-all hover:shadow-sm",
+        appBg(app.type, app.status)
       )}
     >
-      <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", appColor(app.type))} />
-      <span className={cn("truncate", appText(app.type))}>
+      <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", appColor(app.type, app.status))} />
+      <span className={cn("truncate", appText(app.type, app.status))}>
         {app.startTime}{" "}
         {app.type === "bloqueio" ? "Bloq." : app.type === "pessoal" ? "Pessoal" : app.client?.name}
       </span>
@@ -110,6 +125,7 @@ export function AgendaTab({
   setNewAppointment,
   hoveredAppointment,
   setHoveredAppointment,
+  onAppointmentClick,
 }: AgendaTabProps) {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
@@ -315,19 +331,20 @@ export function AgendaTab({
                           <span className="sm:hidden">Agendar</span>
                         </button>
                       ) : (
-                        dayApps.map((app) => (
-                          <div
-                            key={app.id}
-                            onMouseEnter={() => setHoveredAppointment(app.id)}
-                            onMouseLeave={() => setHoveredAppointment(null)}
-                            className={cn(
-                              "relative flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl border transition-all cursor-default",
-                              appBg(app.type)
-                            )}
-                          >
-                            <div className={cn("w-1 self-stretch rounded-full shrink-0", appColor(app.type))} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[11px] sm:text-xs font-black text-zinc-900 truncate">
+                          dayApps.map((app) => (
+                            <div
+                              key={app.id}
+                              onMouseEnter={() => setHoveredAppointment(app.id)}
+                              onMouseLeave={() => setHoveredAppointment(null)}
+                              onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(app); }}
+                              className={cn(
+                                "relative flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl border transition-all cursor-pointer hover:shadow-md",
+                                appBg(app.type, app.status)
+                              )}
+                            >
+                              <div className={cn("w-1 self-stretch rounded-full shrink-0", appColor(app.type, app.status))} />
+                              <div className="flex-1 min-w-0">
+                                <p className={cn("text-[11px] sm:text-xs font-black truncate", appText(app.type, app.status))}>
                                 {app.type === "bloqueio"
                                   ? "🚫 Horário Bloqueado"
                                   : app.type === "pessoal"
@@ -431,6 +448,7 @@ export function AgendaTab({
                             app={app}
                             hovered={hoveredAppointment === app.id}
                             setHovered={setHoveredAppointment}
+                            onClick={() => onAppointmentClick?.(app)}
                           />
                         ))}
                         {dayApps.length > 2 && (
@@ -582,13 +600,14 @@ export function AgendaTab({
                                   animate={{ opacity: 1, scale: 1 }}
                                   onMouseEnter={() => setHoveredAppointment(app.id)}
                                   onMouseLeave={() => setHoveredAppointment(null)}
+                                  onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(app); }}
                                   className={cn(
-                                    "h-full rounded-lg p-1.5 sm:p-2 flex flex-col justify-between cursor-pointer transition-all border",
-                                    appBg(app.type)
+                                    "h-full rounded-lg p-1.5 sm:p-2 flex flex-col justify-between cursor-pointer transition-all border hover:shadow-md",
+                                    appBg(app.type, app.status)
                                   )}
                                 >
                                   <div>
-                                    <p className={cn("text-[9px] font-black leading-tight truncate", appText(app.type))}>
+                                    <p className={cn("text-[9px] font-black leading-tight truncate", appText(app.type, app.status))}>
                                       {app.type === "bloqueio"
                                         ? "🚫 Bloq."
                                         : app.type === "pessoal"

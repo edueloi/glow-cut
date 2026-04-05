@@ -175,12 +175,19 @@ export default function AdminDashboard() {
     if (tab === 'comandas' || tab === 'fluxo') {
       apiFetch("/api/comandas").then(res => res.json()).then(setComandas);
     }
-    if (tab === 'agenda') {
-      fetchAppointments();
-    }
     if (tab === 'professionals') {
       apiFetch("/api/professionals").then(res => res.json()).then(setProfessionals);
     }
+  };
+
+  const handleUpdateAppointmentStatus = async (id: string, status: string) => {
+    await apiFetch(`/api/appointments/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status })
+    });
+    fetchAppointments();
+    setIsViewAppointmentModalOpen(false);
   };
 
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -242,6 +249,8 @@ export default function AdminDashboard() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isViewAppointmentModalOpen, setIsViewAppointmentModalOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   
   // Tooltip & Hover states
   const [slotHover, setSlotHover] = useState<{ x: number, y: number, label: string } | null>(null);
@@ -250,6 +259,7 @@ export default function AdminDashboard() {
 
   // New Appointment State
   const [newAppointment, setNewAppointment] = useState({
+    id: "" as string | undefined,
     date: new Date(),
     startTime: "09:00",
     duration: 60,
@@ -404,8 +414,11 @@ export default function AdminDashboard() {
       }
     }
 
-    await apiFetch("/api/appointments", {
-      method: "POST",
+    const urlAs = newAppointment.id ? `/api/appointments/${newAppointment.id}` : "/api/appointments";
+    const methodAs = newAppointment.id ? "PUT" : "POST";
+
+    await apiFetch(urlAs, {
+      method: methodAs,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...newAppointment,
@@ -415,6 +428,7 @@ export default function AdminDashboard() {
     });
     setIsAppointmentModalOpen(false);
     setNewAppointment({
+      id: undefined,
       date: new Date(), startTime: "09:00", duration: 60,
       clientId: "", clientPhone: "", clientName: "",
       serviceId: "", packageId: "", professionalId: "",
@@ -1193,6 +1207,10 @@ export default function AdminDashboard() {
             setNewAppointment={setNewAppointment}
             hoveredAppointment={hoveredAppointment}
             setHoveredAppointment={setHoveredAppointment}
+            onAppointmentClick={(app) => {
+              setSelectedAppointment(app);
+              setIsViewAppointmentModalOpen(true);
+            }}
           />
         )}
 
@@ -1547,6 +1565,129 @@ export default function AdminDashboard() {
             {editingService ? "Salvar Alterações" : (newService.type === 'service' ? "Cadastrar Serviço" : "Cadastrar Pacote")}
           </Button>
         </div>
+      </Modal>
+
+      {/* ── MODAL: DETALHES DO AGENDAMENTO ────────────────────────── */}
+      <Modal
+        isOpen={isViewAppointmentModalOpen}
+        onClose={() => setIsViewAppointmentModalOpen(false)}
+        title="Detalhes do Agendamento"
+        size="md"
+      >
+        {selectedAppointment && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-4 p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
+              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                <CalendarDays size={24} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-black text-zinc-900 truncate">{selectedAppointment.client?.name || 'Cliente não identificado'}</p>
+                <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
+                  {format(new Date(selectedAppointment.date), "EEEE, d 'de' MMMM", { locale: ptBR })} • {selectedAppointment.startTime}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 bg-white border border-zinc-100 rounded-xl">
+                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Serviço/Pacote</p>
+                <p className="text-xs font-bold text-zinc-800 truncate">{selectedAppointment.service?.name || '-'}</p>
+              </div>
+              <div className="p-3 bg-white border border-zinc-100 rounded-xl">
+                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Profissional</p>
+                <p className="text-xs font-bold text-zinc-800 truncate">{selectedAppointment.professional?.name || '-'}</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl border flex items-center justify-between gap-4 bg-white border-zinc-200">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
+                  selectedAppointment.comanda ? (selectedAppointment.comanda.status === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600') : 'bg-zinc-100 text-zinc-400'
+                )}>
+                  <Banknote size={20} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-zinc-900">Status Financeiro</p>
+                  <p className="text-[10px] font-medium text-zinc-500">
+                    {selectedAppointment.comanda 
+                      ? (selectedAppointment.comanda.status === 'paid' ? 'Comanda Paga' : 'Comanda Aberta')
+                      : 'Sem comanda vinculada'}
+                  </p>
+                </div>
+              </div>
+              {selectedAppointment.comanda && (
+                <Button variant="outline" size="sm" onClick={() => { setIsViewAppointmentModalOpen(false); handleTabChange('comandas'); }}>
+                  Ver Comanda
+                </Button>
+              )}
+            </div>
+
+            <div className="pt-2">
+              <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-3 ml-1">Gerenciar Status</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <button
+                  onClick={() => handleUpdateAppointmentStatus(selectedAppointment.id, 'confirmed')}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-emerald-100 bg-emerald-50/50 text-emerald-600 hover:bg-emerald-100 transition-all group"
+                >
+                  <CheckCircle size={20} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Confirmar</span>
+                </button>
+                <button
+                  onClick={() => handleUpdateAppointmentStatus(selectedAppointment.id, 'noshow')}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-red-100 bg-red-50/50 text-red-600 hover:bg-red-100 transition-all group"
+                >
+                  <AlertTriangle size={20} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Falta</span>
+                </button>
+                <button
+                  onClick={() => { 
+                    setNewAppointment({
+                      id: selectedAppointment.id,
+                      date: new Date(selectedAppointment.date),
+                      startTime: selectedAppointment.startTime,
+                      duration: selectedAppointment.duration || 60,
+                      clientId: selectedAppointment.clientId || "",
+                      clientPhone: selectedAppointment.client?.phone || "",
+                      clientName: selectedAppointment.client?.name || "",
+                      serviceId: selectedAppointment.serviceId || "",
+                      packageId: selectedAppointment.packageId || "",
+                      professionalId: selectedAppointment.professionalId || "",
+                      status: selectedAppointment.status || "agendado",
+                      notes: selectedAppointment.notes || "",
+                      type: selectedAppointment.type || "atendimento",
+                      recurrence: { type: "none", count: 1, interval: 7 },
+                      comandaId: selectedAppointment.comandaId || ""
+                    });
+                    setIsViewAppointmentModalOpen(false); 
+                    setIsAppointmentModalOpen(true); 
+                  }}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-blue-100 bg-blue-50/50 text-blue-600 hover:bg-blue-100 transition-all group"
+                >
+                  <Clock size={20} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Reagendar</span>
+                </button>
+                <button
+                  onClick={() => handleUpdateAppointmentStatus(selectedAppointment.id, 'cancelled')}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-500 hover:bg-zinc-100 transition-all group"
+                >
+                  <XCircle size={20} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Cancelar</span>
+                </button>
+                <button
+                  onClick={() => {
+                      setDeleteConfirm({ type: 'appointment', id: selectedAppointment.id, name: 'este agendamento' });
+                      setIsViewAppointmentModalOpen(false);
+                  }}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-red-200 bg-white text-red-400 hover:bg-red-50 transition-all group"
+                >
+                  <Trash2 size={20} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Excluir</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ═══ MODAL AGENDAMENTO ═══════════════════════════════════ */}

@@ -9,9 +9,18 @@ interface ModalProps {
   title?: string;
   children: React.ReactNode;
   className?: string;
+  size?: "sm" | "md" | "lg" | "xl" | "full";
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, className }) => {
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, className, size = "md" }) => {
+  const sizes = {
+    sm: "max-w-sm",
+    md: "max-w-md",
+    lg: "max-w-lg",
+    xl: "max-w-2xl",
+    full: "max-w-[95dvw]",
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -21,16 +30,17 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-50 bg-black/20"
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-[2px]"
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+          <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.97, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.97, y: 8 }}
               transition={{ duration: 0.18 }}
               className={cn(
-                "w-full max-w-md bg-white rounded-2xl shadow-xl pointer-events-auto overflow-hidden border border-zinc-200",
+                "w-full bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] pointer-events-auto overflow-hidden border border-zinc-200",
+                sizes[size],
                 className
               )}
             >

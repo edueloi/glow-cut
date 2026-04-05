@@ -968,6 +968,7 @@ app.get("/api/appointments", async (req, res) => {
         client: { select: { id: true, name: true, phone: true } },
         service: { select: { id: true, name: true, duration: true, price: true } },
         professional: { select: { id: true, name: true, role: true } },
+        comanda: { select: { id: true, status: true, total: true, paymentMethod: true } },
       },
       orderBy: [{ date: "asc" }, { startTime: "asc" }]
     });
