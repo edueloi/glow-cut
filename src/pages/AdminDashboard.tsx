@@ -1944,16 +1944,16 @@ export default function AdminDashboard() {
         {isRepeatModalOpen && (() => {
           const repeatOpts = [
             { label: 'Não Repete', type:'none', interval:0, count:0 },
-            { label: 'Semanal — 4 sessões',   type:'weekly', interval:7,  count:4  },
-            { label: 'Semanal — 8 sessões',   type:'weekly', interval:7,  count:8  },
-            { label: 'Semanal — 12 sessões',  type:'weekly', interval:7,  count:12 },
-            { label: 'Semanal — 16 sessões',  type:'weekly', interval:7,  count:16 },
-            { label: 'Semanal — 20 sessões',  type:'weekly', interval:7,  count:20 },
-            { label: 'A cada 15 dias — 4 sessões', type:'biweekly', interval:15, count:4 },
-            { label: 'A cada 15 dias — 8 sessões', type:'biweekly', interval:15, count:8 },
-            { label: 'Mensal — 3 sessões',  type:'monthly', interval:30, count:3  },
-            { label: 'Mensal — 6 sessões',  type:'monthly', interval:30, count:6  },
-            { label: 'Mensal — 12 sessões', type:'monthly', interval:30, count:12 },
+            { label: 'Semanal — 4 vezes',   type:'weekly', interval:7,  count:4  },
+            { label: 'Semanal — 8 vezes',   type:'weekly', interval:7,  count:8  },
+            { label: 'Semanal — 12 vezes',  type:'weekly', interval:7,  count:12 },
+            { label: 'Semanal — 16 vezes',  type:'weekly', interval:7,  count:16 },
+            { label: 'Semanal — 20 vezes',  type:'weekly', interval:7,  count:20 },
+            { label: 'A cada 15 dias — 4 vezes', type:'biweekly', interval:15, count:4 },
+            { label: 'A cada 15 dias — 8 vezes', type:'biweekly', interval:15, count:8 },
+            { label: 'Mensal — 3 vezes',  type:'monthly', interval:30, count:3  },
+            { label: 'Mensal — 6 vezes',  type:'monthly', interval:30, count:6  },
+            { label: 'Mensal — 12 vezes', type:'monthly', interval:30, count:12 },
             { label: 'Personalizado...', type:'custom', interval:0, count:0 },
           ];
           return (
@@ -2130,7 +2130,7 @@ export default function AdminDashboard() {
                       </button>
                       <button
                         onClick={() => {
-                          const label = `${customRepeat.frequency} — ${customRepeat.endType==='count' ? `${customRepeat.count} sessões` : `até ${customRepeat.endDate}`}`;
+                          const label = `${customRepeat.frequency} — ${customRepeat.endType==='count' ? `${customRepeat.count} vezes` : `até ${customRepeat.endDate}`}`;
                           setRepeatLabel(label);
                           setNewAppointment(p => ({...p, recurrence: {type:'custom', count: customRepeat.count, interval: customRepeat.interval}}));
                           setIsCustomRepeatModalOpen(false);

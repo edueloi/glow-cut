@@ -1002,34 +1002,43 @@ app.get("/api/appointments/client", async (req, res) => {
 app.post("/api/appointments", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { date, startTime, endTime, clientId, serviceId, professionalId, comandaId, duration, notes, status, type, sessionNumber, totalSessions } = req.body;
+  const { date, startTime, endTime, clientId, serviceId, professionalId, comandaId, duration, notes, status, type, sessionNumber, totalSessions, recurrence } = req.body;
   if (!date || !startTime || !professionalId) return res.status(400).json({ error: "data, horário e profissional são obrigatórios." });
   try {
-    const appt = await (prisma.appointment as any).create({
-      data: {
-        id: randomUUID(),
-        date: new Date(date),
-        startTime,
-        endTime: endTime || startTime,
-        status: status || "scheduled",
-        type: type || "atendimento",
-        clientId: clientId || null,
-        serviceId: serviceId || null,
-        professionalId,
-        comandaId: comandaId || null,
-        duration: duration || 60,
-        notes: notes || null,
-        tenantId,
-        sessionNumber: sessionNumber || 1,
-        totalSessions: totalSessions || 1,
-      },
-      include: {
-        client: { select: { id: true, name: true, phone: true } },
-        service: { select: { id: true, name: true } },
-        professional: { select: { id: true, name: true } },
-      }
-    });
-    res.json(appt);
+    const baseDate = new Date(date);
+    const count = (recurrence && recurrence.type !== "none") ? (recurrence.count || 1) : 1;
+    const interval = (recurrence && recurrence.type !== "none") ? (recurrence.interval || 7) : 7;
+    
+    const results = [];
+    for (let i = 0; i < count; i++) {
+      const apptDate = addDays(baseDate, i * interval);
+      const appt = await (prisma.appointment as any).create({
+        data: {
+          id: randomUUID(),
+          date: apptDate,
+          startTime,
+          endTime: endTime || startTime,
+          status: status || "scheduled",
+          type: type || "atendimento",
+          clientId: clientId || null,
+          serviceId: serviceId || null,
+          professionalId,
+          comandaId: comandaId || null,
+          duration: duration || 60,
+          notes: notes || null,
+          tenantId,
+          sessionNumber: i + 1,
+          totalSessions: count,
+        },
+        include: {
+          client: { select: { id: true, name: true, phone: true } },
+          service: { select: { id: true, name: true } },
+          professional: { select: { id: true, name: true } },
+        }
+      });
+      results.push(appt);
+    }
+    res.json(results[0]);
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Erro ao criar agendamento." });
   }

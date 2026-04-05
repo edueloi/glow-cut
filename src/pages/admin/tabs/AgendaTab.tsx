@@ -80,6 +80,7 @@ function AppPill({ app, hovered, setHovered }: { app: any; hovered: boolean; set
               <>
                 <p>{app.client?.name}</p>
                 {app.service && <p className="text-zinc-400 text-[9px]">{app.service.name}</p>}
+                {app.totalSessions > 1 && <p className="text-amber-500 text-[9px] font-black uppercase">Vez {app.sessionNumber}/{app.totalSessions}</p>}
               </>
             ) : (
               <p className="text-zinc-300">
@@ -335,10 +336,11 @@ export function AgendaTab({
                               </p>
                               {app.type === "atendimento" && app.service && (
                                 <p className="text-[9px] sm:text-[10px] text-zinc-500 font-bold mt-0.5 truncate">
-                                  {app.service.name}
-                                </p>
-                              )}
-                            </div>
+                                {app.service.name}
+                                {app.totalSessions > 1 && <span className="ml-2 text-amber-600">({app.sessionNumber}/{app.totalSessions})</span>}
+                              </p>
+                            )}
+                          </div>
                             <div className="text-right shrink-0">
                               <p className="text-[9px] sm:text-[10px] font-bold text-zinc-500">
                                 {app.startTime}–{app.endTime}
