@@ -51,7 +51,7 @@ export default function LandingPage() {
           </ul>
           <div className="lp-nav-cta">
             <button className="lp-btn lp-btn-ghost" onClick={() => navigate("/login")}>Entrar</button>
-            <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>Começar grátis →</button>
+            <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>Falar com vendas →</button>
           </div>
           <button className="lp-hamburger" onClick={() => setMenuOpen(!menuOpen)}>
             <span /><span /><span />
@@ -66,7 +66,7 @@ export default function LandingPage() {
         <a href="#precos"        onClick={() => scrollTo("#precos")}>Preços</a>
         <a href="#depoimentos"   onClick={() => scrollTo("#depoimentos")}>Depoimentos</a>
         <button className="lp-btn lp-btn-ghost"   onClick={() => navigate("/login")}>Entrar</button>
-        <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>Começar grátis →</button>
+        <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>Falar com vendas →</button>
       </div>
 
       {/* ══ HERO ════════════════════════════════════ */}
@@ -92,7 +92,7 @@ export default function LandingPage() {
               </p>
               <div className="lp-hero-actions">
                 <button className="lp-btn lp-btn-primary" style={{padding:"15px 30px",fontSize:"1rem"}} onClick={() => navigate("/login")}>
-                  ✦ Começar grátis — 14 dias
+                  ✦ Solicitar teste de 30 dias
                 </button>
                 <button className="lp-btn lp-btn-ghost" style={{padding:"15px 26px",fontSize:"1rem"}} onClick={() => scrollTo("#como-funciona")}>
                   ▷ Ver como funciona
@@ -210,7 +210,7 @@ export default function LandingPage() {
               <p className="lp-sec-sub lp-rv lp-d2" style={{marginBottom:0}}>Comece em minutos. Sem treinamento técnico, sem complicação — só resultados.</p>
               <div className="lp-how-steps lp-rv lp-d3">
                 {[
-                  { n:"1", title:"Crie sua conta grátis",      desc:"Cadastre seu estabelecimento em menos de 2 minutos. Adicione seus serviços, profissionais e horários de atendimento." },
+                  { n:"1", title:"Solicite seu acesso",      desc:"Cadastre seu estabelecimento em menos de 2 minutos. Adicione seus serviços, profissionais e horários de atendimento." },
                   { n:"2", title:"Compartilhe seu link",        desc:"Receba um link personalizado para o seu negócio. Adicione na bio do Instagram, WhatsApp ou no seu site — pronto." },
                   { n:"3", title:"Gerencie tudo em um app",    desc:"Sua agenda se preenche automaticamente. Você acompanha pelo app, recebe notificações e foca no que importa." },
                 ].map(s => (
@@ -334,42 +334,42 @@ export default function LandingPage() {
           <div className="lp-sec-header">
             <div className="lp-chip lp-rv"><span className="lp-chip-dot" />Planos</div>
             <h2 className="lp-sec-title lp-rv lp-d1">O plano certo para<br /><span className="lp-g">cada momento</span></h2>
-            <p className="lp-sec-sub lp-rv lp-d2">Comece grátis, cresça no seu ritmo. Cancele quando quiser — sem contratos ou surpresas.</p>
+            <p className="lp-sec-sub lp-rv lp-d2">Faça um teste de 30 dias e comprove o valor. Cancele quando quiser — sem contratos ou surpresas.</p>
           </div>
           <div className="lp-price-grid">
 
             <div className="lp-price-card lp-rv">
-              <div className="lp-pname">Starter</div>
-              <div className="lp-pamount"><span className="lp-pcur">R$</span><span className="lp-pnum">0</span><span className="lp-pper">/mês</span></div>
-              <p className="lp-pdesc">Perfeito para começar e conhecer a plataforma.</p>
+              <div className="lp-pname">Básico</div>
+              <div className="lp-pamount"><span className="lp-pcur">R$</span><span className="lp-pnum">49,90</span><span className="lp-pper">/mês</span></div>
+              <p className="lp-pdesc">Perfeito para pequenos espaços conhecerem a plataforma.</p>
               <div className="lp-pdiv" />
               <ul className="lp-pfeats">
-                {["Até 50 agendamentos/mês","1 profissional","Link de agendamento","Notificações por e-mail"].map(f=><li key={f}><span className="lp-ck lp-ck-y">✓</span>{f}</li>)}
-                {["WhatsApp automático","Pagamento online"].map(f=><li key={f} style={{color:"#9ca3af"}}><span className="lp-ck lp-ck-n">×</span>{f}</li>)}
+                {["Agenda, Clientes e Serviços","Até 2 profissionais cadastrados","1 usuário admin"].map(f=><li key={f}><span className="lp-ck lp-ck-y">✓</span>{f}</li>)}
+                {["Comandas e Financeiro","Relatórios"].map(f=><li key={f} style={{color:"#9ca3af"}}><span className="lp-ck lp-ck-n">×</span>{f}</li>)}
               </ul>
-              <button className="lp-btn lp-btn-ghost" onClick={() => navigate("/login")}>Começar grátis</button>
+              <button className="lp-btn lp-btn-ghost" onClick={() => navigate("/login")}>Falar com vendas</button>
             </div>
 
             <div className="lp-price-card lp-hot lp-rv lp-d2">
               <div className="lp-hot-badge">★ Mais popular</div>
               <div className="lp-pname">Pro</div>
-              <div className="lp-pamount"><span className="lp-pcur">R$</span><span className="lp-pnum lp-g">89</span><span className="lp-pper">/mês</span></div>
-              <p className="lp-pdesc">Para negócios que querem crescer com profissionalismo.</p>
+              <div className="lp-pamount"><span className="lp-pcur">R$</span><span className="lp-pnum lp-g">99,90</span><span className="lp-pper">/mês</span></div>
+              <p className="lp-pdesc">Para negócios estabilizados crescendo com profissionalismo.</p>
               <div className="lp-pdiv" />
               <ul className="lp-pfeats">
-                {["Agendamentos ilimitados","Até 5 profissionais","WhatsApp automático","Pix + Cartão online","Relatórios e métricas"].map(f=><li key={f}><span className="lp-ck lp-ck-y">✓</span>{f}</li>)}
-                {["IA de atendimento"].map(f=><li key={f} style={{color:"#9ca3af"}}><span className="lp-ck lp-ck-n">×</span>{f}</li>)}
+                {["Agenda, Clientes e Serviços","Comandas e Fluxo de Caixa","Relatórios de Vendas","Até 5 profissionais","3 usuários admin"].map(f=><li key={f}><span className="lp-ck lp-ck-y">✓</span>{f}</li>)}
+                {["Suporte prioritário 24/7"].map(f=><li key={f} style={{color:"#9ca3af"}}><span className="lp-ck lp-ck-n">×</span>{f}</li>)}
               </ul>
-              <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>Assinar Pro →</button>
+              <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>Solicitar Teste →</button>
             </div>
 
             <div className="lp-price-card lp-rv lp-d4">
-              <div className="lp-pname">Elite</div>
-              <div className="lp-pamount"><span className="lp-pcur">R$</span><span className="lp-pnum">189</span><span className="lp-pper">/mês</span></div>
-              <p className="lp-pdesc">Para redes de salões e operações de alto volume.</p>
+              <div className="lp-pname">Enterprise</div>
+              <div className="lp-pamount"><span className="lp-pcur">R$</span><span className="lp-pnum">199,90</span><span className="lp-pper">/mês</span></div>
+              <p className="lp-pdesc">Para redes avançadas e operações de alto volume.</p>
               <div className="lp-pdiv" />
               <ul className="lp-pfeats">
-                {["Tudo do Pro","Profissionais ilimitados","IA de atendimento 24/7","Multi-unidades","API e integrações","Onboarding dedicado"].map(f=><li key={f}><span className="lp-ck lp-ck-y">✓</span>{f}</li>)}
+                {["Tudo do plano Pro","Profissionais ilimitados","Multi-usuários ilimitados","Suporte VIP prioritário"].map(f=><li key={f}><span className="lp-ck lp-ck-y">✓</span>{f}</li>)}
               </ul>
               <button className="lp-btn lp-btn-ghost" onClick={() => navigate("/login")}>Falar com vendas</button>
             </div>
@@ -415,16 +415,16 @@ export default function LandingPage() {
             <div className="lp-cta-blob lp-cta-b1" />
             <div className="lp-cta-blob lp-cta-b2" />
             <h2>Pronto para ter a agenda<br />mais elegante do mercado?</h2>
-            <p>Comece gratuitamente hoje. Em menos de 5 minutos seu negócio está online, elegante e recebendo agendamentos.</p>
+            <p>Faça o teste e comprove você mesmo. Em menos de 5 minutos seu negócio está online, elegante e recebendo agendamentos.</p>
             <div className="lp-cta-acts">
               <button className="lp-btn lp-btn-white" style={{padding:"16px 36px",fontSize:"1rem"}} onClick={() => navigate("/login")}>
-                ✦ Criar minha conta grátis
+                ✦ Solicitar teste de 30 dias
               </button>
               <button className="lp-btn lp-btn-clear" style={{padding:"16px 32px",fontSize:"1rem"}} onClick={() => navigate("/login")}>
                 Falar com especialista
               </button>
             </div>
-            <p className="lp-cta-note">✓ 14 dias grátis &nbsp;·&nbsp; ✓ Sem cartão &nbsp;·&nbsp; ✓ Cancele quando quiser</p>
+            <p className="lp-cta-note">✓ 30 dias de teste &nbsp;·&nbsp; ✓ Sem cartão &nbsp;·&nbsp; ✓ Cancele quando quiser</p>
           </div>
         </div>
       </section>
