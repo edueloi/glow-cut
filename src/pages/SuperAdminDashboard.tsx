@@ -348,6 +348,7 @@ function TenantsTab({ plans }: { plans: any[] }) {
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [detail, setDetail] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
   const emptyForm = { name: "", slug: "", ownerName: "", ownerEmail: "", ownerPhone: "", planId: "", notes: "", adminPassword: "", expiresAt: "", maxAdminUsersOverride: "", isActive: true };
   const [form, setForm] = useState<any>(emptyForm);
   const [showPwd, setShowPwd] = useState(false);
@@ -404,9 +405,12 @@ function TenantsTab({ plans }: { plans: any[] }) {
     load();
   };
 
-  const del = async (id: string) => {
-    if (!confirm("Excluir parceiro e todos os seus usuários?")) return;
-    await fetch(`/api/super-admin/tenants/${id}`, { method: "DELETE" });
+  const del = (t: any) => setDeleteConfirm(t);
+  
+  const confirmDel = async () => {
+    if (!deleteConfirm) return;
+    await fetch(`/api/super-admin/tenants/${deleteConfirm.id}`, { method: "DELETE" });
+    setDeleteConfirm(null);
     load();
   };
 
@@ -482,7 +486,7 @@ function TenantsTab({ plans }: { plans: any[] }) {
                       <div className="flex items-center gap-1">
                         <button onClick={() => setDetail(t)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors"><Eye size={13} /></button>
                         <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors"><Edit2 size={13} /></button>
-                        <button onClick={() => del(t.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
+                        <button onClick={() => del(t)} className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
                       </div>
                     </td>
                   </tr>
@@ -584,6 +588,18 @@ function TenantsTab({ plans }: { plans: any[] }) {
             </div>
           );
         })()}
+      </Modal>
+
+      <Modal open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Confirmar Exclusão" width="max-w-sm">
+        <div className="space-y-4">
+          <p className="text-sm text-zinc-600">
+            Tem certeza que deseja excluir o parceiro <strong className="text-zinc-900">{deleteConfirm?.name}</strong> e todos os seus usuários? Esta ação <strong>não pode ser desfeita</strong>.
+          </p>
+          <div className="flex gap-2 pt-2">
+            <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2.5 text-xs font-bold text-zinc-500 hover:text-zinc-800 bg-zinc-50 hover:bg-zinc-100 rounded-xl transition-colors">Cancelar</button>
+            <button onClick={confirmDel} className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition-colors shadow-sm">Sim, excluir</button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
