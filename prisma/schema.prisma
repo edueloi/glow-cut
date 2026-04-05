@@ -97,6 +97,7 @@ model Comanda {
   type           String?       @default("normal") @db.VarChar(20)
   createdAt      DateTime      @default(now()) @db.DateTime(0)
   appointment    Appointment[]
+  items          ComandaItem[]
   client         Client?       @relation(fields: [clientId], references: [id], map: "fk_comanda_client")
 
   @@index([clientId], map: "fk_comanda_client")
@@ -116,6 +117,47 @@ model PackageService {
   @@index([packageId], map: "fk_pkg_package")
   @@index([serviceId], map: "fk_pkg_service")
 }
+
+model Product {
+  id           String        @id @db.VarChar(36)
+  name         String        @db.VarChar(255)
+  description  String?       @db.Text
+  photo        String?       @db.Text
+  costPrice    Float         @default(0)
+  salePrice    Float         @default(0)
+  stock        Int           @default(0)
+  minStock     Int           @default(0)
+  validUntil   DateTime?     @db.DateTime(0)
+  code         String?       @db.VarChar(100)
+  isForSale    Boolean       @default(true)
+  tenantId     String?       @db.VarChar(36)
+  metadata     String?       @db.Text
+  createdAt    DateTime      @default(now()) @db.DateTime(0)
+  comandaItem  ComandaItem[]
+
+  @@index([tenantId], map: "idx_product_tenant")
+}
+
+model ComandaItem {
+  id          String   @id @db.VarChar(36)
+  comandaId   String   @db.VarChar(36)
+  productId   String?  @db.VarChar(36)
+  serviceId   String?  @db.VarChar(36)
+  name        String   @db.VarChar(255)
+  price       Float    @default(0)
+  quantity    Int      @default(1)
+  total       Float    @default(0)
+  createdAt   DateTime @default(now()) @db.DateTime(0)
+
+  comanda     Comanda  @relation(fields: [comandaId], references: [id], onDelete: Cascade)
+  product     Product? @relation(fields: [productId], references: [id])
+  service     Service? @relation(fields: [serviceId], references: [id])
+
+  @@index([comandaId], map: "idx_comandaitem_comanda")
+  @@index([productId], map: "idx_comandaitem_product")
+  @@index([serviceId], map: "idx_comandaitem_service")
+}
+
 
 model Plan {
   id                  String   @id @db.VarChar(36)
@@ -162,6 +204,7 @@ model Service {
   tenantId                                         String?          @db.VarChar(36)
   professionalIds                                  String?          @default("[]") @db.VarChar(2000)
   appointment                                      Appointment[]
+  comandaItems                                     ComandaItem[]
   packageservice_packageservice_packageIdToservice PackageService[] @relation("packageservice_packageIdToservice")
   packageservice_packageservice_serviceIdToservice PackageService[] @relation("packageservice_serviceIdToservice")
 

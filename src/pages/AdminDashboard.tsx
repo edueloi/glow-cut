@@ -92,6 +92,7 @@ import { AgendaTab } from "@/src/pages/admin/tabs/AgendaTab";
 import { MinhaAgendaTab } from "@/src/pages/admin/tabs/MinhaAgendaTab";
 import { AdminProfileTab } from "@/src/pages/admin/tabs/AdminProfileTab";
 import { WppTab } from "@/src/pages/admin/tabs/WppTab";
+import { ProductsTab } from "@/src/pages/admin/tabs/ProductsTab";
 import { Combobox, ComboboxOption } from "@/src/components/ui/Combobox";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -131,6 +132,7 @@ export default function AdminDashboard() {
     'settings': 'config',
     'profile': 'perfil',
     'wpp': 'whatsapp',
+    'products': 'produtos',
   };
 
   // Inverter o mapa para carregar a aba correta pela URL
@@ -146,7 +148,7 @@ export default function AdminDashboard() {
     window.history.pushState(null, '', sub === 'permissoes' ? '/admin/profissionais/permissoes' : '/admin/profissionais');
   };
 
-  const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "minha-agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios" | "profile" | "wpp">(() => {
+  const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "minha-agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios" | "profile" | "wpp" | "products">(() => {
     const parts = location.pathname.replace('/admin/', '').split('/');
     const slug = parts[0];
     // Se URL é /admin/profissionais/permissoes, seta tab professionals
@@ -173,10 +175,13 @@ export default function AdminDashboard() {
       apiFetch("/api/services").then(res => res.json()).then(setServices);
     }
     if (tab === 'comandas' || tab === 'fluxo') {
-      apiFetch("/api/comandas").then(res => res.json()).then(setComandas);
+      apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
     }
     if (tab === 'professionals') {
       apiFetch("/api/professionals").then(res => res.json()).then(setProfessionals);
+    }
+    if (tab === 'products') {
+      apiFetch("/api/products").then(res => res.json()).then(d => setProducts(Array.isArray(d) ? d : []));
     }
   };
 
@@ -193,11 +198,57 @@ export default function AdminDashboard() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [professionals, setProfessionals] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [workingHours, setWorkingHours] = useState<any[]>([]);
   const [holidays, setHolidays] = useState<{ id: string; date: string; name: string }[]>([]);
   const [newHoliday, setNewHoliday] = useState({ date: '', name: '' });
   const [localWorkingHours, setLocalWorkingHours] = useState<any[]>([]);
   const [settingsOpenCard, setSettingsOpenCard] = useState<string | null>('studio');
+
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const emptyProduct = {
+    name: '',
+    description: '',
+    photo: '',
+    costPrice: '',
+    salePrice: '',
+    stock: '0',
+    minStock: '0',
+    validUntil: '',
+    code: '',
+    isForSale: true,
+    metadata: {}
+  };
+  const [newProduct, setNewProduct] = useState(emptyProduct);
+
+  const fetchProducts = async () => {
+    const res = await apiFetch("/api/products");
+    if (res.ok) {
+      const data = await res.json();
+      setProducts(data);
+    }
+  };
+
+  const handleCreateProduct = async () => {
+    if (!newProduct.name) {
+      alert("Nome do produto é obrigatório.");
+      return;
+    }
+    const method = editingProduct ? "PUT" : "POST";
+    const url = editingProduct ? `/api/products/${editingProduct.id}` : "/api/products";
+    
+    await apiFetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newProduct)
+    });
+    
+    setIsProductModalOpen(false);
+    setNewProduct(emptyProduct);
+    setEditingProduct(null);
+    fetchProducts();
+  };
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const [view, setView] = useState<"day" | "week" | "month">("week");
@@ -303,7 +354,7 @@ export default function AdminDashboard() {
     sessionCount: "1",
     professionalId: "",
     packageId: "",
-    items: [] as { id: string, name: string, price: number, quantity: number, sessions?: number, type?: string }[],
+    items: [] as { id: string, name: string, price: number, quantity: number, sessions?: number, type?: string, productId?: string | null, serviceId?: string | null }[],
     discount: "0",
     discountType: "value" as "value" | "percentage",
     paymentMethod: "cash" as "cash" | "card" | "pix" | "transfer"
@@ -345,7 +396,7 @@ export default function AdminDashboard() {
       if (profs.length > 0) setSelectedProfessional(profs[0].id);
     });
     apiFetch("/api/settings/working-hours").then(res => res.json()).then(setWorkingHours);
-    apiFetch("/api/comandas").then(res => res.json()).then(setComandas);
+    apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
     apiFetch("/api/clients").then(res => res.json()).then(setClients);
     fetchAppointments();
   }, [currentMonth, selectedProfessional]);
@@ -511,7 +562,7 @@ export default function AdminDashboard() {
     setIsComandaModalOpen(false);
     setNewComanda({ ...emptyComanda });
     setComandaClientSearchResults([]);
-    apiFetch("/api/comandas").then(res => res.json()).then(setComandas);
+    apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
   };
 
   const handleSearchClientForComanda = async (name: string) => {
@@ -778,7 +829,7 @@ export default function AdminDashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "paid" })
     });
-    apiFetch("/api/comandas").then(res => res.json()).then(setComandas);
+    apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
   };
 
 
@@ -931,6 +982,13 @@ export default function AdminDashboard() {
             onClick={() => handleTabChange('services')}
             icon={<Scissors size={18} />}
             label="Serviços & Pacotes"
+            collapsed={sidebarCollapsed}
+          />
+          <NavItem
+            active={activeTab === 'products'}
+            onClick={() => handleTabChange('products')}
+            icon={<Package size={18} />}
+            label="Produtos & Estoque"
             collapsed={sidebarCollapsed}
           />
           <NavItem
@@ -1314,6 +1372,16 @@ export default function AdminDashboard() {
 
         {activeTab === 'wpp' && (
           <WppTab />
+        )}
+
+        {activeTab === 'products' && (
+          <ProductsTab
+            products={products}
+            setIsProductModalOpen={setIsProductModalOpen}
+            setEditingProduct={setEditingProduct}
+            setNewProduct={setNewProduct}
+            fetchProducts={fetchProducts}
+          />
         )}
 
         {/* ── CONFIGURAÇÕES ────────────────────────────────────── */}
@@ -2559,43 +2627,57 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        {/* Itens */}
+                        {/* Itens (PDV) */}
                         <div className="space-y-2">
-                          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Itens:</label>
-                          <div className="grid grid-cols-[1fr_60px_80px_32px] gap-2 items-center">
-                            <span className="text-[10px] font-bold text-zinc-400">Serviço</span>
-                            <span className="text-[10px] font-bold text-zinc-400">Qtd</span>
-                            <span className="text-[10px] font-bold text-zinc-400">Preço</span>
+                          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Itens / PDV:</label>
+                          <div className="grid grid-cols-[1fr_60px_80px_32px] gap-1 items-center px-1">
+                            <span className="text-[9px] font-black text-zinc-400 uppercase tracking-tighter">Descrição</span>
+                            <span className="text-[9px] font-black text-zinc-400 uppercase tracking-tighter text-center">Qtd</span>
+                            <span className="text-[9px] font-black text-zinc-400 uppercase tracking-tighter">Preço</span>
                             <span/>
                           </div>
-                          <div className="space-y-2 max-h-36 overflow-y-auto">
+                          <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
                             {newComanda.items.map(item => (
-                              <div key={item.id} className="grid grid-cols-[1fr_60px_80px_32px] gap-2 items-center">
+                              <div key={item.id} className="grid grid-cols-[1fr_60px_80px_32px] gap-2 items-center group animate-in fade-in slide-in-from-left-2 duration-200">
                                 <div className="relative">
-                                  <select className="w-full appearance-none text-xs p-2 pr-6 bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800 outline-none"
-                                    value={item.id} onChange={e => {
-                                      const s = services.find(sv => sv.id === e.target.value);
-                                      if (!s) return;
-                                      setNewComanda(prev => ({...prev, items: prev.items.map(i => i.id === item.id ? {...i, id: s.id, name: s.name, price: Number(s.price)} : i)}));
+                                  <select className="w-full appearance-none text-[11px] p-2 pr-6 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-bold outline-none focus:border-amber-400 transition-all shadow-sm"
+                                    value={item.productId ? `p-${item.productId}` : item.serviceId ? `s-${item.serviceId}` : ""} 
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      if (!val) return;
+                                      const isProd = val.startsWith('p-');
+                                      const id = val.substring(2);
+                                      if (isProd) {
+                                        const p = products.find(i => i.id === id);
+                                        if (p) setNewComanda(prev => ({...prev, items: prev.items.map(i => i.id === item.id ? {...i, productId: p.id, serviceId: null, name: p.name, price: Number(p.salePrice)} : i)}));
+                                      } else {
+                                        const s = services.find(i => i.id === id);
+                                        if (s) setNewComanda(prev => ({...prev, items: prev.items.map(i => i.id === item.id ? {...i, serviceId: s.id, productId: null, name: s.name, price: Number(s.price)} : i)}));
+                                      }
                                     }}>
-                                    <option value="">Selecione</option>
-                                    {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    <option value="">Selecione...</option>
+                                    <optgroup label="Serviços">
+                                      {services.map(s => <option key={s.id} value={`s-${s.id}`}>{s.name}</option>)}
+                                    </optgroup>
+                                    <optgroup label="Produtos">
+                                      {products.filter(p => p.isForSale).map(p => <option key={p.id} value={`p-${p.id}`}>{p.name} (Estoque: {p.stock})</option>)}
+                                    </optgroup>
                                   </select>
-                                  <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"/>
+                                  <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"/>
                                 </div>
-                                <input type="number" min={1} className="text-xs p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-center font-bold outline-none"
+                                <input type="number" min={1} className="text-[11px] p-2 bg-white border border-zinc-200 rounded-xl text-center font-bold outline-none focus:border-amber-400 transition-all shadow-sm"
                                   value={item.quantity} onChange={e => { const val = parseInt(e.target.value)||1; setNewComanda(prev => ({...prev, items: prev.items.map(i => i.id === item.id ? {...i, quantity: val} : i)})); }} />
-                                <input type="number" step="0.01" className="text-xs p-2 bg-zinc-50 border border-zinc-200 rounded-lg font-bold outline-none"
+                                <input type="number" step="0.01" className="text-[11px] p-2 bg-white border border-zinc-200 rounded-xl font-bold outline-none focus:border-emerald-400 text-emerald-600 transition-all shadow-sm"
                                   value={item.price} onChange={e => { const val = parseFloat(e.target.value)||0; setNewComanda(prev => ({...prev, items: prev.items.map(i => i.id === item.id ? {...i, price: val} : i)})); }} />
-                                <button onClick={() => setNewComanda(prev => ({...prev, items: prev.items.filter(i => i.id !== item.id)}))} className="flex items-center justify-center w-8 h-8 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                                <button onClick={() => setNewComanda(prev => ({...prev, items: prev.items.filter(i => i.id !== item.id)}))} className="flex items-center justify-center w-8 h-8 text-zinc-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
                                   <Trash2 size={14}/>
                                 </button>
                               </div>
                             ))}
                           </div>
-                          <button onClick={() => setNewComanda(prev => ({...prev, items: [...prev.items, {id: `new-${Date.now()}`, name:"", price:0, quantity:1}]}))}
-                            className="w-full py-2.5 border-2 border-dashed border-zinc-200 rounded-xl text-[10px] font-black text-zinc-400 hover:border-amber-300 hover:text-amber-500 transition-all uppercase tracking-widest flex items-center justify-center gap-1.5">
-                            <Plus size={12}/> Adicionar Item
+                          <button onClick={() => setNewComanda(prev => ({...prev, items: [...prev.items, {id: `new-${Date.now()}`, name:"", price:0, quantity:1, serviceId: null, productId: null}]}))}
+                            className="w-full py-3 border-2 border-dashed border-zinc-100 rounded-2xl text-[10px] font-black text-zinc-400 hover:border-amber-400 hover:bg-amber-50/30 hover:text-amber-500 transition-all uppercase tracking-widest flex items-center justify-center gap-2">
+                            <Plus size={14}/> Adicionar Item à Comanda
                           </button>
                         </div>
                       </>
@@ -2936,321 +3018,57 @@ export default function AdminDashboard() {
                   })}
                 </div>
               </div>
+
               <Button
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-bold shadow-sm"
-                disabled={!newPermProfile.name.trim()}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-bold shadow-sm cursor-pointer"
                 onClick={() => {
+                  if (!newPermProfile.name) return;
                   if (editingPermProfile) {
-                    savePermProfiles(permissionProfiles.map(p => p.id === editingPermProfile.id ? { ...p, name: newPermProfile.name, permissions: newPermProfile.permissions } : p));
+                    savePermProfiles(permissionProfiles.map((p: any) =>
+                      p.id === editingPermProfile.id ? { ...p, ...newPermProfile } : p
+                    ));
                   } else {
-                    savePermProfiles([...permissionProfiles, { id: crypto.randomUUID(), name: newPermProfile.name, permissions: newPermProfile.permissions }]);
+                    savePermProfiles([...permissionProfiles, { ...newPermProfile, id: Date.now().toString() }]);
                   }
                   setIsPermProfileModalOpen(false);
                 }}
+                disabled={!newPermProfile.name}
               >
-                {editingPermProfile ? "Salvar Perfil" : "Criar Perfil"}
+                {editingPermProfile ? "Salvar Alterações" : "Criar Perfil"}
               </Button>
             </div>
           );
         })()}
-      </Modal>
-
-      <Modal
-        isOpen={isClientModalOpen}
-        onClose={() => { setIsClientModalOpen(false); setEditingClient(null); setNewClient({ ...emptyClient }); setClientPersonalOpen(false); }}
-        title={editingClient ? "Editar Cliente" : "Novo Cliente"}
-        className="max-w-lg"
-      >
-        {/* INPUT STYLE HELPER */}
-        {(() => {
-          const inp = "w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all";
-          const label = "text-[10px] font-bold text-zinc-500 uppercase tracking-widest";
-          const field = "space-y-1.5";
-
-          return (
-            <div className="space-y-5">
-              {/* DADOS BÁSICOS */}
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-3 flex items-center gap-1.5"><Users size={11}/> Dados Básicos <span className="text-zinc-400 normal-case font-medium">(obrigatório)</span></p>
-                <div className="space-y-3">
-                  <div className={field}>
-                    <label className={label}>Nome Completo *</label>
-                    <input type="text" className={inp} placeholder="Ex: João Silva"
-                      value={newClient.name} onChange={e => setNewClient(p => ({ ...p, name: e.target.value }))} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className={field}>
-                      <label className={label}>Telefone *</label>
-                      <input type="tel" className={inp} placeholder="(00) 00000-0000"
-                        value={newClient.phone} onChange={e => setNewClient(p => ({ ...p, phone: maskPhone(e.target.value) }))} />
-                    </div>
-                    <div className={field}>
-                      <label className={label}>E-mail</label>
-                      <input type="email" className={inp} placeholder="email@exemplo.com"
-                        value={newClient.email} onChange={e => setNewClient(p => ({ ...p, email: e.target.value }))} />
-                    </div>
-                  </div>
-                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                    <div
-                      onClick={() => setNewClient(p => ({ ...p, whatsapp: !p.whatsapp }))}
-                      className={cn("w-9 h-5 rounded-full transition-all relative shrink-0", newClient.whatsapp ? "bg-green-500" : "bg-zinc-200")}
-                    >
-                      <div className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all", newClient.whatsapp ? "left-4" : "left-0.5")} />
-                    </div>
-                    <span className="text-[11px] font-bold text-zinc-600 flex items-center gap-1"><MessageCircle size={12} className="text-green-500"/>Usa WhatsApp nesse número</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* DOCUMENTOS & NASCIMENTO */}
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3 flex items-center gap-1.5"><Hash size={11}/> Documentos & Nascimento</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className={field}>
-                    <label className={label}>CPF</label>
-                    <input type="text" className={inp} placeholder="000.000.000-00"
-                      value={newClient.cpf} onChange={e => setNewClient(p => ({ ...p, cpf: maskCPF(e.target.value) }))} />
-                  </div>
-                  <div className={field}>
-                    <label className={label}>Data de Nascimento</label>
-                    <input type="text" className={inp} placeholder="DD/MM/AAAA"
-                      value={newClient.birthDate} onChange={e => setNewClient(p => ({ ...p, birthDate: maskDate(e.target.value) }))} />
-                  </div>
-                </div>
-                {newClient.birthDate && (() => {
-                  const age = calculateAge(newClient.birthDate);
-                  return age !== null ? (
-                    <p className="mt-1.5 text-[10px] font-bold text-amber-600 flex items-center gap-1">
-                      <Cake size={10}/> {age} anos
-                    </p>
-                  ) : null;
-                })()}
-              </div>
-
-              {/* ENDEREÇO */}
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3 flex items-center gap-1.5"><MapPinIcon size={11}/> Endereço</p>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className={cn(field, "col-span-2")}>
-                      <label className={label}>CEP</label>
-                      <div className="relative">
-                        <input type="text" className={inp} placeholder="00000-000"
-                          value={newClient.cep}
-                          onChange={e => {
-                            const v = maskCEP(e.target.value);
-                            setNewClient(p => ({ ...p, cep: v }));
-                            if (v.replace(/\D/g, "").length === 8) handleCepSearch(v);
-                          }} />
-                        {isCepLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />}
-                      </div>
-                    </div>
-                    <div className={field}>
-                      <label className={label}>Número</label>
-                      <input type="text" className={inp} placeholder="123"
-                        value={newClient.number} onChange={e => setNewClient(p => ({ ...p, number: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div className={field}>
-                    <label className={label}>Rua / Logradouro</label>
-                    <input type="text" className={inp} placeholder="Rua das Flores"
-                      value={newClient.street} onChange={e => setNewClient(p => ({ ...p, street: e.target.value }))} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className={field}>
-                      <label className={label}>Complemento</label>
-                      <input type="text" className={inp} placeholder="Apto 12"
-                        value={newClient.complement} onChange={e => setNewClient(p => ({ ...p, complement: e.target.value }))} />
-                    </div>
-                    <div className={field}>
-                      <label className={label}>Bairro</label>
-                      <input type="text" className={inp} placeholder="Centro"
-                        value={newClient.neighborhood} onChange={e => setNewClient(p => ({ ...p, neighborhood: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className={cn(field, "col-span-2")}>
-                      <label className={label}>Cidade</label>
-                      <input type="text" className={inp} placeholder="São Paulo"
-                        value={newClient.city} onChange={e => setNewClient(p => ({ ...p, city: e.target.value }))} />
-                    </div>
-                    <div className={field}>
-                      <label className={label}>UF</label>
-                      <input type="text" className={inp} placeholder="SP" maxLength={2}
-                        value={newClient.state} onChange={e => setNewClient(p => ({ ...p, state: e.target.value.toUpperCase() }))} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* DADOS PESSOAIS — accordion */}
-              <div className="border border-zinc-100 rounded-xl overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setClientPersonalOpen(o => !o)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 transition-colors"
-                >
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
-                    <Heart size={11}/> Dados Pessoais <span className="text-zinc-400 normal-case font-medium">(opcional)</span>
-                  </p>
-                  <ChevronDown size={14} className={cn("text-zinc-400 transition-transform duration-200", clientPersonalOpen && "rotate-180")} />
-                </button>
-                <AnimatePresence initial={false}>
-                  {clientPersonalOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="px-4 pb-4 space-y-3 border-t border-zinc-100">
-                        <div className="grid grid-cols-2 gap-3 pt-3">
-                          <div className={field}>
-                            <label className={label}>Estado Civil</label>
-                            <select className={inp} value={newClient.maritalStatus} onChange={e => setNewClient(p => ({ ...p, maritalStatus: e.target.value as any }))}>
-                              <option value="">Selecionar</option>
-                              <option value="solteiro">Solteiro(a)</option>
-                              <option value="casado">Casado(a)</option>
-                              <option value="divorciado">Divorciado(a)</option>
-                              <option value="viuvo">Viúvo(a)</option>
-                              <option value="uniao_estavel">União Estável</option>
-                            </select>
-                          </div>
-                          <div className={field}>
-                            <label className={label}>Escolaridade</label>
-                            <select className={inp} value={newClient.education} onChange={e => setNewClient(p => ({ ...p, education: e.target.value as any }))}>
-                              <option value="">Selecionar</option>
-                              <option value="fundamental">Fund. Completo</option>
-                              <option value="medio">Médio Completo</option>
-                              <option value="superior">Superior</option>
-                              <option value="pos">Pós-graduação</option>
-                              <option value="mestrado">Mestrado</option>
-                              <option value="doutorado">Doutorado</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="flex gap-6">
-                          <label className="flex items-center gap-2 cursor-pointer select-none">
-                            <div
-                              onClick={() => setNewClient(p => ({ ...p, isMarried: !p.isMarried }))}
-                              className={cn("w-9 h-5 rounded-full transition-all relative shrink-0", newClient.isMarried ? "bg-amber-500" : "bg-zinc-200")}
-                            >
-                              <div className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all", newClient.isMarried ? "left-4" : "left-0.5")} />
-                            </div>
-                            <span className="text-[11px] font-bold text-zinc-600 flex items-center gap-1"><Heart size={11} className="text-pink-400"/>Casado(a)</span>
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer select-none">
-                            <div
-                              onClick={() => setNewClient(p => ({ ...p, hasChildren: !p.hasChildren }))}
-                              className={cn("w-9 h-5 rounded-full transition-all relative shrink-0", newClient.hasChildren ? "bg-amber-500" : "bg-zinc-200")}
-                            >
-                              <div className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all", newClient.hasChildren ? "left-4" : "left-0.5")} />
-                            </div>
-                            <span className="text-[11px] font-bold text-zinc-600 flex items-center gap-1"><Baby size={11} className="text-blue-400"/>Tem filhos</span>
-                          </label>
-                        </div>
-                        {newClient.isMarried && (
-                          <div className={field}>
-                            <label className={label}>Nome do Cônjuge</label>
-                            <input type="text" className={inp} placeholder="Ex: Maria Silva"
-                              value={newClient.spouseName} onChange={e => setNewClient(p => ({ ...p, spouseName: e.target.value }))} />
-                          </div>
-                        )}
-                        <div className={field}>
-                          <label className={label}>Observações</label>
-                          <textarea className={cn(inp, "resize-none")} rows={3} placeholder="Anotações sobre o cliente..."
-                            value={newClient.notes} onChange={e => setNewClient(p => ({ ...p, notes: e.target.value }))} />
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              <Button
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-bold shadow-sm"
-                onClick={handleCreateClient}
-                disabled={!newClient.name || !newClient.phone}
-              >
-                {editingClient ? "Salvar Alterações" : "Cadastrar Cliente"}
-              </Button>
-            </div>
-          );
-        })()}
-      </Modal>
-
-      {/* ═══ MODAL CONFIRMAÇÃO DE EXCLUSÃO ════════════════════════ */}
-      <Modal 
-        isOpen={!!deleteConfirm} 
-        onClose={() => setDeleteConfirm(null)} 
-        title="Confirmar Exclusão"
-        className="max-w-sm"
-      >
-        <div className="flex flex-col items-center text-center p-2">
-          <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-4 border-4 border-white shadow-xl">
-            <Trash2 size={24} strokeWidth={2.5} />
-          </div>
-          <h4 className="text-sm font-black text-zinc-900 uppercase tracking-tight">Você tem certeza?</h4>
-          <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
-            Esta ação não pode ser desfeita. Você está prestes a excluir <strong className="text-zinc-900">"{deleteConfirm?.name}"</strong> permanentemente.
-          </p>
-          <div className="grid grid-cols-2 gap-3 w-full mt-6">
-            <button 
-              onClick={() => setDeleteConfirm(null)}
-              className="py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:bg-zinc-100 transition-all border border-zinc-100"
-            >
-              Cancelar
-            </button>
-            <button 
-              onClick={confirmDelete}
-              className="py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all active:scale-95"
-            >
-              Sim, Excluir
-            </button>
-          </div>
-        </div>
       </Modal>
     </div>
   );
 }
 
-function NavItem({ active, icon, label, onClick, collapsed }: { active: boolean, icon: React.ReactNode, label: string, onClick: () => void, collapsed?: boolean }) {
-  if (collapsed) {
-    return (
-      <div className="relative group flex justify-center">
-        <button
-          onClick={onClick}
-          className={cn(
-            "w-10 h-10 flex items-center justify-center rounded-xl transition-all",
-            active
-              ? "bg-amber-50 text-amber-600 border border-amber-200"
-              : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-          )}
-        >
-          {icon}
-        </button>
-        {/* Tooltip */}
-        <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-[200] opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-          <div className="bg-zinc-900 text-white text-[11px] font-bold rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-xl">
-            {label}
-          </div>
-        </div>
-      </div>
-    );
-  }
+function NavItem({
+  active,
+  onClick,
+  icon,
+  label,
+  collapsed,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  collapsed: boolean;
+}) {
   return (
     <button
       onClick={onClick}
-      className={cn(
-        "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all",
+      title={collapsed ? label : undefined}
+      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all cursor-pointer outline-none focus:outline-none mb-0.5 ${
         active
-          ? "bg-amber-50 text-amber-700 border border-amber-200"
+          ? "bg-amber-500 text-white shadow-md shadow-amber-500/20"
           : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
-      )}
+      } ${collapsed ? "justify-center px-2" : ""}`}
     >
-      <span className={cn("shrink-0", active ? "text-amber-600" : "text-zinc-400")}>{icon}</span>
-      <span className="truncate">{label}</span>
+      <span className="shrink-0">{icon}</span>
+      {!collapsed && <span className="truncate">{label}</span>}
     </button>
   );
 }
