@@ -1459,8 +1459,12 @@ app.delete("/api/products/:id", async (req, res) => {
 // ═════════════════════════════════════════════════════════════
 //  UPLOAD DE IMAGENS (logo / capa) — salva em disco, retorna URL pública
 // ═════════════════════════════════════════════════════════════
-const uploadsDir = path.join(__dirname, "uploads");
+// IMPORTANTE: usa process.cwd() e não __dirname para garantir que os uploads
+// fiquem sempre em <raiz-do-projeto>/uploads/, mesmo quando o server é
+// executado via tsx, ts-node ou como arquivo compilado em dist/.
+const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+console.log("[server] uploadsDir:", uploadsDir);
 
 app.post("/api/admin/upload", (req, res) => {
   const tenantId = getTenantId(req);
@@ -1492,7 +1496,7 @@ app.use("/uploads", express.static(uploadsDir));
 //  SERVIR FRONTEND (produção) — deve ficar DEPOIS de todas as rotas /api
 // ═════════════════════════════════════════════════════════════
 if (process.env.NODE_ENV === "production") {
-  const distPath = path.join(__dirname, "dist");
+  const distPath = path.join(process.cwd(), "dist");
   // Serve arquivos estáticos do build do Vite
   app.use(express.static(distPath));
   // Catch-all: qualquer rota que não seja /api/* serve o index.html (SPA routing)
