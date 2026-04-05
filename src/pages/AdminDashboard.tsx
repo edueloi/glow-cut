@@ -3040,6 +3040,139 @@ export default function AdminDashboard() {
           );
         })()}
       </Modal>
+
+      {/* ── MODAL DE PRODUTO ─────────────────────────────────────── */}
+      <Modal
+        isOpen={isProductModalOpen}
+        onClose={() => { setIsProductModalOpen(false); setEditingProduct(null); setNewProduct(emptyProduct); }}
+        title={editingProduct ? "Editar Produto" : "Novo Produto"}
+        className="max-w-lg"
+      >
+        <div className="space-y-5">
+          {/* Nome */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Nome *</label>
+            <input
+              type="text"
+              className="w-full text-xs p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+              placeholder="Ex: Shampoo Premium"
+              value={newProduct.name}
+              onChange={e => setNewProduct({ ...newProduct, name: e.target.value })}
+            />
+          </div>
+
+          {/* Descrição */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Descrição</label>
+            <textarea
+              className="w-full text-xs p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all resize-none"
+              placeholder="Detalhes sobre o produto..."
+              rows={2}
+              value={newProduct.description}
+              onChange={e => setNewProduct({ ...newProduct, description: e.target.value })}
+            />
+          </div>
+
+          {/* Código / SKU */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Código / SKU</label>
+            <input
+              type="text"
+              className="w-full text-xs p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+              placeholder="Ex: SHAM-001"
+              value={newProduct.code}
+              onChange={e => setNewProduct({ ...newProduct, code: e.target.value })}
+            />
+          </div>
+
+          {/* Preços */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Preço de Custo (R$)</label>
+              <input
+                type="number"
+                className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+                placeholder="0.00"
+                value={newProduct.costPrice}
+                onChange={e => setNewProduct({ ...newProduct, costPrice: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Preço de Venda (R$)</label>
+              <input
+                type="number"
+                className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+                placeholder="0.00"
+                value={newProduct.salePrice}
+                onChange={e => setNewProduct({ ...newProduct, salePrice: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {/* Estoque */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Estoque Atual</label>
+              <input
+                type="number"
+                className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all text-center"
+                placeholder="0"
+                value={newProduct.stock}
+                onChange={e => setNewProduct({ ...newProduct, stock: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Estoque Mínimo</label>
+              <input
+                type="number"
+                className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all text-center"
+                placeholder="0"
+                value={newProduct.minStock}
+                onChange={e => setNewProduct({ ...newProduct, minStock: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {/* Validade */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Validade (opcional)</label>
+            <input
+              type="date"
+              className="w-full text-xs p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+              value={newProduct.validUntil}
+              onChange={e => setNewProduct({ ...newProduct, validUntil: e.target.value })}
+            />
+          </div>
+
+          {/* No PDV toggle */}
+          <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Disponível no PDV</p>
+              <p className="text-[10px] text-amber-600 font-medium mt-0.5">Aparece no ponto de venda para clientes</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setNewProduct({ ...newProduct, isForSale: !newProduct.isForSale })}
+              className="relative w-12 h-6 rounded-full transition-colors shrink-0 outline-none"
+              style={{ background: newProduct.isForSale ? '#f59e0b' : '#e4e4e7' }}
+            >
+              <span
+                className="absolute top-1 h-4 w-4 bg-white rounded-full shadow transition-all duration-200"
+                style={{ left: newProduct.isForSale ? '1.5rem' : '0.25rem' }}
+              />
+            </button>
+          </div>
+
+          {/* Botão salvar */}
+          <Button
+            className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-2xl py-3.5 font-black text-sm shadow-sm cursor-pointer transition-all"
+            onClick={handleCreateProduct}
+            disabled={!newProduct.name}
+          >
+            {editingProduct ? "Salvar Alterações" : "Adicionar Produto"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
