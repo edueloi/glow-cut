@@ -374,9 +374,12 @@ export default function AdminDashboard() {
   };
 
   const fetchAppointments = () => {
-    const start = startOfMonth(currentMonth).toISOString();
-    const end = endOfMonth(currentMonth).toISOString();
-    let url = `/api/appointments?start=${start}&end=${end}`;
+    // Busca do início da primeira semana do mês até o fim da última semana do mês
+    // Assim garante que dias que "transbordam" entre meses apareçam na agenda (semana/mês)
+    const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 0 });
+    const end = endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 0 });
+    
+    let url = `/api/appointments?start=${start.toISOString()}&end=${end.toISOString()}`;
     if (selectedProfessional !== "all") url += `&professionalId=${selectedProfessional}`;
     apiFetch(url).then(res => res.json()).then(setAppointments);
   };
@@ -1442,7 +1445,7 @@ export default function AdminDashboard() {
                           <div key={s.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-zinc-100 shadow-sm">
                             <div className="flex flex-col">
                               <span className="text-[11px] font-bold text-zinc-800">{s.name}</span>
-                              <span className="text-[9px] text-zinc-400 font-medium">{s.sessions || 1} sessões estimadas</span>
+                              <span className="text-[9px] text-zinc-400 font-medium">{s.sessions || 1} vezes estimadas</span>
                             </div>
                             <div className="flex items-center gap-3">
                               <div className="flex items-center border border-zinc-200 rounded-lg overflow-hidden h-7">
@@ -2248,8 +2251,8 @@ export default function AdminDashboard() {
                           </div>
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
-                              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Nº Sessões (Total)</label>
-                              <span className="text-[9px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">PROD: 0/{newComanda.sessionCount}</span>
+                              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Nº de Atendimentos (Total)</label>
+                              <span className="text-[9px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">Progresso: 0/{newComanda.sessionCount}</span>
                             </div>
                             <input type="number" min="1" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
                               value={newComanda.sessionCount} onChange={e => setNewComanda(p => ({...p, sessionCount: e.target.value}))} />
