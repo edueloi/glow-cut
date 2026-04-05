@@ -120,6 +120,61 @@ app.post("/api/super-admin/login", async (req, res) => {
 });
 
 // ═════════════════════════════════════════════════════════════
+//  SUPER-ADMIN — EQUIPE (STAFF)
+// ═════════════════════════════════════════════════════════════
+app.get("/api/super-admin/staff", async (req, res) => {
+  try {
+    const staff = await (prisma.superAdmin as any).findMany({
+      select: { id: true, username: true, createdAt: true }
+    });
+    res.json(staff);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/super-admin/staff", async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: "Username e senha obrigatórios" });
+  try {
+    const existing = await (prisma.superAdmin as any).findUnique({ where: { username } });
+    if (existing) return res.status(400).json({ error: "Este usuário já existe" });
+
+    const newUser = await (prisma.superAdmin as any).create({
+      data: { id: randomUUID(), username, password }
+    });
+    res.json({ id: newUser.id, username: newUser.username });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put("/api/super-admin/staff/:id", async (req, res) => {
+  const { username, password } = req.body;
+  try {
+    const data: any = { username };
+    if (password) data.password = password;
+
+    const updated = await (prisma.superAdmin as any).update({
+      where: { id: req.params.id },
+      data
+    });
+    res.json(updated);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete("/api/super-admin/staff/:id", async (req, res) => {
+  try {
+    await (prisma.superAdmin as any).delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════
 //  SUPER-ADMIN — Planos
 // ═════════════════════════════════════════════════════════════
 app.get("/api/super-admin/plans", async (req, res) => {

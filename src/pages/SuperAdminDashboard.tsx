@@ -11,7 +11,7 @@ import {
 /* ═══════════════════════════════════════════
    TIPOS
 ═══════════════════════════════════════════ */
-type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "profile";
+type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
@@ -964,6 +964,113 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
 }
 
 /* ═══════════════════════════════════════════
+   ABA: EQUIPE (STAFF)
+   Acesso interno à plataforma (outros Super Admins)
+═══════════════════════════════════════════ */
+function StaffTab() {
+  const [users, setUsers] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [showPass, setShowPass] = useState(false);
+  const [form, setForm] = useState({ username: "", password: "" });
+
+  const load = useCallback(async () => {
+    const r = await fetch("/api/super-admin/staff");
+    setUsers(await r.json());
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const save = async () => {
+    const url = editing ? `/api/super-admin/staff/${editing.id}` : "/api/super-admin/staff";
+    const r = await fetch(url, {
+      method: editing ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form)
+    });
+    if (!r.ok) { alert("Erro ao salvar usuário"); return; }
+    setModal(false);
+    load();
+  };
+
+  const del = async (id: string) => {
+    if (!confirm("Excluir este acesso administrativo?")) return;
+    await fetch(`/api/super-admin/staff/${id}`, { method: "DELETE" });
+    load();
+  };
+
+  const openForm = (u?: any) => {
+    setEditing(u || null);
+    setForm({ username: u?.username || "", password: "" });
+    setModal(true);
+  };
+
+  const filtered = users.filter(u => u.username.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-black text-zinc-900">Minha Equipe (Super Admins)</h2>
+          <p className="text-[11px] text-zinc-400 mt-0.5">{users.length} usuário(s) com acesso mestre</p>
+        </div>
+        <button onClick={() => openForm()} className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors">
+          <Plus size={13} /> Adicionar Equipe
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-zinc-50 border-b border-zinc-100">
+            <tr>
+              <th className="text-left px-4 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest">Usuário</th>
+              <th className="text-left px-4 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest">Acesso desde</th>
+              <th className="text-right px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+            {filtered.map(u => (
+              <tr key={u.id} className="hover:bg-zinc-50/50 transition-colors">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-black">{u.username.charAt(0).toUpperCase()}</div>
+                    <p className="text-xs font-black text-zinc-900">{u.username}</p>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-[11px] text-zinc-500">{new Date(u.createdAt).toLocaleDateString("pt-BR")}</td>
+                <td className="px-4 py-3 text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <button onClick={() => openForm(u)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors"><Edit2 size={13} /></button>
+                    <button onClick={() => del(u.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <Modal open={modal} onClose={() => setModal(false)} title={editing ? "Editar Acesso" : "Novo Acesso Equipe"}>
+        <div className="space-y-3">
+          <Field label="Nome de Usuário (Login)"><Input value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} placeholder="Ex: amanda_admin" /></Field>
+          <Field label={editing ? "Nova Senha (deixe em branco para não alterar)" : "Senha"}>
+            <div className="relative">
+              <Input type={showPass ? "text" : "password"} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••" />
+              <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">{showPass ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+            </div>
+          </Field>
+          <div className="flex gap-2 pt-2">
+            <button onClick={() => setModal(false)} className="flex-1 py-2 text-xs font-bold text-zinc-400">Cancelar</button>
+            <button onClick={save} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold">Salvar Equipe</button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
    ABA: MEU PERFIL
 ═══════════════════════════════════════════ */
 function ProfileTab({ username }: { username: string }) {
@@ -1030,6 +1137,7 @@ const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: stri
   { key: "tenants",     icon: <Building2 size={17} />,       label: "Parceiros",      path: "/super-admin/parceiros" },
   { key: "users",       icon: <Users size={17} />,           label: "Usuários Admin", path: "/super-admin/usuarios" },
   { key: "permissions", icon: <Lock size={17} />,            label: "Permissões",     path: "/super-admin/permissoes" },
+  { key: "staff",       icon: <Shield size={17} />,          label: "Minha Equipe",   path: "/super-admin/equipe" },
   { key: "profile",     icon: <User size={17} />,            label: "Meu Perfil",     path: "/super-admin/perfil" },
 ];
 
@@ -1039,6 +1147,7 @@ function pathToTab(pathname: string): TabKey {
   if (pathname.includes("/parceiros"))   return "tenants";
   if (pathname.includes("/usuarios"))    return "users";
   if (pathname.includes("/permissoes"))  return "permissions";
+  if (pathname.includes("/equipe"))      return "staff";
   if (pathname.includes("/perfil"))      return "profile";
   return "dash";
 }
@@ -1176,6 +1285,7 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
           {tab === "tenants"     && <TenantsTab plans={plans} />}
           {tab === "users"       && <UsersTab tenants={tenants} />}
           {tab === "permissions" && <PermissionsTab tenants={tenants} />}
+          {tab === "staff"       && <StaffTab />}
           {tab === "profile"     && <ProfileTab username={username} />}
         </div>
       </main>
