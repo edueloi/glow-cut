@@ -486,11 +486,27 @@ export default function AdminDashboard() {
       date: newComanda.date
     };
 
-    await apiFetch("/api/comandas", {
+    const response = await apiFetch("/api/comandas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
+    const createdComanda = await response.json();
+
+    if (isAppointmentModalOpen) {
+      // Tenta cruzar a descrição da comanda com um serviço existente para preencher campos
+      const matchedSvc = services.find(s => 
+        s.name.toLowerCase() === (newComanda.description || "").toLowerCase()
+      );
+
+      setNewAppointment(prev => ({
+        ...prev,
+        comandaId: createdComanda.id,
+        professionalId: createdComanda.professionalId || prev.professionalId,
+        serviceId: matchedSvc ? matchedSvc.id : prev.serviceId,
+        duration: matchedSvc ? matchedSvc.duration : prev.duration
+      }));
+    }
 
     setIsComandaModalOpen(false);
     setNewComanda({ ...emptyComanda });
@@ -1825,6 +1841,83 @@ export default function AdminDashboard() {
                               </p>
                             )}
                           </div>
+                          
+                          {/* Comanda section */}
+                          {newAppointment.clientId && (
+                            <div className="space-y-1.5 p-3 bg-zinc-50 border border-zinc-100 rounded-2xl">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                                  <Banknote size={12}/> Comanda {newAppointment.comandaId ? "Vinculada" : "Opcional"}
+                                </label>
+                                <button 
+                                  onClick={() => {
+                                  const selectedSvc = services.find(s => s.id === newAppointment.serviceId);
+                                  setNewComanda({ 
+                                    ...emptyComanda, 
+                                    clientId: newAppointment.clientId, 
+                                    clientName: newAppointment.clientName, 
+                                    clientPhone: newAppointment.clientPhone,
+                                    date: format(newAppointment.date, "yyyy-MM-dd"),
+                                    professionalId: newAppointment.professionalId,
+                                    description: selectedSvc?.name || "",
+                                    value: selectedSvc?.price?.toString() || "",
+                                    type: 'normal'
+                                  });
+                                  setIsComandaModalOpen(true);
+                                }}
+                                  className="text-[10px] font-black text-amber-600 hover:text-amber-700 uppercase tracking-widest flex items-center gap-1"
+                                >
+                                  <Plus size={10}/> Criar Nova
+                                </button>
+                              </div>
+                              <select 
+                                className="w-full text-[11px] p-2 bg-white border border-zinc-200 rounded-xl font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                value={newAppointment.comandaId || ""}
+                                onChange={(e) => {
+                                  const cid = e.target.value;
+                                  const selectedCom = comandas.find(c => c.id === cid);
+                                  
+                                  // Tenta encontrar serviço pelo nome na descrição da comanda
+                                  const matchedSvc = services.find(s => 
+                                    s.name.toLowerCase() === (selectedCom?.description || "").toLowerCase()
+                                  );
+
+                                  setNewAppointment(prev => ({ 
+                                    ...prev, 
+                                    comandaId: cid || null,
+                                    professionalId: selectedCom?.professionalId || prev.professionalId,
+                                    serviceId: matchedSvc ? matchedSvc.id : prev.serviceId,
+                                    duration: matchedSvc ? matchedSvc.duration : prev.duration
+                                  }));
+                                }}
+                              >
+                                <option value="">Nenhuma comanda vinculada</option>
+                                {comandas.filter(c => c.clientId === newAppointment.clientId && c.status === 'open').map(c => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.description || `Comanda #${c.id.slice(0,4)}`} - R$ {Number(c.total).toFixed(2)}
+                                  </option>
+                                ))}
+                              </select>
+                              {newAppointment.comandaId && (
+                                <div className="mt-2 p-2 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold text-emerald-700">
+                                  {(() => {
+                                    const c = comandas.find(com => com.id === newAppointment.comandaId);
+                                    if (!c) return null;
+                                    return (
+                                      <>
+                                        <div className="flex items-center gap-1"><DollarSign size={10}/> Total: R$ {Number(c.total).toFixed(2)}</div>
+                                        {c.discount > 0 && (
+                                          <div className="flex items-center gap-1 text-red-500 font-black uppercase">
+                                            <Scissors size={10}/> Desc: {c.discountType === 'percentage' ? `${c.discount}%` : `R$ ${c.discount}`}
+                                          </div>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Serviço */}
                           <div className="space-y-1.5">
