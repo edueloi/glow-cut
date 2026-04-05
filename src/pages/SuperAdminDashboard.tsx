@@ -461,7 +461,7 @@ function TenantsTab({ plans }: { plans: any[] }) {
                     </td>
                     <td className="px-4 py-3"><Badge color="amber">{t.plan?.name || "Sem Plano"}</Badge></td>
                     <td className="px-4 py-3">
-                      <span className="text-xs font-black text-zinc-700">{t.adminUsers?.length ?? 0}</span>
+                      <span className="text-xs font-black text-zinc-700">{t.adminuser?.length ?? 0}</span>
                       {t.maxAdminUsersOverride && <span className="text-[10px] text-zinc-400">/{t.maxAdminUsersOverride}</span>}
                       <span className="text-[10px] text-zinc-400"> users</span>
                     </td>
@@ -558,7 +558,7 @@ function TenantsTab({ plans }: { plans: any[] }) {
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-zinc-50 rounded-xl p-3"><p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Plano</p><p className="text-sm font-black text-zinc-800 mt-0.5">{detail.plan?.name}</p></div>
                 <div className="bg-zinc-50 rounded-xl p-3"><p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Status</p><p className={cn("text-sm font-black mt-0.5", status.color === "emerald" ? "text-emerald-600" : status.color === "red" ? "text-red-500" : "text-amber-500")}>{status.label}</p></div>
-                <div className="bg-zinc-50 rounded-xl p-3"><p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Usuários</p><p className="text-sm font-black text-zinc-800 mt-0.5">{detail.adminUsers?.length ?? 0}{detail.maxAdminUsersOverride ? `/${detail.maxAdminUsersOverride}` : ""}</p></div>
+                <div className="bg-zinc-50 rounded-xl p-3"><p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Usuários</p><p className="text-sm font-black text-zinc-800 mt-0.5">{detail.adminuser?.length ?? 0}{detail.maxAdminUsersOverride ? `/${detail.maxAdminUsersOverride}` : ""}</p></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-zinc-50 rounded-xl p-3"><p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Criado em</p><p className="text-xs font-bold text-zinc-700 mt-0.5">{fmtDate(detail.createdAt)}</p></div>
@@ -571,8 +571,8 @@ function TenantsTab({ plans }: { plans: any[] }) {
               </div>
               <div className="space-y-2">
                 <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Usuários Admin</p>
-                {detail.adminUsers?.length === 0 && <p className="text-xs text-zinc-400">Nenhum usuário</p>}
-                {detail.adminUsers?.map((u: any) => (
+                {detail.adminuser?.length === 0 && <p className="text-xs text-zinc-400">Nenhum usuário</p>}
+                {detail.adminuser?.map((u: any) => (
                   <div key={u.id} className="flex items-center gap-2 p-2.5 bg-zinc-50 rounded-xl">
                     <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-black shrink-0">{(u.name || "?").charAt(0).toUpperCase()}</div>
                     <div className="flex-1 min-w-0"><p className="text-xs font-bold text-zinc-800 truncate">{u.name || "—"}</p><p className="text-[10px] text-zinc-400 truncate">{u.email}</p></div>

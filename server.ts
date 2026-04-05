@@ -190,19 +190,35 @@ app.get("/api/super-admin/plans", async (req, res) => {
 //  SUPER-ADMIN — Tenants (parceiros / estúdios)
 // ═════════════════════════════════════════════════════════════
 
-// Listar todos os tenants
+// Listar todos os tenants de forma robusta
 app.get("/api/super-admin/tenants", async (req, res) => {
   try {
     const tenants = await (prisma.tenant as any).findMany({
-      include: {
-        plan: { select: { id: true, name: true, price: true } },
-        adminUsers: { select: { id: true, name: true, email: true, role: true, isActive: true, lastLogin: true } },
-      },
       orderBy: { createdAt: "desc" },
     });
-    res.json(tenants);
-  } catch (e) {
-    res.status(500).json({ error: "Erro ao buscar parceiros." });
+    
+    const plans = await (prisma.plan as any).findMany({
+      select: { id: true, name: true, price: true }
+    });
+    
+    const adminusers = await (prisma.adminUser as any).findMany({
+      select: { id: true, name: true, email: true, role: true, isActive: true, lastLogin: true, tenantId: true }
+    });
+
+    const tenantsMapped = tenants.map((t: any) => {
+      const plan = plans.find((p: any) => p.id === t.planId) || { id: "unknown", name: "Plano Removido/Inválido", price: 0 };
+      const adminuser = adminusers.filter((a: any) => a.tenantId === t.id);
+      return {
+        ...t,
+        plan,
+        adminuser
+      };
+    });
+
+    res.json(tenantsMapped);
+  } catch (e: any) {
+    console.error("Erro ao buscar parceiros no banco:", e);
+    res.status(500).json({ error: "Erro ao buscar parceiros.", details: e?.message });
   }
 });
 
@@ -441,12 +457,22 @@ app.delete("/api/super-admin/plans/:id", async (req, res) => {
 app.get("/api/super-admin/admin-users", async (req, res) => {
   try {
     const users = await (prisma.adminUser as any).findMany({
-      include: { tenant: { select: { id: true, name: true, slug: true } } },
       orderBy: { createdAt: "desc" },
     });
-    res.json(users);
-  } catch (e) {
-    res.status(500).json({ error: "Erro ao buscar usuários." });
+    
+    const tenants = await (prisma.tenant as any).findMany({
+      select: { id: true, name: true, slug: true }
+    });
+
+    const usersMapped = users.map((u: any) => {
+      const tenant = tenants.find((t: any) => t.id === u.tenantId) || { id: "unknown", name: "Estúdio Removido", slug: "unknown" };
+      return { ...u, tenant };
+    });
+
+    res.json(usersMapped);
+  } catch (e: any) {
+    console.error("Erro ao buscar usuários no banco:", e);
+    res.status(500).json({ error: "Erro ao buscar usuários.", details: e?.message });
   }
 });
 
