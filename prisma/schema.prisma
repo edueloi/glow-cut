@@ -246,7 +246,7 @@ model WppBotConfig {
   // Menu interativo
   menuEnabled            Boolean  @default(false)
   menuWelcomeMsg         String?  @db.VarChar(2000)
-  menuOptions            String?  @default("[]") @db.Text
+  menuOptions            String?  @db.Text
   createdAt              DateTime @default(now()) @db.DateTime(0)
   updatedAt              DateTime @updatedAt @db.DateTime(0)
 
