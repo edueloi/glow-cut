@@ -240,7 +240,7 @@ function App() {
         <Route path="/pro"             element={<ProfessionalDashboard />} />
         <Route path="/admin"           element={<AdminDashboard />} />
         <Route path="/admin/*"         element={<AdminDashboard />} />
-        <Route path="/super-admin"     element={<SuperAdminDashboard username={(() => { try { return JSON.parse(localStorage.getItem("superAdminLogged") || "{}").username || "Admin"; } catch { return "Admin"; } })()} onLogout={() => { localStorage.removeItem("superAdminLogged"); window.location.href = "/login"; }} />} />
+        <Route path="/super-admin/*"   element={<SuperAdminDashboard username={(() => { try { return JSON.parse(localStorage.getItem("superAdminLogged") || "{}").username || "Admin"; } catch { return "Admin"; } })()} onLogout={() => { localStorage.removeItem("superAdminLogged"); window.location.href = "/login"; }} />} />
         <Route path="/" element={(() => {
           if (localStorage.getItem("superAdminLogged")) return <Navigate to="/super-admin" replace />;
           if (localStorage.getItem("isLogged") === "true") return <Navigate to="/admin" replace />;
