@@ -1,10 +1,14 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import { fileURLToPath } from "url";
 import cors from "cors";
 import { PrismaClient } from "@prisma/client";
 import { addMinutes, format, parse, startOfDay, addDays } from "date-fns";
 import { randomUUID } from "crypto";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const prisma = new PrismaClient();
 const app = express();
