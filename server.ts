@@ -6,6 +6,7 @@ import cors from "cors";
 import { PrismaClient } from "@prisma/client";
 import { addMinutes, format, parse, startOfDay, addDays } from "date-fns";
 import { randomUUID } from "crypto";
+import fs from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,7 +16,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 // ─────────────────────────────────────────────────────────────
 //  HELPER — extrai tenantId do header X-Tenant-Id ou query param
@@ -1454,6 +1455,38 @@ app.delete("/api/products/:id", async (req, res) => {
     res.status(500).json({ error: e?.message || "Erro ao excluir produto." });
   }
 });
+
+// ═════════════════════════════════════════════════════════════
+//  UPLOAD DE IMAGENS (logo / capa) — salva em disco, retorna URL pública
+// ═════════════════════════════════════════════════════════════
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+app.post("/api/admin/upload", (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+
+  const { data, mimeType } = req.body as { data?: string; mimeType?: string };
+  if (!data || !mimeType) return res.status(400).json({ error: "data e mimeType são obrigatórios." });
+
+  // data pode vir como "data:image/png;base64,AAAA..." ou só o base64 puro
+  const base64 = data.includes(",") ? data.split(",")[1] : data;
+
+  const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+  const filename = `${tenantId}-${randomUUID()}.${ext}`;
+  const filepath = path.join(uploadsDir, filename);
+
+  try {
+    fs.writeFileSync(filepath, Buffer.from(base64, "base64"));
+    res.json({ url: `/uploads/${filename}` });
+  } catch (e: any) {
+    console.error("[POST /api/admin/upload]", e?.message || e);
+    res.status(500).json({ error: "Erro ao salvar imagem." });
+  }
+});
+
+// Servir uploads publicamente
+app.use("/uploads", express.static(uploadsDir));
 
 // ═════════════════════════════════════════════════════════════
 //  SERVIR FRONTEND (produção) — deve ficar DEPOIS de todas as rotas /api

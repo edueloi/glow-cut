@@ -94,19 +94,52 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
     }
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadImage = async (file: File): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result as string;
+          const res = await fetch("/api/admin/upload", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ data: base64, mimeType: file.type }),
+          });
+          if (res.ok) {
+            const { url } = await res.json();
+            resolve(url);
+          } else {
+            show("Erro ao fazer upload da imagem.", "error");
+            resolve(null);
+          }
+        } catch {
+          show("Erro de conexão no upload.", "error");
+          resolve(null);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setLogoPreview(url);
+      // Mostra preview local imediato enquanto faz upload
+      const localUrl = URL.createObjectURL(file);
+      setLogoPreview(localUrl);
+      const url = await uploadImage(file);
+      if (url) setLogoPreview(url);
     }
   };
 
-  const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setCoverPreview(url);
+      // Mostra preview local imediato enquanto faz upload
+      const localUrl = URL.createObjectURL(file);
+      setCoverPreview(localUrl);
+      const url = await uploadImage(file);
+      if (url) setCoverPreview(url);
     }
   };
 
