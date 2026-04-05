@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model adminuser {
+model AdminUser {
   id               String    @id @db.VarChar(36)
   name             String    @db.VarChar(255)
   email            String    @unique(map: "AdminUser_email_key") @db.VarChar(255)
@@ -22,12 +22,12 @@ model adminuser {
   tenantId         String    @db.VarChar(36)
   createdAt        DateTime  @default(now()) @db.DateTime(0)
   lastLogin        DateTime? @db.DateTime(0)
-  tenant           tenant    @relation(fields: [tenantId], references: [id], map: "fk_admin_tenant")
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], map: "fk_admin_tenant")
 
   @@index([tenantId], map: "fk_admin_tenant")
 }
 
-model appointment {
+model Appointment {
   id             String       @id @db.VarChar(36)
   date           DateTime     @db.DateTime(0)
   startTime      String       @db.VarChar(5)
@@ -44,10 +44,10 @@ model appointment {
   notes          String?      @db.VarChar(2000)
   tenantId       String?      @db.VarChar(36)
   createdAt      DateTime     @default(now()) @db.DateTime(0)
-  client         client?      @relation(fields: [clientId], references: [id], map: "fk_appt_client")
-  comanda        comanda?     @relation(fields: [comandaId], references: [id], map: "fk_appt_comanda")
-  professional   professional @relation(fields: [professionalId], references: [id], map: "fk_appt_professional")
-  service        service?     @relation(fields: [serviceId], references: [id], map: "fk_appt_service")
+  client         Client?      @relation(fields: [clientId], references: [id], map: "fk_appt_client")
+  comanda        Comanda?     @relation(fields: [comandaId], references: [id], map: "fk_appt_comanda")
+  professional   Professional @relation(fields: [professionalId], references: [id], map: "fk_appt_professional")
+  service        Service?     @relation(fields: [serviceId], references: [id], map: "fk_appt_service")
 
   @@index([clientId], map: "fk_appt_client")
   @@index([comandaId], map: "fk_appt_comanda")
@@ -55,22 +55,22 @@ model appointment {
   @@index([serviceId], map: "fk_appt_service")
 }
 
-model client {
+model Client {
   id          String        @id @db.VarChar(36)
   name        String        @db.VarChar(255)
   phone       String        @db.VarChar(30)
   age         Int?
   createdAt   DateTime      @default(now()) @db.DateTime(0)
   tenantId    String?       @db.VarChar(36)
-  appointment appointment[]
-  comanda     comanda[]
+  appointment Appointment[]
+  comanda     Comanda[]
 
   @@unique([phone, tenantId], map: "Client_phone_tenantId_key")
   @@index([tenantId], map: "Client_tenantId_idx")
   @@index([tenantId], map: "idx_client_tenant")
 }
 
-model closedday {
+model ClosedDay {
   id          String   @id @db.VarChar(36)
   date        DateTime @db.DateTime(0)
   description String?  @db.VarChar(255)
@@ -81,7 +81,7 @@ model closedday {
   @@index([tenantId], map: "idx_closedday_tenant")
 }
 
-model comanda {
+model Comanda {
   id             String        @id @db.VarChar(36)
   status         String        @default("open") @db.VarChar(20)
   total          Float         @default(0)
@@ -95,8 +95,8 @@ model comanda {
   sessionCount   Int?          @default(1)
   type           String?       @default("normal") @db.VarChar(20)
   createdAt      DateTime      @default(now()) @db.DateTime(0)
-  appointment    appointment[]
-  client         client?       @relation(fields: [clientId], references: [id], map: "fk_comanda_client")
+  appointment    Appointment[]
+  client         Client?       @relation(fields: [clientId], references: [id], map: "fk_comanda_client")
 
   @@index([clientId], map: "fk_comanda_client")
   @@index([professionalId], map: "idx_comanda_prof")
@@ -104,19 +104,19 @@ model comanda {
   @@index([tenantId], map: "idx_comanda_tenant")
 }
 
-model packageservice {
+model PackageService {
   id                                        String  @id @db.VarChar(36)
   packageId                                 String  @db.VarChar(36)
   serviceId                                 String  @db.VarChar(36)
   quantity                                  Int     @default(1)
-  service_packageservice_packageIdToservice service @relation("packageservice_packageIdToservice", fields: [packageId], references: [id], onDelete: Cascade, map: "fk_pkg_package")
-  service_packageservice_serviceIdToservice service @relation("packageservice_serviceIdToservice", fields: [serviceId], references: [id], onDelete: Cascade, map: "fk_pkg_service")
+  service_packageservice_packageIdToservice Service @relation("packageservice_packageIdToservice", fields: [packageId], references: [id], onDelete: Cascade, map: "fk_pkg_package")
+  service_packageservice_serviceIdToservice Service @relation("packageservice_serviceIdToservice", fields: [serviceId], references: [id], onDelete: Cascade, map: "fk_pkg_service")
 
   @@index([packageId], map: "fk_pkg_package")
   @@index([serviceId], map: "fk_pkg_service")
 }
 
-model plan {
+model Plan {
   id                  String   @id @db.VarChar(36)
   name                String   @db.VarChar(100)
   price               Float    @default(0)
@@ -127,10 +127,10 @@ model plan {
   features            String?  @default("[]") @db.VarChar(2000)
   isActive            Boolean  @default(true)
   createdAt           DateTime @default(now()) @db.DateTime(0)
-  tenant              tenant[]
+  tenant              Tenant[]
 }
 
-model professional {
+model Professional {
   id           String         @id @db.VarChar(36)
   name         String         @db.VarChar(255)
   role         String?        @db.VarChar(100)
@@ -142,14 +142,14 @@ model professional {
   permissions  String?        @default("{}") @db.VarChar(2000)
   isActive     Boolean        @default(true)
   tenantId     String?        @db.VarChar(36)
-  appointment  appointment[]
-  workinghours workinghours[]
+  appointment  Appointment[]
+  workinghours WorkingHours[]
 
   @@index([tenantId], map: "Professional_tenantId_idx")
   @@index([tenantId], map: "idx_professional_tenant")
 }
 
-model service {
+model Service {
   id                                               String           @id @db.VarChar(36)
   name                                             String           @db.VarChar(255)
   description                                      String?          @db.Text
@@ -160,22 +160,22 @@ model service {
   discountType                                     String?          @default("value") @db.VarChar(20)
   tenantId                                         String?          @db.VarChar(36)
   professionalIds                                  String?          @default("[]") @db.VarChar(2000)
-  appointment                                      appointment[]
-  packageservice_packageservice_packageIdToservice packageservice[] @relation("packageservice_packageIdToservice")
-  packageservice_packageservice_serviceIdToservice packageservice[] @relation("packageservice_serviceIdToservice")
+  appointment                                      Appointment[]
+  packageservice_packageservice_packageIdToservice PackageService[] @relation("packageservice_packageIdToservice")
+  packageservice_packageservice_serviceIdToservice PackageService[] @relation("packageservice_serviceIdToservice")
 
   @@index([tenantId], map: "Service_tenantId_idx")
   @@index([tenantId], map: "idx_service_tenant")
 }
 
-model superadmin {
+model SuperAdmin {
   id        String   @id @db.VarChar(36)
   username  String   @unique(map: "SuperAdmin_username_key") @db.VarChar(100)
   password  String   @db.VarChar(255)
   createdAt DateTime @default(now()) @db.DateTime(0)
 }
 
-model tenant {
+model Tenant {
   id                    String      @id @db.VarChar(36)
   name                  String      @db.VarChar(255)
   slug                  String      @unique(map: "Tenant_slug_key") @db.VarChar(100)
@@ -195,13 +195,13 @@ model tenant {
   logoUrl               String?     @db.Text
   themeColor            String?     @default("#09090b") @db.VarChar(20)
   welcomeMessage        String?     @db.VarChar(1000)
-  adminuser             adminuser[]
-  plan                  plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
+  adminuser             AdminUser[]
+  plan                  Plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
 
   @@index([planId], map: "fk_tenant_plan")
 }
 
-model workinghours {
+model WorkingHours {
   id             String        @id @db.VarChar(36)
   dayOfWeek      Int
   isOpen         Boolean       @default(true)
@@ -210,14 +210,14 @@ model workinghours {
   breakStart     String        @default("12:00") @db.VarChar(5)
   breakEnd       String        @default("13:00") @db.VarChar(5)
   professionalId String?       @db.VarChar(36)
-  professional   professional? @relation(fields: [professionalId], references: [id], map: "fk_wh_professional")
+  professional   Professional? @relation(fields: [professionalId], references: [id], map: "fk_wh_professional")
 
   @@index([professionalId], map: "fk_wh_professional")
 }
 
 // ─── WhatsApp ───────────────────────────────────────────────
 
-model wpp_instance {
+model WppInstance {
   id           String   @id @db.VarChar(36)
   tenantId     String   @unique @db.VarChar(36)
   instanceName String   @db.VarChar(100)
@@ -233,7 +233,7 @@ model wpp_instance {
   @@index([tenantId], map: "idx_wpp_instance_tenant")
 }
 
-model wpp_bot_config {
+model WppBotConfig {
   id                     String   @id @db.VarChar(36)
   tenantId               String   @unique @db.VarChar(36)
   botEnabled             Boolean  @default(false)
@@ -253,7 +253,7 @@ model wpp_bot_config {
   @@index([tenantId], map: "idx_wpp_botconfig_tenant")
 }
 
-model wpp_message_template {
+model WppMessageTemplate {
   id        String   @id @db.VarChar(36)
   tenantId  String   @db.VarChar(36)
   type      String   @db.VarChar(30)
