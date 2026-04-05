@@ -20,6 +20,7 @@ model AdminUser {
   canDeleteAccount Boolean   @default(false)
   isActive         Boolean   @default(true)
   tenantId         String    @db.VarChar(36)
+  permissions      String?   @db.Text
   createdAt        DateTime  @default(now()) @db.DateTime(0)
   lastLogin        DateTime? @db.DateTime(0)
   tenant           Tenant    @relation(fields: [tenantId], references: [id], map: "fk_admin_tenant")
