@@ -459,7 +459,7 @@ function TenantsTab({ plans }: { plans: any[] }) {
                       <p className="text-xs font-semibold text-zinc-700">{t.ownerName}</p>
                       <p className="text-[10px] text-zinc-400 flex items-center gap-1"><Mail size={9} />{t.ownerEmail}</p>
                     </td>
-                    <td className="px-4 py-3"><Badge color="amber">{t.plan?.name}</Badge></td>
+                    <td className="px-4 py-3"><Badge color="amber">{t.plan?.name || "Sem Plano"}</Badge></td>
                     <td className="px-4 py-3">
                       <span className="text-xs font-black text-zinc-700">{t.adminUsers?.length ?? 0}</span>
                       {t.maxAdminUsersOverride && <span className="text-[10px] text-zinc-400">/{t.maxAdminUsersOverride}</span>}
@@ -574,8 +574,8 @@ function TenantsTab({ plans }: { plans: any[] }) {
                 {detail.adminUsers?.length === 0 && <p className="text-xs text-zinc-400">Nenhum usuário</p>}
                 {detail.adminUsers?.map((u: any) => (
                   <div key={u.id} className="flex items-center gap-2 p-2.5 bg-zinc-50 rounded-xl">
-                    <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-black shrink-0">{u.name.charAt(0).toUpperCase()}</div>
-                    <div className="flex-1 min-w-0"><p className="text-xs font-bold text-zinc-800 truncate">{u.name}</p><p className="text-[10px] text-zinc-400 truncate">{u.email}</p></div>
+                    <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-black shrink-0">{(u.name || "?").charAt(0).toUpperCase()}</div>
+                    <div className="flex-1 min-w-0"><p className="text-xs font-bold text-zinc-800 truncate">{u.name || "—"}</p><p className="text-[10px] text-zinc-400 truncate">{u.email}</p></div>
                     <Badge color={u.isActive ? "emerald" : "zinc"}>{ROLE_LABELS[u.role] ?? u.role}</Badge>
                   </div>
                 ))}
@@ -676,9 +676,9 @@ function UsersTab({ tenants }: { tenants: any[] }) {
                 <tr key={u.id} className="hover:bg-zinc-50/50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-black shrink-0">{u.name.charAt(0).toUpperCase()}</div>
+                      <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-black shrink-0">{(u.name || "?").charAt(0).toUpperCase()}</div>
                       <div className="min-w-0">
-                        <p className="text-xs font-black text-zinc-900 truncate">{u.name}</p>
+                        <p className="text-xs font-black text-zinc-900 truncate">{u.name || "Sem Nome"}</p>
                         <p className="text-[10px] text-zinc-400 truncate">{u.email}</p>
                       </div>
                     </div>
