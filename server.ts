@@ -1178,7 +1178,11 @@ app.get("/api/comandas", async (req, res) => {
         res.json(comandas);
       } catch (e3: any) {
         console.error("[GET /api/comandas] Fallback 2 falhou:", e3?.message || e3);
-        res.status(500).json({ error: "Erro ao buscar comandas.", detail: e3?.message });
+        res.status(500).json({
+          error: "Erro ao buscar comandas.",
+          detail: e3?.message,
+          hint: "Rode: npx prisma generate && npx prisma db push"
+        });
       }
     }
   }
@@ -1451,6 +1455,22 @@ app.delete("/api/products/:id", async (req, res) => {
   }
 });
 
+// ═════════════════════════════════════════════════════════════
+//  SERVIR FRONTEND (produção) — deve ficar DEPOIS de todas as rotas /api
+// ═════════════════════════════════════════════════════════════
+if (process.env.NODE_ENV === "production") {
+  const distPath = path.join(__dirname, "dist");
+  // Serve arquivos estáticos do build do Vite
+  app.use(express.static(distPath));
+  // Catch-all: qualquer rota que não seja /api/* serve o index.html (SPA routing)
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+} else {
+  // Dev: Vite roda em outro processo (npm run dev separado), só avisa
+  app.get("/", (_req, res) => res.redirect("http://localhost:5173"));
+}
+
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT} [${process.env.NODE_ENV || "development"}]`);
 });
