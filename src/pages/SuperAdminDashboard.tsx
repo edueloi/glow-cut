@@ -7,6 +7,7 @@ import {
   Shield, Eye, EyeOff, ToggleLeft, ToggleRight,
   TrendingUp, Crown, Search, Mail, Globe, User, Lock,
 } from "lucide-react";
+import logoFavicon from "../images/system/logo-favicon.png";
 
 /* ═══════════════════════════════════════════
    TIPOS
@@ -1190,7 +1191,7 @@ function Sidebar({ tab, setTab, username, onLogout, onClose }: SidebarProps) {
             <p className="text-xs font-black text-white">Super Admin</p>
             <div className="flex items-center gap-2 mb-1">
               <div className="w-5 h-5 rounded-lg bg-indigo-500 flex items-center justify-center">
-                <img src="/src/images/system/logo-favicon.png" alt="Logo" className="w-3.5 h-3.5 object-contain invert" />
+                <img src={logoFavicon} alt="Logo" className="w-3.5 h-3.5 object-contain invert" />
               </div>
               <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest">Agendelle</p>
             </div>

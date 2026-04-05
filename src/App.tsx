@@ -8,12 +8,15 @@ import LandingPage from "./pages/LandingPage";
 import { Eye, EyeOff, Scissors, UserCog, ArrowRight, Sparkles } from "lucide-react";
 import { cn } from "./lib/utils";
 
+import logoFavicon from "./images/system/logo-favicon.png";
+
 /* ─────────────────────────────────────────────────────────
    LOGIN PAGE — unified (auto-detect admin vs super admin)
 ───────────────────────────────────────────────────────── */
 function LoginPage() {
-  const [user, setUser] = useState("");
+  const [user, setUser] = useState(localStorage.getItem("savedLoginUser") || "");
   const [pass, setPass] = useState("");
+  const [remember, setRemember] = useState(!!localStorage.getItem("savedLoginUser"));
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,6 +45,10 @@ function LoginPage() {
           return;
         }
         const d = await res.json();
+        
+        if (remember) localStorage.setItem("savedLoginUser", user);
+        else localStorage.removeItem("savedLoginUser");
+
         if (d.type === "superadmin") {
           localStorage.setItem("superAdminLogged", JSON.stringify(d));
           window.location.href = "/super-admin";
@@ -75,6 +82,9 @@ function LoginPage() {
         body: JSON.stringify({ email: user, password: pass }),
       });
       if (adminRes.ok) {
+        if (remember) localStorage.setItem("savedLoginUser", user);
+        else localStorage.removeItem("savedLoginUser");
+
         const d = await adminRes.json();
         localStorage.setItem("isLogged", "true");
         localStorage.setItem("adminUser", JSON.stringify(d));
@@ -110,7 +120,7 @@ function LoginPage() {
         <div className="relative z-10 text-center max-w-sm">
           <div className="relative inline-block mb-8">
             <div className="w-24 h-24 bg-white/5 backdrop-blur-sm rounded-3xl flex items-center justify-center p-4 border border-white/10 shadow-2xl">
-              <img src="/src/images/system/logo-favicon.png" alt="Agendelle Logo" className="w-full h-full object-contain" />
+              <img src={logoFavicon} alt="Agendelle Logo" className="w-full h-full object-contain" />
             </div>
             <div className="absolute -inset-4 bg-indigo-500/10 rounded-[40px] blur-2xl -z-10" />
           </div>
@@ -151,7 +161,7 @@ function LoginPage() {
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-3 mb-12">
             <div className="w-12 h-12 bg-white border border-zinc-200 rounded-2xl flex items-center justify-center p-2 shadow-sm relative overflow-hidden">
-              <img src="/src/images/system/logo-favicon.png" alt="Agendelle" className="w-full h-full object-contain" />
+              <img src={logoFavicon} alt="Agendelle" className="w-full h-full object-contain" />
               <div className="absolute inset-0 bg-indigo-500/5" />
             </div>
             <div>
@@ -208,6 +218,18 @@ function LoginPage() {
                 {error}
               </div>
             )}
+
+            <div className="flex items-center justify-between pb-1">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={remember} 
+                  onChange={e => setRemember(e.target.checked)} 
+                  className="w-3.5 h-3.5 rounded border-zinc-300 text-amber-500 focus:ring-amber-500 transition-colors" 
+                />
+                <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Lembrar de mim</span>
+              </label>
+            </div>
 
             <button
               onClick={handleLogin}

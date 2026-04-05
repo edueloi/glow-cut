@@ -56,6 +56,7 @@ import {
   Hash,
   Camera
 } from "lucide-react";
+import logoFavicon from "../images/system/logo-favicon.png";
 import { maskPhone, maskCPF, maskCEP, maskDate, calculateAge } from "@/src/lib/masks";
 import { 
   format, 
@@ -829,7 +830,7 @@ export default function AdminDashboard() {
         <div className={cn("p-4 flex items-center transition-all duration-300", sidebarCollapsed ? "justify-center" : "p-8")}>
           <div className="flex items-center gap-3">
             <div className={cn("bg-zinc-50 rounded-xl flex items-center justify-center border border-zinc-100 shadow-sm shrink-0", sidebarCollapsed ? "w-10 h-10 p-1.5" : "w-11 h-11 p-2")}>
-              <img src="/src/images/system/logo-favicon.png" alt="Agendelle" className="w-full h-full object-contain" />
+              <img src={logoFavicon} alt="Agendelle" className="w-full h-full object-contain" />
             </div>
             {!sidebarCollapsed && (
               <div className="overflow-hidden">

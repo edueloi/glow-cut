@@ -85,7 +85,7 @@
   display: flex; align-items: center; justify-content: space-between;
   height: 70px; padding: 0 28px; max-width: 1200px; margin: 0 auto;
 }
-.lp-nav-logo img { height: 34px; width: auto; }
+.lp-nav-logo img { height: 50px; width: auto; }
 .lp-nav-links { display: flex; align-items: center; gap: 32px; list-style: none; }
 .lp-nav-links a { font-size: .88rem; font-weight: 500; color: var(--lp-text2); transition: color .2s; }
 .lp-nav-links a:hover { color: var(--lp-purple); }
