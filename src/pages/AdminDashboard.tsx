@@ -517,10 +517,9 @@ export default function AdminDashboard() {
     apiFetch("/api/clients").then(res => res.json()).then(setClients);
   };
 
-  const handleDeleteClient = async (id: string) => {
-    if (!confirm("Excluir este cliente?")) return;
-    await apiFetch(`/api/clients/${id}`, { method: "DELETE" });
-    apiFetch("/api/clients").then(res => res.json()).then(setClients);
+  const handleDeleteClient = (id: string) => {
+    const client = clients.find(c => c.id === id);
+    setDeleteConfirm({ type: "client", id, name: client?.name || "este cliente" });
   };
 
   const handleEditClient = (client: any) => {
@@ -790,6 +789,9 @@ export default function AdminDashboard() {
     } else if (deleteConfirm.type === "service") {
       await apiFetch(`/api/services/${deleteConfirm.id}`, { method: "DELETE" });
       apiFetch("/api/services").then(res => res.json()).then(setServices);
+    } else if (deleteConfirm.type === "client") {
+      await apiFetch(`/api/clients/${deleteConfirm.id}`, { method: "DELETE" });
+      apiFetch("/api/clients").then(res => res.json()).then(setClients);
     }
     setDeleteConfirm(null);
   };
