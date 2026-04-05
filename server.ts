@@ -613,33 +613,48 @@ app.post("/api/admin/tenant/branding", async (req, res) => {
 app.get("/api/clients", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const clients = await (prisma.client as any).findMany({
-    where: { tenantId },
-    include: { appointments: true, comandas: true },
-    orderBy: { name: "asc" }
-  });
-  res.json(clients);
+  try {
+    const clientsData = await (prisma.client as any).findMany({
+      where: { tenantId },
+      include: { appointment: true, comanda: true },
+      orderBy: { name: "asc" }
+    });
+    const clients = clientsData.map((c: any) => ({
+      ...c,
+      appointments: c.appointment || [],
+      comandas: c.comanda || []
+    }));
+    res.json(clients);
+  } catch (e: any) {
+    res.status(500).json({ error: "Erro ao buscar clientes." });
+  }
 });
 
 app.get("/api/clients/search", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
   const { phone, name } = req.query;
-  if (phone) {
-    const client = await (prisma.client as any).findFirst({
-      where: { phone: String(phone), tenantId },
-      include: { comandas: { where: { status: "open" } } }
-    });
-    return res.json(client);
+  try {
+    if (phone) {
+      const client = await (prisma.client as any).findFirst({
+        where: { phone: String(phone), tenantId },
+        include: { comanda: { where: { status: "open" } } }
+      });
+      if (client) client.comandas = client.comanda || [];
+      return res.json(client);
+    }
+    if (name) {
+      const clientsData = await (prisma.client as any).findMany({
+        where: { tenantId, name: { contains: String(name) } },
+        include: { comanda: { where: { status: "open" } } }
+      });
+      const clients = clientsData.map((c: any) => ({ ...c, comandas: c.comanda || [] }));
+      return res.json(clients);
+    }
+    res.status(400).json({ error: "Phone ou name obrigatório." });
+  } catch (e: any) {
+    res.status(500).json({ error: "Erro ao buscar cliente." });
   }
-  if (name) {
-    const clients = await (prisma.client as any).findMany({
-      where: { tenantId, name: { contains: String(name) } },
-      include: { comandas: { where: { status: "open" } } }
-    });
-    return res.json(clients);
-  }
-  res.status(400).json({ error: "Phone ou name obrigatório." });
 });
 
 app.post("/api/clients", async (req, res) => {
@@ -685,11 +700,15 @@ app.put("/api/clients/:id", async (req, res) => {
 app.get("/api/professionals", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const profs = await (prisma.professional as any).findMany({
-    where: { tenantId },
-    select: { id: true, name: true, role: true, phone: true, email: true, bio: true, photo: true, permissions: true, isActive: true }
-  });
-  res.json(profs);
+  try {
+    const profs = await (prisma.professional as any).findMany({
+      where: { tenantId },
+      select: { id: true, name: true, role: true, phone: true, email: true, bio: true, photo: true, permissions: true, isActive: true }
+    });
+    res.json(profs);
+  } catch (e: any) {
+    res.status(500).json({ error: "Erro ao buscar profissionais." });
+  }
 });
 
 app.post("/api/professionals", async (req, res) => {
