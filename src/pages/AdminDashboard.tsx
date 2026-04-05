@@ -156,6 +156,7 @@ export default function AdminDashboard() {
 
   // Sempre que a aba mudar, atualizar a URL (sem recarregar a página)
   const handleTabChange = (tab: typeof activeTab) => {
+    setIsSidebarOpen(false);
     setActiveTab(tab);
     if (tab === 'professionals') {
       setProfSubTab('lista');
