@@ -905,6 +905,47 @@ export default function AdminDashboard() {
 
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
 
+  // ── Estado do modal de exclusão de agendamento com repetições ──────────────
+  const [apptDeleteModal, setApptDeleteModal] = useState<{
+    targetId: string;
+    targetAppt: any;
+    siblings: any[];          // todos da mesma série (sem o próprio)
+    selectedIds: Set<string>; // quais o usuário marcou
+  } | null>(null);
+
+  /** Abre o modal de exclusão: se tem grupo, busca irmãos; senão, exclui direto */
+  const handleDeleteAppointment = async (appt: any) => {
+    if (appt.repeatGroupId) {
+      const res = await apiFetch(`/api/appointments/group/${appt.repeatGroupId}`);
+      const all: any[] = await res.json();
+      const siblings = all.filter((a: any) => a.id !== appt.id);
+      setApptDeleteModal({
+        targetId: appt.id,
+        targetAppt: appt,
+        siblings,
+        selectedIds: new Set([appt.id]),  // começa com só este marcado
+      });
+    } else {
+      // Agendamento simples — confirma e exclui direto
+      setDeleteConfirm({ type: "appointment", id: appt.id, name: "este agendamento" });
+    }
+  };
+
+  const confirmDeleteAppointments = async (ids: string[]) => {
+    if (ids.length === 1) {
+      await apiFetch(`/api/appointments/${ids[0]}`, { method: "DELETE" });
+    } else {
+      await apiFetch("/api/appointments/batch", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+    }
+    setApptDeleteModal(null);
+    setIsViewAppointmentModalOpen(false);
+    fetchAppointments();
+  };
+
   const handleDeleteProfessional = (id: string) => {
     const prof = professionals.find((p: any) => p.id === id);
     setDeleteConfirm({ type: "professional", id, name: prof?.name || "este profissional" });
@@ -921,6 +962,9 @@ export default function AdminDashboard() {
     } else if (deleteConfirm.type === "client") {
       await apiFetch(`/api/clients/${deleteConfirm.id}`, { method: "DELETE" });
       apiFetch("/api/clients").then(res => res.json()).then(setClients);
+    } else if (deleteConfirm.type === "appointment") {
+      await apiFetch(`/api/appointments/${deleteConfirm.id}`, { method: "DELETE" });
+      fetchAppointments();
     }
     setDeleteConfirm(null);
   };
@@ -1825,7 +1869,7 @@ export default function AdminDashboard() {
                 </button>
                 <button
                   onClick={() => {
-                      setDeleteConfirm({ type: 'appointment', id: selectedAppointment.id, name: 'este agendamento' });
+                      handleDeleteAppointment(selectedAppointment);
                       setIsViewAppointmentModalOpen(false);
                   }}
                   className="flex flex-col items-center gap-2 p-3 rounded-xl border border-red-200 bg-white text-red-400 hover:bg-red-50 transition-all group"
@@ -3265,6 +3309,149 @@ export default function AdminDashboard() {
           </Button>
         </div>
       </Modal>
+
+      {/* ── MODAL EXCLUSÃO DE AGENDAMENTO COM REPETIÇÕES ─────────── */}
+      <AnimatePresence>
+        {apptDeleteModal && (() => {
+          const { targetId, targetAppt, siblings, selectedIds } = apptDeleteModal;
+          const allIds = [targetId, ...siblings.map((s: any) => s.id)];
+          const toggleId = (id: string) => {
+            setApptDeleteModal(prev => {
+              if (!prev) return prev;
+              const next = new Set(prev.selectedIds);
+              if (id === targetId) return prev; // o próprio não pode desmarcar
+              next.has(id) ? next.delete(id) : next.add(id);
+              return { ...prev, selectedIds: next };
+            });
+          };
+          const selectAll = () => setApptDeleteModal(prev => prev ? { ...prev, selectedIds: new Set(allIds) } : prev);
+          const selectOnlyThis = () => setApptDeleteModal(prev => prev ? { ...prev, selectedIds: new Set([targetId]) } : prev);
+          const allSelected = allIds.every(id => selectedIds.has(id));
+
+          return (
+            <>
+              <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+                onClick={() => setApptDeleteModal(null)}
+                className="fixed inset-0 z-[80] bg-black/40" />
+              <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 pointer-events-none">
+                <motion.div
+                  initial={{opacity:0, scale:0.96, y:8}} animate={{opacity:1, scale:1, y:0}}
+                  exit={{opacity:0, scale:0.96, y:8}} transition={{duration:0.18}}
+                  className="w-full max-w-md bg-white rounded-2xl shadow-2xl pointer-events-auto border border-zinc-200"
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-zinc-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center">
+                        <Trash2 size={16} className="text-red-500" />
+                      </div>
+                      <div>
+                        <h2 className="text-sm font-black text-zinc-900">Excluir Agendamento</h2>
+                        <p className="text-[10px] text-zinc-400 font-medium">
+                          Sessão {targetAppt.sessionNumber}/{targetAppt.totalSessions} da série
+                        </p>
+                      </div>
+                    </div>
+                    <button onClick={() => setApptDeleteModal(null)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400">
+                      <X size={15}/>
+                    </button>
+                  </div>
+
+                  {/* Body */}
+                  <div className="px-5 py-4 space-y-4">
+                    <p className="text-xs text-zinc-600">
+                      Este agendamento faz parte de uma série de <span className="font-black text-zinc-900">{targetAppt.totalSessions} repetições</span>.
+                      Selecione quais deseja excluir:
+                    </p>
+
+                    {/* Atalhos */}
+                    <div className="flex gap-2">
+                      <button onClick={selectOnlyThis}
+                        className={cn("flex-1 py-2 text-[10px] font-black rounded-xl border transition-all uppercase tracking-widest",
+                          !allSelected && selectedIds.size === 1
+                            ? "bg-red-500 text-white border-red-500"
+                            : "bg-white text-zinc-500 border-zinc-200 hover:border-red-300 hover:text-red-500"
+                        )}>
+                        Só este
+                      </button>
+                      <button onClick={selectAll}
+                        className={cn("flex-1 py-2 text-[10px] font-black rounded-xl border transition-all uppercase tracking-widest",
+                          allSelected
+                            ? "bg-red-500 text-white border-red-500"
+                            : "bg-white text-zinc-500 border-zinc-200 hover:border-red-300 hover:text-red-500"
+                        )}>
+                        Todos ({allIds.length})
+                      </button>
+                    </div>
+
+                    {/* Lista de repetições */}
+                    <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                      {/* Este agendamento (sempre marcado) */}
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-100">
+                        <div className="w-4 h-4 rounded-[4px] bg-red-500 border-red-500 flex items-center justify-center shrink-0">
+                          <Check size={10} className="text-white"/>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-zinc-900">
+                            {format(new Date(targetAppt.date), "EEE, dd MMM", { locale: ptBR })} · {targetAppt.startTime}h
+                          </p>
+                          <p className="text-[10px] text-red-600 font-bold">Este agendamento (sessão {targetAppt.sessionNumber})</p>
+                        </div>
+                        <span className="text-[9px] font-black bg-red-100 text-red-600 px-2 py-0.5 rounded-md">
+                          {targetAppt.sessionNumber}/{targetAppt.totalSessions}
+                        </span>
+                      </div>
+
+                      {/* Irmãos */}
+                      {siblings.map((sib: any) => {
+                        const checked = selectedIds.has(sib.id);
+                        return (
+                          <button key={sib.id} onClick={() => toggleId(sib.id)}
+                            className={cn(
+                              "w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all",
+                              checked ? "bg-red-50 border-red-200" : "bg-white border-zinc-100 hover:border-zinc-200"
+                            )}>
+                            <div className={cn(
+                              "w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-all",
+                              checked ? "bg-red-500 border-red-500" : "border-zinc-300"
+                            )}>
+                              {checked && <Check size={10} className="text-white"/>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-zinc-900">
+                                {format(new Date(sib.date), "EEE, dd MMM", { locale: ptBR })} · {sib.startTime}h
+                              </p>
+                              <p className="text-[10px] text-zinc-400 font-medium">Sessão {sib.sessionNumber}</p>
+                            </div>
+                            <span className="text-[9px] font-black bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-md shrink-0">
+                              {sib.sessionNumber}/{sib.totalSessions}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex gap-3 px-5 pb-5">
+                    <button onClick={() => setApptDeleteModal(null)}
+                      className="flex-1 py-3 rounded-xl border border-zinc-200 text-xs font-bold text-zinc-500 hover:bg-zinc-50 transition-all">
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => confirmDeleteAppointments(Array.from(selectedIds))}
+                      className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-black transition-all flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={13}/>
+                      Excluir {selectedIds.size === 1 ? "1 agendamento" : `${selectedIds.size} agendamentos`}
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            </>
+          );
+        })()}
+      </AnimatePresence>
 
     </div>
   );

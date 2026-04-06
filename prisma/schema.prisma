@@ -41,6 +41,7 @@ model Appointment {
   comandaId      String?      @db.VarChar(36)
   sessionNumber  Int?         @default(1)
   totalSessions  Int?         @default(1)
+  repeatGroupId  String?      @db.VarChar(36)
   duration       Int?         @default(60)
   notes          String?      @db.VarChar(2000)
   tenantId       String?      @db.VarChar(36)
@@ -198,116 +199,4 @@ model Service {
   description                                      String?          @db.Text
   price                                            Float
   duration                                         Int
-  type                                             String           @default("service") @db.VarChar(20)
-  discount                                         Float?           @default(0)
-  discountType                                     String?          @default("value") @db.VarChar(20)
-  tenantId                                         String?          @db.VarChar(36)
-  professionalIds                                  String?          @default("[]") @db.VarChar(2000)
-  appointment                                      Appointment[]
-  comandaItems                                     ComandaItem[]
-  packageservice_packageservice_packageIdToservice PackageService[] @relation("packageservice_packageIdToservice")
-  packageservice_packageservice_serviceIdToservice PackageService[] @relation("packageservice_serviceIdToservice")
-
-  @@index([tenantId], map: "Service_tenantId_idx")
-  @@index([tenantId], map: "idx_service_tenant")
-}
-
-model SuperAdmin {
-  id        String   @id @db.VarChar(36)
-  username  String   @unique(map: "SuperAdmin_username_key") @db.VarChar(100)
-  password  String   @db.VarChar(255)
-  createdAt DateTime @default(now()) @db.DateTime(0)
-}
-
-model Tenant {
-  id                    String      @id @db.VarChar(36)
-  name                  String      @db.VarChar(255)
-  slug                  String      @unique(map: "Tenant_slug_key") @db.VarChar(100)
-  ownerName             String      @db.VarChar(255)
-  ownerEmail            String      @db.VarChar(255)
-  ownerPhone            String?     @db.VarChar(30)
-  planId                String      @db.VarChar(36)
-  isActive              Boolean     @default(true)
-  expiresAt             DateTime?   @db.DateTime(0)
-  blockedAt             DateTime?   @db.DateTime(0)
-  maxAdminUsersOverride Int?
-  notes                 String?     @db.VarChar(1000)
-  createdAt             DateTime    @default(now()) @db.DateTime(0)
-  address               String?     @db.VarChar(500)
-  coverUrl              String?     @db.Text
-  instagram             String?     @db.VarChar(255)
-  logoUrl               String?     @db.Text
-  themeColor            String?     @default("#09090b") @db.VarChar(20)
-  welcomeMessage        String?     @db.VarChar(1000)
-  adminuser             AdminUser[]
-  plan                  Plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
-
-  @@index([planId], map: "fk_tenant_plan")
-}
-
-model WorkingHours {
-  id             String        @id @db.VarChar(36)
-  dayOfWeek      Int
-  isOpen         Boolean       @default(true)
-  startTime      String        @default("09:00") @db.VarChar(5)
-  endTime        String        @default("18:00") @db.VarChar(5)
-  breakStart     String        @default("12:00") @db.VarChar(5)
-  breakEnd       String        @default("13:00") @db.VarChar(5)
-  professionalId String?       @db.VarChar(36)
-  professional   Professional? @relation(fields: [professionalId], references: [id], map: "fk_wh_professional")
-
-  @@index([professionalId], map: "fk_wh_professional")
-}
-
-// ─── WhatsApp ───────────────────────────────────────────────
-
-model WppInstance {
-  id           String   @id @db.VarChar(36)
-  tenantId     String   @unique @db.VarChar(36)
-  instanceName String   @db.VarChar(100)
-  apiUrl       String   @db.VarChar(500)
-  apiKey       String?  @db.VarChar(255)
-  phone        String?  @db.VarChar(30)
-  status       String   @default("disconnected") @db.VarChar(20)
-  qrCode       String?  @db.Text
-  isActive     Boolean  @default(false)
-  createdAt    DateTime @default(now()) @db.DateTime(0)
-  updatedAt    DateTime @updatedAt @db.DateTime(0)
-
-  @@index([tenantId], map: "idx_wpp_instance_tenant")
-}
-
-model WppBotConfig {
-  id                     String   @id @db.VarChar(36)
-  tenantId               String   @unique @db.VarChar(36)
-  botEnabled             Boolean  @default(false)
-  // Notificações automáticas
-  sendConfirmation       Boolean  @default(true)
-  sendReminder24h        Boolean  @default(true)
-  sendBirthday           Boolean  @default(true)
-  sendCobranca           Boolean  @default(false)
-  sendWelcome            Boolean  @default(true)
-  // Menu interativo
-  menuEnabled            Boolean  @default(false)
-  menuWelcomeMsg         String?  @db.VarChar(2000)
-  menuOptions            String?  @db.Text
-  createdAt              DateTime @default(now()) @db.DateTime(0)
-  updatedAt              DateTime @updatedAt @db.DateTime(0)
-
-  @@index([tenantId], map: "idx_wpp_botconfig_tenant")
-}
-
-model WppMessageTemplate {
-  id        String   @id @db.VarChar(36)
-  tenantId  String   @db.VarChar(36)
-  type      String   @db.VarChar(30)
-  name      String   @db.VarChar(100)
-  body      String   @db.Text
-  isActive  Boolean  @default(true)
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now()) @db.DateTime(0)
-  updatedAt DateTime @updatedAt @db.DateTime(0)
-
-  @@unique([tenantId, type], map: "uq_wpp_template_tenant_type")
-  @@index([tenantId], map: "idx_wpp_template_tenant")
-}
+  ty

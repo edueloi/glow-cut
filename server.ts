@@ -52,6 +52,34 @@ async function seedSuperAdmin() {
 }
 seedSuperAdmin();
 
+// ─────────────────────────────────────────────────────────────
+//  AUTO-MIGRATION: garante colunas novas sem quebrar o deploy
+// ─────────────────────────────────────────────────────────────
+async function runAutoMigrations() {
+  try {
+    // Adiciona repeatGroupId se não existir
+    await (prisma as any).$executeRawUnsafe(
+      `ALTER TABLE Appointment ADD COLUMN IF NOT EXISTS repeatGroupId VARCHAR(36) NULL`
+    );
+  } catch (_) {
+    // MySQL < 8 não suporta IF NOT EXISTS — tenta verificar antes
+    try {
+      const cols: any[] = await (prisma as any).$queryRaw`
+        SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Appointment' AND COLUMN_NAME = 'repeatGroupId'
+      `;
+      if (cols.length === 0) {
+        await (prisma as any).$executeRawUnsafe(
+          `ALTER TABLE Appointment ADD COLUMN repeatGroupId VARCHAR(36) NULL`
+        );
+      }
+    } catch (e2) {
+      console.warn("⚠️  Auto-migration repeatGroupId ignorada:", e2);
+    }
+  }
+}
+runAutoMigrations();
+
 // ═════════════════════════════════════════════════════════════
 //  LOGIN UNIFICADO
 // ═════════════════════════════════════════════════════════════
@@ -1181,6 +1209,8 @@ app.post("/api/appointments", async (req, res) => {
     const count = (recurrence && recurrence.type !== "none") ? (recurrence.count || 1) : 1;
     const interval = (recurrence && recurrence.type !== "none") ? (recurrence.interval || 7) : 7;
     
+    // Gera um groupId compartilhado por todas as repetições
+    const groupId = count > 1 ? randomUUID() : null;
     const results = [];
     for (let i = 0; i < count; i++) {
       const apptDate = addDays(baseDate, i * interval);
@@ -1201,6 +1231,7 @@ app.post("/api/appointments", async (req, res) => {
           tenantId,
           sessionNumber: i + 1,
           totalSessions: count,
+          repeatGroupId: groupId,
         },
         include: {
           client: { select: { id: true, name: true, phone: true } },
@@ -1289,6 +1320,39 @@ app.delete("/api/appointments/:id", async (req, res) => {
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Erro ao excluir agendamento." });
+  }
+});
+
+// Busca todos os agendamentos do mesmo grupo de repetição
+app.get("/api/appointments/group/:groupId", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  try {
+    const appts = await (prisma as any).appointment.findMany({
+      where: { repeatGroupId: req.params.groupId, tenantId },
+      include: {
+        client: { select: { id: true, name: true, phone: true } },
+        service: { select: { id: true, name: true } },
+      },
+      orderBy: { date: "asc" }
+    });
+    res.json(appts);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Erro ao buscar grupo." });
+  }
+});
+
+// Deleta múltiplos agendamentos por array de IDs
+app.delete("/api/appointments/batch", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "ids obrigatório." });
+  try {
+    await (prisma as any).appointment.deleteMany({ where: { id: { in: ids }, tenantId } });
+    res.json({ success: true, deleted: ids.length });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Erro ao excluir agendamentos." });
   }
 });
 
@@ -1526,146 +1590,4 @@ app.delete("/api/closed-days/:id", async (req, res) => {
   }
 });
 
-// ═════════════════════════════════════════════════════════════
-//  PRODUTOS / ESTOQUE — isolado por tenant
-// ═════════════════════════════════════════════════════════════
-app.get("/api/products", async (req, res) => {
-  const tenantId = getTenantId(req);
-  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  try {
-    const products = await (prisma as any).product.findMany({
-      where: { tenantId },
-      orderBy: { name: "asc" },
-    });
-    res.json(products);
-  } catch (e: any) {
-    console.error("[GET /api/products] Erro:", e?.message || e);
-    res.status(500).json({ error: e?.message || "Erro ao buscar produtos." });
-  }
-});
-
-app.post("/api/products", async (req, res) => {
-  const tenantId = getTenantId(req);
-  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata } = req.body;
-  if (!name) return res.status(400).json({ error: "Nome obrigatório." });
-  try {
-    const product = await (prisma as any).product.create({
-      data: {
-        id: randomUUID(),
-        tenantId,
-        name,
-        description: description || null,
-        photo: photo || null,
-        costPrice: parseFloat(costPrice || "0"),
-        salePrice: parseFloat(salePrice || "0"),
-        stock: parseInt(stock || "0"),
-        minStock: parseInt(minStock || "0"),
-        validUntil: validUntil ? new Date(validUntil) : null,
-        code: code || null,
-        isForSale: isForSale !== false,
-        metadata: metadata ? JSON.stringify(metadata) : null,
-      },
-    });
-    res.json(product);
-  } catch (e: any) {
-    console.error("[POST /api/products] Erro:", e?.message || e);
-    res.status(500).json({ error: e?.message || "Erro ao criar produto." });
-  }
-});
-
-app.put("/api/products/:id", async (req, res) => {
-  const tenantId = getTenantId(req);
-  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata } = req.body;
-  try {
-    const product = await (prisma as any).product.updateMany({
-      where: { id: req.params.id, tenantId },
-      data: {
-        name,
-        description: description || null,
-        photo: photo || null,
-        costPrice: parseFloat(costPrice || "0"),
-        salePrice: parseFloat(salePrice || "0"),
-        stock: parseInt(stock || "0"),
-        minStock: parseInt(minStock || "0"),
-        validUntil: validUntil ? new Date(validUntil) : null,
-        code: code || null,
-        isForSale: isForSale !== false,
-        metadata: metadata ? JSON.stringify(metadata) : null,
-      },
-    });
-    res.json({ success: true, count: product.count });
-  } catch (e: any) {
-    console.error("[PUT /api/products/:id] Erro:", e?.message || e);
-    res.status(500).json({ error: e?.message || "Erro ao atualizar produto." });
-  }
-});
-
-app.delete("/api/products/:id", async (req, res) => {
-  const tenantId = getTenantId(req);
-  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  try {
-    await (prisma as any).product.deleteMany({ where: { id: req.params.id, tenantId } });
-    res.json({ success: true });
-  } catch (e: any) {
-    console.error("[DELETE /api/products/:id] Erro:", e?.message || e);
-    res.status(500).json({ error: e?.message || "Erro ao excluir produto." });
-  }
-});
-
-// ═════════════════════════════════════════════════════════════
-//  UPLOAD DE IMAGENS (logo / capa) — salva em disco, retorna URL pública
-// ═════════════════════════════════════════════════════════════
-// IMPORTANTE: usa process.cwd() e não __dirname para garantir que os uploads
-// fiquem sempre em <raiz-do-projeto>/uploads/, mesmo quando o server é
-// executado via tsx, ts-node ou como arquivo compilado em dist/.
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-console.log("[server] uploadsDir:", uploadsDir);
-
-app.post("/api/admin/upload", (req, res) => {
-  const tenantId = getTenantId(req);
-  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-
-  const { data, mimeType } = req.body as { data?: string; mimeType?: string };
-  if (!data || !mimeType) return res.status(400).json({ error: "data e mimeType são obrigatórios." });
-
-  // data pode vir como "data:image/png;base64,AAAA..." ou só o base64 puro
-  const base64 = data.includes(",") ? data.split(",")[1] : data;
-
-  const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
-  const filename = `${tenantId}-${randomUUID()}.${ext}`;
-  const filepath = path.join(uploadsDir, filename);
-
-  try {
-    fs.writeFileSync(filepath, Buffer.from(base64, "base64"));
-    res.json({ url: `/uploads/${filename}` });
-  } catch (e: any) {
-    console.error("[POST /api/admin/upload]", e?.message || e);
-    res.status(500).json({ error: "Erro ao salvar imagem." });
-  }
-});
-
-// Servir uploads publicamente
-app.use("/uploads", express.static(uploadsDir));
-
-// ═════════════════════════════════════════════════════════════
-//  SERVIR FRONTEND (produção) — deve ficar DEPOIS de todas as rotas /api
-// ═════════════════════════════════════════════════════════════
-if (process.env.NODE_ENV === "production") {
-  const distPath = path.join(process.cwd(), "dist");
-  // Serve arquivos estáticos do build do Vite
-  app.use(express.static(distPath));
-  // Catch-all: qualquer rota que não seja /api/* serve o index.html (SPA routing)
-  app.get("*", (_req, res) => {
-    res.sendFile(path.join(distPath, "index.html"));
-  });
-} else {
-  // Dev: Vite roda em outro processo (npm run dev separado), só avisa
-  app.get("/", (_req, res) => res.redirect("http://localhost:5173"));
-}
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} [${process.env.NODE_ENV || "development"}]`);
-});
+// ══════════════════════════════════════════════════════════�
