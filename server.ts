@@ -1589,5 +1589,44 @@ app.delete("/api/closed-days/:id", async (req, res) => {
     res.status(400).json({ error: e.message || "Erro ao excluir dia fechado." });
   }
 });
+// ═════════════════════════════════════════════════════════════
+//  START SERVER
+// ═════════════════════════════════════════════════════════════
 
-// ══════════════════════════════════════════════════════════�
+async function startServer() {
+  if (process.env.NODE_ENV === "production") {
+    // Modo de produção: serve os arquivos do build (pasta dist)
+    app.use(express.static(path.resolve(__dirname, "dist")));
+    app.get("*", (req, res) => {
+      res.sendFile(path.resolve(__dirname, "dist", "index.html"));
+    });
+    app.listen(PORT, () => {
+      console.log(`✅ Servidor rodando em produção na porta ${PORT}`);
+    });
+  } else {
+    // Modo de desenvolvimento: integra com o Vite
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+    
+    app.use("*", async (req, res) => {
+      let url = req.originalUrl;
+      try {
+        let template = fs.readFileSync(path.resolve(__dirname, "index.html"), "utf-8");
+        template = await vite.transformIndexHtml(url, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(template);
+      } catch (e: any) {
+        vite.ssrFixStacktrace(e);
+        res.status(500).end(e.message);
+      }
+    });
+
+    app.listen(PORT, () => {
+      console.log(`✅ Servidor rodando em desenvolvimento: http://localhost:${PORT}`);
+    });
+  }
+}
+
+startServer();
