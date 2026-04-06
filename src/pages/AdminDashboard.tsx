@@ -3196,4 +3196,11 @@ export default function AdminDashboard() {
             onClick={handleCreateProduct}
             disabled={!newProduct.name}
           >
-            {edi
+            {editingProduct ? "Salvar Produto" : "Cadastrar Produto"}
+          </Button>
+        </div>
+      </Modal>
+
+    </div>
+  );
+}
