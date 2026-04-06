@@ -2644,9 +2644,30 @@ export default function AdminDashboard() {
                           <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Pacote</label>
                           <div className="relative">
                             <select className="w-full appearance-none text-xs p-3 pr-8 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-500/20 outline-none"
-                              value={newComanda.packageId} onChange={e => setNewComanda(p => ({...p, packageId: e.target.value}))}>
+                              value={newComanda.packageId} onChange={e => {
+                                const pkgId = e.target.value;
+                                const pkg = services.find(s => s.id === pkgId);
+                                if (!pkg) { setNewComanda(p => ({...p, packageId: ""})); return; }
+                                // Monta itens a partir dos serviços do pacote
+                                const pkgItems = (pkg.packageServices || []).map((ps: any) => ({
+                                  id: `pkg-${ps.serviceId || ps.service?.id}-${Date.now()}-${Math.random()}`,
+                                  name: ps.service?.name || ps.name || "",
+                                  price: Number(ps.service?.price ?? ps.price) || 0,
+                                  quantity: ps.quantity || 1,
+                                  sessions: ps.quantity || 1,
+                                  serviceId: ps.serviceId || ps.service?.id || null,
+                                  productId: null,
+                                }));
+                                setNewComanda(p => ({
+                                  ...p,
+                                  packageId: pkgId,
+                                  items: pkgItems,
+                                  discount: (pkg.discount || 0).toString(),
+                                  discountType: (pkg.discountType || "value") as "value" | "percentage",
+                                }));
+                              }}>
                               <option value="">Selecione uma definição de pacote</option>
-                              {services.filter(s => s.type === 'package').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                              {services.filter(s => s.type === 'package').map(s => <option key={s.id} value={s.id}>{s.name} – R$ {Number(s.price).toFixed(2)}</option>)}
                             </select>
                             <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"/>
                           </div>
