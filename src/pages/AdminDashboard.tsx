@@ -355,6 +355,7 @@ export default function AdminDashboard() {
     clientName: "",
     serviceId: "",
     packageId: "",
+    serviceIds: [] as string[],   // multi-select unificado (serviços + pacotes)
     professionalId: "",
     status: "agendado" as "agendado" | "confirmado" | "realizado" | "cancelado" | "faltou" | "reagendado",
     notes: "",
@@ -518,7 +519,7 @@ export default function AdminDashboard() {
       id: undefined,
       date: new Date(), startTime: "09:00", duration: 60,
       clientId: "", clientPhone: "", clientName: "",
-      serviceId: "", packageId: "", professionalId: "",
+      serviceId: "", packageId: "", serviceIds: [], professionalId: "",
       status: "agendado", notes: "",
       recurrence: { type: "none", count: 1, interval: 7 },
       comandaId: null, type: "atendimento"
@@ -1799,6 +1800,7 @@ export default function AdminDashboard() {
                       clientName: selectedAppointment.client?.name || "",
                       serviceId: selectedAppointment.serviceId || "",
                       packageId: selectedAppointment.packageId || "",
+                      serviceIds: [selectedAppointment.serviceId, selectedAppointment.packageId].filter(Boolean) as string[],
                       professionalId: selectedAppointment.professionalId || "",
                       status: selectedAppointment.status || "agendado",
                       notes: selectedAppointment.notes || "",
@@ -2006,19 +2008,41 @@ export default function AdminDashboard() {
                                 value={newAppointment.comandaId || ""}
                                 onChange={(e) => {
                                   const cid = e.target.value;
-                                  const selectedCom = comandas.find(c => c.id === cid);
-                                  
-                                  // Tenta encontrar serviço pelo nome na descrição da comanda
-                                  const matchedSvc = services.find(s => 
-                                    s.name.toLowerCase() === (selectedCom?.description || "").toLowerCase()
-                                  );
+                                  const selectedCom = comandas.find((c: any) => c.id === cid);
 
-                                  setNewAppointment(prev => ({ 
-                                    ...prev, 
+                                  // Monta lista de IDs de serviços/pacotes a partir da comanda
+                                  let autoIds: string[] = [];
+                                  if (selectedCom) {
+                                    if (selectedCom.type === 'pacote' && selectedCom.packageId) {
+                                      // Comanda de pacote: usa o pacote
+                                      autoIds = [selectedCom.packageId];
+                                    } else if (Array.isArray(selectedCom.items) && selectedCom.items.length > 0) {
+                                      // Comanda com itens: pega os serviceIds dos itens
+                                      autoIds = selectedCom.items
+                                        .map((i: any) => i.serviceId)
+                                        .filter(Boolean)
+                                        .filter((id: string, idx: number, arr: string[]) => arr.indexOf(id) === idx);
+                                    } else if (selectedCom.description) {
+                                      // Comanda normal: tenta casar pelo nome
+                                      const matched = services.find((s: any) =>
+                                        s.name.toLowerCase() === selectedCom.description.toLowerCase()
+                                      );
+                                      if (matched) autoIds = [matched.id];
+                                    }
+                                  }
+
+                                  const firstSvc = autoIds.find((id: string) => services.find((s: any) => s.id === id && s.type !== 'package'));
+                                  const firstPkg = autoIds.find((id: string) => services.find((s: any) => s.id === id && s.type === 'package'));
+                                  const firstAny = services.find((s: any) => s.id === autoIds[0]);
+
+                                  setNewAppointment((prev: any) => ({
+                                    ...prev,
                                     comandaId: cid || null,
                                     professionalId: selectedCom?.professionalId || prev.professionalId,
-                                    serviceId: matchedSvc ? matchedSvc.id : prev.serviceId,
-                                    duration: matchedSvc ? matchedSvc.duration : prev.duration
+                                    serviceIds: autoIds.length > 0 ? autoIds : prev.serviceIds,
+                                    serviceId: firstSvc || (autoIds.length > 0 ? "" : prev.serviceId),
+                                    packageId: firstPkg || (autoIds.length > 0 ? "" : prev.packageId),
+                                    duration: firstAny?.duration || prev.duration,
                                   }));
                                 }}
                               >
@@ -2050,69 +2074,53 @@ export default function AdminDashboard() {
                             </div>
                           )}
 
-                          {/* Serviço */}
+                          {/* Serviço / Pacote — multi-select unificado */}
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
                               <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
-                              Serviço
+                              Serviço / Pacote
                             </label>
                             <Combobox
-                              options={services
-                                .filter((s: any) => s.type !== 'package')
-                                .map((s: any) => ({
-                                  value: s.id,
-                                  label: s.name,
-                                  subtitle: s.duration ? `${s.duration} min` : undefined,
-                                  badge: `R$ ${Number(s.price).toFixed(0)}`,
-                                  badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
-                                }))}
-                              value={newAppointment.serviceId}
-                              placeholder="Selecionar serviço..."
-                              searchPlaceholder="Buscar serviço..."
-                              onChange={val => {
-                                const id = val as string;
-                                const s = services.find((item: any) => item.id === id);
+                              multiple
+                              options={[
+                                ...services
+                                  .filter((s: any) => s.type !== 'package')
+                                  .map((s: any) => ({
+                                    value: s.id,
+                                    label: s.name,
+                                    group: "Serviços",
+                                    subtitle: s.duration ? `${s.duration} min` : undefined,
+                                    badge: `R$ ${Number(s.price).toFixed(0)}`,
+                                    badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
+                                  })),
+                                ...services
+                                  .filter((s: any) => s.type === 'package')
+                                  .map((s: any) => ({
+                                    value: s.id,
+                                    label: s.name,
+                                    group: "Pacotes",
+                                    subtitle: s.packageServices?.length
+                                      ? `${s.packageServices.length} serviço(s) incluído(s)`
+                                      : undefined,
+                                    badge: `R$ ${Number(s.price).toFixed(0)}`,
+                                    badgeColor: "bg-violet-50 text-violet-700 border-violet-200",
+                                  })),
+                              ]}
+                              value={newAppointment.serviceIds}
+                              placeholder="Selecionar serviço(s) ou pacote(s)..."
+                              searchPlaceholder="Buscar..."
+                              onChange={vals => {
+                                const ids = vals as string[];
+                                const firstSvc = ids.find(id => services.find((s: any) => s.id === id && s.type !== 'package'));
+                                const firstPkg = ids.find(id => services.find((s: any) => s.id === id && s.type === 'package'));
+                                const firstAny = services.find((s: any) => s.id === ids[0]);
                                 setNewAppointment((prev: any) => ({
                                   ...prev,
-                                  serviceId: id,
-                                  packageId: id ? "" : prev.packageId,
-                                  duration: s?.duration || prev.duration,
-                                }));
-                              }}
-                              size="sm"
-                            />
-                          </div>
-
-                          {/* Pacote */}
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full bg-violet-400 inline-block" />
-                              Pacote
-                            </label>
-                            <Combobox
-                              options={services
-                                .filter((s: any) => s.type === 'package')
-                                .map((s: any) => ({
-                                  value: s.id,
-                                  label: s.name,
-                                  subtitle: s.includedServices?.length
-                                    ? `${s.includedServices.length} serviços incluídos`
-                                    : undefined,
-                                  badge: `R$ ${Number(s.price).toFixed(0)}`,
-                                  badgeColor: "bg-violet-50 text-violet-700 border-violet-200",
-                                }))}
-                              value={newAppointment.packageId}
-                              placeholder="Selecionar pacote..."
-                              searchPlaceholder="Buscar pacote..."
-                              onChange={val => {
-                                const id = val as string;
-                                const s = services.find((item: any) => item.id === id);
-                                setNewAppointment((prev: any) => ({
-                                  ...prev,
-                                  packageId: id,
-                                  serviceId: id ? "" : prev.serviceId,
-                                  duration: s?.duration || prev.duration,
-                                  recurrence: { ...prev.recurrence, count: id ? 4 : 1 },
+                                  serviceIds: ids,
+                                  serviceId: firstSvc || "",
+                                  packageId: firstPkg || "",
+                                  duration: firstAny?.duration || prev.duration,
+                                  recurrence: { ...prev.recurrence, count: firstPkg ? 4 : prev.recurrence.count },
                                 }));
                               }}
                               size="sm"
@@ -2288,7 +2296,7 @@ export default function AdminDashboard() {
                     </button>
                     <button
                       onClick={handleCreateAppointment}
-                      disabled={!newAppointment.professionalId || (newAppointment.type === 'atendimento' && (!newAppointment.clientName || (!newAppointment.serviceId && !newAppointment.packageId)))}
+                      disabled={!newAppointment.professionalId || (newAppointment.type === 'atendimento' && (!newAppointment.clientName || (!newAppointment.comandaId && newAppointment.serviceIds.length === 0 && !newAppointment.serviceId && !newAppointment.packageId)))}
                       className={cn("flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white shadow-sm transition-all disabled:opacity-40",
                         newAppointment.type === 'bloqueio' ? "bg-red-500 hover:bg-red-600" :
                         newAppointment.type === 'pessoal' ? "bg-blue-500 hover:bg-blue-600" :
