@@ -111,6 +111,42 @@ import {
 // Mock data for charts
 // revenueData e servicesData são calculados dinamicamente dentro do componente
 
+// ── Componente de item de navegação da sidebar ──────────────────────────────
+function NavItem({
+  active,
+  onClick,
+  icon,
+  label,
+  collapsed,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  collapsed: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={collapsed ? label : undefined}
+      className={cn(
+        "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-all duration-150 group",
+        collapsed ? "justify-center px-2" : "",
+        active
+          ? "bg-amber-500 text-white shadow-sm"
+          : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+      )}
+    >
+      <span className={cn("shrink-0 transition-colors", active ? "text-white" : "text-zinc-400 group-hover:text-zinc-700")}>
+        {icon}
+      </span>
+      {!collapsed && (
+        <span className="text-xs font-bold truncate">{label}</span>
+      )}
+    </button>
+  );
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const adminUser = (() => { try { return JSON.parse(localStorage.getItem("adminUser") || "{}"); } catch { return {}; } })();
@@ -771,7 +807,7 @@ export default function AdminDashboard() {
 
   const currentTheme = themeColors.find(c => c.value === themeColor) || themeColors[0];
 
-  const calcPackagePrice = (includedServices: { id: string, price?: number, quantity: number }[]) => {
+  const calcPackagePrice = (includedServices: { id: string, price?: number, quantity: number, [key: string]: any }[]) => {
     const total = includedServices.reduce((acc, s) => acc + ((s.price || 0) * (s.quantity || 1)), 0);
     return total.toFixed(2);
   };
