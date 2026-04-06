@@ -199,4 +199,63 @@ model Service {
   description                                      String?          @db.Text
   price                                            Float
   duration                                         Int
-  ty
+  type                                             String           @default("service") @db.VarChar(20)
+  discount                                         Float            @default(0)
+  discountType                                     String           @default("value") @db.VarChar(20)
+  tenantId                                         String?          @db.VarChar(36)
+  photo                                            String?          @db.Text
+  createdAt                                        DateTime         @default(now()) @db.DateTime(0)
+  appointment                                      Appointment[]
+  comandaItem                                      ComandaItem[]
+  packageservice_packageservice_packageIdToservice PackageService[] @relation("packageservice_packageIdToservice")
+  packageservice_packageservice_serviceIdToservice PackageService[] @relation("packageservice_serviceIdToservice")
+
+  @@index([tenantId], map: "idx_service_tenant")
+}
+
+model WorkingHours {
+  id             String       @id @db.VarChar(36)
+  dayOfWeek      Int
+  isOpen         Boolean      @default(true)
+  startTime      String       @default("09:00") @db.VarChar(5)
+  endTime        String       @default("19:00") @db.VarChar(5)
+  breakStart     String       @default("12:00") @db.VarChar(5)
+  breakEnd       String       @default("13:00") @db.VarChar(5)
+  professionalId String?      @db.VarChar(36)
+  professional   Professional? @relation(fields: [professionalId], references: [id], map: "fk_wh_professional")
+
+  @@index([professionalId], map: "fk_wh_professional")
+}
+
+model Tenant {
+  id                    String      @id @db.VarChar(36)
+  name                  String      @db.VarChar(255)
+  slug                  String      @unique @db.VarChar(100)
+  ownerName             String      @db.VarChar(255)
+  ownerEmail            String      @db.VarChar(255)
+  ownerPhone            String?     @db.VarChar(30)
+  planId                String      @db.VarChar(36)
+  isActive              Boolean     @default(true)
+  notes                 String?     @db.Text
+  createdAt             DateTime    @default(now()) @db.DateTime(0)
+  expiresAt             DateTime?   @db.DateTime(0)
+  blockedAt             DateTime?   @db.DateTime(0)
+  maxAdminUsersOverride Int?
+  themeColor            String?     @db.VarChar(20)
+  logoUrl               String?     @db.Text
+  coverUrl              String?     @db.Text
+  address               String?     @db.Text
+  instagram             String?     @db.VarChar(100)
+  welcomeMessage        String?     @db.Text
+  adminuser             AdminUser[]
+  plan                  Plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
+
+  @@index([planId], map: "fk_tenant_plan")
+}
+
+model SuperAdmin {
+  id        String   @id @db.VarChar(36)
+  username  String   @unique @db.VarChar(100)
+  password  String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+}

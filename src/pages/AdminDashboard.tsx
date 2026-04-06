@@ -399,6 +399,15 @@ export default function AdminDashboard() {
   const [newComanda, setNewComanda] = useState({ ...emptyComanda });
   const [comandaClientSearchResults, setComandaClientSearchResults] = useState<any[]>([]);
 
+  // Agendamento gerado junto com a comanda
+  const emptyComandaAppt = {
+    generate: false,
+    date: format(new Date(), "yyyy-MM-dd"),
+    startTime: "09:00",
+    recurrence: { type: "none" as "none" | "weekly" | "custom", count: 1, interval: 7 },
+  };
+  const [comandaAppt, setComandaAppt] = useState({ ...emptyComandaAppt });
+
   // New Client State
   const emptyClient = {
     name: "",
@@ -596,8 +605,47 @@ export default function AdminDashboard() {
       }));
     }
 
+    // ── Gerar agendamento(s) vinculado(s) à comanda ──────────────
+    if (comandaAppt.generate && newComanda.professionalId) {
+      // Descobre o serviceId principal
+      let apptServiceId: string | null = null;
+      if (newComanda.type === 'pacote' && newComanda.packageId) {
+        apptServiceId = newComanda.packageId;
+      } else if (newComanda.type === 'pacote' && newComanda.items.length > 0) {
+        apptServiceId = newComanda.items[0].serviceId || null;
+      } else {
+        const matched = services.find((s: any) => s.name.toLowerCase() === (newComanda.description || "").toLowerCase());
+        apptServiceId = matched?.id || null;
+      }
+      const count = comandaAppt.recurrence.type !== 'none' ? (comandaAppt.recurrence.count || 1) : 1;
+      const interval = comandaAppt.recurrence.interval || 7;
+      await apiFetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: comandaAppt.date,
+          startTime: comandaAppt.startTime,
+          endTime: comandaAppt.startTime,
+          clientId,
+          serviceId: apptServiceId,
+          professionalId: newComanda.professionalId,
+          comandaId: createdComanda.id,
+          status: "agendado",
+          type: "atendimento",
+          duration: 60,
+          recurrence: {
+            type: comandaAppt.recurrence.type === 'none' ? 'none' : 'custom',
+            count,
+            interval,
+          },
+        }),
+      });
+      fetchAppointments();
+    }
+
     setIsComandaModalOpen(false);
     setNewComanda({ ...emptyComanda });
+    setComandaAppt({ ...emptyComandaAppt });
     setComandaClientSearchResults([]);
     apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
   };
@@ -2572,7 +2620,7 @@ export default function AdminDashboard() {
       {/* ═══ MODAL NOVA COMANDA ═══════════════════════════════ */}
       <AnimatePresence>
         {isComandaModalOpen && (() => {
-          const closeComanda = () => { setIsComandaModalOpen(false); setComandaClientSearchResults([]); setNewComanda({ ...emptyComanda }); };
+          const closeComanda = () => { setIsComandaModalOpen(false); setComandaClientSearchResults([]); setNewComanda({ ...emptyComanda }); setComandaAppt({ ...emptyComandaAppt }); };
           const subtotal = newComanda.type === 'normal'
             ? (parseFloat(newComanda.value || "0") * parseInt(newComanda.sessionCount || "1"))
             : newComanda.items.reduce((acc, i) => acc + (i.price * i.quantity), 0);
@@ -2818,6 +2866,147 @@ export default function AdminDashboard() {
                         </div>
                       </>
                     )}
+
+                    {/* ── GERAR AGENDAMENTO ── */}
+                    <div className="border border-zinc-100 rounded-2xl overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setComandaAppt(p => ({ ...p, generate: !p.generate }))}
+                        className={cn(
+                          "w-full flex items-center justify-between px-4 py-3 text-xs font-bold transition-all",
+                          comandaAppt.generate ? "bg-amber-50 text-amber-700" : "bg-zinc-50 text-zinc-500 hover:bg-zinc-100"
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <CalendarIcon size={14} className={comandaAppt.generate ? "text-amber-500" : "text-zinc-400"} />
+                          <span>Deseja gerar um agendamento?</span>
+                        </div>
+                        <div className={cn(
+                          "w-9 h-5 rounded-full transition-all relative",
+                          comandaAppt.generate ? "bg-amber-500" : "bg-zinc-200"
+                        )}>
+                          <div className={cn(
+                            "absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all",
+                            comandaAppt.generate ? "left-4" : "left-0.5"
+                          )} />
+                        </div>
+                      </button>
+
+                      {comandaAppt.generate && (
+                        <div className="px-4 pb-4 pt-3 space-y-4 bg-amber-50/30 border-t border-amber-100/60">
+                          {/* Data + Hora */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Data</label>
+                              <input
+                                type="date"
+                                className="w-full text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                value={comandaAppt.date}
+                                onChange={e => setComandaAppt(p => ({ ...p, date: e.target.value }))}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Horário</label>
+                              <input
+                                type="time"
+                                className="w-full text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                value={comandaAppt.startTime}
+                                onChange={e => setComandaAppt(p => ({ ...p, startTime: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Repetição */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Repetição</label>
+                            <div className="flex gap-2">
+                              {([
+                                { v: 'none', label: 'Sem repetição' },
+                                { v: 'weekly', label: 'Semanal' },
+                                { v: 'custom', label: 'Personalizada' },
+                              ] as const).map(opt => (
+                                <button
+                                  key={opt.v}
+                                  type="button"
+                                  onClick={() => setComandaAppt(p => ({ ...p, recurrence: { ...p.recurrence, type: opt.v } }))}
+                                  className={cn(
+                                    "flex-1 py-2 rounded-xl text-[10px] font-bold transition-all border",
+                                    comandaAppt.recurrence.type === opt.v
+                                      ? "bg-amber-500 text-white border-amber-500"
+                                      : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                                  )}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Nº de repetições + intervalo (quando não é 'none') */}
+                          {comandaAppt.recurrence.type !== 'none' && (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Nº de Sessões</label>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={52}
+                                  className="w-full text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                  value={comandaAppt.recurrence.count}
+                                  onChange={e => setComandaAppt(p => ({ ...p, recurrence: { ...p.recurrence, count: parseInt(e.target.value) || 1 } }))}
+                                />
+                              </div>
+                              {comandaAppt.recurrence.type === 'custom' && (
+                                <div className="space-y-1.5">
+                                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Intervalo (dias)</label>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    className="w-full text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                    value={comandaAppt.recurrence.interval}
+                                    onChange={e => setComandaAppt(p => ({ ...p, recurrence: { ...p.recurrence, interval: parseInt(e.target.value) || 7 } }))}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Resumo do agendamento */}
+                          <div className="bg-white border border-amber-100 rounded-xl p-3 space-y-1">
+                            <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-2">Resumo do Agendamento</p>
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span className="text-zinc-400 font-medium">Cliente:</span>
+                              <span className="font-bold text-zinc-700">{newComanda.clientName || "—"}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span className="text-zinc-400 font-medium">Profissional:</span>
+                              <span className="font-bold text-zinc-700">{professionals.find(p => p.id === newComanda.professionalId)?.name || "—"}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span className="text-zinc-400 font-medium">Serviço/Pacote:</span>
+                              <span className="font-bold text-zinc-700 truncate max-w-[140px]">
+                                {newComanda.type === 'pacote'
+                                  ? (services.find(s => s.id === newComanda.packageId)?.name || "—")
+                                  : (newComanda.description || services.find(s => s.id === newComanda.items[0]?.serviceId)?.name || "—")
+                                }
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span className="text-zinc-400 font-medium">Data / Hora:</span>
+                              <span className="font-bold text-zinc-700">
+                                {comandaAppt.date ? format(new Date(comandaAppt.date + "T12:00:00"), "dd/MM/yyyy") : "—"} às {comandaAppt.startTime}
+                              </span>
+                            </div>
+                            {comandaAppt.recurrence.type !== 'none' && (
+                              <div className="flex items-center justify-between text-[10px]">
+                                <span className="text-zinc-400 font-medium">Repetições:</span>
+                                <span className="font-black text-amber-600">{comandaAppt.recurrence.count}x {comandaAppt.recurrence.type === 'weekly' ? '(semanal)' : `(a cada ${comandaAppt.recurrence.interval} dias)`}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     {/* ── TOTAIS ── */}
                     <div className="border-t border-zinc-100 pt-4 space-y-2">
