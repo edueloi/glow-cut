@@ -696,7 +696,7 @@ export default function AdminDashboard() {
     type: "service" as "service" | "package",
     discount: "0",
     discountType: "value" as "value" | "percentage",
-    includedServices: [] as { id: string, name: string, quantity: number, type?: string, sessions?: number }[],
+    includedServices: [] as { id: string, name: string, quantity: number, price?: number, type?: string, sessions?: number }[],
     professionalIds: [] as string[]
   });
 
@@ -771,29 +771,36 @@ export default function AdminDashboard() {
 
   const currentTheme = themeColors.find(c => c.value === themeColor) || themeColors[0];
 
+  const calcPackagePrice = (includedServices: { id: string, price?: number, quantity: number }[]) => {
+    const total = includedServices.reduce((acc, s) => acc + ((s.price || 0) * (s.quantity || 1)), 0);
+    return total.toFixed(2);
+  };
+
   const handleAddServiceToPackage = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
     if (!service) return;
-    
+
     setNewService(prev => {
       const exists = prev.includedServices.find(s => s.id === serviceId);
+      let newIncluded;
       if (exists) {
-        return {
-          ...prev,
-          includedServices: prev.includedServices.map(s => 
-            s.id === serviceId ? { ...s, quantity: s.quantity + 1 } : s
-          )
-        };
+        newIncluded = prev.includedServices.map(s =>
+          s.id === serviceId ? { ...s, quantity: s.quantity + 1 } : s
+        );
+      } else {
+        newIncluded = [...prev.includedServices, {
+          id: service.id,
+          name: service.name,
+          quantity: 1,
+          price: Number(service.price) || 0,
+          type: service.type,
+          sessions: 1
+        }];
       }
       return {
         ...prev,
-        includedServices: [...prev.includedServices, { 
-          id: service.id, 
-          name: service.name, 
-          quantity: 1,
-          type: service.type,
-          sessions: 1
-        }]
+        includedServices: newIncluded,
+        price: calcPackagePrice(newIncluded)
       };
     });
   };
@@ -1460,13 +1467,21 @@ export default function AdminDashboard() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Preço Sugerido (R$)</label>
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">
+                    {newService.type === 'package' ? 'Preço Total dos Serviços (R$)' : 'Preço Sugerido (R$)'}
+                  </label>
                   <input
                     type="number"
-                    className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+                    className={cn(
+                      "w-full text-sm p-3.5 border rounded-2xl text-zinc-900 font-black outline-none transition-all",
+                      newService.type === 'package'
+                        ? "bg-amber-50 border-amber-200 text-amber-800 cursor-default"
+                        : "bg-zinc-50 border-zinc-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400"
+                    )}
                     placeholder="0.00"
                     value={newService.price}
-                    onChange={e => setNewService({ ...newService, price: e.target.value })}
+                    readOnly={newService.type === 'package'}
+                    onChange={e => newService.type !== 'package' && setNewService({ ...newService, price: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1547,21 +1562,33 @@ export default function AdminDashboard() {
                           <div key={s.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-zinc-100 shadow-sm">
                             <div className="flex flex-col">
                               <span className="text-[11px] font-bold text-zinc-800">{s.name}</span>
-                              <span className="text-[9px] text-zinc-400 font-medium">{s.sessions || 1} vezes estimadas</span>
+                              <span className="text-[9px] text-zinc-400 font-medium">
+                                R$ {((s.price || 0) * (s.quantity || 1)).toFixed(2)}
+                                {s.quantity > 1 && <span className="ml-1 opacity-70">(R$ {(s.price || 0).toFixed(2)} × {s.quantity})</span>}
+                              </span>
                             </div>
                             <div className="flex items-center gap-3">
                               <div className="flex items-center border border-zinc-200 rounded-lg overflow-hidden h-7">
                                 <button onClick={() => {
                                   const val = Math.max(1, (s.quantity || 1) - 1);
-                                  setNewService(prev => ({ ...prev, includedServices: prev.includedServices.map(item => item.id === s.id ? { ...item, quantity: val } : item) }));
+                                  setNewService(prev => {
+                                    const newIncluded = prev.includedServices.map(item => item.id === s.id ? { ...item, quantity: val } : item);
+                                    return { ...prev, includedServices: newIncluded, price: calcPackagePrice(newIncluded) };
+                                  });
                                 }} className="px-2 bg-zinc-50 hover:bg-zinc-100 text-zinc-500 text-lg font-medium leading-none">-</button>
                                 <div className="px-3 bg-white text-[11px] font-black text-zinc-900 border-x border-zinc-200 flex items-center justify-center min-w-[32px]">{s.quantity}</div>
                                 <button onClick={() => {
                                   const val = (s.quantity || 1) + 1;
-                                  setNewService(prev => ({ ...prev, includedServices: prev.includedServices.map(item => item.id === s.id ? { ...item, quantity: val } : item) }));
+                                  setNewService(prev => {
+                                    const newIncluded = prev.includedServices.map(item => item.id === s.id ? { ...item, quantity: val } : item);
+                                    return { ...prev, includedServices: newIncluded, price: calcPackagePrice(newIncluded) };
+                                  });
                                 }} className="px-2 bg-zinc-50 hover:bg-zinc-100 text-zinc-500 text-lg font-medium leading-none">+</button>
                               </div>
-                              <button onClick={() => setNewService(prev => ({ ...prev, includedServices: prev.includedServices.filter(item => item.id !== s.id) }))} className="text-red-400 hover:text-red-600 transition-colors bg-red-50 p-1.5 rounded-lg border border-red-100">
+                              <button onClick={() => setNewService(prev => {
+                                const newIncluded = prev.includedServices.filter(item => item.id !== s.id);
+                                return { ...prev, includedServices: newIncluded, price: calcPackagePrice(newIncluded) };
+                              })} className="text-red-400 hover:text-red-600 transition-colors bg-red-50 p-1.5 rounded-lg border border-red-100">
                                 <Trash2 size={14} />
                               </button>
                             </div>
@@ -3169,39 +3196,4 @@ export default function AdminDashboard() {
             onClick={handleCreateProduct}
             disabled={!newProduct.name}
           >
-            {editingProduct ? "Salvar Alterações" : "Adicionar Produto"}
-          </Button>
-        </div>
-      </Modal>
-    </div>
-  );
-}
-
-function NavItem({
-  active,
-  onClick,
-  icon,
-  label,
-  collapsed,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  collapsed: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={collapsed ? label : undefined}
-      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all cursor-pointer outline-none focus:outline-none mb-0.5 ${
-        active
-          ? "bg-amber-500 text-white shadow-md shadow-amber-500/20"
-          : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
-      } ${collapsed ? "justify-center px-2" : ""}`}
-    >
-      <span className="shrink-0">{icon}</span>
-      {!collapsed && <span className="truncate">{label}</span>}
-    </button>
-  );
-}
+            {edi
