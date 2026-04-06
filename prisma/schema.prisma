@@ -204,6 +204,7 @@ model Service {
   discountType                                     String           @default("value") @db.VarChar(20)
   tenantId                                         String?          @db.VarChar(36)
   photo                                            String?          @db.Text
+  professionalIds                                  String?          @default("[]") @db.VarChar(2000)
   createdAt                                        DateTime         @default(now()) @db.DateTime(0)
   appointment                                      Appointment[]
   comandaItem                                      ComandaItem[]
@@ -258,4 +259,34 @@ model SuperAdmin {
   username  String   @unique @db.VarChar(100)
   password  String   @db.VarChar(255)
   createdAt DateTime @default(now()) @db.DateTime(0)
+}
+
+model WppBotConfig {
+  id               String   @id @default(uuid()) @db.VarChar(36)
+  tenantId         String   @unique @db.VarChar(36)
+  botEnabled       Boolean  @default(false)
+  sendConfirmation Boolean  @default(true)
+  sendReminder24h  Boolean  @default(true)
+  sendBirthday     Boolean  @default(true)
+  sendCobranca     Boolean  @default(false)
+  sendWelcome      Boolean  @default(true)
+  menuEnabled      Boolean  @default(false)
+  menuWelcomeMsg   String?  @db.Text
+  menuOptions      String?  @db.Text
+  createdAt        DateTime @default(now()) @db.DateTime(0)
+  updatedAt        DateTime @updatedAt @db.DateTime(0)
+}
+
+model WppMessageTemplate {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  tenantId  String   @db.VarChar(36)
+  type      String   @db.VarChar(50)
+  name      String   @db.VarChar(255)
+  body      String   @db.Text
+  isActive  Boolean  @default(true)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @updatedAt @db.DateTime(0)
+
+  @@unique([tenantId, type])
 }
