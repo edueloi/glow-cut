@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import cors from "cors";
 import { PrismaClient } from "@prisma/client";
-import { addMinutes, format, parse, startOfDay, addDays } from "date-fns";
+import { addMinutes, format, parse, startOfDay, addDays, startOfMonth, endOfMonth, isSameDay } from "date-fns";
 import { randomUUID } from "crypto";
 import fs from "fs";
 
@@ -940,6 +940,11 @@ function applyTemplateVars(template: string, vars: Record<string, string>): stri
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
 }
 
+async function sendWppMessage(tenantId: string, phone: string, message: string) {
+  console.log(`[WPP Mock] Para: ${phone}, Mensagem: ${message}`);
+  // Aqui entraria a integração real com API do WhatsApp (ex: Evolution API)
+}
+
 // ─── Helper: dispara mensagem de confirmação via WPP ─────────
 async function fireWppConfirmation(tenantId: string, appt: any) {
   const botConfig = await (prisma as any).wppBotConfig.findUnique({ where: { tenantId } });
@@ -962,6 +967,159 @@ async function fireWppConfirmation(tenantId: string, appt: any) {
   const message = applyTemplateVars(template.body, vars);
   await sendWppMessage(tenantId, appt.client.phone, message);
 }
+
+// ═════════════════════════════════════════════════════════════
+//  AVAILABILITY & CALENDAR STATUS
+// ═════════════════════════════════════════════════════════════
+
+app.get("/api/availability", async (req, res) => {
+  const tenantId = getTenantId(req);
+  const { date, serviceId, professionalId } = req.query;
+
+  if (!date || !serviceId || !professionalId) {
+    return res.status(400).json({ error: "date, serviceId and professionalId are required." });
+  }
+
+  try {
+    const targetDate = new Date(date as string);
+    const dayOfWeek = targetDate.getDay();
+
+    // 1. Duração do serviço
+    const service = await (prisma as any).service.findUnique({ where: { id: serviceId as string } });
+    if (!service) return res.status(404).json({ error: "Serviço não encontrado." });
+    const duration = service.duration || 60;
+
+    // 2. Horário de trabalho do profissional
+    const wh = await (prisma as any).workingHours.findFirst({
+      where: { professionalId: professionalId as string, dayOfWeek }
+    });
+
+    if (!wh || !wh.isOpen) return res.json([]);
+
+    // 3. Agendamentos existentes
+    const appts = await (prisma as any).appointment.findMany({
+      where: {
+        professionalId: professionalId as string,
+        date: {
+          gte: startOfDay(targetDate),
+          lte: new Date(targetDate.getTime() + 24 * 60 * 60 * 1000)
+        },
+        status: { not: "cancelled" }
+      }
+    });
+
+    // 4. Verificar se o dia está fechado (feriado/bloqueio)
+    const closed = await (prisma as any).closedDay.findFirst({
+      where: { 
+        tenantId, 
+        date: { 
+          gte: startOfDay(targetDate), 
+          lte: new Date(targetDate.getTime() + 24 * 60 * 60 * 1000) 
+        } 
+      }
+    });
+    if (closed) return res.json([]);
+
+    // 5. Gerar slots
+    const slots: string[] = [];
+    const dateStr = format(targetDate, "yyyy-MM-dd");
+    let current = parse(`${dateStr} ${wh.startTime}`, "yyyy-MM-dd HH:mm", new Date());
+    const end = parse(`${dateStr} ${wh.endTime}`, "yyyy-MM-dd HH:mm", new Date());
+    const breakS = wh.breakStart ? parse(`${dateStr} ${wh.breakStart}`, "yyyy-MM-dd HH:mm", new Date()) : null;
+    const breakE = wh.breakEnd ? parse(`${dateStr} ${wh.breakEnd}`, "yyyy-MM-dd HH:mm", new Date()) : null;
+
+    // Se for hoje, o horário inicial deve respeitar a hora atual + 30 min
+    const now = new Date();
+    if (isSameDay(targetDate, now)) {
+      const minStart = addMinutes(now, 30);
+      if (current < minStart) {
+        // Redimensiona para o próximo bloco de 30 min
+        const mins = minStart.getMinutes();
+        const adjustedMins = mins <= 30 ? 30 : 60;
+        current = new Date(minStart);
+        current.setMinutes(adjustedMins);
+        current.setSeconds(0);
+        current.setMilliseconds(0);
+      }
+    }
+
+    while (current < end) {
+      const slotStartStr = format(current, "HH:mm");
+      const slotEnd = addMinutes(current, duration);
+      const slotEndStr = format(slotEnd, "HH:mm");
+
+      // Verifica se o slot cabe no horário de trabalho e não está no intervalo
+      const isInsideWorkingHours = slotStartStr >= wh.startTime && slotEndStr <= wh.endTime;
+      const isOutsideBreak = !breakS || !breakE || (slotEndStr <= wh.breakStart || slotStartStr >= wh.breakEnd);
+
+      if (isInsideWorkingHours && isOutsideBreak && slotEnd <= end) {
+        // Verifica sobreposição com outros agendamentos
+        const hasOverlap = appts.some((a: any) => {
+          // Simplificação: assume que startTime e endTime estão em HH:mm strings no banco
+          return (slotStartStr >= a.startTime && slotStartStr < a.endTime) ||
+                 (slotEndStr > a.startTime && slotEndStr <= a.endTime) ||
+                 (slotStartStr <= a.startTime && slotEndStr >= a.endTime);
+        });
+
+        if (!hasOverlap) {
+          slots.push(slotStartStr);
+        }
+      }
+      current = addMinutes(current, 30); // Incremento de 30 min entre opções de início
+    }
+
+    res.json(slots);
+  } catch (e: any) {
+    console.error("[GET /api/availability] Erro:", e);
+    res.status(500).json({ error: "Erro ao calcular disponibilidade." });
+  }
+});
+
+app.get("/api/calendar-status", async (req, res) => {
+  const tenantId = getTenantId(req);
+  const { month, professionalId } = req.query;
+
+  if (!month || !professionalId) return res.status(400).json({ error: "month e professionalId são obrigatórios." });
+
+  try {
+    const targetDate = new Date(month as string);
+    const start = startOfMonth(targetDate);
+    const end = endOfMonth(targetDate);
+
+    const workingHours = await (prisma as any).workingHours.findMany({ where: { professionalId: professionalId as string } });
+    const closedDays = await (prisma as any).closedDay.findMany({ where: { tenantId, date: { gte: start, lte: end } } });
+    const appts = await (prisma as any).appointment.findMany({
+      where: { 
+        professionalId: professionalId as string, 
+        date: { gte: start, lte: end }, 
+        status: { not: "cancelled" } 
+      }
+    });
+
+    const statusMap: Record<string, string> = {};
+    let cursor = start;
+    while (cursor <= end) {
+      const dateStr = format(cursor, "yyyy-MM-dd");
+      const dayOfWeek = cursor.getDay();
+      const wh = workingHours.find((w: any) => w.dayOfWeek === dayOfWeek);
+      const isClosed = closedDays.find((cd: any) => format(cd.date, "yyyy-MM-dd") === dateStr);
+
+      if (!wh || !wh.isOpen || isClosed) {
+        statusMap[dateStr] = "closed";
+      } else {
+        const dayAppts = appts.filter((a: any) => format(a.date, "yyyy-MM-dd") === dateStr);
+        if (dayAppts.length >= 8) statusMap[dateStr] = "full";
+        else if (dayAppts.length >= 4) statusMap[dateStr] = "busy";
+        else statusMap[dateStr] = "available";
+      }
+      cursor = addDays(cursor, 1);
+    }
+    res.json(statusMap);
+  } catch (e: any) {
+    console.error("[GET /api/calendar-status] Erro:", e);
+    res.status(500).json({ error: "Erro ao buscar status do calendário." });
+  }
+});
 
 // ═════════════════════════════════════════════════════════════
 //  APPOINTMENTS — isolado por tenant

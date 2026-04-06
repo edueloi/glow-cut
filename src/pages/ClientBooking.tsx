@@ -39,6 +39,25 @@ export default function ClientBooking() {
   const [myAppointments, setMyAppointments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [tenantId, setTenantId] = useState<string | null>(null);
+  const [calendarStatus, setCalendarStatus] = useState<Record<string, any>>({});
+
+  const fetchCalendarStatus = async (month: Date, profId: string) => {
+    if (!profId || !tenantId) return;
+    try {
+      const headers: Record<string, string> = { "x-tenant-id": tenantId };
+      const res = await fetch(`/api/calendar-status?month=${month.toISOString()}&professionalId=${profId}`, { headers });
+      const data = await res.json();
+      setCalendarStatus(data);
+    } catch {
+      setCalendarStatus({});
+    }
+  };
+
+  useEffect(() => {
+    if (selectedProfessional && currentMonth) {
+      fetchCalendarStatus(currentMonth, selectedProfessional.id);
+    }
+  }, [currentMonth, selectedProfessional, tenantId]);
 
   // PWA: capture beforeinstallprompt
   useEffect(() => {
