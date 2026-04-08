@@ -1242,8 +1242,17 @@ app.get("/api/appointments/client", async (req, res) => {
 app.post("/api/appointments", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { date, startTime, endTime, clientId, serviceId, professionalId, comandaId, duration, notes, status, type, sessionNumber, totalSessions, recurrence } = req.body;
-  if (!date || !startTime || !professionalId) return res.status(400).json({ error: "data, horário e profissional são obrigatórios." });
+  const { date, startTime, endTime, clientId, serviceId, professionalId: rawProfessionalId, comandaId, duration, notes, status, type, sessionNumber, totalSessions, recurrence } = req.body;
+  if (!date || !startTime) return res.status(400).json({ error: "data e horário são obrigatórios." });
+
+  // Se não veio professionalId, pega o primeiro profissional ativo do tenant
+  let professionalId = rawProfessionalId || null;
+  if (!professionalId) {
+    const firstProf = await (prisma as any).professional.findFirst({ where: { tenantId, isActive: true } });
+    if (firstProf) professionalId = firstProf.id;
+  }
+  if (!professionalId) return res.status(400).json({ error: "Nenhum profissional disponível." });
+
   try {
     const baseDate = new Date(date);
     const count = (recurrence && recurrence.type !== "none") ? (recurrence.count || 1) : 1;

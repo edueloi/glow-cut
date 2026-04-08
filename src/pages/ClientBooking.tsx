@@ -181,12 +181,20 @@ export default function ClientBooking() {
     setIsLoading(true);
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (tenantId) headers["x-tenant-id"] = tenantId;
+
+    // Garante profissional resolvido — usa o único se só tiver 1
+    const profId = selectedProfessional?.id || (professionals.length === 1 ? professionals[0].id : null);
+
     const clientRes = await fetch("/api/clients", { method: "POST", headers, body: JSON.stringify({ ...clientData, phone }) });
     const client = await clientRes.json();
-    await fetch("/api/appointments", {
+    const apptRes = await fetch("/api/appointments", {
       method: "POST", headers,
-      body: JSON.stringify({ date: selectedDate, startTime: selectedSlot, clientId: client.id, serviceId: selectedService.id, professionalId: selectedProfessional?.id || null })
+      body: JSON.stringify({ date: selectedDate, startTime: selectedSlot, clientId: client.id, serviceId: selectedService?.id, professionalId: profId })
     });
+    if (!apptRes.ok) {
+      const err = await apptRes.json().catch(() => ({}));
+      console.error("Erro ao criar agendamento:", err);
+    }
     setIsLoading(false);
     setStep("success");
   };
