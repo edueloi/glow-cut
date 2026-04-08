@@ -83,8 +83,9 @@ export default function ClientBooking() {
     }
   };
 
-  const fetchCalendarStatus = async (month: Date, profId: string) => {
-    if (!profId || !tenantId) return;
+  const fetchCalendarStatus = async (month: Date, profId: string | null | undefined) => {
+    if (!tenantId) return;
+    if (!profId) { setCalendarStatus({}); return; }
     try {
       const headers: Record<string, string> = { "x-tenant-id": tenantId };
       const res = await fetch(`/api/calendar-status?month=${month.toISOString()}&professionalId=${profId}`, { headers });
@@ -94,8 +95,9 @@ export default function ClientBooking() {
   };
 
   useEffect(() => {
-    if (selectedProfessional && currentMonth) fetchCalendarStatus(currentMonth, selectedProfessional.id);
-  }, [currentMonth, selectedProfessional, tenantId]);
+    const profId = selectedProfessional?.id || (professionals.length === 1 ? professionals[0].id : null);
+    fetchCalendarStatus(currentMonth, profId);
+  }, [currentMonth, selectedProfessional, tenantId, professionals]);
 
   useEffect(() => {
     const handler = (e: any) => { e.preventDefault(); setDeferredPrompt(e); setShowInstallBanner(true); };
@@ -714,12 +716,9 @@ export default function ClientBooking() {
                           const dateString = format(day, "yyyy-MM-dd");
                           const isBlocked = blockedDates.includes(dateString);
                           let dayStatus: "closed" | "full" | "busy" | "available" = "available";
-                          if (dayOfWeek === 0 || isBlocked) dayStatus = "closed";
-                          else {
-                            const seed = day.getDate();
-                            if (seed % 7 === 0) dayStatus = "full";
-                            else if (seed % 5 === 0) dayStatus = "busy";
-                          }
+                          if (isBlocked) dayStatus = "closed";
+                          else if (calendarStatus[dateString]) dayStatus = calendarStatus[dateString] as any;
+                          else if (dayOfWeek === 0) dayStatus = "closed";
                           const isDisabled = isPastDay || !isCurrentMonth || dayStatus === "closed";
                           days.push(
                             <button key={day.toISOString()} disabled={isDisabled}
