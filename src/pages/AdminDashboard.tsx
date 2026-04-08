@@ -3338,6 +3338,93 @@ export default function AdminDashboard() {
         })()}
       </Modal>
 
+      {/* ── MODAL NOVO / EDITAR CLIENTE ── */}
+      <Modal
+        isOpen={isClientModalOpen}
+        onClose={() => { setIsClientModalOpen(false); setEditingClient(null); setNewClient({ ...emptyClient }); }}
+        title={editingClient ? "Editar Cliente" : "Novo Cliente"}
+        className="max-w-lg"
+      >
+        <div className="space-y-4">
+          {/* Nome + Telefone */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2 space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Nome Completo *</label>
+              <input
+                type="text"
+                placeholder="Ex: Maria Silva"
+                value={newClient.name}
+                onChange={e => setNewClient({ ...newClient, name: e.target.value })}
+                className="w-full text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Telefone / WhatsApp</label>
+              <input
+                type="tel"
+                placeholder="(00) 00000-0000"
+                value={newClient.phone}
+                onChange={e => setNewClient({ ...newClient, phone: e.target.value })}
+                className="w-full text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">E-mail</label>
+              <input
+                type="email"
+                placeholder="email@exemplo.com"
+                value={newClient.email}
+                onChange={e => setNewClient({ ...newClient, email: e.target.value })}
+                className="w-full text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Data de nascimento + CPF */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Data de Nascimento</label>
+              <input
+                type="date"
+                value={newClient.birthDate}
+                onChange={e => setNewClient({ ...newClient, birthDate: e.target.value })}
+                className="w-full text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">CPF</label>
+              <input
+                type="text"
+                placeholder="000.000.000-00"
+                value={newClient.cpf}
+                onChange={e => setNewClient({ ...newClient, cpf: e.target.value })}
+                className="w-full text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Observações */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Observações</label>
+            <textarea
+              placeholder="Anotações sobre o cliente..."
+              rows={3}
+              value={newClient.notes}
+              onChange={e => setNewClient({ ...newClient, notes: e.target.value })}
+              className="w-full text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all resize-none"
+            />
+          </div>
+
+          <button
+            onClick={handleCreateClient}
+            disabled={!newClient.name}
+            className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-sm transition-all"
+          >
+            {editingClient ? "Salvar Alterações" : "Cadastrar Cliente"}
+          </button>
+        </div>
+      </Modal>
+
       {/* Modal de confirmação de exclusão */}
       <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Confirmar Exclusão" className="max-w-sm">
         <div className="space-y-5">
