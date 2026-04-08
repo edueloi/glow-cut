@@ -33,8 +33,47 @@ export default function ClientBooking() {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
-  const [clientData, setClientData] = useState({ name: "", age: "" });
+  const [clientData, setClientData] = useState({ name: "", age: "", birthDate: "" });
   const [isExistingClient, setIsExistingClient] = useState(false);
+  const [phoneSearched, setPhoneSearched] = useState(false);
+
+  const formatPhone = (v: string) => {
+    const d = v.replace(/\D/g, "").slice(0, 11);
+    if (d.length <= 2) return d;
+    if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+    if (d.length <= 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+    return v;
+  };
+
+  const handlePhoneChange = (v: string) => {
+    const formatted = formatPhone(v);
+    setPhone(formatted);
+    setPhoneSearched(false);
+    // Auto-busca ao completar 11 dígitos
+    const digits = formatted.replace(/\D/g, "");
+    if (digits.length === 11) {
+      setTimeout(() => triggerClientSearch(formatted), 100);
+    }
+  };
+
+  const triggerClientSearch = async (phoneVal: string) => {
+    const digits = phoneVal.replace(/\D/g, "");
+    if (digits.length < 10) return;
+    setIsLoading(true);
+    const headers: Record<string, string> = {};
+    if (tenantId) headers["x-tenant-id"] = tenantId;
+    const res = await fetch(`/api/clients/search?phone=${digits}`, { headers });
+    const data = await res.json();
+    if (data && data.id) {
+      setClientData({ name: data.name || "", age: data.age?.toString() || "", birthDate: data.birthDate?.slice(0, 10) || "" });
+      setIsExistingClient(true);
+    } else {
+      setClientData({ name: "", age: "", birthDate: "" });
+      setIsExistingClient(false);
+    }
+    setPhoneSearched(true);
+    setIsLoading(false);
+  };
   const [myAppointments, setMyAppointments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -142,26 +181,17 @@ export default function ClientBooking() {
     loadData();
   }, [slug]);
 
-  const handleSearchClient = async () => {
-    if (phone.length < 10) return;
-    setIsLoading(true);
-    const headers: Record<string, string> = {};
-    if (tenantId) headers["x-tenant-id"] = tenantId;
-    const res = await fetch(`/api/clients/search?phone=${phone}`, { headers });
-    const data = await res.json();
-    if (data) { setClientData({ name: data.name, age: data.age?.toString() || "" }); setIsExistingClient(true); }
-    else setIsExistingClient(false);
-    setIsLoading(false);
-  };
+  const handleSearchClient = async () => triggerClientSearch(phone);
 
   const handleConsultAppointments = async () => {
-    if (phone.length < 10) return;
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) return;
     setIsLoading(true);
     const headers: Record<string, string> = {};
     if (tenantId) headers["x-tenant-id"] = tenantId;
-    const res = await fetch(`/api/appointments/client?phone=${phone}`, { headers });
+    const res = await fetch(`/api/appointments/client?phone=${digits}`, { headers });
     const data = await res.json();
-    setMyAppointments(data);
+    setMyAppointments(Array.isArray(data) ? data : []);
     setIsLoading(false);
   };
 
@@ -185,7 +215,7 @@ export default function ClientBooking() {
     // Garante profissional resolvido — usa o único se só tiver 1
     const profId = selectedProfessional?.id || (professionals.length === 1 ? professionals[0].id : null);
 
-    const clientRes = await fetch("/api/clients", { method: "POST", headers, body: JSON.stringify({ ...clientData, phone }) });
+    const clientRes = await fetch("/api/clients", { method: "POST", headers, body: JSON.stringify({ ...clientData, phone, birthDate: clientData.birthDate || undefined }) });
     const client = await clientRes.json();
     const apptRes = await fetch("/api/appointments", {
       method: "POST", headers,
@@ -418,7 +448,7 @@ export default function ClientBooking() {
                     <div className="flex gap-2">
                       <input type="tel" placeholder="(00) 00000-0000"
                         className="flex-1 text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 font-bold transition-all h-12"
-                        value={phone} onChange={(e) => setPhone(e.target.value)} />
+                        value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} />
                       <button onClick={handleConsultAppointments} disabled={isLoading}
                         className="rounded-xl w-12 h-12 flex items-center justify-center text-white shadow shrink-0 transition-opacity disabled:opacity-60"
                         style={{ backgroundColor: customColor }}>
@@ -797,6 +827,8 @@ export default function ClientBooking() {
                     <h3 className="text-xl font-black text-zinc-900">Quase lá!</h3>
                     <p className="text-xs text-zinc-400 font-medium mt-0.5">Confirme seus dados para finalizar.</p>
                   </div>
+
+                  {/* Resumo */}
                   <div className="p-4 rounded-2xl border-2" style={{ borderColor: customColor + "33", backgroundColor: customColor + "08" }}>
                     <p className="text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: customColor }}>Resumo do Agendamento</p>
                     <div className="flex items-center justify-between mb-3 pb-3 border-b border-zinc-100">
@@ -819,26 +851,86 @@ export default function ClientBooking() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Dados do cliente */}
                   <div className="space-y-3">
+                    {/* Telefone sempre visível */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-0.5">Telefone (WhatsApp)</label>
-                      <input type="tel" placeholder="(00) 00000-0000"
-                        className="w-full text-sm font-bold p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:border-zinc-400 transition-all h-12"
-                        value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={handleSearchClient} />
+                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-0.5">WhatsApp</label>
+                      <div className="relative">
+                        <input
+                          type="tel"
+                          placeholder="(00) 00000-0000"
+                          className="w-full text-sm font-bold p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:border-zinc-400 transition-all h-12 pr-10"
+                          value={phone}
+                          onChange={(e) => handlePhoneChange(e.target.value)}
+                          onBlur={handleSearchClient}
+                        />
+                        {isLoading && (
+                          <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                        )}
+                        {phoneSearched && !isLoading && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            {isExistingClient
+                              ? <CheckCircle2 size={16} className="text-emerald-500" />
+                              : <div className="w-4 h-4 rounded-full bg-zinc-200" />}
+                          </div>
+                        )}
+                      </div>
+                      {isExistingClient && (
+                        <p className="text-[10px] text-emerald-600 font-bold ml-0.5 flex items-center gap-1">
+                          ✓ Bem-vindo de volta, {clientData.name.split(" ")[0]}!
+                        </p>
+                      )}
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-0.5">
-                        Como devemos te chamar?
-                        {isExistingClient && <span className="ml-2 text-emerald-500">✓ Bem-vindo de volta!</span>}
-                      </label>
-                      <input type="text" placeholder="Seu nome completo"
-                        className="w-full text-sm font-bold p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:border-zinc-400 transition-all h-12"
-                        value={clientData.name} onChange={(e) => setClientData({ ...clientData, name: e.target.value })} />
-                    </div>
+
+                    {/* Nome e aniversário — aparecem após busca */}
+                    <AnimatePresence>
+                      {phoneSearched && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="space-y-3 overflow-hidden"
+                        >
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-0.5">
+                              {isExistingClient ? "Nome" : "Seu nome completo"}
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Como devemos te chamar?"
+                              className="w-full text-sm font-bold p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:border-zinc-400 transition-all h-12"
+                              value={clientData.name}
+                              onChange={(e) => setClientData({ ...clientData, name: e.target.value })}
+                              readOnly={isExistingClient}
+                            />
+                          </div>
+
+                          {!isExistingClient && (
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-0.5">
+                                Data de Aniversário <span className="text-zinc-300 normal-case font-medium">(opcional)</span>
+                              </label>
+                              <input
+                                type="date"
+                                className="w-full text-sm font-bold p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:border-zinc-400 transition-all h-12"
+                                value={clientData.birthDate}
+                                onChange={(e) => setClientData({ ...clientData, birthDate: e.target.value })}
+                              />
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                  <button onClick={handleBooking} disabled={!clientData.name || !phone || isLoading}
+
+                  <button
+                    onClick={handleBooking}
+                    disabled={!clientData.name || phone.replace(/\D/g,"").length < 10 || isLoading}
                     className="w-full py-4 rounded-2xl text-white font-bold text-sm shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    style={{ backgroundColor: customColor }}>
+                    style={{ backgroundColor: customColor }}
+                  >
                     {isLoading ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle2 size={18} /> Confirmar Agendamento</>}
                   </button>
                 </motion.div>
