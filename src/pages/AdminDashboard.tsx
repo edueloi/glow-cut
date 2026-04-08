@@ -1791,33 +1791,29 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Duração + Desconto + Preço final */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-xl border border-zinc-100 bg-zinc-50/40 p-3">
-            <div className="space-y-1">
-              <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Total serviços</label>
-              <p className="text-sm font-black text-amber-600">R$ {parseFloat(newService.price || '0').toFixed(2)}</p>
-            </div>
+          {/* Duração + Desconto */}
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Duração (min)</label>
               <input type="number" min="5" step="5"
-                className="w-full text-sm px-2 py-1.5 bg-white border border-zinc-200 rounded-lg text-zinc-900 font-bold outline-none focus:border-amber-400 transition-all text-center"
+                className="w-full text-sm px-2 py-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-900 font-bold outline-none focus:border-amber-400 transition-all text-center"
                 placeholder="—"
                 value={newService.duration}
                 onChange={e => setNewService({ ...newService, duration: e.target.value })}
               />
             </div>
-            <div className="space-y-1 col-span-2 sm:col-span-1">
+            <div className="space-y-1">
               <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Desconto</label>
               <div className="flex items-center gap-1">
-                <div className="flex rounded-lg overflow-hidden border border-zinc-200 h-7 shrink-0">
+                <div className="flex rounded-lg overflow-hidden border border-zinc-200 h-[38px] shrink-0">
                   {(['value', 'percentage'] as const).map(dt => (
                     <button key={dt} onClick={() => setNewService({ ...newService, discountType: dt })}
-                      className={cn("px-1.5 text-[9px] font-black transition-all", newService.discountType === dt ? "bg-zinc-800 text-white" : "bg-white text-zinc-400")}
+                      className={cn("px-2 text-[9px] font-black transition-all h-full", newService.discountType === dt ? "bg-zinc-800 text-white" : "bg-white text-zinc-400")}
                     >{dt === 'value' ? 'R$' : '%'}</button>
                   ))}
                 </div>
                 <input type="number" min="0"
-                  className="flex-1 h-7 text-xs px-2 bg-white border border-zinc-200 rounded-lg text-center font-bold outline-none focus:border-amber-400 transition-all"
+                  className="flex-1 min-w-0 h-[38px] text-sm px-2 bg-white border border-zinc-200 rounded-lg text-center font-bold outline-none focus:border-amber-400 transition-all"
                   placeholder="0"
                   value={newService.discount}
                   onChange={e => setNewService({ ...newService, discount: e.target.value })}
@@ -1827,15 +1823,21 @@ export default function AdminDashboard() {
           </div>
 
           {/* Preço final destaque */}
-          <div className="flex items-center justify-between rounded-xl bg-amber-50 border border-amber-100 px-4 py-2.5">
-            <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Preço Final do Pacote</p>
-            <p className="text-xl font-black text-amber-700">
-              R$ {(() => {
-                const p = parseFloat(newService.price) || 0;
-                const d = parseFloat(newService.discount) || 0;
-                return newService.discountType === 'percentage' ? (p * (1 - d / 100)).toFixed(2) : (p - d).toFixed(2);
-              })()}
-            </p>
+          <div className="flex items-center justify-between rounded-xl bg-amber-50 border border-amber-100 px-4 py-3">
+            <div>
+              <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Total serviços</p>
+              <p className="text-xs text-amber-400 line-through">R$ {parseFloat(newService.price || '0').toFixed(2)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Preço Final</p>
+              <p className="text-xl font-black text-amber-700">
+                R$ {(() => {
+                  const p = parseFloat(newService.price) || 0;
+                  const d = parseFloat(newService.discount) || 0;
+                  return newService.discountType === 'percentage' ? (p * (1 - d / 100)).toFixed(2) : (p - d).toFixed(2);
+                })()}
+              </p>
+            </div>
           </div>
 
           {/* Profissionais */}
