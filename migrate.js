@@ -644,6 +644,15 @@ async function run() {
   const conn = await mysql.createConnection({ ...DB_CONFIG, database: DB_NAME });
   console.log("\uD83D\uDCBE  Banco selecionado: " + DB_NAME);
 
+  // Garante que a tabela de controle existe antes de tudo
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS _migrations (
+      id     INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      name   VARCHAR(255) NOT NULL UNIQUE,
+      ran_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   let ran = 0, skipped = 0, errors = 0;
 
   for (const m of MIGRATIONS) {
