@@ -290,6 +290,7 @@ app.post("/api/super-admin/tenants", async (req, res) => {
         notes: notes || null,
         isActive: true,
         expiresAt: expiresAt ? new Date(expiresAt) : defaultExpires,
+        themeColor: "#c9a96e",
       },
     });
 

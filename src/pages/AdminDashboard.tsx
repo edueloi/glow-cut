@@ -489,7 +489,10 @@ export default function AdminDashboard() {
     
     let url = `/api/appointments?start=${start.toISOString()}&end=${end.toISOString()}`;
     if (selectedProfessional !== "all") url += `&professionalId=${selectedProfessional}`;
-    apiFetch(url).then(res => res.json()).then(setAppointments);
+    apiFetch(url)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setAppointments(Array.isArray(data) ? data : []))
+      .catch(() => setAppointments([]));
   };
 
   const handleCreateAppointment = async () => {
