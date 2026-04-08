@@ -1764,7 +1764,35 @@ async function startServer() {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
 
-    // SEO dinâmico para páginas de agendamento público
+    // Manifest dinâmico por slug — PWA separado do admin
+    app.get("/agendar/:slug/manifest.json", async (req, res) => {
+      const { slug } = req.params;
+      try {
+        const tenant = await (prisma as any).tenant.findFirst({
+          where: { slug, isActive: true },
+          select: { name: true, logoUrl: true, themeColor: true }
+        });
+        if (!tenant) return res.status(404).json({});
+        const icon = tenant.logoUrl || "/favicon-celular.png";
+        res.json({
+          name: tenant.name,
+          short_name: tenant.name.split(" ")[0],
+          description: `Agende seu horário no ${tenant.name}`,
+          start_url: `/agendar/${slug}`,
+          display: "standalone",
+          background_color: "#ffffff",
+          theme_color: tenant.themeColor || "#c9a96e",
+          icons: [
+            { src: icon, sizes: "192x192", type: "image/png", purpose: "any maskable" },
+            { src: icon, sizes: "512x512", type: "image/png", purpose: "any maskable" }
+          ]
+        });
+      } catch {
+        res.status(500).json({});
+      }
+    });
+
+    // SEO + manifest dinâmico para páginas de agendamento público
     app.get(["/agendar/:slug", "/:slug"], async (req, res, next) => {
       const { slug } = req.params;
       // Ignora rotas internas
@@ -1772,7 +1800,7 @@ async function startServer() {
       try {
         const tenant = await (prisma as any).tenant.findFirst({
           where: { slug, isActive: true },
-          select: { name: true, logoUrl: true, coverUrl: true, address: true, welcomeMessage: true, instagram: true }
+          select: { name: true, logoUrl: true, coverUrl: true, address: true, welcomeMessage: true, instagram: true, themeColor: true }
         });
         if (!tenant) return next();
         const indexHtml = fs.readFileSync(path.join(distPath, "index.html"), "utf-8");
@@ -1780,10 +1808,21 @@ async function startServer() {
         const desc = tenant.welcomeMessage || `Agende seu horário no ${tenant.name}. Rápido, fácil e sem precisar baixar apps.`;
         const image = tenant.coverUrl || tenant.logoUrl || "";
         const url = `https://agendelle.com.br/agendar/${slug}`;
-        const seoHtml = indexHtml.replace(
+        const color = tenant.themeColor || "#c9a96e";
+        // Remove o manifest padrão do Agendelle e injeta o do salão
+        const htmlSemManifest = indexHtml.replace(
+          /<link rel="manifest"[^>]*>/g, ""
+        ).replace(
+          /<meta name="theme-color"[^>]*>/g, ""
+        ).replace(
+          /<link rel="apple-touch-icon"[^>]*>/g, ""
+        );
+        const seoHtml = htmlSemManifest.replace(
           "<title>Agendelle | Agendamentos Inteligentes</title>",
           `<title>${title}</title>
     <meta name="description" content="${desc}" />
+    <meta name="theme-color" content="${color}" />
+    <link rel="manifest" href="/agendar/${slug}/manifest.json" crossorigin="use-credentials" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="${url}" />
     <meta property="og:title" content="${title}" />
@@ -1793,7 +1832,8 @@ async function startServer() {
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${title}" />
     <meta name="twitter:description" content="${desc}" />
-    <meta name="twitter:image" content="${image}" />`
+    <meta name="twitter:image" content="${image}" />
+    <link rel="apple-touch-icon" href="${tenant.logoUrl || '/favicon-celular.png'}" />`
         );
         res.set("Content-Type", "text/html").send(seoHtml);
       } catch {
