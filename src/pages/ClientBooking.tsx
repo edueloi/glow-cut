@@ -294,13 +294,13 @@ export default function ClientBooking() {
       {/* ── RIGHT PANEL ── */}
       <div className="w-full md:w-[48%] lg:w-[45%] xl:w-[42%] flex flex-col bg-white min-h-screen md:overflow-y-auto relative">
 
-        {/* Mobile header */}
-        <div className="md:hidden relative overflow-hidden" style={coverUrl ? { ...heroStyle, minHeight: "200px" } : { backgroundColor: customColor, minHeight: "200px" }}>
+        {/* Mobile header — sticky */}
+        <div className="md:hidden sticky top-0 z-30 relative overflow-hidden" style={coverUrl ? { ...heroStyle, minHeight: "160px" } : { backgroundColor: customColor, minHeight: "160px" }}>
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black/85" />
           {showInstallBanner && (
             <motion.div initial={{ y: -60, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
               className="absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-4 py-3 bg-black/60 backdrop-blur-md border-b border-white/10">
-              <div className="w-8 h-8 rounded-xl bg-white overflow-hidden flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-full bg-white overflow-hidden flex items-center justify-center shrink-0">
                 {customLogo ? <img src={customLogo} alt="" className="w-full h-full object-cover" /> : <Scissors size={14} className="text-zinc-800" />}
               </div>
               <div className="flex-1 min-w-0">
@@ -313,17 +313,17 @@ export default function ClientBooking() {
               <button onClick={() => setShowInstallBanner(false)} className="p-1 text-white/50 hover:text-white transition-colors shrink-0"><X size={15} /></button>
             </motion.div>
           )}
-          <div className="relative z-10 flex flex-col items-center justify-end text-center pb-7 pt-14 px-6 min-h-[200px]">
+          <div className="relative z-10 flex flex-col items-center justify-end text-center pb-5 pt-10 px-6 min-h-[160px]">
             {customLogo ? (
-              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-3 shadow-xl overflow-hidden">
+              <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center mb-3 shadow-xl overflow-hidden border-2 border-white/20">
                 <img src={customLogo} alt="Logo" className="w-full h-full object-cover" />
               </div>
             ) : (
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 bg-white/10 backdrop-blur-sm border border-white/20">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3 bg-white/10 backdrop-blur-sm border-2 border-white/20">
                 <Scissors size={24} className="text-white" />
               </div>
             )}
-            <h2 className="text-xl font-black text-white tracking-tight leading-tight">{studioName}</h2>
+            <h2 className="text-lg font-black text-white tracking-tight leading-tight">{studioName}</h2>
             {studioAddress && (
               <p className="text-[10px] text-white/50 font-medium mt-1 flex items-center gap-1">
                 <MapPin size={9} /> {studioAddress}
