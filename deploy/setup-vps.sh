@@ -14,6 +14,7 @@ echo "════════════════════════�
 # ── 1. Cria pasta do projeto ─────────────────────────
 echo "📁 Criando /var/www/agendelle..."
 mkdir -p /var/www/agendelle
+mkdir -p /var/www/agendelle/uploads
 mkdir -p /var/log/pm2
 
 # ── 2. Clona o repositório ───────────────────────────
