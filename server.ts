@@ -642,7 +642,7 @@ app.post("/api/admin/tenant/branding", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
   
-  const { themeColor, logoUrl, coverUrl, address, instagram, welcomeMessage, title } = req.body;
+  const { themeColor, logoUrl, coverUrl, address, instagram, welcomeMessage, title, description } = req.body;
   
   console.log(`[Branding] Atualizando tenant ${tenantId}`, { logoUrl, coverUrl });
 
@@ -656,6 +656,7 @@ app.post("/api/admin/tenant/branding", async (req, res) => {
         address: address !== undefined ? address : undefined,
         instagram: instagram !== undefined ? instagram : undefined,
         welcomeMessage: welcomeMessage !== undefined ? welcomeMessage : undefined,
+        description: description !== undefined ? description : undefined,
         name: title !== undefined ? title : undefined
       }
     });
@@ -1773,14 +1774,14 @@ async function startServer() {
       try {
         const tenant = await (prisma as any).tenant.findFirst({
           where: { slug, isActive: true },
-          select: { name: true, logoUrl: true, themeColor: true }
+          select: { name: true, logoUrl: true, themeColor: true, description: true }
         });
         if (!tenant) return res.status(404).json({});
         const icon = tenant.logoUrl || "/favicon-celular.png";
         res.json({
           name: tenant.name,
           short_name: tenant.name.split(" ")[0],
-          description: `Agende seu horário no ${tenant.name}`,
+          description: (tenant as any).description || `Agende seu horário no ${tenant.name}`,
           start_url: `/agendar/${slug}`,
           display: "standalone",
           background_color: "#ffffff",
@@ -1803,12 +1804,12 @@ async function startServer() {
       try {
         const tenant = await (prisma as any).tenant.findFirst({
           where: { slug, isActive: true },
-          select: { name: true, logoUrl: true, coverUrl: true, address: true, welcomeMessage: true, instagram: true, themeColor: true }
+          select: { name: true, logoUrl: true, coverUrl: true, address: true, welcomeMessage: true, instagram: true, themeColor: true, description: true }
         });
         if (!tenant) return next();
         const indexHtml = fs.readFileSync(path.join(distPath, "index.html"), "utf-8");
         const title = `${tenant.name} — Agendar Horário`;
-        const desc = tenant.welcomeMessage || `Agende seu horário no ${tenant.name}. Rápido, fácil e sem precisar baixar apps.`;
+        const desc = (tenant as any).description || tenant.welcomeMessage || `Agende seu horário no ${tenant.name}. Rápido, fácil e sem precisar baixar apps.`;
         const image = tenant.coverUrl || tenant.logoUrl || "";
         const url = `https://agendelle.com.br/agendar/${slug}`;
         const color = tenant.themeColor || "#c9a96e";

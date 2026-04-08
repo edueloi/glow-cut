@@ -57,6 +57,7 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
           setLocalTitle(t.name || "");
           setStudioName(t.name || propStudioName);
           setLocalWelcome(t.welcomeMessage || "");
+          setLocalDesc(t.description || "");
         }
       } catch (e) {
         console.error("Erro ao carregar branding:", e);
@@ -78,6 +79,7 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
           address: localAddress,
           instagram: localInstagram ? `https://instagram.com/${localInstagram.replace(/^https?:\/\/(www\.)?instagram\.com\/?/, "").replace(/\/$/, "")}` : "",
           welcomeMessage: localWelcome,
+          description: localDesc,
           title: localTitle
         }),
       });

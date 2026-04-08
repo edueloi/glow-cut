@@ -575,6 +575,13 @@ const MIGRATIONS = [
     ignoreIfExists: true,
   },
 
+  // 030g - Tenant: description (SEO / redes sociais)
+  {
+    name: '030g_tenant_add_description',
+    sql: `ALTER TABLE Tenant ADD COLUMN description TEXT NULL AFTER welcomeMessage`,
+    ignoreIfExists: true,
+  },
+
   // 031 - WppBotConfig
   {
     name: '031_create_wpp_bot_config',

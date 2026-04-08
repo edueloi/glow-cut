@@ -248,6 +248,7 @@ model Tenant {
   address               String?     @db.Text
   instagram             String?     @db.VarChar(100)
   welcomeMessage        String?     @db.Text
+  description           String?     @db.Text
   adminuser             AdminUser[]
   plan                  Plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
 
