@@ -1309,7 +1309,7 @@ export default function AdminDashboard() {
               >
                 <div className="hidden md:block text-right">
                   <p className="text-[11px] font-black text-zinc-900 leading-none">{adminUser.name || "Admin Studio"}</p>
-                  <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider mt-1">{adminUser.role === "admin" ? "Proprietário" : adminUser.role === "manager" ? "Gerente" : "Visualizador"}</p>
+                  <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider mt-1">{adminUser.role === "owner" ? "Proprietário" : adminUser.role === "admin" ? "Admin" : adminUser.role === "manager" ? "Gerente" : "Visualizador"}</p>
                 </div>
                 <div className="w-9 h-9 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-500 overflow-hidden group-hover:shadow-sm transition-all">
                   {adminUser.photo
@@ -1325,27 +1325,46 @@ export default function AdminDashboard() {
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsProfileMenuOpen(false)} />
                     <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-zinc-100 z-50 overflow-hidden"
+                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.12)] border border-zinc-100/80 z-50 overflow-hidden"
                     >
-                      <div className="p-4 bg-zinc-50/50 border-b border-zinc-50">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Conta</p>
-                        <p className="text-xs font-bold text-zinc-800 truncate mt-1">{adminUser.email || "—"}</p>
+                      {/* Header com avatar + info */}
+                      <div className="p-4 flex items-center gap-3 border-b border-zinc-100">
+                        <div className="w-10 h-10 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0">
+                          {adminUser.photo
+                            ? <img src={adminUser.photo} alt="Avatar" className="w-full h-full object-cover" />
+                            : <span className="font-black text-xs text-zinc-600">{(adminUser.name || "AS").split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)}</span>
+                          }
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-zinc-900 truncate leading-tight">{adminUser.name || "Admin"}</p>
+                          <p className="text-[10px] text-zinc-400 truncate mt-0.5">{adminUser.email || "—"}</p>
+                          <span className="inline-block mt-1 text-[9px] font-black uppercase tracking-wider text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded-md">
+                            {adminUser.role === "owner" ? "Proprietário" : adminUser.role === "manager" ? "Gerente" : adminUser.role === "admin" ? "Admin" : "Visualizador"}
+                          </span>
+                        </div>
                       </div>
+
+                      {/* Ações */}
                       <div className="p-2">
                         <button onClick={() => { setIsProfileMenuOpen(false); handleTabChange('profile'); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all">
-                          <UserCog size={16} /> Meu Perfil
+                          <UserCog size={15} className="text-zinc-400" /> Meu Perfil
                         </button>
                         <button onClick={() => { setIsProfileMenuOpen(false); handleTabChange('settings'); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all">
-                          <Settings size={16} /> Configurações
+                          <Settings size={15} className="text-zinc-400" /> Configurações
                         </button>
                       </div>
-                      <div className="p-2 border-t border-zinc-50 bg-zinc-50/20">
-                        <button onClick={() => { localStorage.removeItem("isLogged"); localStorage.removeItem("adminUser"); window.location.href = "/login"; }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 transition-all">
-                          <LogOut size={16} /> Sair
-                        </button>
+
+                      {/* Sair */}
+                      <div className="p-2 pt-0">
+                        <div className="border-t border-zinc-100 pt-2">
+                          <button onClick={() => { localStorage.removeItem("isLogged"); localStorage.removeItem("adminUser"); window.location.href = "/login"; }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 transition-all">
+                            <LogOut size={15} /> Sair da conta
+                          </button>
+                        </div>
                       </div>
                     </motion.div>
                   </>
