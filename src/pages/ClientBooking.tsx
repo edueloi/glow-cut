@@ -56,6 +56,33 @@ export default function ClientBooking() {
     } catch { return professionals; }
   };
 
+  // Se só tem 1 profissional (ou nenhum), pula a seleção
+  const onlyOneProfessional = professionals.length <= 1;
+  const getDefaultProfessional = () => professionals.length === 1 ? professionals[0] : null;
+
+  // Ao clicar "Agendar" na home: se só 1 prof → vai direto para serviços
+  const handleStartBooking = () => {
+    if (onlyOneProfessional) {
+      setSelectedProfessional(getDefaultProfessional());
+      setStep("by-service");
+    } else {
+      setStep("choose-mode");
+    }
+  };
+
+  // Após escolher serviço (no by-service): se só 1 prof → vai direto para data
+  const handleServiceSelected = (s: any) => {
+    setSelectedService(s);
+    if (onlyOneProfessional) {
+      const prof = getDefaultProfessional();
+      setSelectedProfessional(prof);
+      setStep("date");
+      fetchAvailability(selectedDate, s.id, prof?.id || "");
+    } else {
+      setStep("pick-professional");
+    }
+  };
+
   const fetchCalendarStatus = async (month: Date, profId: string) => {
     if (!profId || !tenantId) return;
     try {
@@ -156,7 +183,7 @@ export default function ClientBooking() {
     const client = await clientRes.json();
     await fetch("/api/appointments", {
       method: "POST", headers,
-      body: JSON.stringify({ date: selectedDate, startTime: selectedSlot, clientId: client.id, serviceId: selectedService.id, professionalId: selectedProfessional.id })
+      body: JSON.stringify({ date: selectedDate, startTime: selectedSlot, clientId: client.id, serviceId: selectedService.id, professionalId: selectedProfessional?.id || null })
     });
     setIsLoading(false);
     setStep("success");
@@ -322,7 +349,7 @@ export default function ClientBooking() {
                   <button
                     className="w-full flex items-center justify-between p-4 rounded-2xl text-white transition-all active:scale-[0.98] hover:opacity-90 shadow-lg"
                     style={{ backgroundColor: customColor }}
-                    onClick={() => setStep("choose-mode")}
+                    onClick={handleStartBooking}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
@@ -330,7 +357,7 @@ export default function ClientBooking() {
                       </div>
                       <div className="text-left">
                         <p className="text-sm font-black leading-tight">Agendar Horário</p>
-                        <p className="text-[10px] text-white/60 font-medium mt-0.5">Escolha serviço ou profissional</p>
+                        <p className="text-[10px] text-white/60 font-medium mt-0.5">Escolha o serviço e a data</p>
                       </div>
                     </div>
                     <ChevronRight size={18} className="text-white/70" />
@@ -537,7 +564,7 @@ export default function ClientBooking() {
                   <div className="space-y-2">
                     {services.map((s) => (
                       <button key={s.id}
-                        onClick={() => { setSelectedService(s); setStep("pick-professional"); }}
+                        onClick={() => handleServiceSelected(s)}
                         className="w-full flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-2xl hover:border-zinc-300 hover:shadow-sm transition-all active:scale-[0.98] text-left">
                         <div className="flex-1 min-w-0 pr-3">
                           <p className="text-sm font-black text-zinc-900 truncate">{s.name}</p>
@@ -546,7 +573,7 @@ export default function ClientBooking() {
                             <span className="text-zinc-200">·</span>
                             <span className="font-bold text-emerald-600">R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</span>
                           </p>
-                          {(() => {
+                          {!onlyOneProfessional && (() => {
                             const profs = professionalsForService(s.id);
                             return profs.length > 0 ? (
                               <p className="text-[9px] text-zinc-300 font-medium mt-1">{profs.length} profissional{profs.length !== 1 ? "is" : ""}</p>
