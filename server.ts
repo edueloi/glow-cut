@@ -1763,6 +1763,44 @@ async function startServer() {
   if (process.env.NODE_ENV === "production") {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
+
+    // SEO dinâmico para páginas de agendamento público
+    app.get(["/agendar/:slug", "/:slug"], async (req, res, next) => {
+      const { slug } = req.params;
+      // Ignora rotas internas
+      if (["login", "admin", "pro", "super-admin"].some(r => slug.startsWith(r))) return next();
+      try {
+        const tenant = await (prisma as any).tenant.findFirst({
+          where: { slug, isActive: true },
+          select: { name: true, logoUrl: true, coverUrl: true, address: true, welcomeMessage: true, instagram: true }
+        });
+        if (!tenant) return next();
+        const indexHtml = fs.readFileSync(path.join(distPath, "index.html"), "utf-8");
+        const title = `${tenant.name} — Agendar Horário`;
+        const desc = tenant.welcomeMessage || `Agende seu horário no ${tenant.name}. Rápido, fácil e sem precisar baixar apps.`;
+        const image = tenant.coverUrl || tenant.logoUrl || "";
+        const url = `https://agendelle.com.br/agendar/${slug}`;
+        const seoHtml = indexHtml.replace(
+          "<title>Agendelle | Agendamentos Inteligentes</title>",
+          `<title>${title}</title>
+    <meta name="description" content="${desc}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${url}" />
+    <meta property="og:title" content="${title}" />
+    <meta property="og:description" content="${desc}" />
+    <meta property="og:image" content="${image}" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${title}" />
+    <meta name="twitter:description" content="${desc}" />
+    <meta name="twitter:image" content="${image}" />`
+        );
+        res.set("Content-Type", "text/html").send(seoHtml);
+      } catch {
+        next();
+      }
+    });
+
     app.get("*", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });

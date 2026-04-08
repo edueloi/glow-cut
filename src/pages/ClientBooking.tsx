@@ -20,6 +20,7 @@ export default function ClientBooking() {
 
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [showIosBanner, setShowIosBanner] = useState(false);
 
   const blockedDates: string[] = [];
 
@@ -141,6 +142,13 @@ export default function ClientBooking() {
   useEffect(() => {
     const handler = (e: any) => { e.preventDefault(); setDeferredPrompt(e); setShowInstallBanner(true); };
     window.addEventListener("beforeinstallprompt", handler);
+    // iOS: mostra banner de instruções se não estiver em standalone
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone = ("standalone" in navigator) && (navigator as any).standalone;
+    if (isIos && !isStandalone) {
+      const dismissed = sessionStorage.getItem("ios-banner-dismissed");
+      if (!dismissed) setTimeout(() => setShowIosBanner(true), 2000);
+    }
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
@@ -994,6 +1002,40 @@ export default function ClientBooking() {
             </AnimatePresence>
           </div>
         </div>
+
+        {/* iOS Install Banner */}
+        <AnimatePresence>
+          {showIosBanner && (
+            <motion.div
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 80, opacity: 0 }}
+              className="fixed bottom-4 left-4 right-4 z-50 bg-zinc-950 rounded-2xl p-4 shadow-2xl border border-zinc-800"
+            >
+              <button
+                onClick={() => { setShowIosBanner(false); sessionStorage.setItem("ios-banner-dismissed", "1"); }}
+                className="absolute top-3 right-3 text-zinc-500 hover:text-white transition-colors"
+              >
+                <X size={16} />
+              </button>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 rounded-2xl bg-white overflow-hidden flex items-center justify-center shrink-0">
+                  {customLogo ? <img src={customLogo} alt="" className="w-full h-full object-cover" /> : <Scissors size={20} className="text-zinc-800" />}
+                </div>
+                <div>
+                  <p className="text-white font-black text-sm">{studioName}</p>
+                  <p className="text-zinc-400 text-[10px] font-medium">Adicionar à tela inicial</p>
+                </div>
+              </div>
+              <p className="text-zinc-400 text-[11px] leading-relaxed">
+                Toque em <span className="text-white font-bold inline-flex items-center gap-0.5">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="inline"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                  Compartilhar
+                </span> e depois <span className="text-white font-bold">"Adicionar à Tela de Início"</span>
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Footer */}
         <div className="py-5 flex flex-col items-center border-t border-zinc-100 bg-white">
