@@ -100,8 +100,8 @@ export default function ClientBooking() {
       }
       const headers: Record<string, string> = {};
       if (tid) headers["x-tenant-id"] = tid;
-      fetch("/api/services", { headers }).then(r => r.json()).then(setServices);
-      fetch("/api/professionals", { headers }).then(r => r.json()).then(setProfessionals);
+      fetch("/api/services", { headers }).then(r => r.ok ? r.json() : []).then(d => setServices(Array.isArray(d) ? d : []));
+      fetch("/api/professionals", { headers }).then(r => r.ok ? r.json() : []).then(d => setProfessionals(Array.isArray(d) ? d : []));
       setTimeout(() => setStep("home"), 1800);
     };
     loadData();

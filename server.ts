@@ -532,7 +532,7 @@ app.post("/api/super-admin/admin-users", async (req, res) => {
 });
 
 app.put("/api/super-admin/admin-users/:id", async (req, res) => {
-  const { name, email, password, role, jobTitle, phone, isActive, canCreateUsers, canDeleteAccount, permissions } = req.body;
+  const { name, email, password, role, jobTitle, phone, isActive, canCreateUsers, canDeleteAccount, permissions, photo } = req.body;
   try {
     const user = await (prisma as any).adminUser.update({
       where: { id: req.params.id },
@@ -547,11 +547,37 @@ app.put("/api/super-admin/admin-users/:id", async (req, res) => {
         ...(canCreateUsers !== undefined && { canCreateUsers }),
         ...(canDeleteAccount !== undefined && { canDeleteAccount }),
         ...(permissions !== undefined && { permissions: Array.isArray(permissions) ? JSON.stringify(permissions) : permissions }),
+        ...(photo !== undefined && { photo }),
       },
     });
     res.json(user);
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Erro ao atualizar usuário." });
+  }
+});
+
+// Atualizar perfil do próprio admin (dashboard)
+app.put("/api/admin/profile/:id", async (req, res) => {
+  const { name, jobTitle, bio, phone, password, photo } = req.body;
+  
+  console.log(`[Profile] Atualizando perfil usuário ${req.params.id}`, { name, photo: photo ? (photo.substring(0, 30) + "...") : null });
+
+  try {
+    const user = await (prisma as any).adminUser.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(jobTitle !== undefined && { jobTitle }),
+        ...(bio !== undefined && { bio }),
+        ...(phone !== undefined && { phone }),
+        ...(password !== undefined && { password }),
+        ...(photo !== undefined && { photo }),
+      },
+    });
+    res.json(user);
+  } catch (e: any) {
+    console.error("[Profile] Erro ao atualizar:", e.message);
+    res.status(400).json({ error: "Erro ao atualizar perfil." });
   }
 });
 
@@ -617,21 +643,24 @@ app.post("/api/admin/tenant/branding", async (req, res) => {
   
   const { themeColor, logoUrl, coverUrl, address, instagram, welcomeMessage, title } = req.body;
   
+  console.log(`[Branding] Atualizando tenant ${tenantId}`, { logoUrl, coverUrl });
+
   try {
     const tenant = await (prisma as any).tenant.update({
       where: { id: tenantId },
       data: {
-        themeColor: themeColor || undefined,
-        logoUrl: logoUrl || undefined,
-        coverUrl: coverUrl || undefined,
-        address: address || undefined,
-        instagram: instagram || undefined,
-        welcomeMessage: welcomeMessage || undefined,
-        name: title || undefined // Usamos name como título do estúdio se provido
+        themeColor: themeColor !== undefined ? themeColor : undefined,
+        logoUrl: logoUrl !== undefined ? logoUrl : undefined,
+        coverUrl: coverUrl !== undefined ? coverUrl : undefined,
+        address: address !== undefined ? address : undefined,
+        instagram: instagram !== undefined ? instagram : undefined,
+        welcomeMessage: welcomeMessage !== undefined ? welcomeMessage : undefined,
+        name: title !== undefined ? title : undefined
       }
     });
     res.json(tenant);
   } catch (e: any) {
+    console.error("[Branding] Erro ao salvar:", e.message);
     res.status(400).json({ error: "Erro ao salvar configurações do estúdio." });
   }
 });
@@ -828,16 +857,25 @@ app.get("/api/services", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
   try {
-    const servicesRaw = await (prisma as any).service.findMany({
-      where: { tenantId },
-      include: {
-        packageservice_packageservice_packageIdToservice: {
-          include: { service_packageservice_serviceIdToservice: { select: { id: true, name: true, duration: true, price: true } } }
-        }
-      },
-      orderBy: { name: "asc" }
-    });
-    
+    let servicesRaw: any[];
+    try {
+      servicesRaw = await (prisma as any).service.findMany({
+        where: { tenantId },
+        include: {
+          packageservice_packageservice_packageIdToservice: {
+            include: { service_packageservice_serviceIdToservice: { select: { id: true, name: true, duration: true, price: true } } }
+          }
+        },
+        orderBy: { name: "asc" }
+      });
+    } catch (includeErr: any) {
+      console.error("[/api/services] Erro com include, tentando query simples:", includeErr?.message || includeErr);
+      servicesRaw = await (prisma as any).service.findMany({
+        where: { tenantId },
+        orderBy: { name: "asc" }
+      });
+    }
+
     const services = servicesRaw.map((s: any) => ({
       ...s,
       packageServices: s.packageservice_packageservice_packageIdToservice?.map((ps: any) => ({
@@ -846,10 +884,11 @@ app.get("/api/services", async (req, res) => {
       })) || [],
       packageservice_packageservice_packageIdToservice: undefined
     }));
-    
+
     res.json(services);
   } catch (e: any) {
-    res.status(500).json({ error: "Erro ao buscar serviços." });
+    console.error("[/api/services] Erro Prisma:", e?.message || e);
+    res.status(500).json({ error: "Erro ao buscar serviços.", detail: e?.message });
   }
 });
 
@@ -1404,7 +1443,7 @@ app.get("/api/comandas", async (req, res) => {
         res.status(500).json({
           error: "Erro ao buscar comandas.",
           detail: e3?.message,
-          hint: "Rode: npx prisma generate && npx prisma db push"
+          hint: "Rode: npx prisma generate && npm run migrate"
         });
       }
     }
@@ -1589,28 +1628,144 @@ app.delete("/api/closed-days/:id", async (req, res) => {
     res.status(400).json({ error: e.message || "Erro ao excluir dia fechado." });
   }
 });
+
+// ═════════════════════════════════════════════════════════════
+//  PRODUCTS
+// ═════════════════════════════════════════════════════════════
+app.get("/api/products", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  try {
+    const products = await (prisma as any).product.findMany({
+      where: { tenantId },
+      orderBy: { name: "asc" },
+    });
+    res.json(products);
+  } catch (e: any) {
+    console.error("[GET /api/products] Erro:", e?.message || e);
+    res.status(500).json({ error: e?.message || "Erro ao buscar produtos." });
+  }
+});
+
+app.post("/api/products", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata } = req.body;
+  if (!name) return res.status(400).json({ error: "Nome obrigatório." });
+  try {
+    const product = await (prisma as any).product.create({
+      data: {
+        id: randomUUID(),
+        tenantId,
+        name,
+        description: description || null,
+        photo: photo || null,
+        costPrice: parseFloat(costPrice || "0"),
+        salePrice: parseFloat(salePrice || "0"),
+        stock: parseInt(stock || "0"),
+        minStock: parseInt(minStock || "0"),
+        validUntil: validUntil ? new Date(validUntil) : null,
+        code: code || null,
+        isForSale: isForSale !== false,
+        metadata: metadata ? JSON.stringify(metadata) : null,
+      },
+    });
+    res.json(product);
+  } catch (e: any) {
+    console.error("[POST /api/products] Erro:", e?.message || e);
+    res.status(500).json({ error: e?.message || "Erro ao criar produto." });
+  }
+});
+
+app.put("/api/products/:id", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata } = req.body;
+  try {
+    const product = await (prisma as any).product.updateMany({
+      where: { id: req.params.id, tenantId },
+      data: {
+        name,
+        description: description || null,
+        photo: photo || null,
+        costPrice: parseFloat(costPrice || "0"),
+        salePrice: parseFloat(salePrice || "0"),
+        stock: parseInt(stock || "0"),
+        minStock: parseInt(minStock || "0"),
+        validUntil: validUntil ? new Date(validUntil) : null,
+        code: code || null,
+        isForSale: isForSale !== false,
+        metadata: metadata ? JSON.stringify(metadata) : null,
+      },
+    });
+    res.json({ success: true, count: product.count });
+  } catch (e: any) {
+    console.error("[PUT /api/products/:id] Erro:", e?.message || e);
+    res.status(500).json({ error: e?.message || "Erro ao atualizar produto." });
+  }
+});
+
+app.delete("/api/products/:id", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  try {
+    await (prisma as any).product.deleteMany({ where: { id: req.params.id, tenantId } });
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error("[DELETE /api/products/:id] Erro:", e?.message || e);
+    res.status(500).json({ error: e?.message || "Erro ao excluir produto." });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════
+//  UPLOAD DE IMAGENS (logo / capa)
+// ═════════════════════════════════════════════════════════════
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+app.post("/api/admin/upload", (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+
+  const { data, mimeType } = req.body as { data?: string; mimeType?: string };
+  if (!data || !mimeType) return res.status(400).json({ error: "data e mimeType são obrigatórios." });
+
+  const base64 = data.includes(",") ? data.split(",")[1] : data;
+  const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+  const filename = `${tenantId}-${randomUUID()}.${ext}`;
+  const filepath = path.join(uploadsDir, filename);
+
+  try {
+    fs.writeFileSync(filepath, Buffer.from(base64, "base64"));
+    res.json({ url: `/uploads/${filename}` });
+  } catch (e: any) {
+    console.error("[POST /api/admin/upload]", e?.message || e);
+    res.status(500).json({ error: "Erro ao salvar imagem." });
+  }
+});
+
+app.use("/uploads", express.static(uploadsDir));
+
 // ═════════════════════════════════════════════════════════════
 //  START SERVER
 // ═════════════════════════════════════════════════════════════
-
 async function startServer() {
   if (process.env.NODE_ENV === "production") {
-    // Modo de produção: serve os arquivos do build (pasta dist)
-    app.use(express.static(path.resolve(__dirname, "dist")));
-    app.get("*", (req, res) => {
-      res.sendFile(path.resolve(__dirname, "dist", "index.html"));
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    app.get("*", (_req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
     });
     app.listen(PORT, () => {
       console.log(`✅ Servidor rodando em produção na porta ${PORT}`);
     });
   } else {
-    // Modo de desenvolvimento: integra com o Vite
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-    
+
     app.use("*", async (req, res) => {
       let url = req.originalUrl;
       try {

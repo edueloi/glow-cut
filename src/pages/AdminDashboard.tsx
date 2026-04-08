@@ -205,16 +205,16 @@ export default function AdminDashboard() {
     }
     
     if (tab === 'clients') {
-      apiFetch("/api/clients").then(res => res.json()).then(setClients);
+      apiFetch("/api/clients").then(res => res.json()).then(d => setClients(Array.isArray(d) ? d : []));
     }
     if (tab === 'services') {
-      apiFetch("/api/services").then(res => res.json()).then(setServices);
+      apiFetch("/api/services").then(res => res.json()).then(d => setServices(Array.isArray(d) ? d : []));
     }
     if (tab === 'comandas' || tab === 'fluxo') {
       apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
     }
     if (tab === 'professionals') {
-      apiFetch("/api/professionals").then(res => res.json()).then(setProfessionals);
+      apiFetch("/api/professionals").then(res => res.json()).then(d => setProfessionals(Array.isArray(d) ? d : []));
     }
     if (tab === 'products') {
       apiFetch("/api/products").then(res => res.json()).then(d => setProducts(Array.isArray(d) ? d : []));
@@ -436,14 +436,15 @@ export default function AdminDashboard() {
   const [clientPersonalOpen, setClientPersonalOpen] = useState(false);
 
   useEffect(() => {
-    apiFetch("/api/services").then(res => res.json()).then(setServices);
+    apiFetch("/api/services").then(res => res.json()).then(d => setServices(Array.isArray(d) ? d : []));
     apiFetch("/api/professionals").then(res => res.json()).then(profs => {
-      setProfessionals(profs);
-      if (profs.length > 0) setSelectedProfessional(profs[0].id);
+      const profsArr = Array.isArray(profs) ? profs : [];
+      setProfessionals(profsArr);
+      if (profsArr.length > 0) setSelectedProfessional(profsArr[0].id);
     });
     apiFetch("/api/settings/working-hours").then(res => res.json()).then(setWorkingHours);
     apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
-    apiFetch("/api/clients").then(res => res.json()).then(setClients);
+    apiFetch("/api/clients").then(res => res.json()).then(d => setClients(Array.isArray(d) ? d : []));
     fetchAppointments();
   }, [currentMonth, selectedProfessional]);
 
@@ -684,7 +685,7 @@ export default function AdminDashboard() {
     setIsClientModalOpen(false);
     setEditingClient(null);
     setNewClient({ ...emptyClient });
-    apiFetch("/api/clients").then(res => res.json()).then(setClients);
+    apiFetch("/api/clients").then(res => res.json()).then(d => setClients(Array.isArray(d) ? d : []));
   };
 
   const handleDeleteClient = (id: string) => {
@@ -907,7 +908,7 @@ export default function AdminDashboard() {
     setIsServiceModalOpen(false);
     setEditingService(null);
     setNewService({ name: "", description: "", price: "", duration: "", type: "service", discount: "0", discountType: "value", includedServices: [], professionalIds: [] });
-    apiFetch("/api/services").then(res => res.json()).then(setServices);
+    apiFetch("/api/services").then(res => res.json()).then(d => setServices(Array.isArray(d) ? d : []));
   };
 
   const handleDeleteService = (id: string) => {
@@ -948,7 +949,7 @@ export default function AdminDashboard() {
     setIsProfessionalModalOpen(false);
     setEditingProfessional(null);
     setNewProfessional(JSON.parse(JSON.stringify(emptyProfessional)));
-    apiFetch("/api/professionals").then(res => res.json()).then(setProfessionals);
+    apiFetch("/api/professionals").then(res => res.json()).then(d => setProfessionals(Array.isArray(d) ? d : []));
   };
 
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
@@ -1003,13 +1004,13 @@ export default function AdminDashboard() {
     if (!deleteConfirm) return;
     if (deleteConfirm.type === "professional") {
       await apiFetch(`/api/professionals/${deleteConfirm.id}`, { method: "DELETE" });
-      apiFetch("/api/professionals").then(res => res.json()).then(setProfessionals);
+      apiFetch("/api/professionals").then(res => res.json()).then(d => setProfessionals(Array.isArray(d) ? d : []));
     } else if (deleteConfirm.type === "service") {
       await apiFetch(`/api/services/${deleteConfirm.id}`, { method: "DELETE" });
-      apiFetch("/api/services").then(res => res.json()).then(setServices);
+      apiFetch("/api/services").then(res => res.json()).then(d => setServices(Array.isArray(d) ? d : []));
     } else if (deleteConfirm.type === "client") {
       await apiFetch(`/api/clients/${deleteConfirm.id}`, { method: "DELETE" });
-      apiFetch("/api/clients").then(res => res.json()).then(setClients);
+      apiFetch("/api/clients").then(res => res.json()).then(d => setClients(Array.isArray(d) ? d : []));
     } else if (deleteConfirm.type === "appointment") {
       await apiFetch(`/api/appointments/${deleteConfirm.id}`, { method: "DELETE" });
       fetchAppointments();
@@ -1299,16 +1300,19 @@ export default function AdminDashboard() {
 
             {/* Menu Perfil */}
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                 className="flex items-center gap-2 p-1 pl-3 pr-2 rounded-xl hover:bg-zinc-100 transition-all group border border-transparent hover:border-zinc-200"
               >
                 <div className="hidden md:block text-right">
-                  <p className="text-[11px] font-black text-zinc-900 leading-none">Admin Studio</p>
-                  <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider mt-1">Proprietário</p>
+                  <p className="text-[11px] font-black text-zinc-900 leading-none">{adminUser.name || "Admin Studio"}</p>
+                  <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider mt-1">{adminUser.role === "admin" ? "Proprietário" : adminUser.role === "manager" ? "Gerente" : "Visualizador"}</p>
                 </div>
                 <div className="w-9 h-9 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-500 overflow-hidden group-hover:shadow-sm transition-all">
-                  <span className="font-black text-xs">AS</span>
+                  {adminUser.photo
+                    ? <img src={adminUser.photo} alt="Avatar" className="w-full h-full object-cover" />
+                    : <span className="font-black text-xs">{(adminUser.name || "AS").split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)}</span>
+                  }
                 </div>
                 <ChevronDown size={14} className={cn("text-zinc-400 transition-transform duration-300", isProfileMenuOpen && "rotate-180")} />
               </button>
@@ -1325,7 +1329,7 @@ export default function AdminDashboard() {
                     >
                       <div className="p-4 bg-zinc-50/50 border-b border-zinc-50">
                         <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Conta</p>
-                        <p className="text-xs font-bold text-zinc-800 truncate mt-1">edueloi.EE@gmail.com</p>
+                        <p className="text-xs font-bold text-zinc-800 truncate mt-1">{adminUser.email || "—"}</p>
                       </div>
                       <div className="p-2">
                         <button onClick={() => { setIsProfileMenuOpen(false); handleTabChange('profile'); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all">

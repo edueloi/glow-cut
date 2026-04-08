@@ -5,7 +5,7 @@
 #  Rodar: bash /var/www/agendelle/deploy/update.sh
 #
 #  OU em uma linha do terminal local:
-#  ssh root@72.62.8.195 "cd /var/www/agendelle && git pull && npm install && npm run build && pm2 restart agendelle"
+#  ssh root@72.62.8.195 "cd /var/www/agendelle && git pull && npm install && npm run migrate && npm run build && pm2 restart agendelle"
 # ═══════════════════════════════════════════════════════════════
 
 set -e
@@ -22,6 +22,9 @@ npm install
 
 # Regera Prisma (caso o schema mudou)
 npx prisma generate
+
+# Aplica alteracoes de banco via migrate.js
+npm run migrate
 
 # Build do frontend
 npm run build

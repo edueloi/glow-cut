@@ -7,6 +7,7 @@
     "dev": "tsx server.ts",
     "start": "NODE_ENV=production tsx server.ts",
     "build": "vite build",
+    "migrate": "node migrate.js",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "eslint .",

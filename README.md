@@ -1,20 +1,25 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Glow & Cut
 
-# Run and deploy your AI Studio app
+Sistema de agendamento com frontend em Vite/React, backend em Express e acesso ao banco via Prisma/MySQL.
 
-This contains everything you need to run your app locally.
+## Rodar localmente
 
-View your app in AI Studio: https://ai.studio/apps/58405046-b3be-4a7a-ae5d-c8e693cebfad
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
+1. Instale as dependências:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Configure o arquivo `.env` com a `DATABASE_URL` do MySQL.
+3. Gere/aplique a estrutura do banco:
+   `npm run migrate`
+4. Suba o projeto:
    `npm run dev`
+
+## Banco de dados
+
+- O fluxo oficial de alterações de banco está em `migrate.js`.
+- Sempre que criar ou alterar tabelas/colunas, atualize `migrate.js`.
+- Mantenha `prisma/schema.prisma` compatível com o banco atual.
+- O deploy usa `npm run migrate` antes de reiniciar a aplicação.
+
+## Deploy
+
+- Setup inicial: `bash deploy/setup-vps.sh`
+- Atualização: `bash deploy/update.sh`

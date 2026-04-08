@@ -27,7 +27,8 @@ export function ServicesTab({
   viewMode,
   setViewMode
 }: ServicesTabProps) {
-  const filteredServices = services.filter(s => s.type === (serviceSubTab === 'services' ? 'service' : 'package'));
+  const safeServices = Array.isArray(services) ? services : [];
+  const filteredServices = safeServices.filter(s => s.type === (serviceSubTab === 'services' ? 'service' : 'package'));
 
   return (
     <div className="space-y-6">
@@ -35,22 +36,22 @@ export function ServicesTab({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Total Serviços</p>
-          <p className="text-2xl font-black text-zinc-900 mt-1">{services.filter(s => s.type === 'service').length}</p>
+          <p className="text-2xl font-black text-zinc-900 mt-1">{safeServices.filter(s => s.type === 'service').length}</p>
         </div>
         <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Total Pacotes</p>
-          <p className="text-2xl font-black text-zinc-900 mt-1">{services.filter(s => s.type === 'package').length}</p>
+          <p className="text-2xl font-black text-zinc-900 mt-1">{safeServices.filter(s => s.type === 'package').length}</p>
         </div>
         <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Ticket Médio</p>
           <p className="text-2xl font-black text-amber-600 mt-1">
-            R$ {services.length ? (services.reduce((a, s) => a + (Number(s.price) || 0), 0) / services.length).toFixed(0) : '0'}
+            R$ {safeServices.length ? (safeServices.reduce((a, s) => a + (Number(s.price) || 0), 0) / safeServices.length).toFixed(0) : '0'}
           </p>
         </div>
         <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Duração Média</p>
           <p className="text-2xl font-black text-zinc-900 mt-1">
-            {services.length ? Math.round(services.reduce((a, s) => a + (Number(s.duration) || 0), 0) / services.length) : 0} min
+            {safeServices.length ? Math.round(safeServices.reduce((a, s) => a + (Number(s.duration) || 0), 0) / safeServices.length) : 0} min
           </p>
         </div>
       </div>

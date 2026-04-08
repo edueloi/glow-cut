@@ -511,15 +511,27 @@ function AvatarUpload({
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const mimeType = file.type || "image/jpeg";
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const result = ev.target?.result as string;
-      onPhotoChange(result);
-      // persist
-      const stored = localStorage.getItem("adminUser");
-      if (stored) {
-        const user = JSON.parse(stored);
-        localStorage.setItem("adminUser", JSON.stringify({ ...user, photo: result }));
+    reader.onload = async (ev) => {
+      const base64 = ev.target?.result as string;
+      try {
+        const stored = localStorage.getItem("adminUser");
+        const adminUser = stored ? JSON.parse(stored) : null;
+        const res = await apiFetch("/api/admin/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: base64, mimeType, tenantId: adminUser?.tenantId }),
+        });
+        if (!res.ok) throw new Error();
+        const { url } = await res.json();
+        onPhotoChange(url);
+        if (adminUser) {
+          localStorage.setItem("adminUser", JSON.stringify({ ...adminUser, photo: url }));
+        }
+      } catch {
+        // fallback: usa base64 localmente se upload falhar
+        onPhotoChange(base64);
       }
     };
     reader.readAsDataURL(file);
@@ -549,7 +561,7 @@ function AvatarUpload({
       </div>
       {photo && (
         <button
-          onClick={(e) => { e.stopPropagation(); onPhotoChange(null); const s = localStorage.getItem("adminUser"); if (s) { const u = JSON.parse(s); delete u.photo; localStorage.setItem("adminUser", JSON.stringify(u)); } }}
+          onClick={(e) => { e.stopPropagation(); onPhotoChange(null); const s = localStorage.getItem("adminUser"); if (s) { const u = JSON.parse(s); u.photo = null; localStorage.setItem("adminUser", JSON.stringify(u)); } }}
           className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
           title="Remover foto"
         >
@@ -625,7 +637,7 @@ export function AdminProfileTab() {
     }
     setSaving(true);
     try {
-      const body: any = { name: form.name, jobTitle: form.jobTitle, bio: form.bio, phone: form.phone };
+      const body: any = { name: form.name, jobTitle: form.jobTitle, bio: form.bio, phone: form.phone, photo };
       if (form.password) body.password = form.password;
       if (adminUser?.id) {
         const r = await apiFetch(`/api/admin/profile/${adminUser.id}`, {

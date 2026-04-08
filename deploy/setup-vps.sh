@@ -42,7 +42,7 @@ npx prisma generate
 
 # ── 6. Roda as migrations do banco ───────────────────
 echo "🗄️  Rodando migrate.js..."
-node migrate.js || echo "⚠️  migrate.js não encontrado, pulando..."
+npm run migrate || echo "⚠️  migrate.js não encontrado, pulando..."
 
 # ── 7. Build do frontend (Vite) ──────────────────────
 echo "🏗️  Fazendo build do frontend..."

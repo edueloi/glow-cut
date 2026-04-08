@@ -471,6 +471,151 @@ const MIGRATIONS = [
     ignoreIfExists: true,
   },
 
+  // 026 - Service: campos extras usados pelo painel
+  {
+    name: '026a_service_add_photo',
+    sql: `ALTER TABLE Service ADD COLUMN photo TEXT NULL AFTER tenantId`,
+    ignoreIfExists: true,
+  },
+  {
+    name: '026b_service_add_professionalIds',
+    sql: `ALTER TABLE Service ADD COLUMN professionalIds VARCHAR(2000) NULL DEFAULT '[]' AFTER photo`,
+    ignoreIfExists: true,
+  },
+  {
+    name: '026c_service_add_createdAt',
+    sql: `ALTER TABLE Service ADD COLUMN createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER professionalIds`,
+    ignoreIfExists: true,
+  },
+
+  // 027 - Product
+  {
+    name: '027_create_product',
+    sql: `
+      CREATE TABLE IF NOT EXISTS Product (
+        id         VARCHAR(36)  NOT NULL PRIMARY KEY,
+        name       VARCHAR(255) NOT NULL,
+        description TEXT NULL,
+        photo      TEXT NULL,
+        costPrice  DOUBLE       NOT NULL DEFAULT 0,
+        salePrice  DOUBLE       NOT NULL DEFAULT 0,
+        stock      INT          NOT NULL DEFAULT 0,
+        minStock   INT          NOT NULL DEFAULT 0,
+        validUntil DATETIME     NULL,
+        code       VARCHAR(100) NULL,
+        isForSale  BOOLEAN      NOT NULL DEFAULT TRUE,
+        tenantId   VARCHAR(36)  NULL,
+        metadata   TEXT NULL,
+        createdAt  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_product_tenant (tenantId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
+  // 028 - ComandaItem
+  {
+    name: '028_create_comandaitem',
+    sql: `
+      CREATE TABLE IF NOT EXISTS ComandaItem (
+        id        VARCHAR(36)  NOT NULL PRIMARY KEY,
+        comandaId VARCHAR(36)  NOT NULL,
+        productId VARCHAR(36)  NULL,
+        serviceId VARCHAR(36)  NULL,
+        name      VARCHAR(255) NOT NULL,
+        price     DOUBLE       NOT NULL DEFAULT 0,
+        quantity  INT          NOT NULL DEFAULT 1,
+        total     DOUBLE       NOT NULL DEFAULT 0,
+        createdAt DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_comandaitem_comanda (comandaId),
+        INDEX idx_comandaitem_product (productId),
+        INDEX idx_comandaitem_service (serviceId),
+        CONSTRAINT fk_comandaitem_comanda FOREIGN KEY (comandaId) REFERENCES Comanda(id) ON DELETE CASCADE,
+        CONSTRAINT fk_comandaitem_product FOREIGN KEY (productId) REFERENCES Product(id) ON DELETE SET NULL,
+        CONSTRAINT fk_comandaitem_service FOREIGN KEY (serviceId) REFERENCES Service(id) ON DELETE SET NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
+  // 029 - Appointment: recorrencia
+  {
+    name: '029_appointment_add_repeatGroupId',
+    sql: `ALTER TABLE Appointment ADD COLUMN repeatGroupId VARCHAR(36) NULL AFTER totalSessions`,
+    ignoreIfExists: true,
+  },
+
+  // 030 - Tenant: personalizacao da pagina publica
+  {
+    name: '030a_tenant_add_themeColor',
+    sql: `ALTER TABLE Tenant ADD COLUMN themeColor VARCHAR(20) NULL AFTER maxAdminUsersOverride`,
+    ignoreIfExists: true,
+  },
+  {
+    name: '030b_tenant_add_logoUrl',
+    sql: `ALTER TABLE Tenant ADD COLUMN logoUrl TEXT NULL AFTER themeColor`,
+    ignoreIfExists: true,
+  },
+  {
+    name: '030c_tenant_add_coverUrl',
+    sql: `ALTER TABLE Tenant ADD COLUMN coverUrl TEXT NULL AFTER logoUrl`,
+    ignoreIfExists: true,
+  },
+  {
+    name: '030d_tenant_add_address',
+    sql: `ALTER TABLE Tenant ADD COLUMN address TEXT NULL AFTER coverUrl`,
+    ignoreIfExists: true,
+  },
+  {
+    name: '030e_tenant_add_instagram',
+    sql: `ALTER TABLE Tenant ADD COLUMN instagram VARCHAR(100) NULL AFTER address`,
+    ignoreIfExists: true,
+  },
+  {
+    name: '030f_tenant_add_welcomeMessage',
+    sql: `ALTER TABLE Tenant ADD COLUMN welcomeMessage TEXT NULL AFTER instagram`,
+    ignoreIfExists: true,
+  },
+
+  // 031 - WppBotConfig
+  {
+    name: '031_create_wpp_bot_config',
+    sql: `
+      CREATE TABLE IF NOT EXISTS WppBotConfig (
+        id               VARCHAR(36) NOT NULL PRIMARY KEY,
+        tenantId         VARCHAR(36) NOT NULL UNIQUE,
+        botEnabled       BOOLEAN     NOT NULL DEFAULT FALSE,
+        sendConfirmation BOOLEAN     NOT NULL DEFAULT TRUE,
+        sendReminder24h  BOOLEAN     NOT NULL DEFAULT TRUE,
+        sendBirthday     BOOLEAN     NOT NULL DEFAULT TRUE,
+        sendCobranca     BOOLEAN     NOT NULL DEFAULT FALSE,
+        sendWelcome      BOOLEAN     NOT NULL DEFAULT TRUE,
+        menuEnabled      BOOLEAN     NOT NULL DEFAULT FALSE,
+        menuWelcomeMsg   TEXT NULL,
+        menuOptions      TEXT NULL,
+        createdAt        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
+  // 032 - WppMessageTemplate
+  {
+    name: '032_create_wpp_message_template',
+    sql: `
+      CREATE TABLE IF NOT EXISTS WppMessageTemplate (
+        id        VARCHAR(36)  NOT NULL PRIMARY KEY,
+        tenantId  VARCHAR(36)  NOT NULL,
+        type      VARCHAR(50)  NOT NULL,
+        name      VARCHAR(255) NOT NULL,
+        body      TEXT         NOT NULL,
+        isActive  BOOLEAN      NOT NULL DEFAULT TRUE,
+        isDefault BOOLEAN      NOT NULL DEFAULT FALSE,
+        createdAt DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_wpp_template_tenant_type (tenantId, type)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -506,7 +651,19 @@ async function run() {
       console.log("  \u2705  " + m.name);
       ran++;
     } catch (err) {
-      if (m.ignoreIfExists && (err.code === "ER_DUP_FIELDNAME" || err.code === "ER_TABLE_EXISTS_ERROR" || err.message.includes("Duplicate column"))) {
+      const errMessage = String(err?.message || "");
+      if (
+        m.ignoreIfExists &&
+        (
+          err?.code === "ER_DUP_FIELDNAME" ||
+          err?.code === "ER_TABLE_EXISTS_ERROR" ||
+          err?.code === "ER_DUP_KEYNAME" ||
+          err?.code === "ER_FK_DUP_NAME" ||
+          errMessage.includes("Duplicate column") ||
+          errMessage.includes("Duplicate key name") ||
+          errMessage.includes("already exists")
+        )
+      ) {
         await conn.query("INSERT IGNORE INTO _migrations (name) VALUES (?)", [m.name]);
         skipped++;
       } else {

@@ -1,5 +1,5 @@
 import React from "react";
-import { Globe, Copy, ExternalLink, Image as ImageIcon, Link as LinkIcon, X, MapPin, CheckCircle2 } from "lucide-react";
+import { Globe, Copy, ExternalLink, Image as ImageIcon, Link as LinkIcon, X, MapPin, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
 import { cn } from "@/src/lib/utils";
 
@@ -94,52 +94,73 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
     }
   };
 
+  const [isUploadingLogo, setIsUploadingLogo] = React.useState(false);
+  const [isUploadingCover, setIsUploadingCover] = React.useState(false);
+
   const uploadImage = async (file: File): Promise<string | null> => {
-    return new Promise((resolve) => {
+    try {
       const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const base64 = reader.result as string;
-          const res = await fetch("/api/admin/upload", {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ data: base64, mimeType: file.type }),
-          });
-          if (res.ok) {
-            const { url } = await res.json();
-            resolve(url);
-          } else {
-            show("Erro ao fazer upload da imagem.", "error");
+      return new Promise((resolve) => {
+        reader.onload = async () => {
+          try {
+            const base64 = reader.result as string;
+            const res = await fetch("/api/admin/upload", {
+              method: "POST",
+              headers,
+              body: JSON.stringify({ data: base64, mimeType: file.type }),
+            });
+            if (res.ok) {
+              const { url } = await res.json();
+              resolve(url);
+            } else {
+              show("Erro ao fazer upload da imagem.", "error");
+              resolve(null);
+            }
+          } catch {
+            show("Erro de conexão no upload.", "error");
             resolve(null);
           }
-        } catch {
-          show("Erro de conexão no upload.", "error");
-          resolve(null);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+        };
+        reader.readAsDataURL(file);
+      });
+    } catch (e) {
+      return null;
+    }
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Mostra preview local imediato enquanto faz upload
+      setIsUploadingLogo(true);
+      // Mostra preview local imediato
       const localUrl = URL.createObjectURL(file);
       setLogoPreview(localUrl);
+      
       const url = await uploadImage(file);
-      if (url) setLogoPreview(url);
+      if (url) {
+        setLogoPreview(url);
+      } else {
+        setLogoPreview(null); // Reset if failed
+      }
+      setIsUploadingLogo(false);
     }
   };
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Mostra preview local imediato enquanto faz upload
+      setIsUploadingCover(true);
+      // Mostra preview local imediato
       const localUrl = URL.createObjectURL(file);
       setCoverPreview(localUrl);
+      
       const url = await uploadImage(file);
-      if (url) setCoverPreview(url);
+      if (url) {
+        setCoverPreview(url);
+      } else {
+        setCoverPreview(null); // Reset if failed
+      }
+      setIsUploadingCover(false);
     }
   };
 
@@ -322,7 +343,12 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
               >
                 <input type="file" id="logo-upload" className="hidden" accept="image/*" onChange={handleLogoUpload} />
                 
-                {logoPreview ? (
+                {isUploadingLogo ? (
+                  <div className="flex flex-col items-center justify-center">
+                    <Loader2 size={24} className="animate-spin text-emerald-500 mb-2" />
+                    <p className="text-[10px] font-bold text-zinc-400">Enviando...</p>
+                  </div>
+                ) : logoPreview ? (
                   <>
                     <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-4" />
                     <button 
@@ -358,7 +384,12 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
               >
                 <input type="file" id="cover-upload" className="hidden" accept="image/*" onChange={handleCoverUpload} />
                 
-                {coverPreview ? (
+                {isUploadingCover ? (
+                  <div className="flex flex-col items-center justify-center">
+                    <Loader2 size={24} className="animate-spin text-emerald-500 mb-2" />
+                    <p className="text-[10px] font-bold text-zinc-400">Enviando...</p>
+                  </div>
+                ) : coverPreview ? (
                   <>
                     <img src={coverPreview} alt="Capa" className="w-full h-full object-cover" />
                     <button 
@@ -442,7 +473,7 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
       <div className="flex flex-col sm:flex-row justify-start gap-4 pt-4">
         <Button 
           onClick={handleSave}
-          disabled={isLoading}
+          disabled={isLoading || isUploadingLogo || isUploadingCover}
           className="w-full sm:w-auto bg-zinc-950 hover:bg-black text-white px-8 rounded-xl h-10 font-bold shadow-xl shadow-zinc-900/20 text-xs transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {isLoading ? (
