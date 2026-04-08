@@ -15,7 +15,7 @@ echo "🔄 Atualizando Agendelle..."
 cd /var/www/agendelle
 
 # Garante que a pasta de uploads existe
-mkdir -p /var/www/agendelle/uploads
+mkdir -p /root/agendelle/uploads
 
 # Puxa as últimas alterações do GitHub
 git pull
