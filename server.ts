@@ -1762,7 +1762,10 @@ app.use("/uploads", express.static(uploadsDir));
 async function startServer() {
   if (process.env.NODE_ENV === "production") {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+
+    // ⚠️ static DEPOIS das rotas dinâmicas para não interceptar /agendar/:slug
+    // Serve apenas assets (js/css/img) — não HTML
+    app.use(express.static(distPath, { index: false }));
 
     // Manifest dinâmico por slug — PWA separado do admin
     app.get("/agendar/:slug/manifest.json", async (req, res) => {
