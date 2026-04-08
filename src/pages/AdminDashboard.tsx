@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard,
@@ -334,6 +334,17 @@ export default function AdminDashboard() {
   // Tooltip hover state for agenda
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isProfileMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isProfileMenuOpen]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isViewAppointmentModalOpen, setIsViewAppointmentModalOpen] = useState(false);
@@ -1302,7 +1313,7 @@ export default function AdminDashboard() {
             <div className="h-6 w-px bg-zinc-200 hidden md:block mx-1"></div>
 
             {/* Menu Perfil */}
-            <div className="relative">
+            <div className="relative" ref={profileMenuRef}>
               <button
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                 className="flex items-center gap-2 p-1 pl-3 pr-2 rounded-xl hover:bg-zinc-100 transition-all group border border-transparent hover:border-zinc-200"
@@ -1323,7 +1334,6 @@ export default function AdminDashboard() {
               <AnimatePresence>
                 {isProfileMenuOpen && (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setIsProfileMenuOpen(false)} />
                     <motion.div
                       initial={{ opacity: 0, y: 8, scale: 0.96 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
