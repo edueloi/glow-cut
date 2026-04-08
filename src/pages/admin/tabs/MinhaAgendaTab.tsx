@@ -96,6 +96,40 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
 
   const [isUploadingLogo, setIsUploadingLogo] = React.useState(false);
   const [isUploadingCover, setIsUploadingCover] = React.useState(false);
+  const [hasProfessionals, setHasProfessionals] = React.useState<boolean | null>(null);
+  const [isCreatingProfessional, setIsCreatingProfessional] = React.useState(false);
+
+  React.useEffect(() => {
+    fetch("/api/professionals", { headers })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setHasProfessionals(Array.isArray(d) && d.length > 0));
+  }, [adminUser.tenantId]);
+
+  const handleCreateAdminAsProfessional = async () => {
+    setIsCreatingProfessional(true);
+    try {
+      const res = await fetch("/api/professionals", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          name: adminUser.name || studioName,
+          role: "Proprietário",
+          password: "prof123",
+          isActive: true,
+        }),
+      });
+      if (res.ok) {
+        setHasProfessionals(true);
+        show("Profissional criado! Configure os horários na aba Horários.", "success");
+      } else {
+        show("Erro ao criar profissional.", "error");
+      }
+    } catch {
+      show("Erro de conexão.", "error");
+    } finally {
+      setIsCreatingProfessional(false);
+    }
+  };
 
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
@@ -473,8 +507,32 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
         </div>
       </div>
 
+      {/* Card: Admin como profissional */}
+      {hasProfessionals === false && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+            <span className="text-lg">👤</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-black text-amber-900">Você é o único profissional?</p>
+            <p className="text-xs text-amber-700 font-medium mt-1 leading-relaxed">
+              Nenhum profissional cadastrado. Clique abaixo para se cadastrar como profissional e liberar o agendamento online com seus horários.
+            </p>
+            <button
+              onClick={handleCreateAdminAsProfessional}
+              disabled={isCreatingProfessional}
+              className="mt-3 flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-xs font-black rounded-xl transition-all"
+            >
+              {isCreatingProfessional
+                ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Criando...</>
+                : <>+ Me cadastrar como profissional</>}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-start gap-4 pt-4">
-        <Button 
+        <Button
           onClick={handleSave}
           disabled={isLoading || isUploadingLogo || isUploadingCover}
           className="w-full sm:w-auto bg-zinc-950 hover:bg-black text-white px-8 rounded-xl h-10 font-bold shadow-xl shadow-zinc-900/20 text-xs transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
