@@ -76,7 +76,7 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
           logoUrl: logoPreview,
           coverUrl: coverPreview,
           address: localAddress,
-          instagram: localInstagram,
+          instagram: localInstagram ? `https://instagram.com/${localInstagram.replace(/^https?:\/\/(www\.)?instagram\.com\/?/, "").replace(/\/$/, "")}` : "",
           welcomeMessage: localWelcome,
           title: localTitle
         }),
@@ -299,16 +299,19 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
 
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1 flex items-center justify-between">
-                 Instagram (Link Completo)
+                 Instagram
                  <LinkIcon size={14} className="text-zinc-400" />
               </label>
-              <input 
-                type="text" 
-                value={localInstagram} 
-                onChange={(e) => setLocalInstagram(e.target.value)}
-                placeholder="Ex: https://instagram.com/seu-estudio"
-                className="w-full text-sm p-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all placeholder:font-medium" 
-              />
+              <div className="flex items-center bg-zinc-50 border border-zinc-200 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-400 transition-all">
+                <span className="text-sm text-zinc-400 font-bold pl-4 pr-1 whitespace-nowrap select-none">instagram.com/</span>
+                <input
+                  type="text"
+                  value={localInstagram.replace(/^https?:\/\/(www\.)?instagram\.com\/?/, "").replace(/\/$/, "")}
+                  onChange={(e) => setLocalInstagram(e.target.value.trim())}
+                  placeholder="seu-estudio"
+                  className="flex-1 text-sm py-4 pr-4 bg-transparent text-zinc-900 font-bold outline-none placeholder:font-medium placeholder:text-zinc-400"
+                />
+              </div>
             </div>
           </div>
         </div>
