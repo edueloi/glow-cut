@@ -6,9 +6,11 @@ import { cn } from "@/src/lib/utils";
 import { useToast } from "@/src/components/ui/Toast";
 
 interface MinhaAgendaTabProps {
-  studioName?: string;
-  tenantSlug?: string;
-  themeColor?: string;
+  studioName: string;
+  tenantSlug: string;
+  onUpdateName?: (name: string) => void;
+  onUpdateSlug?: (slug: string) => void;
+  onRefreshProfessionals?: () => void;
 }
 
 const PRESET_COLORS = [
@@ -26,7 +28,13 @@ const PRESET_COLORS = [
   "#78350f", // Brown
 ];
 
-export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSlug = "", themeColor = "#f59e0b" }: MinhaAgendaTabProps) {
+export function MinhaAgendaTab({ 
+  studioName: propStudioName = "Studio", 
+  tenantSlug: propTenantSlug = "", 
+  onUpdateName, 
+  onUpdateSlug, 
+  onRefreshProfessionals 
+}: MinhaAgendaTabProps) {
   const { show } = useToast();
 
   const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
@@ -35,13 +43,18 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
   const [localAddress, setLocalAddress] = React.useState<string>("");
   const [localInstagram, setLocalInstagram] = React.useState<string>("");
   const [localTitle, setLocalTitle] = React.useState<string>("");
+  const [localSlug, setLocalSlug] = React.useState<string>(propTenantSlug);
   const [localDesc, setLocalDesc] = React.useState<string>("");
   const [localWelcome, setLocalWelcome] = React.useState<string>("");
   const [isLoading, setIsLoading] = React.useState(false);
   const [studioName, setStudioName] = React.useState(propStudioName);
 
   const adminUser = (() => { try { return JSON.parse(localStorage.getItem("adminUser") || "{}"); } catch { return {}; } })();
-  const headers = { "Content-Type": "application/json", "x-tenant-id": adminUser.tenantId || "" };
+  const headers = { 
+    "Authorization": `Bearer ${adminUser.token}`,
+    "Content-Type": "application/json", 
+    "x-tenant-id": adminUser.tenantId || "" 
+  };
 
   React.useEffect(() => {
     const fetchBranding = async () => {
@@ -56,6 +69,7 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
           setLocalInstagram(t.instagram || "");
           setLocalTitle(t.name || "");
           setStudioName(t.name || propStudioName);
+          setLocalSlug(t.slug || propTenantSlug);
           setLocalWelcome(t.welcomeMessage || "");
           setLocalDesc(t.description || "");
         }
@@ -80,12 +94,16 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
           instagram: localInstagram ? `https://instagram.com/${localInstagram.replace(/^https?:\/\/(www\.)?instagram\.com\/?/, "").replace(/\/$/, "")}` : "",
           welcomeMessage: localWelcome,
           description: localDesc,
-          title: localTitle
+          title: localTitle,
+          slug: localSlug
         }),
       });
 
       if (res.ok) {
         show("Configurações da agenda salvas com sucesso!", "success");
+        if (onUpdateName) onUpdateName(localTitle);
+        if (onUpdateSlug) onUpdateSlug(localSlug);
+        setStudioName(localTitle);
       } else {
         show("Erro ao salvar configurações.", "error");
       }
@@ -122,6 +140,7 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
       });
       if (res.ok) {
         setHasProfessionals(true);
+        if (onRefreshProfessionals) onRefreshProfessionals();
         show("Profissional criado! Configure os horários na aba Horários.", "success");
       } else {
         show("Erro ao criar profissional.", "error");
@@ -213,11 +232,11 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
     const input = document.getElementById('cover-upload') as HTMLInputElement;
     if (input) input.value = '';
   };
-  const slug = tenantSlug || studioName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const activeSlug = localSlug || "seu-estudio";
   
   // URL dinâmica baseada no ambiente atual (localhost ou produção)
   const currentHost = typeof window !== 'undefined' ? window.location.host : 'glow-cut.com.br';
-  const link = `${currentHost}/agendar/${slug}`;
+  const link = `${currentHost}/agendar/${activeSlug}`;
 
   const handleCopyLink = () => {
     const protocol = window.location.protocol;
@@ -288,7 +307,8 @@ export function MinhaAgendaTab({ studioName: propStudioName = "Studio", tenantSl
               </span>
               <input 
                 type="text" 
-                defaultValue={slug} 
+                value={localSlug} 
+                onChange={e => setLocalSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
                 className="w-full text-sm p-4 bg-transparent text-zinc-900 font-black outline-none placeholder:font-medium"
                 placeholder="nome-do-estudio"
               />

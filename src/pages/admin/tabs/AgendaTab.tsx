@@ -290,20 +290,29 @@ export function AgendaTab({
               </div>
             </div>
 
-            {/* Hourly slots */}
+            {/* Hourly slots — 30-min intervals */}
             <div className="flex-1 overflow-y-auto scrollbar-hide divide-y divide-zinc-50">
-              {Array.from({ length: 14 }).map((_, i) => {
-                const hour = i + 8;
-                const hourStr = `${hour.toString().padStart(2, "0")}:00`;
+              {Array.from({ length: 28 }).map((_, i) => {
+                const totalMinutes = (i + 16) * 30; // starts at 08:00
+                const hour = Math.floor(totalMinutes / 60);
+                const min = totalMinutes % 60;
+                const hourStr = `${hour.toString().padStart(2, "0")}:${min.toString().padStart(2, "0")}`;
+                const isFullHour = min === 0;
                 const dayApps = appointments.filter(
                   (a) => isSameDay(new Date(a.date), currentMonth) && a.startTime === hourStr
                 );
                 return (
-                  <div key={hour} className="flex gap-3 sm:gap-4 px-3 sm:px-6 py-2.5 hover:bg-zinc-50/50 transition-colors group">
+                  <div key={hourStr} className={cn(
+                    "flex gap-3 sm:gap-4 px-3 sm:px-6 hover:bg-zinc-50/50 transition-colors group",
+                    isFullHour ? "pt-2 pb-1 border-t border-zinc-100" : "pt-1 pb-1"
+                  )}>
                     <div className="w-10 sm:w-14 shrink-0 text-right pt-0.5">
-                      <span className="text-[9px] sm:text-[10px] font-bold text-zinc-400">{hourStr}</span>
+                      <span className={cn(
+                        "font-bold text-zinc-400",
+                        isFullHour ? "text-[9px] sm:text-[10px]" : "text-[8px] text-zinc-300"
+                      )}>{hourStr}</span>
                     </div>
-                    <div className="flex-1 min-h-[48px] flex flex-col gap-2">
+                    <div className={cn("flex-1 flex flex-col gap-1.5", isFullHour ? "min-h-[40px]" : "min-h-[28px]")}>
                       {dayApps.length === 0 ? (
                         <button
                           onClick={() => {
@@ -322,13 +331,15 @@ export function AgendaTab({
                             setSlotHover((p: any) => (p ? { ...p, x: e.clientX, y: e.clientY } : null))
                           }
                           onMouseLeave={() => setSlotHover(null)}
-                          className="w-full h-[40px] rounded-xl text-[10px] font-bold transition-all duration-150 opacity-0 group-hover:opacity-100 cursor-crosshair border border-dashed border-amber-300 bg-amber-50/40 hover:bg-amber-50 hover:border-amber-400 flex items-center justify-center gap-2 text-amber-500 hover:text-amber-600"
+                          className={cn(
+                            "w-full rounded-xl text-[10px] font-bold transition-all duration-150 opacity-0 group-hover:opacity-100 cursor-crosshair border border-dashed border-amber-300 bg-amber-50/40 hover:bg-amber-50 hover:border-amber-400 flex items-center justify-center gap-2 text-amber-500 hover:text-amber-600",
+                            isFullHour ? "h-[36px]" : "h-[24px]"
+                          )}
                         >
                           <div className="w-4 h-4 rounded-full bg-amber-400/90 flex items-center justify-center">
                             <Plus size={10} className="text-white" />
                           </div>
-                          <span className="hidden sm:inline">Clique para agendar</span>
-                          <span className="sm:hidden">Agendar</span>
+                          <span className="hidden sm:inline">{hourStr}</span>
                         </button>
                       ) : (
                           dayApps.map((app) => (
@@ -528,36 +539,44 @@ export function AgendaTab({
                   ))}
                 </div>
 
-                {/* Hour rows */}
-                {Array.from({ length: 14 }).map((_, i) => {
-                  const hour = i + 8;
-                  const hourStr = `${hour.toString().padStart(2, "0")}:00`;
+                {/* Hour rows — 30-min intervals */}
+                {Array.from({ length: 28 }).map((_, i) => {
+                  const totalMinutes = (i + 16) * 30; // starts at 08:00
+                  const hour = Math.floor(totalMinutes / 60);
+                  const min = totalMinutes % 60;
+                  const hourStr = `${hour.toString().padStart(2, "0")}:${min.toString().padStart(2, "0")}`;
+                  const isFullHour = min === 0;
                   return (
                     <div
-                      key={hour}
-                      className="border-b border-zinc-100"
+                      key={hourStr}
+                      className={cn("border-zinc-100", isFullHour ? "border-t" : "border-t border-dashed border-zinc-50")}
                       style={{ display: "grid", gridTemplateColumns: "44px repeat(7, 1fr)" }}
                     >
                       {/* Hour label */}
-                      <div className="py-2 px-1 text-[9px] font-bold text-zinc-400 text-right border-r border-zinc-100 bg-zinc-50/30 shrink-0">
-                        {hourStr}
+                      <div className={cn(
+                        "py-1 px-1 text-right border-r border-zinc-100 bg-zinc-50/30 shrink-0",
+                        isFullHour ? "text-[9px] font-bold text-zinc-400" : "text-[8px] text-zinc-300"
+                      )}>
+                        {isFullHour ? hourStr : <span className="opacity-60">{hourStr}</span>}
                       </div>
 
                       {/* Day columns */}
                       {Array.from({ length: 7 }).map((_, j) => {
                         const day = addDays(startOfWeek(currentMonth), j);
-                        const app = appointments.find(
+                        const dayApps = appointments.filter(
                           (a) => isSameDay(new Date(a.date), day) && a.startTime === hourStr
                         );
+                        const hasApps = dayApps.length > 0;
                         return (
                           <div
                             key={j}
                             className={cn(
-                              "relative min-h-[64px] border-r border-zinc-100 last:border-r-0 p-0.5 sm:p-1 transition-colors",
+                              "relative border-r border-zinc-100 last:border-r-0 p-0.5 transition-colors",
+                              isFullHour ? "min-h-[44px]" : "min-h-[28px]",
                               isToday(day) && "bg-amber-50/20"
                             )}
                             onMouseEnter={
-                              !app
+                              !hasApps
                                 ? (e) =>
                                     setSlotHover({
                                       x: e.clientX,
@@ -567,13 +586,13 @@ export function AgendaTab({
                                 : undefined
                             }
                             onMouseMove={
-                              !app
+                              !hasApps
                                 ? (e) => setSlotHover((p: any) => (p ? { ...p, x: e.clientX, y: e.clientY } : null))
                                 : undefined
                             }
-                            onMouseLeave={!app ? () => setSlotHover(null) : undefined}
+                            onMouseLeave={!hasApps ? () => setSlotHover(null) : undefined}
                             onClick={
-                              !app
+                              !hasApps
                                 ? () => {
                                     setSlotHover(null);
                                     setNewAppointment((p: any) => ({ ...p, date: day, startTime: hourStr }));
@@ -583,71 +602,73 @@ export function AgendaTab({
                             }
                           >
                             {/* Empty slot hover effect */}
-                            {!app && (
+                            {!hasApps && (
                               <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-all duration-150 cursor-crosshair">
                                 <div className="inset-0 absolute bg-amber-50/60 border border-dashed border-amber-300 rounded-lg m-0.5" />
-                                <div className="relative z-10 w-6 h-6 rounded-full bg-amber-400/90 flex items-center justify-center shadow-sm">
-                                  <Plus size={12} className="text-white" />
+                                <div className="relative z-10 w-5 h-5 rounded-full bg-amber-400/90 flex items-center justify-center shadow-sm">
+                                  <Plus size={10} className="text-white" />
                                 </div>
                               </div>
                             )}
 
-                            {/* Appointment card */}
-                            {app && (
-                              <div className="relative h-full">
-                                <motion.div
-                                  initial={{ opacity: 0, scale: 0.95 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  onMouseEnter={() => setHoveredAppointment(app.id)}
-                                  onMouseLeave={() => setHoveredAppointment(null)}
-                                  onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(app); }}
-                                  className={cn(
-                                    "h-full rounded-lg p-1.5 sm:p-2 flex flex-col justify-between cursor-pointer transition-all border hover:shadow-md",
-                                    appBg(app.type, app.status)
-                                  )}
-                                >
-                                  <div>
-                                    <p className={cn("text-[9px] font-black leading-tight truncate", appText(app.type, app.status))}>
-                                      {app.type === "bloqueio"
-                                        ? "🚫 Bloq."
-                                        : app.type === "pessoal"
-                                        ? "👤 Pessoal"
-                                        : app.client?.name}
-                                    </p>
-                                    {app.type === "atendimento" && app.service && (
-                                      <p className="text-[8px] font-bold text-amber-600 truncate hidden sm:block">
-                                        {app.service.name}
+                            {/* Appointment cards — multiple per slot */}
+                            {hasApps && (
+                              <div className="flex flex-col gap-0.5 h-full">
+                                {dayApps.map((app) => (
+                                  <div key={app.id} className="relative flex-1">
+                                    <motion.div
+                                      initial={{ opacity: 0, scale: 0.95 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      onMouseEnter={() => setHoveredAppointment(app.id)}
+                                      onMouseLeave={() => setHoveredAppointment(null)}
+                                      onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(app); }}
+                                      className={cn(
+                                        "rounded-lg p-1 sm:p-1.5 flex flex-col justify-between cursor-pointer transition-all border hover:shadow-md",
+                                        appBg(app.type, app.status)
+                                      )}
+                                    >
+                                      <p className={cn("text-[9px] font-black leading-tight truncate", appText(app.type, app.status))}>
+                                        {app.type === "bloqueio"
+                                          ? "🚫 Bloq."
+                                          : app.type === "pessoal"
+                                          ? "👤 Pessoal"
+                                          : app.client?.name}
                                       </p>
-                                    )}
-                                  </div>
-                                  <span className={cn("text-[8px] font-bold", appTimeText(app.type))}>
-                                    {app.startTime}
-                                  </span>
-                                </motion.div>
-
-                                {/* Tooltip */}
-                                {hoveredAppointment === app.id && (
-                                  <div className="absolute bottom-full left-0 mb-1 z-50 pointer-events-none">
-                                    <div className="bg-zinc-900 text-white text-[10px] font-bold rounded-xl p-2.5 shadow-2xl min-w-[150px] space-y-0.5">
-                                      <p className="text-amber-400 uppercase tracking-widest text-[9px]">
-                                        {format(new Date(app.date), "EEE, d MMM", { locale: ptBR })}
-                                      </p>
-                                      <p className="text-white">{app.startTime} → {app.endTime}</p>
-                                      {app.type === "atendimento" ? (
-                                        <>
-                                          <p className="text-zinc-300">{app.client?.name}</p>
-                                          {app.service && (
-                                            <p className="text-zinc-400 text-[9px]">{app.service.name}</p>
-                                          )}
-                                        </>
-                                      ) : (
-                                        <p className="text-zinc-300">
-                                          {app.type === "bloqueio" ? "Horário bloqueado" : "Compromisso pessoal"}
+                                      {app.type === "atendimento" && app.service && (
+                                        <p className="text-[8px] font-bold text-amber-600 truncate hidden sm:block">
+                                          {app.service.name}
                                         </p>
                                       )}
-                                    </div>
+                                      <span className={cn("text-[8px] font-bold", appTimeText(app.type))}>
+                                        {app.startTime}
+                                      </span>
+                                    </motion.div>
+
+                                    {/* Tooltip */}
+                                    {hoveredAppointment === app.id && (
+                                      <div className="absolute bottom-full left-0 mb-1 z-50 pointer-events-none">
+                                        <div className="bg-zinc-900 text-white text-[10px] font-bold rounded-xl p-2.5 shadow-2xl min-w-[150px] space-y-0.5">
+                                          <p className="text-amber-400 uppercase tracking-widest text-[9px]">
+                                            {format(new Date(app.date), "EEE, d MMM", { locale: ptBR })}
+                                          </p>
+                                          <p className="text-white">{app.startTime} → {app.endTime}</p>
+                                          {app.type === "atendimento" ? (
+                                            <>
+                                              <p className="text-zinc-300">{app.client?.name}</p>
+                                              {app.service && (
+                                                <p className="text-zinc-400 text-[9px]">{app.service.name}</p>
+                                              )}
+                                            </>
+                                          ) : (
+                                            <p className="text-zinc-300">
+                                              {app.type === "bloqueio" ? "Horário bloqueado" : "Compromisso pessoal"}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
+                                ))}
                               </div>
                             )}
                           </div>

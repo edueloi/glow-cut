@@ -150,8 +150,8 @@ function NavItem({
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const adminUser = (() => { try { return JSON.parse(localStorage.getItem("adminUser") || "{}"); } catch { return {}; } })();
-  const tenantName: string = adminUser.tenantName || "Studio Admin";
-  const tenantSlug: string = adminUser.tenantSlug || "";
+  const [tenantName, setTenantName] = useState<string>(adminUser.tenantName || "Studio Admin");
+  const [tenantSlug, setTenantSlug] = useState<string>(adminUser.tenantSlug || "");
   const location = useLocation();
 
   // Mapeamento de abas para Slugs de URL
@@ -446,18 +446,47 @@ export default function AdminDashboard() {
   const [isCepLoading, setIsCepLoading] = useState(false);
   const [clientPersonalOpen, setClientPersonalOpen] = useState(false);
 
-  useEffect(() => {
-    apiFetch("/api/services").then(res => res.json()).then(d => setServices(Array.isArray(d) ? d : []));
+  const fetchProfessionals = React.useCallback(() => {
     apiFetch("/api/professionals").then(res => res.json()).then(profs => {
       const profsArr = Array.isArray(profs) ? profs : [];
       setProfessionals(profsArr);
-      if (profsArr.length > 0) setSelectedProfessional(profsArr[0].id);
     });
+  }, []);
+
+  // Carrega dados estáticos uma única vez
+  useEffect(() => {
+    apiFetch("/api/services").then(res => res.json()).then(d => setServices(Array.isArray(d) ? d : []));
+    fetchProfessionals();
     apiFetch("/api/settings/working-hours").then(res => res.json()).then(setWorkingHours);
     apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
     apiFetch("/api/clients").then(res => res.json()).then(d => setClients(Array.isArray(d) ? d : []));
-    fetchAppointments();
+  }, [fetchProfessionals]);
+
+  const fetchAppointments = React.useCallback(() => {
+    // Busca do início da primeira semana do mês até o fim da última semana do mês
+    const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 0 });
+    const end = endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 0 });
+    
+    let url = `/api/appointments?start=${start.toISOString()}&end=${end.toISOString()}`;
+    if (selectedProfessional && selectedProfessional !== "all") {
+      url += `&professionalId=${selectedProfessional}`;
+    }
+    
+    apiFetch(url)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setAppointments(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        console.error("Erro ao buscar agendamentos:", err);
+        setAppointments([]);
+      });
   }, [currentMonth, selectedProfessional]);
+
+  // Recarrega agendamentos quando mês, profissional ou aba muda
+  useEffect(() => {
+    if (activeTab === 'agenda' || activeTab === 'dash') {
+      fetchAppointments();
+    }
+  }, [fetchAppointments, activeTab]);
 
   const handleAddServiceToComanda = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
@@ -492,19 +521,6 @@ export default function AdminDashboard() {
     });
   };
 
-  const fetchAppointments = () => {
-    // Busca do início da primeira semana do mês até o fim da última semana do mês
-    // Assim garante que dias que "transbordam" entre meses apareçam na agenda (semana/mês)
-    const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 0 });
-    const end = endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 0 });
-    
-    let url = `/api/appointments?start=${start.toISOString()}&end=${end.toISOString()}`;
-    if (selectedProfessional !== "all") url += `&professionalId=${selectedProfessional}`;
-    apiFetch(url)
-      .then(res => res.ok ? res.json() : [])
-      .then(data => setAppointments(Array.isArray(data) ? data : []))
-      .catch(() => setAppointments([]));
-  };
 
   const handleCreateAppointment = async () => {
     let clientId = newAppointment.clientId;
@@ -1461,7 +1477,13 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === 'minha-agenda' && (
-          <MinhaAgendaTab studioName={tenantName} tenantSlug={tenantSlug} />
+          <MinhaAgendaTab 
+            studioName={tenantName} 
+            tenantSlug={tenantSlug}
+            onUpdateName={setTenantName}
+            onUpdateSlug={setTenantSlug}
+            onRefreshProfessionals={fetchProfessionals}
+          />
         )}
 
         {activeTab === 'services' && (

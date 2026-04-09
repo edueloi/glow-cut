@@ -642,27 +642,32 @@ app.post("/api/admin/tenant/branding", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
   
-  const { themeColor, logoUrl, coverUrl, address, instagram, welcomeMessage, title, description } = req.body;
+  const { themeColor, logoUrl, coverUrl, address, instagram, welcomeMessage, title, description, slug } = req.body;
   
-  console.log(`[Branding] Atualizando tenant ${tenantId}`, { logoUrl, coverUrl });
+  console.log(`[Branding] Atualizando tenant ${tenantId}`, { logoUrl, coverUrl, slug });
 
   try {
+    const data: any = {};
+    if (themeColor !== undefined) data.themeColor = themeColor;
+    if (logoUrl !== undefined) data.logoUrl = logoUrl;
+    if (coverUrl !== undefined) data.coverUrl = coverUrl;
+    if (address !== undefined) data.address = address;
+    if (instagram !== undefined) data.instagram = instagram;
+    if (welcomeMessage !== undefined) data.welcomeMessage = welcomeMessage;
+    if (description !== undefined) data.description = description;
+    if (title !== undefined) data.name = title;
+    if (slug !== undefined) data.slug = slug;
+
     const tenant = await (prisma as any).tenant.update({
       where: { id: tenantId },
-      data: {
-        themeColor: themeColor !== undefined ? themeColor : undefined,
-        logoUrl: logoUrl !== undefined ? logoUrl : undefined,
-        coverUrl: coverUrl !== undefined ? coverUrl : undefined,
-        address: address !== undefined ? address : undefined,
-        instagram: instagram !== undefined ? instagram : undefined,
-        welcomeMessage: welcomeMessage !== undefined ? welcomeMessage : undefined,
-        description: description !== undefined ? description : undefined,
-        name: title !== undefined ? title : undefined
-      }
+      data
     });
     res.json(tenant);
   } catch (e: any) {
     console.error("[Branding] Erro ao salvar:", e.message);
+    if (e.code === 'P2002') {
+      return res.status(400).json({ error: "Este link (slug) já está sendo usado por outro estúdio." });
+    }
     res.status(400).json({ error: "Erro ao salvar configurações do estúdio." });
   }
 });
