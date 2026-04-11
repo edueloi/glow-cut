@@ -133,7 +133,7 @@ function NavItem({
       // touchAction: manipulation evita o delay de 300ms no iOS/Android
       style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
       className={cn(
-        "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-all duration-150 group select-none",
+        "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-150 group select-none min-h-[44px]",
         collapsed ? "justify-center px-2" : "",
         active
           ? "bg-amber-500 text-white shadow-sm"
@@ -232,6 +232,21 @@ export default function AdminDashboard() {
     });
     fetchAppointments();
     setIsViewAppointmentModalOpen(false);
+  };
+
+  const handleMarkRealizado = async (appt: any) => {
+    await apiFetch(`/api/appointments/${appt.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "realizado" })
+    });
+    fetchAppointments();
+    setIsViewAppointmentModalOpen(false);
+    // Se não tiver comanda vinculada, abre o modal de importar/criar comanda
+    if (!appt.comandaId) {
+      setLinkComandaAppt(appt);
+      setIsLinkComandaModalOpen(true);
+    }
   };
 
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -1302,7 +1317,7 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-zinc-50">
         {/* Header */}
-        <header className="h-16 md:h-20 bg-white/90 backdrop-blur-xl border-b border-zinc-200 px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 shrink-0">
+        <header className="h-16 md:h-20 bg-white/90 backdrop-blur-xl border-b border-zinc-200 px-4 md:px-8 flex items-center justify-between sticky top-0 z-[52] shrink-0 isolate">
           <div className="flex items-center gap-3">
             {/* Hamburger — mobile only */}
             <button onClick={() => setIsSidebarOpen(true)} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 lg:hidden transition-all">
@@ -1354,12 +1369,12 @@ export default function AdminDashboard() {
               <AnimatePresence>
                 {isNotificationsOpen && (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)} />
+                    <div className="fixed inset-0 z-[54]" onClick={() => setIsNotificationsOpen(false)} />
                     <motion.div
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-3 w-[320px] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-zinc-100 z-50 overflow-hidden"
+                      className="absolute right-0 mt-3 w-[320px] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-zinc-100 z-[55] overflow-hidden"
                     >
                       <div className="px-5 py-4 border-b border-zinc-50 flex items-center justify-between bg-zinc-50/50">
                         <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Notificações</p>
@@ -1427,7 +1442,7 @@ export default function AdminDashboard() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.96 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.12)] border border-zinc-100/80 z-50 overflow-hidden"
+                      className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.12)] border border-zinc-100/80 z-[55] overflow-hidden"
                     >
                       {/* Header com avatar + info */}
                       <div className="p-4 flex items-center gap-3 border-b border-zinc-100">
@@ -2087,6 +2102,13 @@ export default function AdminDashboard() {
                   <span className="text-[10px] font-black uppercase tracking-widest">Confirmar</span>
                 </button>
                 <button
+                  onClick={() => handleMarkRealizado(selectedAppointment)}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-zinc-300 bg-zinc-900 text-white hover:bg-zinc-800 transition-all group"
+                >
+                  <CheckCircle size={20} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Realizado</span>
+                </button>
+                <button
                   onClick={() => handleUpdateAppointmentStatus(selectedAppointment.id, 'noshow')}
                   className="flex flex-col items-center gap-2 p-3 rounded-xl border border-red-100 bg-red-50/50 text-red-600 hover:bg-red-100 transition-all group"
                 >
@@ -2175,9 +2197,9 @@ export default function AdminDashboard() {
           return (
             <>
               <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-                onClick={closeAppt} className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[2px]" />
+                onClick={closeAppt} className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-[2px]" />
               {/* Modal — bottom-sheet on mobile, centered on sm+ */}
-              <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
+              <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
                 <motion.div
                   initial={{opacity:0, y:40}} animate={{opacity:1, y:0}} exit={{opacity:0, y:40}}
                   transition={{duration:0.2, ease:[0.32,0.72,0,1]}}
@@ -2853,8 +2875,8 @@ export default function AdminDashboard() {
           return (
             <>
               <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-                onClick={closeComanda} className="fixed inset-0 z-50 bg-black/30" />
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+                onClick={closeComanda} className="fixed inset-0 z-[60] bg-black/30" />
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
                 <motion.div initial={{opacity:0,scale:0.97,y:8}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.97,y:8}} transition={{duration:0.18}}
                   className="w-full max-w-lg bg-white rounded-2xl shadow-2xl pointer-events-auto border border-zinc-200 flex flex-col max-h-[92vh]">
 

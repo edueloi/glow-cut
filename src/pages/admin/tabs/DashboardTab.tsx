@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { format } from "date-fns";
+import React, { useState, useMemo, useEffect } from "react";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -8,11 +8,12 @@ import {
 import {
   DollarSign, CalendarIcon, UserPlus, TrendingUp, Cake,
   Eye, EyeOff, Plus, Receipt, Users, BarChart2, Scissors,
-  ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Zap
+  ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Zap, Trophy, Star
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { calculateAge } from "@/src/lib/masks";
 import { motion, AnimatePresence } from "motion/react";
+import { apiFetch } from "@/src/lib/api";
 
 interface DashboardTabProps {
   revenueData: any[];
@@ -27,47 +28,18 @@ interface DashboardTabProps {
 }
 
 const QUICK_ACTIONS = [
-  {
-    label: "Novo Agendamento",
-    sublabel: "Marcar horário",
-    icon: CalendarIcon,
-    color: "amber",
-    bg: "bg-amber-50 border-amber-200 hover:bg-amber-100",
-    iconBg: "bg-amber-500",
-    action: "appointment",
-  },
-  {
-    label: "Nova Comanda",
-    sublabel: "Abrir conta",
-    icon: Receipt,
-    color: "emerald",
-    bg: "bg-emerald-50 border-emerald-200 hover:bg-emerald-100",
-    iconBg: "bg-emerald-500",
-    action: "comanda",
-  },
-  {
-    label: "Novo Cliente",
-    sublabel: "Cadastrar",
-    icon: UserPlus,
-    color: "blue",
-    bg: "bg-blue-50 border-blue-200 hover:bg-blue-100",
-    iconBg: "bg-blue-500",
-    action: "client",
-  },
-  {
-    label: "Fluxo de Caixa",
-    sublabel: "Ver relatório",
-    icon: BarChart2,
-    color: "violet",
-    bg: "bg-violet-50 border-violet-200 hover:bg-violet-100",
-    iconBg: "bg-violet-500",
-    action: "fluxo",
-  },
+  { label: "Novo Agendamento", sublabel: "Marcar horário", icon: CalendarIcon, color: "amber", bg: "bg-amber-50 border-amber-200 hover:bg-amber-100", iconBg: "bg-amber-500", action: "appointment" },
+  { label: "Nova Comanda", sublabel: "Abrir conta", icon: Receipt, color: "emerald", bg: "bg-emerald-50 border-emerald-200 hover:bg-emerald-100", iconBg: "bg-emerald-500", action: "comanda" },
+  { label: "Novo Cliente", sublabel: "Cadastrar", icon: UserPlus, color: "blue", bg: "bg-blue-50 border-blue-200 hover:bg-blue-100", iconBg: "bg-blue-500", action: "client" },
+  { label: "Fluxo de Caixa", sublabel: "Ver relatório", icon: BarChart2, color: "violet", bg: "bg-violet-50 border-violet-200 hover:bg-violet-100", iconBg: "bg-violet-500", action: "fluxo" },
 ];
 
-function StatCard({ title, value, icon: Icon, trend, description, hidden }: {
-  title: string; value: string; icon: any;
-  trend?: { value: number; isUp: boolean }; description?: string; hidden?: boolean;
+const PROF_COLORS = ["#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899"];
+
+type StatPeriod = "today" | "week" | "month";
+
+function StatCard({ title, value, icon: Icon, description, hidden }: {
+  title: string; value: string; icon: any; description?: string; hidden?: boolean;
 }) {
   return (
     <div className="bg-white rounded-2xl border border-zinc-200 p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -82,17 +54,8 @@ function StatCard({ title, value, icon: Icon, trend, description, hidden }: {
           <Icon size={18} />
         </div>
       </div>
-      {trend && (
-        <div className="mt-3 flex items-center gap-1.5">
-          <span className={cn(
-            "flex items-center gap-0.5 text-[10px] font-black px-1.5 py-0.5 rounded-lg",
-            trend.isUp ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"
-          )}>
-            {trend.isUp ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-            {trend.value}%
-          </span>
-          <span className="text-[10px] text-zinc-400 font-medium">{description}</span>
-        </div>
+      {description && (
+        <p className="mt-2 text-[10px] text-zinc-400 font-medium">{description}</p>
       )}
     </div>
   );
@@ -103,25 +66,30 @@ export function DashboardTab({
   setIsAppointmentModalOpen, setIsComandaModalOpen, setIsClientModalOpen
 }: DashboardTabProps) {
   const [showFinancials, setShowFinancials] = useState(true);
+  const [statPeriod, setStatPeriod] = useState<StatPeriod>("today");
+  const [profReport, setProfReport] = useState<any[]>([]);
 
   const currentMonthNum = new Date().getMonth() + 1;
   const todayDay = new Date().getDate();
+
+  // Carrega relatório de profissionais do mês atual
+  useEffect(() => {
+    const from = startOfMonth(new Date());
+    const to = endOfMonth(new Date());
+    apiFetch(`/api/reports/professionals?from=${from.toISOString()}&to=${to.toISOString()}`)
+      .then(r => r.json())
+      .then(d => setProfReport(Array.isArray(d) ? d : []))
+      .catch(() => setProfReport([]));
+  }, []);
 
   const birthdayClients = clients.filter(c => {
     if (!c.birthDate) return false;
     const parts = c.birthDate.split("/");
     if (parts.length !== 3) return false;
     return parseInt(parts[1]) === currentMonthNum;
-  }).sort((a, b) => {
-    const dayA = parseInt(a.birthDate.split("/")[0]);
-    const dayB = parseInt(b.birthDate.split("/")[0]);
-    return dayA - dayB;
-  });
+  }).sort((a, b) => parseInt(a.birthDate.split("/")[0]) - parseInt(b.birthDate.split("/")[0]));
 
-  const birthdayToday = birthdayClients.filter(c => {
-    const day = parseInt(c.birthDate.split("/")[0]);
-    return day === todayDay;
-  });
+  const birthdayToday = birthdayClients.filter(c => parseInt(c.birthDate.split("/")[0]) === todayDay);
 
   const monthName = format(new Date(), "MMMM", { locale: ptBR });
   const greeting = (() => {
@@ -138,15 +106,58 @@ export function DashboardTab({
     else if (action === "fluxo") handleTabChange("fluxo");
   };
 
+  // Calcula métricas baseado no período selecionado
+  const stats = useMemo(() => {
+    const now = new Date();
+    let fromDate: Date;
+    let toDate: Date = now;
+    let periodLabel = "";
+
+    if (statPeriod === "today") {
+      fromDate = new Date(now); fromDate.setHours(0,0,0,0);
+      toDate = new Date(now); toDate.setHours(23,59,59,999);
+      periodLabel = "hoje";
+    } else if (statPeriod === "week") {
+      fromDate = startOfWeek(now, { weekStartsOn: 1 });
+      toDate = endOfWeek(now, { weekStartsOn: 1 });
+      periodLabel = "esta semana";
+    } else {
+      fromDate = startOfMonth(now);
+      toDate = endOfMonth(now);
+      periodLabel = "este mês";
+    }
+
+    const periodComandas = comandas.filter(c => {
+      const dt = new Date(c.createdAt);
+      return dt >= fromDate && dt <= toDate;
+    });
+
+    const periodAppts = appointments.filter(a => {
+      const dt = new Date(a.date);
+      return dt >= fromDate && dt <= toDate;
+    });
+
+    const paidComandas = periodComandas.filter(c => c.status === "paid");
+    const revenue = paidComandas.reduce((s, c) => s + (c.total || 0), 0);
+    const avgTicket = paidComandas.length > 0 ? revenue / paidComandas.length : 0;
+
+    const newClients = clients.filter(c => {
+      const dt = new Date(c.createdAt);
+      return dt >= fromDate && dt <= toDate;
+    });
+
+    return { revenue, avgTicket, apptCount: periodAppts.length, newClientsCount: newClients.length, periodLabel, paidCount: paidComandas.length };
+  }, [statPeriod, comandas, appointments, clients]);
+
+  const topProfessional = profReport[0] || null;
+
   return (
     <div className="space-y-5 sm:space-y-6">
 
       {/* ── GREETING + TOGGLE ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg sm:text-xl font-black text-zinc-900">
-            {greeting}! 👋
-          </h2>
+          <h2 className="text-lg sm:text-xl font-black text-zinc-900">{greeting}! 👋</h2>
           <p className="text-xs text-zinc-400 font-medium mt-0.5 capitalize">
             {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
           </p>
@@ -202,28 +213,58 @@ export function DashboardTab({
         </div>
       </div>
 
-      {/* ── STATS ── */}
-      {(() => {
-        const today = new Date().toDateString();
-        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-        const todayAppts = appointments.filter(a => new Date(a.date).toDateString() === today);
-        const revenueToday = comandas
-          .filter(c => c.status === "closed" && new Date(c.createdAt).toDateString() === today)
-          .reduce((s: number, c: any) => s + (c.total || 0), 0);
-        const newClientsWeek = clients.filter(c => new Date(c.createdAt) >= weekAgo).length;
-        const closedComandas = comandas.filter((c: any) => c.status === "closed" && c.total > 0);
-        const avgTicket = closedComandas.length > 0
-          ? closedComandas.reduce((s: number, c: any) => s + (c.total || 0), 0) / closedComandas.length
-          : 0;
-        return (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <StatCard title="Faturamento Hoje" value={revenueToday.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} icon={DollarSign} description="comandas fechadas hoje" hidden={!showFinancials} />
-            <StatCard title="Agendamentos Hoje" value={String(todayAppts.length)} icon={CalendarIcon} description="para hoje" />
-            <StatCard title="Novos Clientes" value={String(newClientsWeek)} icon={UserPlus} description="esta semana" />
-            <StatCard title="Ticket Médio" value={avgTicket > 0 ? avgTicket.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"} icon={TrendingUp} description="comandas fechadas" hidden={!showFinancials} />
+      {/* ── PERÍODO + STATS ── */}
+      <div>
+        {/* Seletor de período */}
+        <div className="flex items-center gap-2 mb-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Resumo —</p>
+          <div className="flex gap-1">
+            {(["today", "week", "month"] as StatPeriod[]).map(p => (
+              <button
+                key={p}
+                onClick={() => setStatPeriod(p)}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                  statPeriod === p
+                    ? "bg-zinc-900 text-white border-zinc-900"
+                    : "bg-white text-zinc-400 border-zinc-200 hover:border-zinc-300"
+                )}
+              >
+                {p === "today" ? "Hoje" : p === "week" ? "Semana" : "Mês"}
+              </button>
+            ))}
           </div>
-        );
-      })()}
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <StatCard
+            title="Faturamento"
+            value={stats.revenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+            icon={DollarSign}
+            description={`${stats.paidCount} comanda(s) ${stats.periodLabel}`}
+            hidden={!showFinancials}
+          />
+          <StatCard
+            title="Agendamentos"
+            value={String(stats.apptCount)}
+            icon={CalendarIcon}
+            description={stats.periodLabel}
+          />
+          <StatCard
+            title="Novos Clientes"
+            value={String(stats.newClientsCount)}
+            icon={UserPlus}
+            description={stats.periodLabel}
+          />
+          <StatCard
+            title="Ticket Médio"
+            value={stats.avgTicket > 0 ? stats.avgTicket.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}
+            icon={TrendingUp}
+            description={stats.periodLabel}
+            hidden={!showFinancials}
+          />
+        </div>
+      </div>
 
       {/* ── CHARTS ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
@@ -233,10 +274,6 @@ export function DashboardTab({
               <h3 className="text-sm font-bold text-zinc-900">Desempenho Semanal</h3>
               <p className="text-[10px] text-zinc-400">Faturamento bruto por dia</p>
             </div>
-            <select className="text-[10px] font-bold border border-zinc-200 bg-zinc-50 text-zinc-600 rounded-lg p-1.5 outline-none">
-              <option>Esta Semana</option>
-              <option>Mês Passado</option>
-            </select>
           </div>
           <AnimatePresence>
             {!showFinancials ? (
@@ -296,6 +333,77 @@ export function DashboardTab({
         </div>
       </div>
 
+      {/* ── PROFISSIONAIS DO MÊS ── */}
+      {profReport.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Destaque do mês */}
+          {topProfessional && (
+            <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-5 shadow-sm flex flex-col items-center text-center relative overflow-hidden">
+              <div className="absolute top-3 right-3 opacity-10">
+                <Trophy size={60} className="text-amber-500" />
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center text-white text-xl font-black shadow-lg mb-3">
+                {topProfessional.name?.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-[9px] font-black bg-amber-500 text-white px-2.5 py-1 rounded-full uppercase tracking-widest mb-2 flex items-center gap-1">
+                <Star size={9} /> Destaque do Mês
+              </span>
+              <p className="text-base font-black text-zinc-900">{topProfessional.name}</p>
+              <p className="text-[10px] text-zinc-500 mb-3">{topProfessional.role || "Profissional"}</p>
+              <div className="grid grid-cols-2 gap-2 w-full">
+                <div className="bg-white rounded-xl p-2.5 border border-amber-100">
+                  <p className="text-[9px] font-black text-zinc-400 uppercase">Faturado</p>
+                  <p className={cn("text-sm font-black text-amber-600", !showFinancials && "blur-sm")}>
+                    {showFinancials ? (topProfessional.totalRevenue || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "R$ ••"}
+                  </p>
+                </div>
+                <div className="bg-white rounded-xl p-2.5 border border-amber-100">
+                  <p className="text-[9px] font-black text-zinc-400 uppercase">Atend.</p>
+                  <p className="text-sm font-black text-zinc-900">{topProfessional.totalComandas || 0}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Ranking rápido */}
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-zinc-200 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Users size={16} className="text-zinc-400" />
+                <h3 className="text-sm font-bold text-zinc-900">Profissionais — Este Mês</h3>
+              </div>
+              <button onClick={() => handleTabChange("fluxo")} className="text-[10px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1">
+                Ver Completo <ArrowUpRight size={11} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {profReport.slice(0, 4).map((p: any, i: number) => {
+                const maxRevenue = profReport[0]?.totalRevenue || 1;
+                const pct = maxRevenue > 0 ? (p.totalRevenue / maxRevenue) * 100 : 0;
+                return (
+                  <div key={p.id} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[10px] font-black shrink-0" style={{ backgroundColor: PROF_COLORS[i % PROF_COLORS.length] }}>
+                          {i + 1}
+                        </div>
+                        <span className="text-xs font-bold text-zinc-800 truncate max-w-[100px] sm:max-w-[160px]">{p.name}</span>
+                      </div>
+                      <span className={cn("text-xs font-black text-zinc-900", !showFinancials && "blur-sm")}>
+                        {showFinancials ? (p.totalRevenue || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "R$ ••"}
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: PROF_COLORS[i % PROF_COLORS.length] }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── BOTTOM ROW ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
 
@@ -311,10 +419,10 @@ export function DashboardTab({
             {appointments.slice(0, 4).map((app) => (
               <div key={app.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-zinc-50 transition-colors">
                 <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 font-black text-xs shrink-0">
-                  {app.client.name.charAt(0).toUpperCase()}
+                  {app.client?.name?.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-zinc-900 truncate">{app.client.name}</p>
+                  <p className="text-xs font-bold text-zinc-900 truncate">{app.client?.name}</p>
                   <p className="text-[10px] text-zinc-400 font-medium truncate">{app.service?.name}</p>
                 </div>
                 <div className="text-right shrink-0">
@@ -372,9 +480,7 @@ export function DashboardTab({
         {/* Aniversariantes do Mês */}
         <div className={cn(
           "rounded-2xl shadow-sm border p-4 sm:p-6",
-          birthdayClients.length > 0
-            ? "bg-gradient-to-br from-pink-50 to-rose-50 border-pink-100"
-            : "bg-white border-zinc-200"
+          birthdayClients.length > 0 ? "bg-gradient-to-br from-pink-50 to-rose-50 border-pink-100" : "bg-white border-zinc-200"
         )}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -410,9 +516,7 @@ export function DashboardTab({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-zinc-900 truncate">{c.name}</p>
-                      <p className="text-[10px] text-zinc-400 font-medium">
-                        Dia {day}{age !== null ? ` · ${age} anos` : ""}
-                      </p>
+                      <p className="text-[10px] text-zinc-400 font-medium">Dia {day}{age !== null ? ` · ${age} anos` : ""}</p>
                     </div>
                     {isToday && (
                       <span className="text-[8px] font-black bg-pink-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-widest shrink-0">Hoje!</span>
