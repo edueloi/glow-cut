@@ -122,6 +122,27 @@ async function runAutoMigrations() {
     console.warn("⚠️  Auto-migration ComandaItem ignorada:", e2);
   }
 
+  // ── AdminUser: photo ────────────────────────────────────────
+  try {
+    await (prisma as any).$executeRawUnsafe(
+      `ALTER TABLE AdminUser ADD COLUMN IF NOT EXISTS photo TEXT NULL`
+    );
+  } catch (_) {
+    try {
+      const cols: any[] = await (prisma as any).$queryRaw`
+        SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'AdminUser' AND COLUMN_NAME = 'photo'
+      `;
+      if (cols.length === 0) {
+        await (prisma as any).$executeRawUnsafe(
+          `ALTER TABLE AdminUser ADD COLUMN photo TEXT NULL`
+        );
+      }
+    } catch (e2) {
+      console.warn("⚠️  Auto-migration AdminUser.photo ignorada:", e2);
+    }
+  }
+
   // ── PackageService: cria tabela se não existir ──────────────
   try {
     await (prisma as any).$executeRawUnsafe(`
@@ -2055,77 +2076,4 @@ async function startServer() {
       if (["login", "admin", "pro", "super-admin"].some(r => slug.startsWith(r))) return next();
       try {
         const tenant = await (prisma as any).tenant.findFirst({
-          where: { slug, isActive: true },
-          select: { name: true, logoUrl: true, coverUrl: true, address: true, welcomeMessage: true, instagram: true, themeColor: true, description: true }
-        });
-        if (!tenant) return next();
-        const indexHtml = fs.readFileSync(path.join(distPath, "index.html"), "utf-8");
-        const title = `${tenant.name} — Agendar Horário`;
-        const desc = (tenant as any).description || tenant.welcomeMessage || `Agende seu horário no ${tenant.name}. Rápido, fácil e sem precisar baixar apps.`;
-        const image = tenant.coverUrl || tenant.logoUrl || "";
-        const url = `https://agendelle.com.br/agendar/${slug}`;
-        const color = tenant.themeColor || "#c9a96e";
-        // Remove o manifest padrão do Agendelle e injeta o do salão
-        const htmlSemManifest = indexHtml.replace(
-          /<link rel="manifest"[^>]*>/g, ""
-        ).replace(
-          /<meta name="theme-color"[^>]*>/g, ""
-        ).replace(
-          /<link rel="apple-touch-icon"[^>]*>/g, ""
-        );
-        const seoHtml = htmlSemManifest.replace(
-          "<title>Agendelle | Agendamentos Inteligentes</title>",
-          `<title>${title}</title>
-    <meta name="description" content="${desc}" />
-    <meta name="theme-color" content="${color}" />
-    <link rel="manifest" href="/agendar/${slug}/manifest.json" crossorigin="use-credentials" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="${url}" />
-    <meta property="og:title" content="${title}" />
-    <meta property="og:description" content="${desc}" />
-    <meta property="og:image" content="${image}" />
-    <meta property="og:locale" content="pt_BR" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="${title}" />
-    <meta name="twitter:description" content="${desc}" />
-    <meta name="twitter:image" content="${image}" />
-    <link rel="apple-touch-icon" href="${tenant.logoUrl || '/favicon-celular.png'}" />`
-        );
-        res.set("Content-Type", "text/html").send(seoHtml);
-      } catch {
-        next();
-      }
-    });
-
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-    app.listen(PORT, () => {
-      console.log(`✅ Servidor rodando em produção na porta ${PORT}`);
-    });
-  } else {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-
-    app.use("*", async (req, res) => {
-      let url = req.originalUrl;
-      try {
-        let template = fs.readFileSync(path.resolve(__dirname, "index.html"), "utf-8");
-        template = await vite.transformIndexHtml(url, template);
-        res.status(200).set({ "Content-Type": "text/html" }).end(template);
-      } catch (e: any) {
-        vite.ssrFixStacktrace(e);
-        res.status(500).end(e.message);
-      }
-    });
-
-    app.listen(PORT, () => {
-      console.log(`✅ Servidor rodando em desenvolvimento: http://localhost:${PORT}`);
-    });
-  }
-}
-
-startServer();
+          where: { s
