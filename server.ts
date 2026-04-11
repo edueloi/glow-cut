@@ -160,6 +160,18 @@ async function runAutoMigrations() {
   } catch (e2) {
     console.warn("⚠️  Auto-migration PackageService ignorada:", e2);
   }
+
+  // ── Product.metadata: garante group = "salao" em produtos sem grupo ──────
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      UPDATE Product
+      SET metadata = JSON_SET(COALESCE(metadata, '{}'), '$.group', 'salao')
+      WHERE metadata IS NULL OR JSON_EXTRACT(metadata, '$.group') IS NULL
+    `);
+    console.log("✅ Product.metadata group default aplicado");
+  } catch (e2) {
+    console.warn("⚠️  Auto-migration Product.metadata ignorada:", e2);
+  }
 }
 runAutoMigrations();
 
@@ -1591,51 +1603,45 @@ app.get("/api/comandas", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
   try {
-    const comandas = await (prisma as any).comanda.findMany({
-      where: { tenantId },
-      include: {
-        client: { select: { id: true, name: true, phone: true } },
-        items: {
-          include: {
-            product: { select: { id: true, name: true, photo: true } },
-            service: { select: { id: true, name: true } }
-          }
-        }
-      },
-      orderBy: { createdAt: "desc" }
-    });
+    // Raw SQL para garantir que metadata do produto venha corretamente (Prisma client pode estar desatualizado)
+    const rows: any[] = await (prisma as any).$queryRawUnsafe(
+      `SELECT c.*, cl.name as clientName, cl.phone as clientPhone
+       FROM Comanda c
+       LEFT JOIN Client cl ON c.clientId = cl.id
+       WHERE c.tenantId = ?
+       ORDER BY c.createdAt DESC`,
+      tenantId
+    );
+    const itemRows: any[] = rows.length > 0
+      ? await (prisma as any).$queryRawUnsafe(
+          `SELECT ci.*, p.name as productName, p.photo as productPhoto, p.metadata as productMetadata,
+                  s.name as serviceName
+           FROM ComandaItem ci
+           LEFT JOIN Product p ON ci.productId = p.id
+           LEFT JOIN Service s ON ci.serviceId = s.id
+           WHERE ci.comandaId IN (${rows.map(() => "?").join(",")})`,
+          ...rows.map((r: any) => r.id)
+        )
+      : [];
+    // Agrupa items por comandaId
+    const itemsByComanda: Record<string, any[]> = {};
+    for (const item of itemRows) {
+      if (!itemsByComanda[item.comandaId]) itemsByComanda[item.comandaId] = [];
+      itemsByComanda[item.comandaId].push({
+        ...item,
+        product: item.productId ? { id: item.productId, name: item.productName, photo: item.productPhoto, metadata: item.productMetadata } : null,
+        service: item.serviceId ? { id: item.serviceId, name: item.serviceName } : null,
+      });
+    }
+    const comandas = rows.map((r: any) => ({
+      ...r,
+      client: r.clientName ? { id: r.clientId, name: r.clientName, phone: r.clientPhone } : null,
+      items: itemsByComanda[r.id] || [],
+    }));
     res.json(comandas);
   } catch (e: any) {
     console.error("[GET /api/comandas] Erro:", e?.message || e);
-    // Fallback: query simples sem includes complexos
-    try {
-      const comandas = await (prisma as any).comanda.findMany({
-        where: { tenantId },
-        include: {
-          client: { select: { id: true, name: true, phone: true } },
-          items: true
-        },
-        orderBy: { createdAt: "desc" }
-      });
-      res.json(comandas);
-    } catch (e2: any) {
-      console.error("[GET /api/comandas] Fallback 1 falhou:", e2?.message || e2);
-      // Fallback 2: sem nenhum include
-      try {
-        const comandas = await (prisma as any).comanda.findMany({
-          where: { tenantId },
-          orderBy: { createdAt: "desc" }
-        });
-        res.json(comandas);
-      } catch (e3: any) {
-        console.error("[GET /api/comandas] Fallback 2 falhou:", e3?.message || e3);
-        res.status(500).json({
-          error: "Erro ao buscar comandas.",
-          detail: e3?.message,
-          hint: "Rode: npx prisma generate && npm run migrate"
-        });
-      }
-    }
+    res.status(500).json({ error: "Erro ao buscar comandas.", detail: e?.message });
   }
 });
 

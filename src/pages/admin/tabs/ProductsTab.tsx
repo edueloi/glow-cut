@@ -222,7 +222,7 @@ export function ProductsTab({
       validUntil: "",
       code: "",
       isForSale: true,
-      metadata: {},
+      metadata: { group: "salao" },
     });
     setIsProductModalOpen(true);
   };
