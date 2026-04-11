@@ -2076,4 +2076,52 @@ async function startServer() {
       if (["login", "admin", "pro", "super-admin"].some(r => slug.startsWith(r))) return next();
       try {
         const tenant = await (prisma as any).tenant.findFirst({
-          where: { s
+          where: { slug, isActive: true },
+          select: { name: true, logoUrl: true, themeColor: true, description: true, address: true, instagram: true }
+        });
+        if (!tenant) return next();
+        const distIndex = path.join(distPath, "index.html");
+        let html = fs.readFileSync(distIndex, "utf-8");
+        const title = `${tenant.name} — Agende seu horário`;
+        const desc = (tenant as any).description || `Agende seu horário no ${tenant.name}. Rápido, fácil e online.`;
+        const image = tenant.logoUrl || "";
+        html = html
+          .replace(/<title>.*?<\/title>/, `<title>${title}</title>`)
+          .replace("</head>", `
+  <meta name="description" content="${desc}" />
+  <meta property="og:title" content="${title}" />
+  <meta property="og:description" content="${desc}" />
+  <meta property="og:image" content="${image}" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${title}" />
+  <meta name="twitter:description" content="${desc}" />
+  <meta name="twitter:image" content="${image}" />
+  <link rel="manifest" href="/agendar/${slug}/manifest.json" />
+</head>`);
+        res.send(html);
+      } catch {
+        next();
+      }
+    });
+
+    // SPA fallback — todas as outras rotas servem o index.html
+    app.get("*", (_req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+
+  } else {
+    // Dev: Vite middleware
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`✅ Servidor rodando em ${process.env.NODE_ENV === "production" ? "produção" : "desenvolvimento"}: http://localhost:${PORT}`);
+  });
+}
+
+startServer();
