@@ -1,13 +1,14 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import {
   Plus, CheckCircle, X, Scissors, Banknote, CreditCard, Smartphone,
   Shuffle, Package, FileText, Phone, Zap, Trash2, Edit2, Search,
-  Minus, ChevronRight, LayoutGrid, List,
+  Minus, LayoutGrid, User, ArrowRightLeft, ChevronDown, Calendar,
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
 import { motion, AnimatePresence } from "motion/react";
+import { Combobox } from "@/src/components/ui/Combobox";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -56,6 +57,9 @@ interface EditItem {
   quantity: number;
   productId: string | null;
   serviceId: string | null;
+  // indica que veio de um pacote (para exibição agrupada)
+  packageId?: string | null;
+  packageName?: string | null;
 }
 
 interface ComandasTabProps {
@@ -73,75 +77,78 @@ interface ComandasTabProps {
   fetchComandas: () => void;
 }
 
-// ── sub-componente: modal de edição ──────────────────────────────────────────
+// ── EditComandaModal ──────────────────────────────────────────────────────────
 
 function EditComandaModal({
   comanda,
   products,
   services,
+  professionals,
   onClose,
   onSaved,
 }: {
   comanda: any;
   products: any[];
   services: any[];
+  professionals: any[];
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [items, setItems]           = useState<EditItem[]>(() =>
+  // ── abas do modal
+  type Tab = "items" | "info";
+  const [tab, setTab] = useState<Tab>("items");
+
+  // ── itens
+  const [items, setItems] = useState<EditItem[]>(() =>
     (comanda.items || []).map((it: any) => ({ ...it }))
   );
-  const [discount, setDiscount]     = useState(String(comanda.discount || 0));
+  const [discount, setDiscount]         = useState(String(comanda.discount || 0));
   const [discountType, setDiscountType] = useState<"value" | "percentage">(comanda.discountType || "value");
-  const [saving, setSaving]         = useState(false);
-  // qual painel está aberto: "services" | "products" | null
-  const [addPanel, setAddPanel]     = useState<"services" | "products" | null>(null);
+
+  // ── dados gerais
+  const [clientId, setClientId]         = useState(comanda.clientId || "");
+  const [clientSearch, setClientSearch] = useState(comanda.client?.name || "");
+  const [clientResults, setClientResults] = useState<any[]>([]);
+  const [selectedClient, setSelectedClient] = useState<any>(comanda.client || null);
+  const [professionalId, setProfessionalId] = useState(comanda.professionalId || "");
+  const [description, setDescription]   = useState(comanda.description || "");
+
+  // ── painel catálogo
+  const [addPanel, setAddPanel]       = useState<"services" | "products" | null>("services");
   const [panelSearch, setPanelSearch] = useState("");
 
+  const [saving, setSaving] = useState(false);
+
+  // busca de cliente
+  useEffect(() => {
+    if (!clientSearch.trim() || clientId) { setClientResults([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const r = await apiFetch(`/api/clients/search?name=${encodeURIComponent(clientSearch)}`);
+        const d = await r.json();
+        setClientResults(Array.isArray(d) ? d : []);
+      } catch { setClientResults([]); }
+    }, 200);
+    return () => clearTimeout(t);
+  }, [clientSearch, clientId]);
+
+  // métricas
   const subtotal = items.reduce((a, i) => a + i.price * i.quantity, 0);
   const d        = parseFloat(discount) || 0;
   const total    = Math.max(0, discountType === "percentage" ? subtotal * (1 - d / 100) : subtotal - d);
 
-  // ── add item from panel ──
-  const addItem = (item: EditItem) => {
-    const existing = items.find(i =>
-      (item.productId && i.productId === item.productId) ||
-      (item.serviceId && i.serviceId === item.serviceId)
-    );
-    if (existing) {
-      setItems(prev => prev.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + 1 } : i));
-    } else {
-      setItems(prev => [...prev, { ...item, id: `new-${Date.now()}-${Math.random()}` }]);
-    }
-  };
-
-  const removeItem = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
-  const changeQty  = (id: string, delta: number) =>
-    setItems(prev => prev.map(i => i.id === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i));
-  const changePrice = (id: string, val: number) =>
-    setItems(prev => prev.map(i => i.id === id ? { ...i, price: val } : i));
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await apiFetch(`/api/comandas/${comanda.id}/items`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: items.filter(i => i.name), discount: d, discountType, total }),
-      });
-      onSaved();
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // filtra serviços e produtos para o painel
+  // catálogo filtrado
   const filteredServices = useMemo(() => {
     const q = panelSearch.toLowerCase();
-    return services
+    // serviços individuais (não pacote)
+    const singles = services
       .filter((s: any) => s.type !== "package")
       .filter((s: any) => !q || s.name.toLowerCase().includes(q));
+    // pacotes
+    const pkgs = services
+      .filter((s: any) => s.type === "package")
+      .filter((s: any) => !q || s.name.toLowerCase().includes(q));
+    return { singles, pkgs };
   }, [services, panelSearch]);
 
   const filteredProducts = useMemo(() => {
@@ -151,6 +158,86 @@ function EditComandaModal({
       .filter((p: any) => !q || p.name.toLowerCase().includes(q));
   }, [products, panelSearch]);
 
+  // adicionar item individual
+  const addItem = (item: Omit<EditItem, "id">) => {
+    const existing = items.find(i =>
+      (item.productId && i.productId === item.productId) ||
+      (item.serviceId && i.serviceId === item.serviceId && !item.packageId && !i.packageId)
+    );
+    if (existing) {
+      setItems(prev => prev.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + 1 } : i));
+    } else {
+      setItems(prev => [...prev, { ...item, id: `new-${Date.now()}-${Math.random()}` }]);
+    }
+  };
+
+  // adicionar pacote (expande os serviços com tag do pacote)
+  const addPackage = (pkg: any) => {
+    const pkgServices: EditItem[] = (pkg.packageServices || []).map((ps: any) => ({
+      id: `pkg-${ps.serviceId || ps.service?.id}-${Date.now()}-${Math.random()}`,
+      name: ps.service?.name || ps.name || "",
+      price: Number(ps.service?.price ?? ps.price) || 0,
+      quantity: ps.quantity || 1,
+      productId: null,
+      serviceId: ps.serviceId || ps.service?.id || null,
+      packageId: pkg.id,
+      packageName: pkg.name,
+    }));
+    setItems(prev => [...prev, ...pkgServices]);
+  };
+
+  const removeItem = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
+  // remove todos os itens de um pacote
+  const removePackage = (packageId: string) => setItems(prev => prev.filter(i => i.packageId !== packageId));
+  const changeQty   = (id: string, delta: number) =>
+    setItems(prev => prev.map(i => i.id === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i));
+  const changePrice = (id: string, val: number) =>
+    setItems(prev => prev.map(i => i.id === id ? { ...i, price: val } : i));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      // Salva itens
+      await apiFetch(`/api/comandas/${comanda.id}/items`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: items.filter(i => i.name), discount: d, discountType, total }),
+      });
+      // Salva dados gerais se houve mudança
+      const patch: any = {};
+      if (clientId && clientId !== comanda.clientId) patch.clientId = clientId;
+      if (professionalId !== (comanda.professionalId || "")) patch.professionalId = professionalId || null;
+      if (description !== (comanda.description || "")) patch.description = description;
+      if (Object.keys(patch).length > 0) {
+        await apiFetch(`/api/comandas/${comanda.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+      }
+      onSaved();
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // agrupa os itens por pacote para exibição
+  const groupedItems = useMemo(() => {
+    const groups: { packageId: string | null; packageName: string | null; items: EditItem[] }[] = [];
+    const seen = new Map<string | null, EditItem[]>();
+    for (const item of items) {
+      const key = item.packageId || null;
+      if (!seen.has(key)) {
+        const arr: EditItem[] = [];
+        seen.set(key, arr);
+        groups.push({ packageId: key, packageName: item.packageName || null, items: arr });
+      }
+      seen.get(key)!.push(item);
+    }
+    return groups;
+  }, [items]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -158,285 +245,461 @@ function EditComandaModal({
       onClick={onClose}
     >
       <motion.div
-        initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 32 }} transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-white w-full sm:max-w-2xl rounded-t-[28px] sm:rounded-[28px] shadow-2xl border border-zinc-200 flex flex-col max-h-[92vh]"
+        initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 40 }} transition={{ duration: 0.2, ease: "easeOut" }}
+        className="bg-white w-full sm:max-w-3xl rounded-t-[28px] sm:rounded-[28px] shadow-2xl border border-zinc-200 flex flex-col max-h-[94vh]"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* ── Header ── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 shrink-0">
           <div>
             <h3 className="text-sm font-black text-zinc-900">Editar Comanda</h3>
             <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">
-              #{comanda.id.slice(-6).toUpperCase()} · {comanda.client?.name}
+              #{comanda.id.slice(-6).toUpperCase()} · {selectedClient?.name || comanda.client?.name}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-zinc-100 text-zinc-400 rounded-xl transition-all">
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Abas */}
+            <div className="flex bg-zinc-100 rounded-xl p-0.5 gap-0.5">
+              <button
+                onClick={() => setTab("items")}
+                className={cn(
+                  "px-3 py-1.5 rounded-[10px] text-[10px] font-black uppercase tracking-widest transition-all",
+                  tab === "items" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+                )}
+              >
+                Itens
+              </button>
+              <button
+                onClick={() => setTab("info")}
+                className={cn(
+                  "px-3 py-1.5 rounded-[10px] text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1",
+                  tab === "info" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+                )}
+              >
+                <ArrowRightLeft size={10}/> Dados
+              </button>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-zinc-100 text-zinc-400 rounded-xl transition-all">
+              <X size={16}/>
+            </button>
+          </div>
         </div>
 
-        {/* Body — dois painéis lado a lado em sm+ */}
-        <div className="flex flex-col sm:flex-row flex-1 min-h-0 overflow-hidden">
+        {/* ── Aba Itens ── */}
+        {tab === "items" && (
+          <div className="flex flex-col sm:flex-row flex-1 min-h-0 overflow-hidden">
 
-          {/* ── Painel esquerdo: itens na comanda ── */}
-          <div className="flex flex-col sm:w-[55%] border-b sm:border-b-0 sm:border-r border-zinc-100 min-h-0">
-            <div className="px-5 py-3 border-b border-zinc-100 shrink-0">
-              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Itens na comanda</p>
+            {/* Painel esquerdo — itens na comanda */}
+            <div className="flex flex-col sm:w-[52%] border-b sm:border-b-0 sm:border-r border-zinc-100 min-h-0">
+              <div className="px-4 py-2.5 border-b border-zinc-100 shrink-0">
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Itens na comanda</p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+                {items.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-10 text-zinc-400">
+                    <Package size={28} className="mb-2 opacity-20"/>
+                    <p className="text-xs font-bold">Nenhum item</p>
+                    <p className="text-[10px] mt-0.5">Use o painel à direita</p>
+                  </div>
+                )}
+
+                <AnimatePresence initial={false}>
+                  {groupedItems.map(group => (
+                    <div key={group.packageId || "singles"}>
+                      {/* cabeçalho do pacote */}
+                      {group.packageId && (
+                        <div className="flex items-center justify-between px-2.5 py-1.5 mb-1 bg-violet-50 rounded-xl border border-violet-100">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-violet-400"/>
+                            <span className="text-[10px] font-black text-violet-700 uppercase tracking-widest">
+                              Pacote: {group.packageName}
+                            </span>
+                            <span className="text-[9px] text-violet-400 font-bold">{group.items.length} serviços</span>
+                          </div>
+                          <button
+                            onClick={() => removePackage(group.packageId!)}
+                            className="text-violet-300 hover:text-red-500 transition-all p-0.5 rounded"
+                            title="Remover pacote"
+                          >
+                            <Trash2 size={11}/>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* itens do grupo */}
+                      {group.items.map(item => (
+                        <motion.div
+                          key={item.id}
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className={cn(
+                            "flex items-center gap-2 p-2.5 rounded-xl border group mb-1.5",
+                            group.packageId
+                              ? "bg-violet-50/40 border-violet-100 ml-2"
+                              : item.productId
+                                ? "bg-emerald-50/30 border-emerald-100"
+                                : "bg-zinc-50 border-zinc-100"
+                          )}
+                        >
+                          <div className={cn(
+                            "p-1.5 rounded-lg shrink-0",
+                            item.productId ? "bg-emerald-100 text-emerald-600" : "bg-violet-100 text-violet-600"
+                          )}>
+                            {item.productId ? <Package size={12}/> : <Scissors size={12}/>}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-zinc-900 truncate">{item.name}</p>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className="text-[9px] text-zinc-400 font-bold">R$</span>
+                              <input
+                                type="number" step="0.01" min={0}
+                                className="text-[10px] px-1 py-0.5 w-14 bg-white border border-zinc-200 rounded-md font-bold text-zinc-700 outline-none focus:border-amber-400"
+                                value={item.price}
+                                onChange={e => changePrice(item.id, parseFloat(e.target.value) || 0)}
+                              />
+                              <span className="text-[9px] font-black text-zinc-400">= {fmtBRL(item.price * item.quantity)}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => changeQty(item.id, -1)} className="w-6 h-6 rounded-lg bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-all">
+                              <Minus size={9}/>
+                            </button>
+                            <span className="w-5 text-center text-xs font-black text-zinc-900">{item.quantity}</span>
+                            <button onClick={() => changeQty(item.id, 1)} className="w-6 h-6 rounded-lg bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-all">
+                              <Plus size={9}/>
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => removeItem(item.id)}
+                            className="w-6 h-6 rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all shrink-0"
+                          >
+                            <Trash2 size={11}/>
+                          </button>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ))}
+                </AnimatePresence>
+              </div>
+
+              {/* Desconto + total */}
+              <div className="px-4 py-3 border-t border-zinc-100 shrink-0 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest shrink-0">Desconto</span>
+                  <div className="flex gap-1 ml-auto items-center">
+                    {(["value", "percentage"] as const).map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setDiscountType(t)}
+                        className={cn(
+                          "px-2 py-1 rounded-lg text-[10px] font-black border transition-all",
+                          discountType === t ? "bg-zinc-900 text-white border-zinc-900" : "bg-zinc-50 text-zinc-500 border-zinc-200"
+                        )}
+                      >
+                        {t === "value" ? "R$" : "%"}
+                      </button>
+                    ))}
+                    <div className="relative w-20">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 font-bold pointer-events-none">
+                        {discountType === "percentage" ? "%" : "R$"}
+                      </span>
+                      <input
+                        type="number" step="0.01" min={0}
+                        className="w-full text-[11px] pl-6 pr-2 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg font-bold outline-none focus:border-amber-400"
+                        value={discount}
+                        onChange={e => setDiscount(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-1.5 border-t border-zinc-100">
+                  <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Total</span>
+                  <span className="text-lg font-black text-zinc-900">{fmtBRL(total)}</span>
+                </div>
+              </div>
             </div>
 
-            {/* Lista de itens */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-              {items.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-8 text-zinc-400">
-                  <Package size={28} className="mb-2 opacity-30" />
-                  <p className="text-xs font-bold">Nenhum item ainda</p>
-                  <p className="text-[10px] mt-0.5">Use o painel ao lado para adicionar</p>
+            {/* Painel direito — catálogo */}
+            <div className="flex flex-col sm:w-[48%] min-h-0">
+              {/* Abas serviços / produtos */}
+              <div className="flex border-b border-zinc-100 shrink-0">
+                <button
+                  onClick={() => { setAddPanel("services"); setPanelSearch(""); }}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all",
+                    addPanel === "services" ? "border-violet-500 text-violet-700 bg-violet-50/50" : "border-transparent text-zinc-400 hover:text-zinc-600"
+                  )}
+                >
+                  <Scissors size={11}/> Serviços
+                </button>
+                <button
+                  onClick={() => { setAddPanel("products"); setPanelSearch(""); }}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all",
+                    addPanel === "products" ? "border-emerald-500 text-emerald-700 bg-emerald-50/50" : "border-transparent text-zinc-400 hover:text-zinc-600"
+                  )}
+                >
+                  <Package size={11}/> Produtos
+                </button>
+              </div>
+
+              {addPanel === null && (
+                <div className="flex flex-col items-center justify-center flex-1 text-zinc-400 px-6 text-center">
+                  <LayoutGrid size={28} className="mb-2 opacity-20"/>
+                  <p className="text-xs font-bold text-zinc-400">Selecione Serviços ou Produtos para adicionar</p>
                 </div>
               )}
-              <AnimatePresence initial={false}>
-                {items.map(item => (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex items-center gap-2 p-2.5 bg-zinc-50 rounded-xl border border-zinc-100 group"
-                  >
-                    {/* Ícone */}
-                    <div className={cn(
-                      "p-1.5 rounded-lg shrink-0",
-                      item.productId ? "bg-emerald-50 text-emerald-600" : "bg-violet-50 text-violet-600"
-                    )}>
-                      {item.productId ? <Package size={13}/> : <Scissors size={13}/>}
+
+              {addPanel !== null && (
+                <>
+                  <div className="px-3 py-2 border-b border-zinc-100 shrink-0">
+                    <div className="relative">
+                      <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400"/>
+                      <input
+                        type="text"
+                        placeholder={addPanel === "services" ? "Buscar serviço ou pacote..." : "Buscar produto..."}
+                        value={panelSearch}
+                        onChange={e => setPanelSearch(e.target.value)}
+                        className="w-full pl-8 pr-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-amber-400"
+                        autoFocus
+                      />
                     </div>
-
-                    {/* Nome + preço */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-zinc-900 truncate">{item.name}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[9px] text-zinc-400 font-bold">Un:</span>
-                        <div className="relative">
-                          <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[9px] text-zinc-400 font-bold pointer-events-none">R$</span>
-                          <input
-                            type="number" step="0.01" min={0}
-                            className="text-[10px] pl-5 pr-1 py-0.5 w-16 bg-white border border-zinc-200 rounded-md font-bold text-zinc-700 outline-none focus:border-amber-400"
-                            value={item.price}
-                            onChange={e => changePrice(item.id, parseFloat(e.target.value) || 0)}
-                          />
-                        </div>
-                        <span className="text-[9px] font-black text-zinc-500">= {fmtBRL(item.price * item.quantity)}</span>
-                      </div>
-                    </div>
-
-                    {/* Controles de quantidade */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => changeQty(item.id, -1)}
-                        className="w-6 h-6 rounded-lg bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-all"
-                      >
-                        <Minus size={10}/>
-                      </button>
-                      <span className="w-6 text-center text-xs font-black text-zinc-900">{item.quantity}</span>
-                      <button
-                        onClick={() => changeQty(item.id, 1)}
-                        className="w-6 h-6 rounded-lg bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-all"
-                      >
-                        <Plus size={10}/>
-                      </button>
-                    </div>
-
-                    {/* Remover */}
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      className="w-7 h-7 rounded-xl text-zinc-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all shrink-0"
-                    >
-                      <Trash2 size={13}/>
-                    </button>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-
-            {/* Desconto + total */}
-            <div className="px-4 py-3 border-t border-zinc-100 shrink-0 space-y-2.5">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest shrink-0">Desconto</span>
-                <div className="flex gap-1.5 ml-auto">
-                  {(["value", "percentage"] as const).map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setDiscountType(t)}
-                      className={cn(
-                        "px-2.5 py-1 rounded-lg text-[10px] font-black border transition-all",
-                        discountType === t ? "bg-zinc-900 text-white border-zinc-900" : "bg-zinc-50 text-zinc-500 border-zinc-200"
-                      )}
-                    >
-                      {t === "value" ? "R$" : "%"}
-                    </button>
-                  ))}
-                  <div className="relative">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 font-bold pointer-events-none">
-                      {discountType === "percentage" ? "%" : "R$"}
-                    </span>
-                    <input
-                      type="number" step="0.01" min={0}
-                      className="text-[11px] pl-6 pr-2 py-1 w-20 bg-zinc-50 border border-zinc-200 rounded-lg font-bold outline-none focus:border-amber-400"
-                      value={discount}
-                      onChange={e => setDiscount(e.target.value)}
-                    />
                   </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between pt-1 border-t border-zinc-100">
-                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Total</span>
-                <span className="text-lg font-black text-zinc-900">{fmtBRL(total)}</span>
-              </div>
-            </div>
-          </div>
 
-          {/* ── Painel direito: catálogo ── */}
-          <div className="flex flex-col sm:w-[45%] min-h-0">
-            {/* Abas Serviços / Produtos */}
-            <div className="flex border-b border-zinc-100 shrink-0">
-              <button
-                onClick={() => { setAddPanel("services"); setPanelSearch(""); }}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all",
-                  addPanel === "services" ? "border-violet-500 text-violet-700 bg-violet-50/50" : "border-transparent text-zinc-400 hover:text-zinc-600"
-                )}
-              >
-                <Scissors size={12}/> Serviços
-              </button>
-              <button
-                onClick={() => { setAddPanel("products"); setPanelSearch(""); }}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all",
-                  addPanel === "products" ? "border-emerald-500 text-emerald-700 bg-emerald-50/50" : "border-transparent text-zinc-400 hover:text-zinc-600"
-                )}
-              >
-                <Package size={12}/> Produtos
-              </button>
-            </div>
+                  <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
 
-            {addPanel === null && (
-              <div className="flex flex-col items-center justify-center flex-1 text-zinc-400 px-6 text-center">
-                <LayoutGrid size={32} className="mb-2 opacity-20"/>
-                <p className="text-xs font-bold text-zinc-400">Selecione Serviços ou Produtos acima para adicionar à comanda</p>
-              </div>
-            )}
-
-            {addPanel !== null && (
-              <>
-                {/* Busca */}
-                <div className="px-3 py-2 border-b border-zinc-100 shrink-0">
-                  <div className="relative">
-                    <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400"/>
-                    <input
-                      type="text"
-                      placeholder={addPanel === "services" ? "Buscar serviço..." : "Buscar produto..."}
-                      value={panelSearch}
-                      onChange={e => setPanelSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-amber-400"
-                      autoFocus
-                    />
-                  </div>
-                </div>
-
-                {/* Lista */}
-                <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
-                  {addPanel === "services" && (
-                    <>
-                      {filteredServices.length === 0 && (
-                        <p className="text-[10px] text-zinc-400 text-center py-6 font-bold">Nenhum serviço encontrado</p>
-                      )}
-                      {filteredServices.map((s: any) => {
-                        const qty = items.find(i => i.serviceId === s.id)?.quantity || 0;
-                        return (
-                          <button
-                            key={s.id}
-                            onClick={() => addItem({ id: "", name: s.name, price: Number(s.price), quantity: 1, productId: null, serviceId: s.id })}
-                            className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border border-zinc-100 hover:border-violet-300 hover:bg-violet-50/40 transition-all text-left group"
-                          >
-                            <div className="p-1.5 rounded-lg bg-violet-50 text-violet-600 group-hover:bg-violet-100 shrink-0">
-                              <Scissors size={12}/>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-zinc-800 truncate">{s.name}</p>
-                              <p className="text-[10px] text-violet-600 font-black">{fmtBRL(Number(s.price))}</p>
-                            </div>
-                            {qty > 0 ? (
-                              <span className="text-[9px] font-black bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-lg shrink-0">{qty}x</span>
-                            ) : (
-                              <Plus size={14} className="text-zinc-300 group-hover:text-violet-500 shrink-0"/>
+                    {/* ── Serviços individuais ── */}
+                    {addPanel === "services" && (
+                      <>
+                        {/* Pacotes */}
+                        {filteredServices.pkgs.length > 0 && (
+                          <>
+                            <p className="text-[9px] font-black text-violet-500 uppercase tracking-widest px-1 pt-1 pb-0.5 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block"/> Pacotes
+                            </p>
+                            {filteredServices.pkgs.map((pkg: any) => {
+                              const inComanda = items.some(i => i.packageId === pkg.id);
+                              return (
+                                <button
+                                  key={pkg.id}
+                                  onClick={() => addPackage(pkg)}
+                                  className="w-full flex items-start gap-2.5 p-2.5 rounded-xl border border-zinc-100 hover:border-violet-300 hover:bg-violet-50/40 transition-all text-left group"
+                                >
+                                  <div className="p-1.5 rounded-lg bg-violet-100 text-violet-700 group-hover:bg-violet-200 shrink-0 mt-0.5">
+                                    <Scissors size={12}/>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="text-xs font-black text-zinc-900 truncate">{pkg.name}</p>
+                                      <span className="text-[8px] font-black bg-violet-100 text-violet-600 px-1 py-0.5 rounded shrink-0">PACOTE</span>
+                                    </div>
+                                    <p className="text-[9px] text-violet-600 font-black mt-0.5">{fmtBRL(Number(pkg.price))}</p>
+                                    <p className="text-[9px] text-zinc-400 font-bold mt-0.5">
+                                      {(pkg.packageServices || []).map((ps: any) => ps.service?.name || ps.name).filter(Boolean).join(", ")}
+                                    </p>
+                                  </div>
+                                  {inComanda
+                                    ? <span className="text-[9px] font-black bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-lg shrink-0 self-center">✓</span>
+                                    : <Plus size={13} className="text-zinc-300 group-hover:text-violet-500 shrink-0 self-center"/>
+                                  }
+                                </button>
+                              );
+                            })}
+                            {filteredServices.singles.length > 0 && (
+                              <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1 pt-2 pb-0.5 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"/> Serviços
+                              </p>
                             )}
-                          </button>
-                        );
-                      })}
-                    </>
-                  )}
+                          </>
+                        )}
 
-                  {addPanel === "products" && (
-                    <>
-                      {filteredProducts.length === 0 && (
-                        <p className="text-[10px] text-zinc-400 text-center py-6 font-bold">Nenhum produto no PDV</p>
-                      )}
-                      {filteredProducts.map((p: any) => {
-                        const qty = items.find(i => i.productId === p.id)?.quantity || 0;
-                        const noStock = p.stock <= 0;
-                        return (
-                          <button
-                            key={p.id}
-                            onClick={() => !noStock && addItem({ id: "", name: p.name, price: Number(p.salePrice), quantity: 1, productId: p.id, serviceId: null })}
-                            disabled={noStock}
-                            className={cn(
-                              "w-full flex items-center gap-2.5 p-2.5 rounded-xl border transition-all text-left group",
-                              noStock
-                                ? "border-zinc-100 opacity-40 cursor-not-allowed"
-                                : "border-zinc-100 hover:border-emerald-300 hover:bg-emerald-50/40 cursor-pointer"
-                            )}
-                          >
-                            <div className={cn(
-                              "p-1.5 rounded-lg shrink-0",
-                              noStock ? "bg-zinc-100 text-zinc-400" : "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100"
-                            )}>
-                              <Package size={12}/>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-zinc-800 truncate">{p.name}</p>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <p className="text-[10px] text-emerald-600 font-black">{fmtBRL(Number(p.salePrice))}</p>
-                                <span className={cn(
-                                  "text-[8px] font-black px-1 py-0.5 rounded",
-                                  noStock ? "bg-red-50 text-red-500" : p.stock <= (p.minStock || 0) ? "bg-amber-50 text-amber-600" : "bg-zinc-100 text-zinc-500"
-                                )}>
-                                  {noStock ? "Sem estoque" : `Est: ${p.stock}`}
-                                </span>
+                        {filteredServices.singles.length === 0 && filteredServices.pkgs.length === 0 && (
+                          <p className="text-[10px] text-zinc-400 text-center py-6 font-bold">Nenhum serviço encontrado</p>
+                        )}
+
+                        {filteredServices.singles.map((s: any) => {
+                          const qty = items.find(i => i.serviceId === s.id && !i.packageId)?.quantity || 0;
+                          return (
+                            <button
+                              key={s.id}
+                              onClick={() => addItem({ name: s.name, price: Number(s.price), quantity: 1, productId: null, serviceId: s.id })}
+                              className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border border-zinc-100 hover:border-amber-300 hover:bg-amber-50/40 transition-all text-left group"
+                            >
+                              <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-100 shrink-0">
+                                <Scissors size={12}/>
                               </div>
-                            </div>
-                            {qty > 0 ? (
-                              <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-lg shrink-0">{qty}x</span>
-                            ) : !noStock ? (
-                              <Plus size={14} className="text-zinc-300 group-hover:text-emerald-500 shrink-0"/>
-                            ) : null}
-                          </button>
-                        );
-                      })}
-                    </>
-                  )}
-                </div>
-              </>
-            )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-zinc-800 truncate">{s.name}</p>
+                                <p className="text-[10px] text-amber-600 font-black">{fmtBRL(Number(s.price))}</p>
+                              </div>
+                              {qty > 0
+                                ? <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-lg shrink-0">{qty}x</span>
+                                : <Plus size={13} className="text-zinc-300 group-hover:text-amber-500 shrink-0"/>
+                              }
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+
+                    {/* ── Produtos ── */}
+                    {addPanel === "products" && (
+                      <>
+                        {filteredProducts.length === 0 && (
+                          <p className="text-[10px] text-zinc-400 text-center py-6 font-bold">Nenhum produto no PDV</p>
+                        )}
+                        {filteredProducts.map((p: any) => {
+                          const qty = items.find(i => i.productId === p.id)?.quantity || 0;
+                          const noStock = p.stock <= 0;
+                          return (
+                            <button
+                              key={p.id}
+                              onClick={() => !noStock && addItem({ name: p.name, price: Number(p.salePrice), quantity: 1, productId: p.id, serviceId: null })}
+                              disabled={noStock}
+                              className={cn(
+                                "w-full flex items-center gap-2.5 p-2.5 rounded-xl border transition-all text-left group",
+                                noStock ? "border-zinc-100 opacity-40 cursor-not-allowed" : "border-zinc-100 hover:border-emerald-300 hover:bg-emerald-50/40 cursor-pointer"
+                              )}
+                            >
+                              <div className={cn("p-1.5 rounded-lg shrink-0", noStock ? "bg-zinc-100 text-zinc-400" : "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100")}>
+                                <Package size={12}/>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-zinc-800 truncate">{p.name}</p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <p className="text-[10px] text-emerald-600 font-black">{fmtBRL(Number(p.salePrice))}</p>
+                                  <span className={cn(
+                                    "text-[8px] font-black px-1 py-0.5 rounded",
+                                    noStock ? "bg-red-50 text-red-500" : p.stock <= (p.minStock || 0) ? "bg-amber-50 text-amber-600" : "bg-zinc-100 text-zinc-500"
+                                  )}>
+                                    {noStock ? "Sem estoque" : `Est: ${p.stock}`}
+                                  </span>
+                                </div>
+                              </div>
+                              {qty > 0
+                                ? <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-lg shrink-0">{qty}x</span>
+                                : !noStock ? <Plus size={13} className="text-zinc-300 group-hover:text-emerald-500 shrink-0"/> : null
+                              }
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* ── Aba Dados ── */}
+        {tab === "info" && (
+          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+
+            {/* Transferir cliente */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                <ArrowRightLeft size={11}/> Transferir para outro cliente
+              </label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none">
+                  <User size={13}/>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Buscar cliente..."
+                  value={clientSearch}
+                  onChange={e => { setClientSearch(e.target.value); setClientId(""); setSelectedClient(null); }}
+                  className="w-full pl-9 pr-3 py-3 text-xs bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-amber-400 font-bold"
+                />
+                {clientResults.length > 0 && !clientId && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-zinc-200 rounded-xl shadow-xl z-50 mt-1 max-h-40 overflow-y-auto">
+                    {clientResults.map((c: any) => (
+                      <button
+                        key={c.id}
+                        onMouseDown={() => { setClientId(c.id); setClientSearch(c.name); setSelectedClient(c); setClientResults([]); }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 transition-all border-b border-zinc-50 last:border-0"
+                      >
+                        <p className="font-bold text-zinc-900">{c.name}</p>
+                        <p className="text-zinc-400 text-[10px]">{c.phone}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {clientId && clientId !== comanda.clientId && (
+                <div className="flex items-center gap-2 p-2.5 bg-amber-50 rounded-xl border border-amber-200">
+                  <CheckCircle size={13} className="text-amber-500 shrink-0"/>
+                  <p className="text-xs font-bold text-amber-800">
+                    Comanda será transferida para <strong>{selectedClient?.name}</strong>
+                  </p>
+                </div>
+              )}
+              {(!clientId || clientId === comanda.clientId) && comanda.client && (
+                <p className="text-[10px] text-zinc-400 font-bold flex items-center gap-1 ml-1">
+                  <CheckCircle size={10} className="text-emerald-400"/> Cliente atual: {comanda.client.name}
+                </p>
+              )}
+            </div>
+
+            {/* Profissional */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                <Scissors size={11}/> Profissional
+              </label>
+              <Combobox
+                options={[
+                  { value: "", label: "Nenhum" },
+                  ...professionals.map((p: any) => ({
+                    value: p.id,
+                    label: p.name,
+                    subtitle: p.role || undefined,
+                  })),
+                ]}
+                value={professionalId}
+                onChange={v => setProfessionalId(v as string)}
+                placeholder="Selecionar profissional..."
+                searchPlaceholder="Buscar profissional..."
+              />
+            </div>
+
+            {/* Descrição */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Descrição / Observação</label>
+              <textarea
+                rows={3}
+                placeholder="Observações da comanda..."
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-amber-400 resize-none font-medium"
+              />
+            </div>
+
+            <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-100 space-y-1.5">
+              <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Resumo da comanda</p>
+              <div className="flex justify-between text-xs font-bold text-zinc-600">
+                <span>Itens</span><span>{items.length} item(ns)</span>
+              </div>
+              <div className="flex justify-between text-xs font-bold text-zinc-600">
+                <span>Subtotal</span><span>{fmtBRL(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm font-black text-zinc-900 pt-1 border-t border-zinc-200">
+                <span>Total</span><span>{fmtBRL(total)}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="px-5 py-3.5 border-t border-zinc-100 flex gap-3 shrink-0">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-black text-xs uppercase tracking-widest transition-all"
-          >
+          <button onClick={onClose} className="flex-1 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-black text-xs uppercase tracking-widest transition-all">
             Cancelar
           </button>
           <button
@@ -452,7 +715,7 @@ function EditComandaModal({
   );
 }
 
-// ── componente principal ──────────────────────────────────────────────────────
+// ── ComandasTab ───────────────────────────────────────────────────────────────
 
 export function ComandasTab({
   comandas,
@@ -469,7 +732,7 @@ export function ComandasTab({
   fetchComandas,
 }: ComandasTabProps) {
   const [statusFilter, setStatusFilter] = useState<"all" | "open" | "paid">("all");
-  const [search, setSearch] = useState("");
+  const [search, setSearch]             = useState("");
   const [editingComanda, setEditingComanda] = useState<any | null>(null);
 
   const openCount = comandas.filter(c => c.status === "open").length;
@@ -513,7 +776,6 @@ export function ComandasTab({
 
       {/* Tabela */}
       <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
-        {/* Toolbar */}
         <div className="p-5 border-b border-zinc-100 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap">
             {(["all", "open", "paid"] as const).map(s => (
@@ -802,6 +1064,7 @@ export function ComandasTab({
             comanda={editingComanda}
             products={products}
             services={services}
+            professionals={professionals}
             onClose={() => setEditingComanda(null)}
             onSaved={fetchComandas}
           />
