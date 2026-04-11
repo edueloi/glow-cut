@@ -1791,10 +1791,51 @@ app.put("/api/comandas/:id", async (req, res) => {
 app.delete("/api/comandas/:id", async (req, res) => {
   const tenantId = getTenantId(req);
   try {
-    await (prisma.comanda as any).deleteMany({ where: { id: req.params.id, tenantId: tenantId || undefined } });
+    // Apaga itens primeiro (caso não haja cascade configurado no Prisma client)
+    await (prisma as any).$executeRawUnsafe(`DELETE FROM ComandaItem WHERE comandaId = ?`, req.params.id);
+    if (tenantId) {
+      await (prisma as any).$executeRawUnsafe(`DELETE FROM Comanda WHERE id = ? AND tenantId = ?`, req.params.id, tenantId);
+    } else {
+      await (prisma as any).$executeRawUnsafe(`DELETE FROM Comanda WHERE id = ?`, req.params.id);
+    }
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Erro ao excluir comanda." });
+  }
+});
+
+// Atualiza itens + desconto + total de uma comanda existente
+app.put("/api/comandas/:id/items", async (req, res) => {
+  const tenantId = getTenantId(req);
+  const { items, discount, discountType, total } = req.body;
+  try {
+    // Apaga itens antigos
+    await (prisma as any).$executeRawUnsafe(`DELETE FROM ComandaItem WHERE comandaId = ?`, req.params.id);
+    // Insere novos itens
+    for (const it of (items || [])) {
+      if (!it.name) continue;
+      await (prisma as any).$executeRawUnsafe(
+        `INSERT INTO ComandaItem (id, comandaId, productId, serviceId, name, price, quantity, total)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        randomUUID(), req.params.id,
+        it.productId || null, it.serviceId || null,
+        it.name, parseFloat(it.price) || 0,
+        parseInt(it.quantity) || 1,
+        (parseFloat(it.price) || 0) * (parseInt(it.quantity) || 1)
+      );
+    }
+    // Atualiza comanda
+    const sets: string[] = ["discount = ?", "discountType = ?", "total = ?"];
+    const vals: any[] = [parseFloat(discount) || 0, discountType || "value", parseFloat(total) || 0, req.params.id];
+    if (tenantId) { sets.push("tenantId = tenantId"); vals.push(); }
+    await (prisma as any).$executeRawUnsafe(
+      `UPDATE Comanda SET ${sets.join(", ")} WHERE id = ?${tenantId ? " AND tenantId = ?" : ""}`,
+      ...(tenantId ? [parseFloat(discount) || 0, discountType || "value", parseFloat(total) || 0, req.params.id, tenantId] : [parseFloat(discount) || 0, discountType || "value", parseFloat(total) || 0, req.params.id])
+    );
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error("[PUT /api/comandas/:id/items] Erro:", e?.message || e);
+    res.status(500).json({ error: e?.message || "Erro ao atualizar itens." });
   }
 });
 

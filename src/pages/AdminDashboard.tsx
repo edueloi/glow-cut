@@ -215,6 +215,10 @@ export default function AdminDashboard() {
     }
     if (tab === 'comandas' || tab === 'fluxo') {
       apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
+      if (tab === 'comandas') {
+        apiFetch("/api/products").then(r => r.json()).then(d => setProducts(Array.isArray(d) ? d : []));
+        apiFetch("/api/services").then(r => r.json()).then(d => setServices(Array.isArray(d) ? d : []));
+      }
       if (tab === 'fluxo') fetchSectors();
     }
     if (tab === 'professionals') {
@@ -990,6 +994,16 @@ export default function AdminDashboard() {
     setIsPaymentModalOpen(true);
   };
 
+  const handleDeleteComanda = async (id: string) => {
+    if (!confirm("Excluir esta comanda? Essa ação não pode ser desfeita.")) return;
+    await apiFetch(`/api/comandas/${id}`, { method: "DELETE" });
+    apiFetch("/api/comandas").then(r => r.json()).then(d => setComandas(Array.isArray(d) ? d : []));
+  };
+
+  const fetchComandas = () => {
+    apiFetch("/api/comandas").then(r => r.json()).then(d => setComandas(Array.isArray(d) ? d : []));
+  };
+
   const handleConfirmPayment = async (paymentMethod: string, paymentDetails: any) => {
     if (!payingComanda) return;
     await apiFetch(`/api/comandas/${payingComanda.id}`, {
@@ -1614,12 +1628,17 @@ export default function AdminDashboard() {
         {activeTab === 'comandas' && (
           <ComandasTab
             comandas={comandas}
+            products={products}
+            services={services}
+            professionals={professionals}
             setIsComandaModalOpen={setIsComandaModalOpen}
             selectedComanda={selectedComanda}
             setSelectedComanda={setSelectedComanda}
             isComandaDetailOpen={isComandaDetailOpen}
             setIsComandaDetailOpen={setIsComandaDetailOpen}
             handlePayComanda={handlePayComanda}
+            handleDeleteComanda={handleDeleteComanda}
+            fetchComandas={fetchComandas}
           />
         )}
 
@@ -2971,8 +2990,11 @@ export default function AdminDashboard() {
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Valor Uni. (R$)</label>
-                            <input type="number" min="0" step="0.01" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
-                              placeholder="0,00" value={newComanda.value} onChange={e => setNewComanda(p => ({...p, value: e.target.value}))} />
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 font-bold pointer-events-none">R$</span>
+                              <input type="number" min="0" step="0.01" className="w-full text-xs pl-9 pr-3 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                placeholder="0,00" value={newComanda.value} onChange={e => setNewComanda(p => ({...p, value: e.target.value}))} />
+                            </div>
                           </div>
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
