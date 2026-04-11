@@ -1804,33 +1804,56 @@ app.delete("/api/comandas/:id", async (req, res) => {
   }
 });
 
-// Atualiza itens + desconto + total de uma comanda existente
+// Atualiza itens + desconto + total de uma comanda existente (com controle de estoque)
 app.put("/api/comandas/:id/items", async (req, res) => {
   const tenantId = getTenantId(req);
   const { items, discount, discountType, total } = req.body;
   try {
-    // Apaga itens antigos
+    // 1. Busca itens antigos para restaurar estoque dos produtos que saíram
+    const oldItems: any[] = await (prisma as any).$queryRawUnsafe(
+      `SELECT * FROM ComandaItem WHERE comandaId = ?`, req.params.id
+    );
+
+    // 2. Restaura estoque dos itens de produto que existiam antes
+    for (const old of oldItems) {
+      if (old.productId) {
+        await (prisma as any).$executeRawUnsafe(
+          `UPDATE Product SET stock = stock + ? WHERE id = ?`,
+          parseInt(old.quantity) || 1, old.productId
+        );
+      }
+    }
+
+    // 3. Apaga itens antigos
     await (prisma as any).$executeRawUnsafe(`DELETE FROM ComandaItem WHERE comandaId = ?`, req.params.id);
-    // Insere novos itens
+
+    // 4. Insere novos itens e decrementa estoque
     for (const it of (items || [])) {
       if (!it.name) continue;
+      const qty = parseInt(it.quantity) || 1;
+      const price = parseFloat(it.price) || 0;
       await (prisma as any).$executeRawUnsafe(
         `INSERT INTO ComandaItem (id, comandaId, productId, serviceId, name, price, quantity, total)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         randomUUID(), req.params.id,
         it.productId || null, it.serviceId || null,
-        it.name, parseFloat(it.price) || 0,
-        parseInt(it.quantity) || 1,
-        (parseFloat(it.price) || 0) * (parseInt(it.quantity) || 1)
+        it.name, price, qty, price * qty
       );
+      // Decrementa estoque do produto
+      if (it.productId) {
+        await (prisma as any).$executeRawUnsafe(
+          `UPDATE Product SET stock = GREATEST(0, stock - ?) WHERE id = ?`,
+          qty, it.productId
+        );
+      }
     }
-    // Atualiza comanda
-    const sets: string[] = ["discount = ?", "discountType = ?", "total = ?"];
-    const vals: any[] = [parseFloat(discount) || 0, discountType || "value", parseFloat(total) || 0, req.params.id];
-    if (tenantId) { sets.push("tenantId = tenantId"); vals.push(); }
+
+    // 5. Atualiza comanda
     await (prisma as any).$executeRawUnsafe(
-      `UPDATE Comanda SET ${sets.join(", ")} WHERE id = ?${tenantId ? " AND tenantId = ?" : ""}`,
-      ...(tenantId ? [parseFloat(discount) || 0, discountType || "value", parseFloat(total) || 0, req.params.id, tenantId] : [parseFloat(discount) || 0, discountType || "value", parseFloat(total) || 0, req.params.id])
+      `UPDATE Comanda SET discount = ?, discountType = ?, total = ? WHERE id = ?${tenantId ? " AND tenantId = ?" : ""}`,
+      ...(tenantId
+        ? [parseFloat(discount) || 0, discountType || "value", parseFloat(total) || 0, req.params.id, tenantId]
+        : [parseFloat(discount) || 0, discountType || "value", parseFloat(total) || 0, req.params.id])
     );
     res.json({ success: true });
   } catch (e: any) {
