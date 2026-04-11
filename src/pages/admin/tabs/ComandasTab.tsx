@@ -1,9 +1,47 @@
 import React from "react";
 import { format } from "date-fns";
-import { Plus, DollarSign, CheckCircle, X, Scissors } from "lucide-react";
+import { Plus, DollarSign, CheckCircle, X, Scissors, Banknote, CreditCard, Smartphone, Shuffle } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { Button } from "@/src/components/ui/Button";
 import { motion } from "motion/react";
+
+function PaymentBadge({ method, details }: { method?: string; details?: any }) {
+  const parsedDetails = (() => {
+    if (!details) return null;
+    try { return typeof details === "string" ? JSON.parse(details) : details; } catch { return null; }
+  })();
+
+  if (parsedDetails?.mode === "mixed") {
+    const entries: any[] = parsedDetails.entries || [];
+    return (
+      <span className="flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-100">
+        <Shuffle size={10} />
+        Misto ({entries.map((e: any) => e.method === "cash" ? "Din" : e.method === "pix" ? "Pix" : "Cart").join("+")} )
+      </span>
+    );
+  }
+
+  const methodMap: Record<string, { icon: any; label: string; cls: string }> = {
+    cash:     { icon: Banknote,     label: "Dinheiro", cls: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+    card:     { icon: CreditCard,   label: "Cartão",   cls: "bg-blue-50 text-blue-700 border-blue-100" },
+    pix:      { icon: Smartphone,   label: "Pix",      cls: "bg-violet-50 text-violet-700 border-violet-100" },
+    transfer: { icon: Banknote,     label: "Transfer", cls: "bg-zinc-50 text-zinc-600 border-zinc-100" },
+  };
+
+  const m = method ? methodMap[method] : null;
+  if (!m) return null;
+  const Icon = m.icon;
+
+  const installments = parsedDetails?.installments;
+
+  return (
+    <span className={cn("flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-lg border", m.cls)}>
+      <Icon size={10} />
+      {m.label}
+      {installments && installments > 1 ? ` ${installments}x` : ""}
+    </span>
+  );
+}
 
 interface ComandasTabProps {
   comandas: any[];
@@ -76,6 +114,7 @@ export function ComandasTab({
                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Data</th>
                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Desconto</th>
                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Total</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Pagamento</th>
                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Status</th>
                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500 text-right">Ações</th>
               </tr>
@@ -148,6 +187,13 @@ export function ComandasTab({
                     )}
                   </td>
                   <td className="px-6 py-4 text-sm font-black text-zinc-900">R$ {Number(c.total).toFixed(2)}</td>
+                  <td className="px-6 py-4">
+                    {c.status === 'paid' ? (
+                      <PaymentBadge method={c.paymentMethod} details={c.paymentDetails} />
+                    ) : (
+                      <span className="text-[10px] text-zinc-300">—</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <span className={cn(
                       "text-[9px] font-bold px-2.5 py-1.5 rounded-lg uppercase tracking-widest border",
@@ -294,6 +340,11 @@ export function ComandasTab({
                   <div>
                     <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-0.5">Total a Pagar</p>
                     <p className="text-2xl font-black text-zinc-900 tracking-tighter">R$ {Number(selectedComanda.total).toFixed(2)}</p>
+                    {selectedComanda.status === 'paid' && (
+                      <div className="mt-1">
+                        <PaymentBadge method={selectedComanda.paymentMethod} details={selectedComanda.paymentDetails} />
+                      </div>
+                    )}
                   </div>
                   {selectedComanda.status === 'open' && (
                     <button

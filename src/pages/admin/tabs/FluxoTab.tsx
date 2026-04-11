@@ -1,16 +1,40 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { CheckCircle, FileText, TrendingUp } from "lucide-react";
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+import { CheckCircle, FileText, TrendingUp, Trophy, Star, Users, DollarSign } from "lucide-react";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Cell
 } from "recharts";
 import { cn } from "@/src/lib/utils";
+import { apiFetch } from "@/src/lib/api";
 
 interface FluxoTabProps {
   comandas: any[];
 }
 
+const PROF_COLORS = ["#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#ef4444"];
+
 export function FluxoTab({ comandas }: FluxoTabProps) {
+  const [profReport, setProfReport] = useState<any[]>([]);
+  const [loadingProf, setLoadingProf] = useState(false);
+  const [activeSegment, setActiveSegment] = useState<"all" | "cafeteria" | "salao">("all");
+
+  useEffect(() => {
+    setLoadingProf(true);
+    apiFetch("/api/reports/professionals")
+      .then(r => r.json())
+      .then(d => setProfReport(Array.isArray(d) ? d : []))
+      .catch(() => setProfReport([]))
+      .finally(() => setLoadingProf(false));
+  }, []);
+
+  // Filtra comandas por segmento usando paymentMethod como proxy (ou items)
+  // Por ora, usa todas as comandas pois o setor é definido no produto, não na comanda
+  const filteredComandas = comandas;
+
+  // Destaque do mês: profissional com maior faturamento
+  const topProfessional = profReport.length > 0 ? profReport[0] : null;
+
   return (
     <div className="space-y-6">
       {/* KPIs */}
@@ -107,6 +131,78 @@ export function FluxoTab({ comandas }: FluxoTabProps) {
               </p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── Relatório por Profissional ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Destaque do Mês */}
+        {topProfessional && (
+          <div className="lg:col-span-1 bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-5 shadow-sm flex flex-col items-center text-center relative overflow-hidden">
+            <div className="absolute top-3 right-3 opacity-10">
+              <Trophy size={64} className="text-amber-500" />
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center text-white text-xl font-black shadow-lg mb-3">
+              {topProfessional.name?.charAt(0).toUpperCase()}
+            </div>
+            <span className="text-[9px] font-black bg-amber-500 text-white px-2.5 py-1 rounded-full uppercase tracking-widest mb-2 flex items-center gap-1">
+              <Star size={9} /> Destaque do Período
+            </span>
+            <p className="text-base font-black text-zinc-900">{topProfessional.name}</p>
+            <p className="text-[10px] text-zinc-500 mb-3">{topProfessional.role || "Profissional"}</p>
+            <div className="grid grid-cols-2 gap-2 w-full">
+              <div className="bg-white rounded-xl p-2.5 border border-amber-100">
+                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Faturamento</p>
+                <p className="text-sm font-black text-amber-600">R$ {topProfessional.totalRevenue?.toFixed(2)}</p>
+              </div>
+              <div className="bg-white rounded-xl p-2.5 border border-amber-100">
+                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Ticket Médio</p>
+                <p className="text-sm font-black text-zinc-900">R$ {topProfessional.avgTicket?.toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Ranking de Profissionais */}
+        <div className={cn("bg-white rounded-2xl border border-zinc-200 shadow-sm p-5", topProfessional ? "lg:col-span-2" : "lg:col-span-3")}>
+          <div className="flex items-center gap-2 mb-4">
+            <Users size={16} className="text-zinc-400" />
+            <h3 className="text-sm font-bold text-zinc-900">Faturamento por Profissional</h3>
+          </div>
+          {loadingProf ? (
+            <div className="h-32 flex items-center justify-center text-zinc-300 text-xs font-bold">Carregando...</div>
+          ) : profReport.length === 0 ? (
+            <div className="h-32 flex items-center justify-center text-zinc-300 text-xs font-bold">Sem dados</div>
+          ) : (
+            <div className="space-y-3">
+              {profReport.map((p: any, i: number) => {
+                const maxRevenue = profReport[0]?.totalRevenue || 1;
+                const pct = maxRevenue > 0 ? (p.totalRevenue / maxRevenue) * 100 : 0;
+                return (
+                  <div key={p.id} className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[10px] font-black shrink-0" style={{ backgroundColor: PROF_COLORS[i % PROF_COLORS.length] }}>
+                          {i + 1}
+                        </div>
+                        <span className="text-xs font-bold text-zinc-800 truncate max-w-[120px]">{p.name}</span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-black text-zinc-900">R$ {p.totalRevenue?.toFixed(2)}</span>
+                        <span className="text-[9px] text-zinc-400 ml-2">{p.totalComandas} cmd</span>
+                      </div>
+                    </div>
+                    <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%`, backgroundColor: PROF_COLORS[i % PROF_COLORS.length] }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

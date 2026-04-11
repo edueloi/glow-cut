@@ -56,13 +56,12 @@ seedSuperAdmin();
 //  AUTO-MIGRATION: garante colunas novas sem quebrar o deploy
 // ─────────────────────────────────────────────────────────────
 async function runAutoMigrations() {
+  // ── Appointment: repeatGroupId ─────────────────────────────
   try {
-    // Adiciona repeatGroupId se não existir
     await (prisma as any).$executeRawUnsafe(
       `ALTER TABLE Appointment ADD COLUMN IF NOT EXISTS repeatGroupId VARCHAR(36) NULL`
     );
   } catch (_) {
-    // MySQL < 8 não suporta IF NOT EXISTS — tenta verificar antes
     try {
       const cols: any[] = await (prisma as any).$queryRaw`
         SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
@@ -76,6 +75,69 @@ async function runAutoMigrations() {
     } catch (e2) {
       console.warn("⚠️  Auto-migration repeatGroupId ignorada:", e2);
     }
+  }
+
+  // ── Comanda: paymentDetails (pagamento misto / parcelamento) ──
+  try {
+    await (prisma as any).$executeRawUnsafe(
+      `ALTER TABLE Comanda ADD COLUMN IF NOT EXISTS paymentDetails TEXT NULL`
+    );
+  } catch (_) {
+    try {
+      const cols: any[] = await (prisma as any).$queryRaw`
+        SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Comanda' AND COLUMN_NAME = 'paymentDetails'
+      `;
+      if (cols.length === 0) {
+        await (prisma as any).$executeRawUnsafe(
+          `ALTER TABLE Comanda ADD COLUMN paymentDetails TEXT NULL`
+        );
+      }
+    } catch (e2) {
+      console.warn("⚠️  Auto-migration paymentDetails ignorada:", e2);
+    }
+  }
+
+  // ── ComandaItem: cria tabela se não existir ─────────────────
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS ComandaItem (
+        id         VARCHAR(36)    NOT NULL PRIMARY KEY,
+        comandaId  VARCHAR(36)    NOT NULL,
+        productId  VARCHAR(36)    NULL,
+        serviceId  VARCHAR(36)    NULL,
+        name       VARCHAR(255)   NOT NULL,
+        price      DOUBLE         NOT NULL DEFAULT 0,
+        quantity   INT            NOT NULL DEFAULT 1,
+        total      DOUBLE         NOT NULL DEFAULT 0,
+        createdAt  DATETIME(3)    NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        INDEX idx_comandaitem_comanda  (comandaId),
+        INDEX idx_comandaitem_product  (productId),
+        INDEX idx_comandaitem_service  (serviceId),
+        CONSTRAINT fk_ci_comanda FOREIGN KEY (comandaId) REFERENCES Comanda(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log("✅ Tabela ComandaItem garantida");
+  } catch (e2) {
+    console.warn("⚠️  Auto-migration ComandaItem ignorada:", e2);
+  }
+
+  // ── PackageService: cria tabela se não existir ──────────────
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS PackageService (
+        id        VARCHAR(36) NOT NULL PRIMARY KEY,
+        packageId VARCHAR(36) NOT NULL,
+        serviceId VARCHAR(36) NOT NULL,
+        quantity  INT         NOT NULL DEFAULT 1,
+        INDEX idx_pkg_package (packageId),
+        INDEX idx_pkg_service (serviceId),
+        CONSTRAINT fk_pkg_package FOREIGN KEY (packageId) REFERENCES Service(id) ON DELETE CASCADE,
+        CONSTRAINT fk_pkg_service FOREIGN KEY (serviceId) REFERENCES Service(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+  } catch (e2) {
+    console.warn("⚠️  Auto-migration PackageService ignorada:", e2);
   }
 }
 runAutoMigrations();
@@ -904,35 +966,48 @@ app.post("/api/services", async (req, res) => {
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
   const { name, description, price, duration, type, discount, discountType, includedServices, professionalIds } = req.body;
   if (!name || !price) return res.status(400).json({ error: "Nome e preço são obrigatórios." });
+  let serviceId: string | null = null;
   try {
-    const serviceId = randomUUID();
-    const service = await (prisma as any).service.create({
-      data: {
-        id: serviceId,
-        name,
-        description: description || null,
-        price: parseFloat(price) || 0,
-        duration: parseInt(duration) || 60,
-        type: type || "service",
-        discount: parseFloat(discount) || 0,
-        discountType: discountType || "value",
-        tenantId,
-        ...(professionalIds !== undefined && { professionalIds: JSON.stringify(professionalIds || []) }),
-      }
-    });
-    // Cria relações de pacote
-    if (type === "package" && Array.isArray(includedServices)) {
-      for (const s of includedServices) {
+    serviceId = randomUUID();
+    await (prisma as any).$executeRawUnsafe(
+      `INSERT INTO Service (id, name, description, price, duration, type, discount, discountType, professionalIds, tenantId)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      serviceId,
+      name,
+      description || null,
+      parseFloat(price) || 0,
+      parseInt(duration) || 60,
+      type || "service",
+      parseFloat(discount) || 0,
+      discountType || "value",
+      JSON.stringify(professionalIds || []),
+      tenantId
+    );
+  } catch (e: any) {
+    console.error("❌ service.create failed:", e.message);
+    return res.status(400).json({ error: e.message || "Erro ao criar serviço." });
+  }
+  // Cria relações de pacote
+  if (type === "package" && Array.isArray(includedServices)) {
+    for (const s of includedServices) {
+      try {
         await (prisma as any).packageService.create({
           data: { id: randomUUID(), packageId: serviceId, serviceId: s.id, quantity: s.quantity || 1 }
         });
+      } catch (e: any) {
+        console.error("❌ packageService.create failed for serviceId", s.id, ":", e.message);
+        // Não aborta — serviço já criado, apenas registra o erro
       }
     }
+  }
+  // Busca o serviço completo com relações de pacote
+  let full: any = null;
+  try {
     const fullRaw = await (prisma as any).service.findFirst({
       where: { id: serviceId },
       include: { packageservice_packageservice_packageIdToservice: { include: { service_packageservice_serviceIdToservice: { select: { id: true, name: true } } } } }
     });
-    const full = fullRaw ? {
+    full = fullRaw ? {
       ...fullRaw,
       packageServices: fullRaw.packageservice_packageservice_packageIdToservice?.map((ps: any) => ({
         ...ps,
@@ -940,10 +1015,13 @@ app.post("/api/services", async (req, res) => {
       })) || [],
       packageservice_packageservice_packageIdToservice: undefined
     } : null;
-    res.json(full);
   } catch (e: any) {
-    res.status(400).json({ error: e.message || "Erro ao criar serviço." });
+    console.warn("⚠️  findFirst com include falhou, retornando serviço básico:", e.message);
+    // Fallback: retorna apenas o serviço sem os packageServices incluídos
+    full = await (prisma as any).service.findFirst({ where: { id: serviceId } });
+    if (full) full = { ...full, packageServices: [] };
   }
+  res.json(full);
 });
 
 app.put("/api/services/:id", async (req, res) => {
@@ -960,23 +1038,41 @@ app.put("/api/services/:id", async (req, res) => {
         ...(type !== undefined && { type }),
         ...(discount !== undefined && { discount: parseFloat(discount) || 0 }),
         ...(discountType !== undefined && { discountType }),
-        ...(professionalIds !== undefined && { professionalIds: JSON.stringify(professionalIds) }),
       }
     });
-    // Atualiza relações de pacote
-    if (type === "package" && Array.isArray(includedServices)) {
+    // professionalIds não está no client gerado — atualiza via raw
+    if (professionalIds !== undefined) {
+      await (prisma as any).$executeRawUnsafe(
+        `UPDATE Service SET professionalIds = ? WHERE id = ? AND tenantId = ?`,
+        JSON.stringify(professionalIds),
+        req.params.id,
+        tenantId
+      );
+    }
+  } catch (e: any) {
+    console.error("❌ service.updateMany failed:", e.message);
+    return res.status(400).json({ error: e.message || "Erro ao atualizar serviço." });
+  }
+  // Atualiza relações de pacote
+  if (type === "package" && Array.isArray(includedServices)) {
+    try {
       await (prisma as any).packageService.deleteMany({ where: { packageId: req.params.id } });
       for (const s of includedServices) {
         await (prisma as any).packageService.create({
           data: { id: randomUUID(), packageId: req.params.id, serviceId: s.id, quantity: s.quantity || 1 }
         });
       }
+    } catch (e: any) {
+      console.error("❌ packageService update failed:", e.message);
     }
+  }
+  let full: any = null;
+  try {
     const fullRaw = await (prisma as any).service.findFirst({
       where: { id: req.params.id },
       include: { packageservice_packageservice_packageIdToservice: { include: { service_packageservice_serviceIdToservice: { select: { id: true, name: true } } } } }
     });
-    const full = fullRaw ? {
+    full = fullRaw ? {
       ...fullRaw,
       packageServices: fullRaw.packageservice_packageservice_packageIdToservice?.map((ps: any) => ({
         ...ps,
@@ -984,10 +1080,12 @@ app.put("/api/services/:id", async (req, res) => {
       })) || [],
       packageservice_packageservice_packageIdToservice: undefined
     } : null;
-    res.json(full);
   } catch (e: any) {
-    res.status(400).json({ error: e.message || "Erro ao atualizar serviço." });
+    console.warn("⚠️  findFirst com include falhou no PUT, retornando serviço básico:", e.message);
+    full = await (prisma as any).service.findFirst({ where: { id: req.params.id } });
+    if (full) full = { ...full, packageServices: [] };
   }
+  res.json(full);
 });
 
 app.delete("/api/services/:id", async (req, res) => {
@@ -1017,6 +1115,53 @@ function applyTemplateVars(template: string, vars: Record<string, string>): stri
 async function sendWppMessage(tenantId: string, phone: string, message: string) {
   console.log(`[WPP Mock] Para: ${phone}, Mensagem: ${message}`);
   // Aqui entraria a integração real com API do WhatsApp (ex: Evolution API)
+}
+
+// ─── Helper: dispara confirmação de agendamento criado no balcão ──
+async function fireWppConfirmationBalcao(tenantId: string, appt: any) {
+  try {
+    const botConfig = await (prisma as any).wppBotConfig.findUnique({ where: { tenantId } });
+    if (!botConfig?.botEnabled || !botConfig?.sendConfirmation) return;
+    if (!appt?.client?.phone) return;
+
+    const tenant = await (prisma as any).tenant.findUnique({
+      where: { id: tenantId },
+      select: { name: true, address: true }
+    });
+
+    const apptDate = new Date(appt.date);
+    const dataFormatada = apptDate.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+
+    // Tenta usar template customizado; se não tiver, usa mensagem padrão
+    const template = await (prisma as any).wppMessageTemplate.findUnique({
+      where: { tenantId_type: { tenantId, type: "confirmation" } }
+    });
+
+    let message: string;
+    if (template?.isActive && template?.body) {
+      const vars: Record<string, string> = {
+        saudacao: getSaudacao(),
+        nome_cliente: appt.client?.name || "",
+        data_agendamento: dataFormatada,
+        hora_agendamento: appt.startTime || "",
+        servico: appt.service?.name || "",
+        profissional: appt.professional?.name || "",
+        nome_estabelecimento: tenant?.name || "",
+        endereco: tenant?.address || "",
+      };
+      message = applyTemplateVars(template.body, vars);
+    } else {
+      // Mensagem padrão com todos os dados solicitados
+      const endereco = tenant?.address ? `\n📍 *Endereço:* ${tenant.address}` : "";
+      const profissional = appt.professional?.name ? `\n💇 *Profissional:* ${appt.professional.name}` : "";
+      const servico = appt.service?.name ? `\n✂️ *Serviço:* ${appt.service.name}` : "";
+      message = `${getSaudacao()}, *${appt.client?.name || ""}*! 👋\n\nSeu agendamento foi confirmado com sucesso no *${tenant?.name || "salão"}*.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${appt.startTime}${servico}${profissional}${endereco}\n\n⚠️ *Importante:* Chegue com 5 minutos de antecedência.\n\nTe esperamos! 💛`;
+    }
+
+    await sendWppMessage(tenantId, appt.client.phone, message);
+  } catch (err) {
+    console.warn("[WPP Balcão] Erro ao disparar mensagem:", err);
+  }
 }
 
 // ─── Helper: dispara mensagem de confirmação via WPP ─────────
@@ -1296,6 +1441,13 @@ app.post("/api/appointments", async (req, res) => {
       });
       results.push(appt);
     }
+
+    // ── Auto-disparo WPP de confirmação ao criar agendamento no balcão ──
+    const firstAppt = results[0];
+    if (tenantId && firstAppt?.client?.phone) {
+      fireWppConfirmationBalcao(tenantId, firstAppt).catch(() => {});
+    }
+
     res.json(results[0]);
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Erro ao criar agendamento." });
@@ -1470,37 +1622,40 @@ app.post("/api/comandas", async (req, res) => {
   const tenantId = getTenantId(req);
   const { clientId, professionalId, description, total, discount, discountType, paymentMethod, status, type, sessionCount, items } = req.body;
   try {
-    const comanda = await (prisma as any).comanda.create({
-      data: {
-        id: randomUUID(),
-        clientId: clientId || null,
-        professionalId: professionalId || null,
-        description: description || null,
-        total: parseFloat(total) || 0,
-        discount: parseFloat(discount) || 0,
-        discountType: discountType || "value",
-        paymentMethod: paymentMethod || null,
-        status: status || "open",
-        type: type || "normal",
-        sessionCount: parseInt(sessionCount) || 1,
-        tenantId,
-        items: {
-          create: (items || []).map((it: any) => ({
-            id: randomUUID(),
-            productId: it.productId || null,
-            serviceId: it.serviceId || null,
-            name: it.name,
-            price: parseFloat(it.price) || 0,
-            quantity: parseInt(it.quantity) || 1,
-            total: (parseFloat(it.price) || 0) * (parseInt(it.quantity) || 1)
-          }))
-        }
-      },
-      include: { client: { select: { id: true, name: true, phone: true } }, items: true }
-    });
+    const comandaId = randomUUID();
+    // INSERT via raw para evitar limitações do Prisma client desatualizado
+    await (prisma as any).$executeRawUnsafe(
+      `INSERT INTO Comanda (id, clientId, professionalId, description, total, discount, discountType, paymentMethod, status, type, sessionCount, tenantId)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      comandaId,
+      clientId || null,
+      professionalId || null,
+      description || null,
+      parseFloat(total) || 0,
+      parseFloat(discount) || 0,
+      discountType || "value",
+      paymentMethod || null,
+      status || "open",
+      type || "normal",
+      parseInt(sessionCount) || 1,
+      tenantId
+    );
 
-    // Se for venda de produto, decrementar estoque
+    // Insere os itens
     for (const it of (items || [])) {
+      await (prisma as any).$executeRawUnsafe(
+        `INSERT INTO ComandaItem (id, comandaId, productId, serviceId, name, price, quantity, total)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        randomUUID(),
+        comandaId,
+        it.productId || null,
+        it.serviceId || null,
+        it.name,
+        parseFloat(it.price) || 0,
+        parseInt(it.quantity) || 1,
+        (parseFloat(it.price) || 0) * (parseInt(it.quantity) || 1)
+      );
+      // Decrementa estoque se for produto
       if (it.productId) {
         await (prisma as any).product.update({
           where: { id: it.productId },
@@ -1508,6 +1663,22 @@ app.post("/api/comandas", async (req, res) => {
         }).catch(() => {});
       }
     }
+
+    // Retorna a comanda criada com client e items
+    const rows: any[] = await (prisma as any).$queryRawUnsafe(
+      `SELECT c.*, cl.name as clientName, cl.phone as clientPhone FROM Comanda c
+       LEFT JOIN Client cl ON c.clientId = cl.id WHERE c.id = ?`,
+      comandaId
+    );
+    const itemRows: any[] = await (prisma as any).$queryRawUnsafe(
+      `SELECT * FROM ComandaItem WHERE comandaId = ?`, comandaId
+    );
+    const r = rows[0] || {};
+    const comanda = {
+      ...r,
+      client: r.clientName ? { id: r.clientId, name: r.clientName, phone: r.clientPhone } : null,
+      items: itemRows
+    };
 
     res.json(comanda);
   } catch (e: any) {
@@ -1517,26 +1688,41 @@ app.post("/api/comandas", async (req, res) => {
 
 app.put("/api/comandas/:id", async (req, res) => {
   const tenantId = getTenantId(req);
-  const { status, total, discount, discountType, paymentMethod, description, clientId, professionalId, type, sessionCount } = req.body;
+  const { status, total, discount, discountType, paymentMethod, paymentDetails, description, clientId, professionalId, type, sessionCount } = req.body;
   try {
-    await (prisma.comanda as any).updateMany({
-      where: { id: req.params.id, tenantId: tenantId || undefined },
-      data: {
-        ...(status !== undefined && { status }),
-        ...(total !== undefined && { total: parseFloat(total) || 0 }),
-        ...(discount !== undefined && { discount: parseFloat(discount) || 0 }),
-        ...(discountType !== undefined && { discountType }),
-        ...(paymentMethod !== undefined && { paymentMethod }),
-        ...(description !== undefined && { description }),
-        ...(clientId !== undefined && { clientId }),
-        ...(professionalId !== undefined && { professionalId }),
-        ...(type !== undefined && { type }),
-        ...(sessionCount !== undefined && { sessionCount: parseInt(sessionCount) || 1 }),
-      }
-    });
-    const comanda = await (prisma.comanda as any).findFirst({
-      where: { id: req.params.id },
-      include: { client: { select: { id: true, name: true, phone: true } } }
+    // Monta SET dinâmico via raw para campos que o Prisma client desatualizado não conhece
+    const sets: string[] = [];
+    const vals: any[] = [];
+    if (status !== undefined)        { sets.push("status = ?");        vals.push(status); }
+    if (total !== undefined)         { sets.push("total = ?");         vals.push(parseFloat(total) || 0); }
+    if (discount !== undefined)      { sets.push("discount = ?");      vals.push(parseFloat(discount) || 0); }
+    if (discountType !== undefined)  { sets.push("discountType = ?");  vals.push(discountType); }
+    if (paymentMethod !== undefined) { sets.push("paymentMethod = ?"); vals.push(paymentMethod); }
+    if (paymentDetails !== undefined){ sets.push("paymentDetails = ?");vals.push(typeof paymentDetails === 'object' ? JSON.stringify(paymentDetails) : paymentDetails); }
+    if (description !== undefined)   { sets.push("description = ?");   vals.push(description); }
+    if (clientId !== undefined)      { sets.push("clientId = ?");      vals.push(clientId); }
+    if (professionalId !== undefined){ sets.push("professionalId = ?");vals.push(professionalId); }
+    if (type !== undefined)          { sets.push("type = ?");          vals.push(type); }
+    if (sessionCount !== undefined)  { sets.push("sessionCount = ?");  vals.push(parseInt(sessionCount) || 1); }
+
+    if (sets.length > 0) {
+      vals.push(req.params.id);
+      if (tenantId) vals.push(tenantId);
+      await (prisma as any).$executeRawUnsafe(
+        `UPDATE Comanda SET ${sets.join(", ")} WHERE id = ?${tenantId ? " AND tenantId = ?" : ""}`,
+        ...vals
+      );
+    }
+
+    const comanda = await (prisma as any).$queryRawUnsafe(
+      `SELECT c.*, cl.id as clientId_ref, cl.name as clientName, cl.phone as clientPhone
+       FROM Comanda c LEFT JOIN Client cl ON c.clientId = cl.id
+       WHERE c.id = ?`,
+      req.params.id
+    ).then((rows: any[]) => {
+      if (!rows[0]) return null;
+      const r = rows[0];
+      return { ...r, client: r.clientName ? { id: r.clientId, name: r.clientName, phone: r.clientPhone } : null };
     });
     res.json(comanda);
   } catch (e: any) {
@@ -1648,6 +1834,67 @@ app.delete("/api/closed-days/:id", async (req, res) => {
 // ═════════════════════════════════════════════════════════════
 //  PRODUCTS
 // ═════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
+//  RELATÓRIOS POR PROFISSIONAL
+// ═════════════════════════════════════════════════════════════
+app.get("/api/reports/professionals", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  const { from, to } = req.query;
+
+  try {
+    const professionals = await (prisma as any).professional.findMany({
+      where: { tenantId, isActive: true },
+      select: { id: true, name: true, role: true, photo: true }
+    });
+
+    const dateFilter: any = {};
+    if (from) dateFilter.gte = new Date(from as string);
+    if (to) dateFilter.lte = new Date(to as string);
+
+    const comandas = await (prisma as any).comanda.findMany({
+      where: {
+        tenantId,
+        status: "paid",
+        ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter })
+      },
+      select: { id: true, total: true, professionalId: true, createdAt: true, paymentMethod: true }
+    });
+
+    const appointments = await (prisma as any).appointment.findMany({
+      where: {
+        tenantId,
+        status: { not: "cancelled" },
+        ...(Object.keys(dateFilter).length > 0 && { date: dateFilter })
+      },
+      select: { id: true, professionalId: true, status: true, date: true }
+    });
+
+    const result = professionals.map((prof: any) => {
+      const profComandas = comandas.filter((c: any) => c.professionalId === prof.id);
+      const profAppts = appointments.filter((a: any) => a.professionalId === prof.id);
+      const totalRevenue = profComandas.reduce((s: number, c: any) => s + (c.total || 0), 0);
+      const avgTicket = profComandas.length > 0 ? totalRevenue / profComandas.length : 0;
+      const performed = profAppts.filter((a: any) => a.status === 'realizado' || a.status === 'confirmed').length;
+
+      return {
+        ...prof,
+        totalRevenue,
+        avgTicket,
+        totalComandas: profComandas.length,
+        totalAppointments: profAppts.length,
+        performedAppointments: performed,
+      };
+    });
+
+    // Ordena por faturamento desc
+    result.sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Erro ao buscar relatório." });
+  }
+});
+
 app.get("/api/products", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });

@@ -93,6 +93,7 @@ import { MinhaAgendaTab } from "@/src/pages/admin/tabs/MinhaAgendaTab";
 import { AdminProfileTab } from "@/src/pages/admin/tabs/AdminProfileTab";
 import { WppTab } from "@/src/pages/admin/tabs/WppTab";
 import { ProductsTab } from "@/src/pages/admin/tabs/ProductsTab";
+import { PaymentModal } from "@/src/components/ui/PaymentModal";
 import { Combobox, ComboboxOption } from "@/src/components/ui/Combobox";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -129,12 +130,14 @@ function NavItem({
     <button
       onClick={onClick}
       title={collapsed ? label : undefined}
+      // touchAction: manipulation evita o delay de 300ms no iOS/Android
+      style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
       className={cn(
-        "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-all duration-150 group",
+        "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-all duration-150 group select-none",
         collapsed ? "justify-center px-2" : "",
         active
           ? "bg-amber-500 text-white shadow-sm"
-          : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+          : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200"
       )}
     >
       <span className={cn("shrink-0 transition-colors", active ? "text-white" : "text-zinc-400 group-hover:text-zinc-700")}>
@@ -254,7 +257,7 @@ export default function AdminDashboard() {
     validUntil: '',
     code: '',
     isForSale: true,
-    metadata: {}
+    metadata: { group: 'salao' } as Record<string, any>
   };
   const [newProduct, setNewProduct] = useState(emptyProduct);
 
@@ -295,6 +298,15 @@ export default function AdminDashboard() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isComandaModalOpen, setIsComandaModalOpen] = useState(false);
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [payingComanda, setPayingComanda] = useState<any>(null);
+  // Trocar profissional em agendamento existente
+  const [isChangeProfModalOpen, setIsChangeProfModalOpen] = useState(false);
+  const [changeProfAppt, setChangeProfAppt] = useState<any>(null);
+  const [changeProfId, setChangeProfId] = useState("");
+  // Vincular/criar comanda a partir de agendamento
+  const [isLinkComandaModalOpen, setIsLinkComandaModalOpen] = useState(false);
+  const [linkComandaAppt, setLinkComandaAppt] = useState<any>(null);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [comandas, setComandas] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -946,13 +958,73 @@ export default function AdminDashboard() {
     setDeleteConfirm({ type: "service", id, name: service?.name || "este serviço" });
   };
 
-  const handlePayComanda = async (comanda: any) => {
-    await apiFetch(`/api/comandas/${comanda.id}`, {
+  const handlePayComanda = (comanda: any) => {
+    setPayingComanda(comanda);
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleConfirmPayment = async (paymentMethod: string, paymentDetails: any) => {
+    if (!payingComanda) return;
+    await apiFetch(`/api/comandas/${payingComanda.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "paid" })
+      body: JSON.stringify({ status: "paid", paymentMethod, paymentDetails })
     });
     apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
+    setPayingComanda(null);
+  };
+
+  // Trocar profissional de agendamento existente
+  const handleChangeProfessional = async () => {
+    if (!changeProfAppt || !changeProfId) return;
+    await apiFetch(`/api/appointments/${changeProfAppt.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ professionalId: changeProfId })
+    });
+    setIsChangeProfModalOpen(false);
+    setChangeProfAppt(null);
+    setChangeProfId("");
+    fetchAppointments();
+  };
+
+  // Vincular agendamento a comanda existente ou criar nova
+  const handleLinkComanda = async (selectedComandaId: string | null) => {
+    if (!linkComandaAppt) return;
+    if (selectedComandaId) {
+      // Vincula a uma comanda existente
+      await apiFetch(`/api/appointments/${linkComandaAppt.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comandaId: selectedComandaId })
+      });
+    } else {
+      // Cria nova comanda e vincula
+      const clientId = linkComandaAppt.clientId;
+      const professionalId = linkComandaAppt.professionalId;
+      const price = linkComandaAppt.service?.price || 0;
+      const resp = await apiFetch("/api/comandas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          professionalId,
+          description: linkComandaAppt.service?.name || "Atendimento",
+          total: price,
+          items: [{ name: linkComandaAppt.service?.name || "Atendimento", price, quantity: 1 }]
+        })
+      });
+      const newComanda = await resp.json();
+      await apiFetch(`/api/appointments/${linkComandaAppt.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comandaId: newComanda.id })
+      });
+    }
+    setIsLinkComandaModalOpen(false);
+    setLinkComandaAppt(null);
+    fetchAppointments();
+    apiFetch("/api/comandas").then(r => r.json()).then(d => setComandas(Array.isArray(d) ? d : []));
   };
 
 
@@ -1984,11 +2056,24 @@ export default function AdminDashboard() {
                   </p>
                 </div>
               </div>
-              {selectedAppointment.comanda && (
-                <Button variant="outline" size="sm" onClick={() => { setIsViewAppointmentModalOpen(false); handleTabChange('comandas'); }}>
-                  Ver Comanda
-                </Button>
-              )}
+              <div className="flex gap-2 flex-wrap">
+                {selectedAppointment.comanda ? (
+                  <Button variant="outline" size="sm" onClick={() => { setIsViewAppointmentModalOpen(false); handleTabChange('comandas'); }}>
+                    Ver Comanda
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className="bg-amber-500 hover:bg-amber-600 text-white"
+                    onClick={() => {
+                      setLinkComandaAppt(selectedAppointment);
+                      setIsLinkComandaModalOpen(true);
+                    }}
+                  >
+                    Importar Comanda
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div className="pt-2">
@@ -2042,6 +2127,17 @@ export default function AdminDashboard() {
                 >
                   <XCircle size={20} />
                   <span className="text-[10px] font-black uppercase tracking-widest">Cancelar</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setChangeProfAppt(selectedAppointment);
+                    setChangeProfId(selectedAppointment.professionalId || "");
+                    setIsChangeProfModalOpen(true);
+                  }}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-violet-200 bg-violet-50/50 text-violet-600 hover:bg-violet-100 transition-all group"
+                >
+                  <UserCog size={20} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Trocar Prof.</span>
                 </button>
                 <button
                   onClick={() => {
@@ -3613,6 +3709,32 @@ export default function AdminDashboard() {
             />
           </div>
 
+          {/* Setor / Grupo */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Setor</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: "salao", label: "✂️ Salão", desc: "Serviços e produtos do salão" },
+                { value: "cafeteria", label: "☕ Cafeteria", desc: "Produtos da cafeteria interna" },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, group: opt.value } })}
+                  className={cn(
+                    "p-3 rounded-xl border-2 text-left transition-all",
+                    (newProduct.metadata?.group || "salao") === opt.value
+                      ? "border-amber-400 bg-amber-50"
+                      : "border-zinc-200 bg-zinc-50 hover:border-zinc-300"
+                  )}
+                >
+                  <p className="text-sm font-black text-zinc-900">{opt.label}</p>
+                  <p className="text-[9px] text-zinc-400 font-bold mt-0.5">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Código / SKU */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Código / SKU</label>
@@ -3856,6 +3978,112 @@ export default function AdminDashboard() {
           );
         })()}
       </AnimatePresence>
+
+      {/* ── MODAL: PAGAMENTO (múltiplos métodos + parcelamento) ── */}
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => { setIsPaymentModalOpen(false); setPayingComanda(null); }}
+        comanda={payingComanda}
+        onConfirm={handleConfirmPayment}
+      />
+
+      {/* ── MODAL: TROCAR PROFISSIONAL ─────────────────────────── */}
+      {isChangeProfModalOpen && changeProfAppt && (
+        <div className="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setIsChangeProfModalOpen(false)}>
+          <div className="bg-white rounded-[28px] shadow-2xl w-full max-w-sm border border-zinc-200 p-6 space-y-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-black text-zinc-900">Trocar Profissional</h3>
+                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">
+                  {changeProfAppt.client?.name} • {changeProfAppt.startTime}
+                </p>
+              </div>
+              <button onClick={() => setIsChangeProfModalOpen(false)} className="p-2 hover:bg-zinc-100 text-zinc-400 rounded-xl transition-all"><X size={18} /></button>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Selecione o Profissional</label>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {professionals.filter((p: any) => p.isActive).map((p: any) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setChangeProfId(p.id)}
+                    className={cn(
+                      "w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all",
+                      changeProfId === p.id ? "border-violet-400 bg-violet-50" : "border-zinc-100 hover:border-zinc-200 bg-white"
+                    )}
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center text-xs font-black text-violet-600 shrink-0">
+                      {p.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-zinc-900">{p.name}</p>
+                      <p className="text-[10px] text-zinc-400">{p.role || "Profissional"}</p>
+                    </div>
+                    {changeProfId === p.id && <CheckCircle size={16} className="ml-auto text-violet-500 shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setIsChangeProfModalOpen(false)} className="flex-1 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-xl text-xs font-black transition-all">Cancelar</button>
+              <button
+                onClick={handleChangeProfessional}
+                disabled={!changeProfId}
+                className="flex-1 py-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl text-xs font-black transition-all disabled:opacity-40"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: IMPORTAR / VINCULAR COMANDA ────────────────── */}
+      {isLinkComandaModalOpen && linkComandaAppt && (
+        <div className="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setIsLinkComandaModalOpen(false)}>
+          <div className="bg-white rounded-[28px] shadow-2xl w-full max-w-sm border border-zinc-200 p-6 space-y-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-black text-zinc-900">Importar Comanda</h3>
+                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">
+                  {linkComandaAppt.client?.name} • {linkComandaAppt.service?.name}
+                </p>
+              </div>
+              <button onClick={() => setIsLinkComandaModalOpen(false)} className="p-2 hover:bg-zinc-100 text-zinc-400 rounded-xl transition-all"><X size={18} /></button>
+            </div>
+
+            {/* Opção 1: criar nova comanda */}
+            <button
+              onClick={() => handleLinkComanda(null)}
+              className="w-full p-4 rounded-2xl border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 text-left transition-all"
+            >
+              <p className="text-xs font-black text-amber-700">➕ Criar nova comanda</p>
+              <p className="text-[10px] text-amber-500 mt-0.5">
+                Valor: R$ {Number(linkComandaAppt.service?.price || 0).toFixed(2)} — {linkComandaAppt.service?.name || "Serviço"}
+              </p>
+            </button>
+
+            {/* Opção 2: vincular a comanda aberta existente */}
+            {comandas.filter(c => c.status === "open" && c.clientId === linkComandaAppt.clientId).length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Ou vincular a comanda aberta</p>
+                {comandas.filter(c => c.status === "open" && c.clientId === linkComandaAppt.clientId).map((c: any) => (
+                  <button
+                    key={c.id}
+                    onClick={() => handleLinkComanda(c.id)}
+                    className="w-full p-3 rounded-xl border border-zinc-200 hover:border-amber-300 bg-white hover:bg-amber-50 text-left transition-all"
+                  >
+                    <p className="text-xs font-bold text-zinc-900">Comanda #{c.id.slice(-6).toUpperCase()}</p>
+                    <p className="text-[10px] text-zinc-400">R$ {Number(c.total).toFixed(2)} • Em Aberto</p>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <button onClick={() => setIsLinkComandaModalOpen(false)} className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-xl text-xs font-black transition-all">Cancelar</button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

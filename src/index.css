@@ -19,6 +19,19 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #fafafa;
   color: #18181b;
+  /* Elimina delay de 300ms em toques mobile */
+  touch-action: manipulation;
+}
+
+/* Remove highlight azul ao tocar em elementos no iOS */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Botões e links com melhor resposta a toque */
+button, a, [role="button"] {
+  touch-action: manipulation;
+  cursor: pointer;
 }
 
 h1, h2, h3, h4, .font-display {

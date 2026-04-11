@@ -41,14 +41,33 @@ interface ProductsTabProps {
   fetchProducts: () => void;
 }
 
-type TabKey = "all" | "low" | "sale" | "internal";
+type TabKey = "all" | "low" | "sale" | "internal" | "cafeteria" | "salao";
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "all", label: "Todos", icon: <Package size={14} /> },
-  { key: "low", label: "Estoque Crítico", icon: <AlertTriangle size={14} /> },
+  { key: "cafeteria", label: "Cafeteria", icon: <span>☕</span> },
+  { key: "salao", label: "Salão", icon: <span>✂️</span> },
+  { key: "low", label: "Est. Crítico", icon: <AlertTriangle size={14} /> },
   { key: "sale", label: "No PDV", icon: <Zap size={14} /> },
   { key: "internal", label: "Uso Interno", icon: <Archive size={14} /> },
 ];
+
+function getProductGroup(p: any): string {
+  if (!p.metadata) return "salao";
+  try {
+    const meta = typeof p.metadata === "string" ? JSON.parse(p.metadata) : p.metadata;
+    return meta?.group || "salao";
+  } catch { return "salao"; }
+}
+
+function GroupBadge({ group }: { group: string }) {
+  if (group === "cafeteria") return (
+    <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">☕ Cafeteria</span>
+  );
+  return (
+    <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md bg-zinc-100 text-zinc-600 border border-zinc-200">✂️ Salão</span>
+  );
+}
 
 const CHART_COLORS = ["#f59e0b", "#10b981", "#3b82f6", "#f43f5e", "#8b5cf6", "#06b6d4"];
 
@@ -167,6 +186,8 @@ export function ProductsTab({
     if (activeTab === "low") list = [...lowStockItems, ...outOfStockItems];
     else if (activeTab === "sale") list = forSaleItems;
     else if (activeTab === "internal") list = internalItems;
+    else if (activeTab === "cafeteria") list = products.filter(p => getProductGroup(p) === "cafeteria");
+    else if (activeTab === "salao") list = products.filter(p => getProductGroup(p) === "salao");
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -208,6 +229,11 @@ export function ProductsTab({
 
   const openEdit = (p: any) => {
     setEditingProduct(p);
+    // Parseia metadata para restaurar group e outros campos
+    let metaObj: Record<string, any> = { group: "salao" };
+    try {
+      if (p.metadata) metaObj = typeof p.metadata === "string" ? JSON.parse(p.metadata) : p.metadata;
+    } catch {}
     setNewProduct({
       ...p,
       costPrice: p.costPrice.toString(),
@@ -215,6 +241,7 @@ export function ProductsTab({
       stock: p.stock.toString(),
       minStock: p.minStock.toString(),
       validUntil: p.validUntil ? format(new Date(p.validUntil), "yyyy-MM-dd") : "",
+      metadata: metaObj,
     });
     setIsProductModalOpen(true);
   };
@@ -561,9 +588,12 @@ export function ProductsTab({
                             )}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-black text-zinc-800 tracking-tight truncate max-w-[160px]">
-                              {p.name}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-black text-zinc-800 tracking-tight truncate max-w-[140px]">
+                                {p.name}
+                              </p>
+                              <GroupBadge group={getProductGroup(p)} />
+                            </div>
                             <p className="text-[10px] text-zinc-400 font-bold truncate max-w-[160px] mt-0.5">
                               {p.description || "Sem descrição"}
                             </p>
