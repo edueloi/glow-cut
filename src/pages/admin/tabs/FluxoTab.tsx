@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CheckCircle, FileText, TrendingUp, Trophy, Star, Users, Coffee, Scissors, Calendar } from "lucide-react";
+import { CheckCircle, FileText, TrendingUp, Trophy, Star, Users, Calendar } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell
@@ -11,12 +11,12 @@ import { apiFetch } from "@/src/lib/api";
 
 interface FluxoTabProps {
   comandas: any[];
+  sectors: any[];
 }
 
 const PROF_COLORS = ["#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#ef4444"];
 
 type Period = "today" | "week" | "month" | "last30" | "last3m" | "all";
-type Segment = "all" | "cafeteria" | "salao";
 
 const PERIODS: { key: Period; label: string }[] = [
   { key: "today", label: "Hoje" },
@@ -48,21 +48,11 @@ function getPeriodRange(period: Period): { from: Date | null; to: Date | null } 
   }
 }
 
-function getItemGroup(item: any): string {
-  try {
-    const meta = item.product?.metadata;
-    if (!meta) return "salao";
-    const parsed = typeof meta === "string" ? JSON.parse(meta) : meta;
-    return parsed?.group || "salao";
-  } catch {
-    return "salao";
-  }
-}
-
-export function FluxoTab({ comandas }: FluxoTabProps) {
+export function FluxoTab({ comandas, sectors }: FluxoTabProps) {
   const [profReport, setProfReport] = useState<any[]>([]);
   const [loadingProf, setLoadingProf] = useState(false);
-  const [activeSegment, setActiveSegment] = useState<Segment>("all");
+  // "all" ou sectorId
+  const [activeSegment, setActiveSegment] = useState<string>("all");
   const [period, setPeriod] = useState<Period>("month");
 
   const { from, to } = useMemo(() => getPeriodRange(period), [period]);
@@ -80,7 +70,7 @@ export function FluxoTab({ comandas }: FluxoTabProps) {
       .finally(() => setLoadingProf(false));
   }, [period]);
 
-  // Filtra comandas por período e segmento
+  // Filtra comandas por período e setor
   const filteredComandas = useMemo(() => {
     return comandas.filter(c => {
       // Filtro de período
@@ -88,11 +78,11 @@ export function FluxoTab({ comandas }: FluxoTabProps) {
       if (from && dt < from) return false;
       if (to && dt > to) return false;
 
-      // Filtro de segmento
+      // Filtro de setor
       if (activeSegment === "all") return true;
       const items: any[] = c.items || [];
-      if (items.length === 0) return activeSegment === "salao"; // sem itens = salão
-      return items.some(i => getItemGroup(i) === activeSegment);
+      if (items.length === 0) return false;
+      return items.some(i => i.product?.sectorId === activeSegment);
     });
   }, [comandas, from, to, activeSegment]);
 
@@ -141,28 +131,38 @@ export function FluxoTab({ comandas }: FluxoTabProps) {
 
         <div className="h-px sm:h-6 sm:w-px bg-zinc-200 hidden sm:block" />
 
-        {/* Segmento */}
-        <div className="flex gap-1.5">
-          {(["all", "salao", "cafeteria"] as Segment[]).map(seg => (
+        {/* Setor */}
+        <div className="flex gap-1.5 flex-wrap">
+          <button
+            onClick={() => setActiveSegment("all")}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+              activeSegment === "all"
+                ? "bg-zinc-900 text-white border-zinc-900"
+                : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+            )}
+          >
+            Todos
+          </button>
+          {sectors.map((s: any) => (
             <button
-              key={seg}
-              onClick={() => setActiveSegment(seg)}
+              key={s.id}
+              onClick={() => setActiveSegment(s.id)}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
-                activeSegment === seg
-                  ? seg === "cafeteria"
-                    ? "bg-amber-500 text-white border-amber-500"
-                    : seg === "salao"
-                    ? "bg-violet-600 text-white border-violet-600"
-                    : "bg-zinc-900 text-white border-zinc-900"
+                activeSegment === s.id
+                  ? "text-white border-transparent"
                   : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
               )}
+              style={activeSegment === s.id ? { backgroundColor: s.color, borderColor: s.color } : {}}
             >
-              {seg === "cafeteria" && <Coffee size={10} />}
-              {seg === "salao" && <Scissors size={10} />}
-              {seg === "all" ? "Todos" : seg === "cafeteria" ? "Cafeteria" : "Salão"}
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeSegment === s.id ? "white" : s.color }} />
+              {s.name}
             </button>
           ))}
+          {sectors.length === 0 && (
+            <span className="text-[10px] text-zinc-400 italic">Crie setores em Produtos &amp; Estoque</span>
+          )}
         </div>
       </div>
 

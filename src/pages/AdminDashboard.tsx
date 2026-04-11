@@ -215,12 +215,14 @@ export default function AdminDashboard() {
     }
     if (tab === 'comandas' || tab === 'fluxo') {
       apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
+      if (tab === 'fluxo') fetchSectors();
     }
     if (tab === 'professionals') {
       apiFetch("/api/professionals").then(res => res.json()).then(d => setProfessionals(Array.isArray(d) ? d : []));
     }
     if (tab === 'products') {
-      apiFetch("/api/products").then(res => res.json()).then(d => setProducts(Array.isArray(d) ? d : []));
+      fetchProducts();
+      fetchSectors();
     }
   };
 
@@ -253,6 +255,7 @@ export default function AdminDashboard() {
   const [services, setServices] = useState<any[]>([]);
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [sectors, setSectors] = useState<any[]>([]);
   const [workingHours, setWorkingHours] = useState<any[]>([]);
   const [holidays, setHolidays] = useState<{ id: string; date: string; name: string }[]>([]);
   const [newHoliday, setNewHoliday] = useState({ date: '', name: '' });
@@ -272,16 +275,19 @@ export default function AdminDashboard() {
     validUntil: '',
     code: '',
     isForSale: true,
-    metadata: { group: 'salao' } as Record<string, any>
+    sectorId: '' as string,
+    metadata: {} as Record<string, any>
   };
   const [newProduct, setNewProduct] = useState(emptyProduct);
 
   const fetchProducts = async () => {
     const res = await apiFetch("/api/products");
-    if (res.ok) {
-      const data = await res.json();
-      setProducts(data);
-    }
+    if (res.ok) setProducts(await res.json());
+  };
+
+  const fetchSectors = async () => {
+    const res = await apiFetch("/api/sectors");
+    if (res.ok) setSectors(await res.json());
   };
 
   const handleCreateProduct = async () => {
@@ -301,6 +307,8 @@ export default function AdminDashboard() {
     setIsProductModalOpen(false);
     setNewProduct(emptyProduct);
     setEditingProduct(null);
+    setShowNewSectorForm(false);
+    setNewSectorName("");
     fetchProducts();
   };
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -322,6 +330,10 @@ export default function AdminDashboard() {
   // Vincular/criar comanda a partir de agendamento
   const [isLinkComandaModalOpen, setIsLinkComandaModalOpen] = useState(false);
   const [linkComandaAppt, setLinkComandaAppt] = useState<any>(null);
+  // Criar setor inline no modal de produto
+  const [newSectorName, setNewSectorName] = useState("");
+  const [newSectorColor, setNewSectorColor] = useState("#6b7280");
+  const [showNewSectorForm, setShowNewSectorForm] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [comandas, setComandas] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -1612,7 +1624,7 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === 'fluxo' && (
-          <FluxoTab comandas={comandas} />
+          <FluxoTab comandas={comandas} sectors={sectors} />
         )}
 
         {activeTab === 'professionals' && (
@@ -1658,10 +1670,12 @@ export default function AdminDashboard() {
         {activeTab === 'products' && (
           <ProductsTab
             products={products}
+            sectors={sectors}
             setIsProductModalOpen={setIsProductModalOpen}
             setEditingProduct={setEditingProduct}
             setNewProduct={setNewProduct}
             fetchProducts={fetchProducts}
+            fetchSectors={fetchSectors}
           />
         )}
 
@@ -3702,7 +3716,7 @@ export default function AdminDashboard() {
       {/* ── MODAL DE PRODUTO ─────────────────────────────────────── */}
       <Modal
         isOpen={isProductModalOpen}
-        onClose={() => { setIsProductModalOpen(false); setEditingProduct(null); setNewProduct(emptyProduct); }}
+        onClose={() => { setIsProductModalOpen(false); setEditingProduct(null); setNewProduct(emptyProduct); setShowNewSectorForm(false); setNewSectorName(""); }}
         title={editingProduct ? "Editar Produto" : "Novo Produto"}
         className="max-w-lg"
       >
@@ -3731,30 +3745,97 @@ export default function AdminDashboard() {
             />
           </div>
 
-          {/* Setor / Grupo */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Setor</label>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { value: "salao", label: "✂️ Salão", desc: "Serviços e produtos do salão" },
-                { value: "cafeteria", label: "☕ Cafeteria", desc: "Produtos da cafeteria interna" },
-              ].map(opt => (
+          {/* Setor */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Setor</label>
+              <button
+                type="button"
+                onClick={() => setShowNewSectorForm(v => !v)}
+                className="text-[9px] font-black text-amber-600 hover:text-amber-700 uppercase tracking-widest"
+              >
+                {showNewSectorForm ? "Cancelar" : "+ Novo Setor"}
+              </button>
+            </div>
+
+            {/* Formulário inline para criar setor */}
+            {showNewSectorForm && (
+              <div className="flex gap-2 items-center p-2.5 bg-zinc-50 rounded-xl border border-zinc-200">
+                <input
+                  type="color"
+                  value={newSectorColor}
+                  onChange={e => setNewSectorColor(e.target.value)}
+                  className="w-8 h-8 rounded-lg border border-zinc-200 cursor-pointer shrink-0"
+                />
+                <input
+                  type="text"
+                  placeholder="Nome do setor..."
+                  value={newSectorName}
+                  onChange={e => setNewSectorName(e.target.value)}
+                  className="flex-1 text-xs p-2 bg-white border border-zinc-200 rounded-lg outline-none focus:border-amber-400"
+                />
                 <button
-                  key={opt.value}
                   type="button"
-                  onClick={() => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, group: opt.value } })}
+                  onClick={async () => {
+                    if (!newSectorName.trim()) return;
+                    const res = await apiFetch("/api/sectors", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ name: newSectorName.trim(), color: newSectorColor })
+                    });
+                    if (res.ok) {
+                      const created = await res.json();
+                      await fetchSectors();
+                      setNewProduct({ ...newProduct, sectorId: created.id });
+                      setNewSectorName("");
+                      setNewSectorColor("#6b7280");
+                      setShowNewSectorForm(false);
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-zinc-900 text-white text-[10px] font-black rounded-lg hover:bg-black"
+                >
+                  Criar
+                </button>
+              </div>
+            )}
+
+            {/* Lista de setores */}
+            {sectors.length === 0 ? (
+              <p className="text-[10px] text-zinc-400 font-bold p-2">
+                Nenhum setor criado ainda. Clique em "+ Novo Setor" para criar.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewProduct({ ...newProduct, sectorId: '' })}
                   className={cn(
-                    "p-3 rounded-xl border-2 text-left transition-all",
-                    (newProduct.metadata?.group || "salao") === opt.value
-                      ? "border-amber-400 bg-amber-50"
-                      : "border-zinc-200 bg-zinc-50 hover:border-zinc-300"
+                    "px-3 py-1.5 rounded-xl border-2 text-xs font-black transition-all",
+                    !newProduct.sectorId
+                      ? "border-zinc-900 bg-zinc-900 text-white"
+                      : "border-zinc-200 bg-zinc-50 text-zinc-500 hover:border-zinc-300"
                   )}
                 >
-                  <p className="text-sm font-black text-zinc-900">{opt.label}</p>
-                  <p className="text-[9px] text-zinc-400 font-bold mt-0.5">{opt.desc}</p>
+                  Sem setor
                 </button>
-              ))}
-            </div>
+                {sectors.map((s: any) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setNewProduct({ ...newProduct, sectorId: s.id })}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl border-2 text-xs font-black transition-all flex items-center gap-1.5",
+                      newProduct.sectorId === s.id
+                        ? "border-amber-400 bg-amber-50 text-amber-800"
+                        : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300"
+                    )}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Código / SKU */}

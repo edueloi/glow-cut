@@ -161,16 +161,40 @@ async function runAutoMigrations() {
     console.warn("⚠️  Auto-migration PackageService ignorada:", e2);
   }
 
-  // ── Product.metadata: garante group = "salao" em produtos sem grupo ──────
+  // ── Sector: cria tabela de setores personalizáveis ──────────
   try {
     await (prisma as any).$executeRawUnsafe(`
-      UPDATE Product
-      SET metadata = JSON_SET(COALESCE(metadata, '{}'), '$.group', 'salao')
-      WHERE metadata IS NULL OR JSON_EXTRACT(metadata, '$.group') IS NULL
+      CREATE TABLE IF NOT EXISTS Sector (
+        id        VARCHAR(36)  NOT NULL PRIMARY KEY,
+        tenantId  VARCHAR(36)  NOT NULL,
+        name      VARCHAR(100) NOT NULL,
+        color     VARCHAR(20)  NOT NULL DEFAULT '#6b7280',
+        createdAt DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        INDEX idx_sector_tenant (tenantId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
-    console.log("✅ Product.metadata group default aplicado");
+    console.log("✅ Tabela Sector garantida");
   } catch (e2) {
-    console.warn("⚠️  Auto-migration Product.metadata ignorada:", e2);
+    console.warn("⚠️  Auto-migration Sector ignorada:", e2);
+  }
+
+  // ── Product.sectorId: coluna de vínculo ao setor ─────────────
+  try {
+    await (prisma as any).$executeRawUnsafe(
+      `ALTER TABLE Product ADD COLUMN IF NOT EXISTS sectorId VARCHAR(36) NULL`
+    );
+  } catch (_) {
+    try {
+      const cols: any[] = await (prisma as any).$queryRaw`
+        SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Product' AND COLUMN_NAME = 'sectorId'
+      `;
+      if (cols.length === 0) {
+        await (prisma as any).$executeRawUnsafe(`ALTER TABLE Product ADD COLUMN sectorId VARCHAR(36) NULL`);
+      }
+    } catch (e2) {
+      console.warn("⚠️  Auto-migration Product.sectorId ignorada:", e2);
+    }
   }
 }
 runAutoMigrations();
@@ -1615,10 +1639,12 @@ app.get("/api/comandas", async (req, res) => {
     const itemRows: any[] = rows.length > 0
       ? await (prisma as any).$queryRawUnsafe(
           `SELECT ci.*, p.name as productName, p.photo as productPhoto, p.metadata as productMetadata,
-                  s.name as serviceName
+                  p.sectorId as productSectorId, sec.name as productSectorName, sec.color as productSectorColor,
+                  sv.name as serviceName
            FROM ComandaItem ci
            LEFT JOIN Product p ON ci.productId = p.id
-           LEFT JOIN Service s ON ci.serviceId = s.id
+           LEFT JOIN Sector sec ON p.sectorId = sec.id
+           LEFT JOIN Service sv ON ci.serviceId = sv.id
            WHERE ci.comandaId IN (${rows.map(() => "?").join(",")})`,
           ...rows.map((r: any) => r.id)
         )
@@ -1629,7 +1655,12 @@ app.get("/api/comandas", async (req, res) => {
       if (!itemsByComanda[item.comandaId]) itemsByComanda[item.comandaId] = [];
       itemsByComanda[item.comandaId].push({
         ...item,
-        product: item.productId ? { id: item.productId, name: item.productName, photo: item.productPhoto, metadata: item.productMetadata } : null,
+        product: item.productId ? {
+          id: item.productId, name: item.productName, photo: item.productPhoto,
+          metadata: item.productMetadata,
+          sectorId: item.productSectorId,
+          sector: item.productSectorId ? { id: item.productSectorId, name: item.productSectorName, color: item.productSectorColor } : null,
+        } : null,
         service: item.serviceId ? { id: item.serviceId, name: item.serviceName } : null,
       });
     }
@@ -1926,11 +1957,20 @@ app.get("/api/products", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
   try {
-    const products = await (prisma as any).product.findMany({
-      where: { tenantId },
-      orderBy: { name: "asc" },
-    });
-    res.json(products);
+    const products: any[] = await (prisma as any).$queryRawUnsafe(
+      `SELECT p.*, s.name as sectorName, s.color as sectorColor
+       FROM Product p
+       LEFT JOIN Sector s ON p.sectorId = s.id
+       WHERE p.tenantId = ?
+       ORDER BY p.name ASC`,
+      tenantId
+    );
+    // Monta objeto sector aninhado se houver
+    const result = products.map((p: any) => ({
+      ...p,
+      sector: p.sectorId ? { id: p.sectorId, name: p.sectorName, color: p.sectorColor } : null,
+    }));
+    res.json(result);
   } catch (e: any) {
     console.error("[GET /api/products] Erro:", e?.message || e);
     res.status(500).json({ error: e?.message || "Erro ao buscar produtos." });
@@ -1940,27 +1980,24 @@ app.get("/api/products", async (req, res) => {
 app.post("/api/products", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata } = req.body;
+  const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata, sectorId } = req.body;
   if (!name) return res.status(400).json({ error: "Nome obrigatório." });
   try {
-    const product = await (prisma as any).product.create({
-      data: {
-        id: randomUUID(),
-        tenantId,
-        name,
-        description: description || null,
-        photo: photo || null,
-        costPrice: parseFloat(costPrice || "0"),
-        salePrice: parseFloat(salePrice || "0"),
-        stock: parseInt(stock || "0"),
-        minStock: parseInt(minStock || "0"),
-        validUntil: validUntil ? new Date(validUntil) : null,
-        code: code || null,
-        isForSale: isForSale !== false,
-        metadata: metadata ? JSON.stringify(metadata) : null,
-      },
-    });
-    res.json(product);
+    const id = randomUUID();
+    await (prisma as any).$executeRawUnsafe(
+      `INSERT INTO Product (id, tenantId, name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata, sectorId)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id, tenantId, name,
+      description || null, photo || null,
+      parseFloat(costPrice || "0"), parseFloat(salePrice || "0"),
+      parseInt(stock || "0"), parseInt(minStock || "0"),
+      validUntil ? new Date(validUntil) : null,
+      code || null, isForSale !== false ? 1 : 0,
+      metadata ? JSON.stringify(metadata) : null,
+      sectorId || null
+    );
+    const rows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT * FROM Product WHERE id = ?`, id);
+    res.json(rows[0] || { id });
   } catch (e: any) {
     console.error("[POST /api/products] Erro:", e?.message || e);
     res.status(500).json({ error: e?.message || "Erro ao criar produto." });
@@ -1970,25 +2007,23 @@ app.post("/api/products", async (req, res) => {
 app.put("/api/products/:id", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata } = req.body;
+  const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata, sectorId } = req.body;
   try {
-    const product = await (prisma as any).product.updateMany({
-      where: { id: req.params.id, tenantId },
-      data: {
-        name,
-        description: description || null,
-        photo: photo || null,
-        costPrice: parseFloat(costPrice || "0"),
-        salePrice: parseFloat(salePrice || "0"),
-        stock: parseInt(stock || "0"),
-        minStock: parseInt(minStock || "0"),
-        validUntil: validUntil ? new Date(validUntil) : null,
-        code: code || null,
-        isForSale: isForSale !== false,
-        metadata: metadata ? JSON.stringify(metadata) : null,
-      },
-    });
-    res.json({ success: true, count: product.count });
+    await (prisma as any).$executeRawUnsafe(
+      `UPDATE Product SET name=?, description=?, photo=?, costPrice=?, salePrice=?, stock=?, minStock=?,
+       validUntil=?, code=?, isForSale=?, metadata=?, sectorId=?
+       WHERE id=? AND tenantId=?`,
+      name,
+      description || null, photo || null,
+      parseFloat(costPrice || "0"), parseFloat(salePrice || "0"),
+      parseInt(stock || "0"), parseInt(minStock || "0"),
+      validUntil ? new Date(validUntil) : null,
+      code || null, isForSale !== false ? 1 : 0,
+      metadata ? JSON.stringify(metadata) : null,
+      sectorId || null,
+      req.params.id, tenantId
+    );
+    res.json({ success: true });
   } catch (e: any) {
     console.error("[PUT /api/products/:id] Erro:", e?.message || e);
     res.status(500).json({ error: e?.message || "Erro ao atualizar produto." });
@@ -2004,6 +2039,78 @@ app.delete("/api/products/:id", async (req, res) => {
   } catch (e: any) {
     console.error("[DELETE /api/products/:id] Erro:", e?.message || e);
     res.status(500).json({ error: e?.message || "Erro ao excluir produto." });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════
+//  SETORES — personalizáveis por tenant
+// ═════════════════════════════════════════════════════════════
+app.get("/api/sectors", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  try {
+    const sectors: any[] = await (prisma as any).$queryRawUnsafe(
+      `SELECT * FROM Sector WHERE tenantId = ? ORDER BY name ASC`, tenantId
+    );
+    res.json(sectors);
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || "Erro ao buscar setores." });
+  }
+});
+
+app.post("/api/sectors", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  const { name, color } = req.body;
+  if (!name?.trim()) return res.status(400).json({ error: "Nome obrigatório." });
+  try {
+    const id = randomUUID();
+    await (prisma as any).$executeRawUnsafe(
+      `INSERT INTO Sector (id, tenantId, name, color) VALUES (?, ?, ?, ?)`,
+      id, tenantId, name.trim(), color || "#6b7280"
+    );
+    res.json({ id, tenantId, name: name.trim(), color: color || "#6b7280" });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || "Erro ao criar setor." });
+  }
+});
+
+app.put("/api/sectors/:id", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  const { name, color } = req.body;
+  try {
+    const sets: string[] = [];
+    const vals: any[] = [];
+    if (name !== undefined) { sets.push("name = ?"); vals.push(name.trim()); }
+    if (color !== undefined) { sets.push("color = ?"); vals.push(color); }
+    if (sets.length > 0) {
+      vals.push(req.params.id, tenantId);
+      await (prisma as any).$executeRawUnsafe(
+        `UPDATE Sector SET ${sets.join(", ")} WHERE id = ? AND tenantId = ?`, ...vals
+      );
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || "Erro ao atualizar setor." });
+  }
+});
+
+app.delete("/api/sectors/:id", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  try {
+    // Desvincula produtos deste setor antes de deletar
+    await (prisma as any).$executeRawUnsafe(
+      `UPDATE Product SET sectorId = NULL WHERE sectorId = ? AND tenantId = ?`,
+      req.params.id, tenantId
+    );
+    await (prisma as any).$executeRawUnsafe(
+      `DELETE FROM Sector WHERE id = ? AND tenantId = ?`, req.params.id, tenantId
+    );
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || "Erro ao excluir setor." });
   }
 });
 

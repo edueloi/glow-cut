@@ -15,7 +15,6 @@ import {
   BarChart2,
   ShoppingBag,
   Archive,
-  Filter,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/src/lib/utils";
@@ -35,37 +34,30 @@ import {
 
 interface ProductsTabProps {
   products: any[];
+  sectors: any[];
   setIsProductModalOpen: (b: boolean) => void;
   setEditingProduct: (p: any) => void;
   setNewProduct: (p: any) => void;
   fetchProducts: () => void;
+  fetchSectors: () => void;
 }
 
-type TabKey = "all" | "low" | "sale" | "internal" | "cafeteria" | "salao";
+type TabKey = "all" | "low" | "sale" | "internal" | string;
 
-const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
-  { key: "all", label: "Todos", icon: <Package size={14} /> },
-  { key: "cafeteria", label: "Cafeteria", icon: <span>☕</span> },
-  { key: "salao", label: "Salão", icon: <span>✂️</span> },
-  { key: "low", label: "Est. Crítico", icon: <AlertTriangle size={14} /> },
-  { key: "sale", label: "No PDV", icon: <Zap size={14} /> },
-  { key: "internal", label: "Uso Interno", icon: <Archive size={14} /> },
-];
-
-function getProductGroup(p: any): string {
-  if (!p.metadata) return "salao";
-  try {
-    const meta = typeof p.metadata === "string" ? JSON.parse(p.metadata) : p.metadata;
-    return meta?.group || "salao";
-  } catch { return "salao"; }
-}
-
-function GroupBadge({ group }: { group: string }) {
-  if (group === "cafeteria") return (
-    <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">☕ Cafeteria</span>
-  );
+function SectorBadge({ product, sectors }: { product: any; sectors: any[] }) {
+  const sector = product.sector || sectors.find((s: any) => s.id === product.sectorId);
+  if (!sector) return null;
   return (
-    <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md bg-zinc-100 text-zinc-600 border border-zinc-200">✂️ Salão</span>
+    <span
+      className="text-[8px] font-black px-1.5 py-0.5 rounded-md border"
+      style={{
+        backgroundColor: sector.color + "20",
+        color: sector.color,
+        borderColor: sector.color + "40",
+      }}
+    >
+      {sector.name}
+    </span>
   );
 }
 
@@ -133,10 +125,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export function ProductsTab({
   products,
+  sectors,
   setIsProductModalOpen,
   setEditingProduct,
   setNewProduct,
   fetchProducts,
+  fetchSectors,
 }: ProductsTabProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("all");
   const [search, setSearch] = useState("");
@@ -186,8 +180,10 @@ export function ProductsTab({
     if (activeTab === "low") list = [...lowStockItems, ...outOfStockItems];
     else if (activeTab === "sale") list = forSaleItems;
     else if (activeTab === "internal") list = internalItems;
-    else if (activeTab === "cafeteria") list = products.filter(p => getProductGroup(p) === "cafeteria");
-    else if (activeTab === "salao") list = products.filter(p => getProductGroup(p) === "salao");
+    else if (activeTab !== "all") {
+      // Tab dinâmica = sectorId
+      list = products.filter(p => p.sectorId === activeTab);
+    }
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -222,18 +218,15 @@ export function ProductsTab({
       validUntil: "",
       code: "",
       isForSale: true,
-      metadata: { group: "salao" },
+      sectorId: "",
+      metadata: {},
     });
+    fetchSectors();
     setIsProductModalOpen(true);
   };
 
   const openEdit = (p: any) => {
     setEditingProduct(p);
-    // Parseia metadata para restaurar group e outros campos
-    let metaObj: Record<string, any> = { group: "salao" };
-    try {
-      if (p.metadata) metaObj = typeof p.metadata === "string" ? JSON.parse(p.metadata) : p.metadata;
-    } catch {}
     setNewProduct({
       ...p,
       costPrice: p.costPrice.toString(),
@@ -241,8 +234,10 @@ export function ProductsTab({
       stock: p.stock.toString(),
       minStock: p.minStock.toString(),
       validUntil: p.validUntil ? format(new Date(p.validUntil), "yyyy-MM-dd") : "",
-      metadata: metaObj,
+      sectorId: p.sectorId || '',
+      metadata: {},
     });
+    fetchSectors();
     setIsProductModalOpen(true);
   };
 
@@ -459,38 +454,52 @@ export function ProductsTab({
 
           {/* Tabs */}
           <div className="flex items-center gap-1.5 mt-4 overflow-x-auto pb-1 no-scrollbar">
-            {TABS.map((tab) => {
-              const count =
-                tab.key === "all"
-                  ? products.length
-                  : tab.key === "low"
-                  ? criticalCount
-                  : tab.key === "sale"
-                  ? forSaleItems.length
-                  : internalItems.length;
+            {/* Abas fixas */}
+            {[
+              { key: "all", label: "Todos", icon: <Package size={14} />, count: products.length },
+              { key: "low", label: "Est. Crítico", icon: <AlertTriangle size={14} />, count: criticalCount },
+              { key: "sale", label: "No PDV", icon: <Zap size={14} />, count: forSaleItems.length },
+              { key: "internal", label: "Uso Interno", icon: <Archive size={14} />, count: internalItems.length },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  "flex items-center gap-2 px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border",
+                  activeTab === tab.key
+                    ? tab.key === "low" && criticalCount > 0
+                      ? "bg-red-500 text-white border-red-500 shadow-md shadow-red-500/20"
+                      : "bg-zinc-900 text-white border-zinc-900 shadow-md shadow-zinc-900/10"
+                    : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                )}
+              >
+                {tab.icon}
+                {tab.label}
+                <span className={cn("px-1.5 py-0.5 rounded-md text-[9px]", activeTab === tab.key ? "bg-white/20 text-white" : "bg-zinc-100 text-zinc-500")}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
 
+            {/* Abas dinâmicas de setor */}
+            {sectors.map((s: any) => {
+              const cnt = products.filter(p => p.sectorId === s.id).length;
               return (
                 <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
+                  key={s.id}
+                  onClick={() => setActiveTab(s.id)}
                   className={cn(
                     "flex items-center gap-2 px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border",
-                    activeTab === tab.key
-                      ? tab.key === "low" && criticalCount > 0
-                        ? "bg-red-500 text-white border-red-500 shadow-md shadow-red-500/20"
-                        : "bg-zinc-900 text-white border-zinc-900 shadow-md shadow-zinc-900/10"
+                    activeTab === s.id
+                      ? "text-white border-transparent shadow-md"
                       : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
                   )}
+                  style={activeTab === s.id ? { backgroundColor: s.color, borderColor: s.color } : {}}
                 >
-                  {tab.icon}
-                  {tab.label}
-                  <span
-                    className={cn(
-                      "px-1.5 py-0.5 rounded-md text-[9px]",
-                      activeTab === tab.key ? "bg-white/20 text-white" : "bg-zinc-100 text-zinc-500"
-                    )}
-                  >
-                    {count}
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeTab === s.id ? "white" : s.color }} />
+                  {s.name}
+                  <span className={cn("px-1.5 py-0.5 rounded-md text-[9px]", activeTab === s.id ? "bg-white/20 text-white" : "bg-zinc-100 text-zinc-500")}>
+                    {cnt}
                   </span>
                 </button>
               );
@@ -592,7 +601,7 @@ export function ProductsTab({
                               <p className="text-sm font-black text-zinc-800 tracking-tight truncate max-w-[140px]">
                                 {p.name}
                               </p>
-                              <GroupBadge group={getProductGroup(p)} />
+                              <SectorBadge product={p} sectors={sectors} />
                             </div>
                             <p className="text-[10px] text-zinc-400 font-bold truncate max-w-[160px] mt-0.5">
                               {p.description || "Sem descrição"}
