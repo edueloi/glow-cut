@@ -375,6 +375,25 @@ export default function AdminDashboard() {
   const emptyPermProfile = { name: "", permissions: emptyPermissions };
   const [newPermProfile, setNewPermProfile] = useState<any>({ ...emptyPermProfile });
 
+  // Travar orientação no app instalado (PWA)
+  useEffect(() => {
+    const lockOrientation = async () => {
+      // @ts-ignore - navigator.standalone para iOS
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+      
+      if (isStandalone && screen.orientation && (screen.orientation as any).lock) {
+        try {
+          await (screen.orientation as any).lock('portrait-primary');
+          console.log("✅ Orientação travada em Retrato");
+        } catch (err) {
+          console.warn("⚠️ Não foi possível travar orientação:", err);
+        }
+      }
+    };
+
+    lockOrientation();
+  }, []);
+
   // Tooltip hover state for agenda
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);

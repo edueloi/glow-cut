@@ -8,7 +8,8 @@ import {
 import {
   DollarSign, CalendarIcon, UserPlus, TrendingUp, Cake,
   Eye, EyeOff, Plus, Receipt, Users, BarChart2, Scissors,
-  ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Zap, Trophy, Star, Activity
+  ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Zap, Trophy, Star, Activity,
+  Lock
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { calculateAge } from "@/src/lib/masks";

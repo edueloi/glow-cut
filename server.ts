@@ -2637,7 +2637,7 @@ async function startServer() {
           description: (tenant as any).description || `Agende seu horário no ${tenant.name}`,
           start_url: `/agendar/${slug}`,
           display: "standalone",
-          orientation: "portrait",
+          orientation: "portrait-primary",
           background_color: "#ffffff",
           theme_color: tenant.themeColor || "#c9a96e",
           icons: [
