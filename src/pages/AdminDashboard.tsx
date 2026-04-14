@@ -1397,12 +1397,24 @@ export default function AdminDashboard() {
               <AnimatePresence>
                 {isNotificationsOpen && (
                   <>
-                    <div className="fixed inset-0 z-[54]" onClick={() => setIsNotificationsOpen(false)} />
+                    {/* Backdrop para fechar ao clicar fora */}
+                    <div 
+                      className="fixed inset-0 z-[54] bg-black/5" 
+                      onClick={() => setIsNotificationsOpen(false)} 
+                    />
+                    
                     <motion.div
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-3 w-[320px] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-zinc-100 z-[55] overflow-hidden"
+                      className={cn(
+                        "fixed md:absolute z-[55] mt-3 overflow-hidden bg-white border border-zinc-100 rounded-3xl",
+                        "shadow-[0_20px_50px_rgba(0,0,0,0.15)]",
+                        // Mobile: Centralizado na tela
+                        "left-4 right-4 top-20 md:top-full",
+                        // Desktop: Alinhado à direita do botão
+                        "md:left-auto md:right-0 md:w-[320px]"
+                      )}
                     >
                       <div className="px-5 py-4 border-b border-zinc-50 flex items-center justify-between bg-zinc-50/50">
                         <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Notificações</p>
