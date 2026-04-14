@@ -64,6 +64,7 @@ const INCOME_CATEGORIES = ["Comanda", "Venda Avulsa", "Serviço Avulso", "Invest
 export function FluxoTab({ comandas, sectors }: FluxoTabProps) {
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profitReport, setProfitReport] = useState<any>(null);
   const [period, setPeriod] = useState<Period>("month");
   
   // Modal state
@@ -96,6 +97,17 @@ export function FluxoTab({ comandas, sectors }: FluxoTabProps) {
   useEffect(() => {
     fetchEntries();
   }, []);
+
+  // Fetch profit report
+  useEffect(() => {
+    const { from, to } = getPeriodRange(period);
+    const query = from && to ? `?from=${from.toISOString()}&to=${to.toISOString()}` : "";
+    
+    apiFetch(`/api/reports/profitability${query}`)
+      .then(r => r.json())
+      .then(d => setProfitReport(d))
+      .catch(() => setProfitReport(null));
+  }, [period]);
 
   // Filter entries by period
   const filteredEntries = useMemo(() => {
@@ -421,6 +433,50 @@ export function FluxoTab({ comandas, sectors }: FluxoTabProps) {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* DRE / Lucratividade */}
+          <div className="bg-white rounded-[24px] border border-zinc-200 p-4 sm:p-6 shadow-sm">
+            <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2 mb-6">
+              <Activity size={16} className="text-amber-500"/> DRE Simplicado
+            </h3>
+            
+            {profitReport ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center py-2 border-b border-zinc-50">
+                  <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">(+) Receita Bruta</span>
+                  <span className="text-sm font-black text-zinc-900">{fmtBRL(profitReport.revenue)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-zinc-50">
+                  <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">(-) Custo de Insumos (COGS)</span>
+                  <span className="text-sm font-black text-red-500">{fmtBRL(profitReport.cogs)}</span>
+                </div>
+                <div className="bg-zinc-50 p-3 rounded-xl flex justify-between items-center">
+                  <span className="text-xs font-black text-zinc-700 uppercase tracking-widest">(=) Lucro Bruto</span>
+                  <span className="text-sm font-black text-zinc-900">{fmtBRL(profitReport.grossProfit)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-zinc-50">
+                  <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">(-) Outras Despesas</span>
+                  <span className="text-sm font-black text-red-500">{fmtBRL(profitReport.otherExpenses)}</span>
+                </div>
+                <div className="bg-amber-500 p-4 rounded-2xl flex justify-between items-center shadow-lg shadow-amber-500/20">
+                  <span className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-1.5">
+                    <TrendingUp size={14}/> Lucro Líquido
+                  </span>
+                  <div className="text-right">
+                    <span className="block text-lg font-black text-white leading-none">{fmtBRL(profitReport.netProfit)}</span>
+                    <span className="text-[9px] font-black text-white/70 uppercase tracking-widest">Resultado Final</span>
+                  </div>
+                </div>
+                <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest text-center">
+                  * Lucro líquido considerando insumos e despesas fixas
+                </p>
+              </div>
+            ) : (
+              <div className="h-40 flex items-center justify-center text-zinc-300">
+                <p className="text-xs font-bold uppercase tracking-widest">Calculando DRE...</p>
+              </div>
+            )}
           </div>
         </div>
 

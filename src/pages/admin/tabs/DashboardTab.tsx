@@ -68,6 +68,7 @@ export function DashboardTab({
   const [showFinancials, setShowFinancials] = useState(true);
   const [statPeriod, setStatPeriod] = useState<StatPeriod>("today");
   const [profReport, setProfReport] = useState<any[]>([]);
+  const [profitability, setProfitability] = useState<any>(null);
 
   const currentMonthNum = new Date().getMonth() + 1;
   const todayDay = new Date().getDate();
@@ -81,6 +82,27 @@ export function DashboardTab({
       .then(d => setProfReport(Array.isArray(d) ? d : []))
       .catch(() => setProfReport([]));
   }, []);
+
+  // Carrega lucratividade baseado no período selecionado
+  useEffect(() => {
+    const { from, to } = (() => {
+      const now = new Date();
+      if (statPeriod === "today") {
+        const s = new Date(now); s.setHours(0,0,0,0);
+        const e = new Date(now); e.setHours(23,59,59,999);
+        return { from: s, to: e };
+      } else if (statPeriod === "week") {
+        return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) };
+      } else {
+        return { from: startOfMonth(now), to: endOfMonth(now) };
+      }
+    })();
+    
+    apiFetch(`/api/reports/profitability?from=${from.toISOString()}&to=${to.toISOString()}`)
+      .then(r => r.json())
+      .then(d => setProfitability(d))
+      .catch(() => setProfitability(null));
+  }, [statPeriod]);
 
   const birthdayClients = clients.filter(c => {
     if (!c.birthDate) return false;
@@ -236,13 +258,21 @@ export function DashboardTab({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <StatCard
             title="Faturamento"
             value={stats.revenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
             icon={DollarSign}
             description={`${stats.paidCount} comanda(s) ${stats.periodLabel}`}
             hidden={!showFinancials}
+          />
+          <StatCard
+            title="Lucro Líquido"
+            value={profitability ? profitability.netProfit.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}
+            icon={TrendingUp}
+            description={`Receita - Custos ${stats.periodLabel}`}
+            hidden={!showFinancials}
+            accent={profitability?.netProfit >= 0 ? "emerald" : "red"}
           />
           <StatCard
             title="Agendamentos"
@@ -259,7 +289,7 @@ export function DashboardTab({
           <StatCard
             title="Ticket Médio"
             value={stats.avgTicket > 0 ? stats.avgTicket.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}
-            icon={TrendingUp}
+            icon={Activity}
             description={stats.periodLabel}
             hidden={!showFinancials}
           />

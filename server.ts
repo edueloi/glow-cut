@@ -2650,6 +2650,67 @@ async function startServer() {
       }
     });
 
+    // ═════════════════════════════════════════════════════════════
+    //  RELATÓRIO DE LUCRATIVIDADE (Lucro Líquido)
+    //  Calcula: Receita Bruta - Custo de Insumos (COGS) - Despesas
+    // ═════════════════════════════════════════════════════════════
+    app.get("/api/reports/profitability", async (req, res) => {
+      const tenantId = getTenantId(req);
+      if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+      const { from, to } = req.query;
+      
+      try {
+        const fromDate = from ? new Date(from as string) : startOfMonth(new Date());
+        const toDate = to ? new Date(to as string) : endOfMonth(new Date());
+
+        // 1. Receita Bruta (Comandas Pagas)
+        const revenueRows: any[] = await (prisma as any).$queryRawUnsafe(
+          `SELECT SUM(total) as revenue, COUNT(*) as count
+           FROM Comanda 
+           WHERE tenantId = ? AND status = 'paid' AND createdAt >= ? AND createdAt <= ?`,
+          tenantId, fromDate, toDate
+        );
+        const grossRevenue = Number(revenueRows[0].revenue) || 0;
+
+        // 2. Custo de Insumos (COGS)
+        // Buscamos todos os itens de comandas pagas que são serviços vinculados a produtos
+        const costRows: any[] = await (prisma as any).$queryRawUnsafe(
+          `SELECT ci.quantity as itemQty, sp.quantity as prodPerSvc, p.costPrice
+           FROM ComandaItem ci
+           JOIN Comanda c ON ci.comandaId = c.id
+           JOIN ServiceProduct sp ON ci.serviceId = sp.serviceId
+           JOIN Product p ON sp.productId = p.id
+           WHERE c.tenantId = ? AND c.status = 'paid' AND c.createdAt >= ? AND c.createdAt <= ?`,
+          tenantId, fromDate, toDate
+        );
+
+        const totalCOGS = costRows.reduce((acc, row) => {
+          return acc + (Number(row.itemQty) * Number(row.prodPerSvc) * Number(row.costPrice));
+        }, 0);
+
+        // 3. Outras Despesas (CashEntries de Saída)
+        const expenseRows: any[] = await (prisma as any).$queryRawUnsafe(
+          `SELECT SUM(amount) as expenses
+           FROM CashEntry
+           WHERE tenantId = ? AND type = 'expense' AND date >= ? AND date <= ?`,
+          tenantId, fromDate, toDate
+        );
+        const otherExpenses = Number(expenseRows[0].expenses) || 0;
+
+        res.json({
+          revenue: grossRevenue,
+          cogs: totalCOGS,
+          otherExpenses,
+          grossProfit: grossRevenue - totalCOGS,
+          netProfit: grossRevenue - totalCOGS - otherExpenses,
+          period: { from: fromDate, to: toDate }
+        });
+      } catch (e: any) {
+        console.error("[GET /api/reports/profitability] Erro:", e?.message || e);
+        res.status(500).json({ error: "Erro ao calcular lucratividade." });
+      }
+    });
+
     // SEO + manifest dinâmico para páginas de agendamento público
     app.get(["/agendar/:slug", "/:slug"], async (req, res, next) => {
       const { slug } = req.params;
