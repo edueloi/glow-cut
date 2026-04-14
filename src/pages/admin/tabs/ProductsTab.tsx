@@ -633,7 +633,7 @@ export function ProductsTab({
                             >
                               {p.stock}
                             </span>
-                            <span className="text-[10px] font-bold text-zinc-400">un</span>
+                            <span className="text-[10px] font-bold text-zinc-400">{p.unit || "un"}</span>
                             <span className="text-[10px] font-bold text-zinc-300 ml-1">/ mín {p.minStock}</span>
                           </div>
                           <div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden">

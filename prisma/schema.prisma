@@ -133,6 +133,7 @@ model Product {
   code         String?       @db.VarChar(100)
   isForSale    Boolean       @default(true)
   tenantId     String?       @db.VarChar(36)
+  sectorId     String?       @db.VarChar(36)
   metadata     String?       @db.Text
   createdAt    DateTime      @default(now()) @db.DateTime(0)
   comandaItem  ComandaItem[]

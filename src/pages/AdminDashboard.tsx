@@ -280,6 +280,7 @@ export default function AdminDashboard() {
     code: '',
     isForSale: true,
     sectorId: '' as string,
+    unit: 'un',
     metadata: {} as Record<string, any>
   };
   const [newProduct, setNewProduct] = useState(emptyProduct);
@@ -3896,10 +3897,10 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Estoque */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Estoque e Unidade */}
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Estoque Atual</label>
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Estoque</label>
               <input
                 type="number"
                 className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all text-center"
@@ -3909,7 +3910,7 @@ export default function AdminDashboard() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Estoque Mínimo</label>
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Mínimo</label>
               <input
                 type="number"
                 className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all text-center"
@@ -3917,6 +3918,22 @@ export default function AdminDashboard() {
                 value={newProduct.minStock}
                 onChange={e => setNewProduct({ ...newProduct, minStock: e.target.value })}
               />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Medida</label>
+              <select
+                className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
+                value={newProduct.unit}
+                onChange={e => setNewProduct({ ...newProduct, unit: e.target.value })}
+              >
+                <option value="un">un (Unidade)</option>
+                <option value="ml">ml (Mililitro)</option>
+                <option value="L">L (Litro)</option>
+                <option value="g">g (Grama)</option>
+                <option value="kg">kg (Quilograma)</option>
+                <option value="cm">cm (Centímetro)</option>
+                <option value="m">m (Metro)</option>
+              </select>
             </div>
           </div>
 

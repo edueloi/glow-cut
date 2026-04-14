@@ -1,9 +1,11 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import {
   Plus, CheckCircle, X, Scissors, Banknote, CreditCard, Smartphone,
   Shuffle, Package, FileText, Phone, Zap, Trash2, Edit2, Search,
   Minus, LayoutGrid, User, ArrowRightLeft, ChevronDown, Calendar,
+  MoreVertical, ChevronUp, Eye, DollarSign, Clock, Filter,
+  ShoppingBag, Tag, Hash, Receipt,
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
@@ -57,7 +59,6 @@ interface EditItem {
   quantity: number;
   productId: string | null;
   serviceId: string | null;
-  // indica que veio de um pacote (para exibição agrupada)
   packageId?: string | null;
   packageName?: string | null;
 }
@@ -77,6 +78,252 @@ interface ComandasTabProps {
   fetchComandas: () => void;
 }
 
+// ── ActionMenu (dropdown de ações) ──────────────────────────────────────────
+
+function ActionMenu({ comanda, onPay, onEdit, onView, onDelete }: {
+  comanda: any;
+  onPay: () => void;
+  onEdit: () => void;
+  onView: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+        className="p-2 hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 rounded-xl transition-all"
+      >
+        <MoreVertical size={16} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+            transition={{ duration: 0.12 }}
+            className="absolute right-0 top-full mt-1 bg-white rounded-2xl shadow-2xl border border-zinc-200 py-1.5 z-50 min-w-[160px] overflow-hidden"
+          >
+            {comanda.status === "open" && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setOpen(false); onPay(); }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition-all"
+              >
+                <CheckCircle size={14} /> Pagar
+              </button>
+            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); setOpen(false); onEdit(); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition-all"
+            >
+              <Edit2 size={14} /> Editar
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setOpen(false); onView(); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition-all"
+            >
+              <Eye size={14} /> Detalhes
+            </button>
+            <div className="border-t border-zinc-100 my-1" />
+            <button
+              onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 transition-all"
+            >
+              <Trash2 size={14} /> Excluir
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── ComandaCard (versão mobile) ───────────────────────────────────────────────
+
+function ComandaCard({ comanda, onPay, onEdit, onView, onDelete }: {
+  comanda: any;
+  onPay: () => void;
+  onEdit: () => void;
+  onView: () => void;
+  onDelete: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const itemCount = comanda.items?.length || 0;
+  const isOpen = comanda.status === "open";
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn(
+        "bg-white rounded-2xl border shadow-sm overflow-hidden transition-all",
+        isOpen ? "border-amber-200" : "border-zinc-200"
+      )}
+    >
+      {/* ── Cabeçalho do card (sempre visível) ── */}
+      <div
+        className="flex items-center gap-3 px-4 py-3.5 cursor-pointer active:bg-zinc-50 transition-colors"
+        onClick={() => setExpanded(!expanded)}
+      >
+        {/* Avatar */}
+        <div className={cn(
+          "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black shrink-0",
+          isOpen
+            ? "bg-amber-50 text-amber-600 border border-amber-200"
+            : "bg-emerald-50 text-emerald-600 border border-emerald-200"
+        )}>
+          {comanda.client?.name?.charAt(0).toUpperCase() || "?"}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-black text-zinc-900 truncate">
+              {comanda.client?.name || "Sem cliente"}
+            </p>
+            <span className={cn(
+              "text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-widest shrink-0",
+              isOpen
+                ? "bg-amber-100 text-amber-700"
+                : "bg-emerald-100 text-emerald-700"
+            )}>
+              {isOpen ? "Aberto" : "Pago"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[10px] text-zinc-400 font-bold flex items-center gap-1">
+              <Clock size={9} />
+              {format(new Date(comanda.createdAt || Date.now()), "dd/MM/yy HH:mm")}
+            </span>
+            {itemCount > 0 && (
+              <span className="text-[10px] text-zinc-400 font-bold flex items-center gap-1">
+                <ShoppingBag size={9} />
+                {itemCount} {itemCount === 1 ? "item" : "itens"}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Valor + chevron */}
+        <div className="flex items-center gap-2 shrink-0">
+          <span className={cn(
+            "text-base font-black",
+            isOpen ? "text-zinc-900" : "text-emerald-600"
+          )}>
+            {fmtBRL(Number(comanda.total))}
+          </span>
+          <motion.div
+            animate={{ rotate: expanded ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronDown size={16} className="text-zinc-300" />
+          </motion.div>
+        </div>
+      </div>
+
+      {/* ── Conteúdo expandido ── */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-3 border-t border-zinc-100 pt-3">
+              {/* Itens */}
+              {itemCount > 0 && (
+                <div className="space-y-1.5">
+                  {comanda.items.map((it: any, i: number) => (
+                    <div key={it.id || i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={cn(
+                          "p-1 rounded-md shrink-0",
+                          it.productId ? "bg-emerald-50 text-emerald-500" : "bg-violet-50 text-violet-500"
+                        )}>
+                          {it.productId ? <Package size={10} /> : <Scissors size={10} />}
+                        </div>
+                        <span className="text-xs font-bold text-zinc-700 truncate">{it.name}</span>
+                        <span className="text-[9px] text-zinc-400 font-bold shrink-0">{it.quantity}x</span>
+                      </div>
+                      <span className="text-xs font-black text-zinc-800 shrink-0 ml-2">
+                        {fmtBRL(Number(it.total || it.price * it.quantity))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Desconto */}
+              {Number(comanda.discount) > 0 && (
+                <div className="flex items-center justify-between text-xs px-1">
+                  <span className="font-bold text-emerald-600 flex items-center gap-1">
+                    <Zap size={10} /> Desconto
+                  </span>
+                  <span className="font-black text-emerald-600">
+                    -{comanda.discountType === "percentage" ? `${comanda.discount}%` : fmtBRL(Number(comanda.discount))}
+                  </span>
+                </div>
+              )}
+
+              {/* Pagamento */}
+              {comanda.status === "paid" && comanda.paymentMethod && (
+                <div className="flex items-center gap-2">
+                  <PaymentBadge method={comanda.paymentMethod} details={comanda.paymentDetails} />
+                </div>
+              )}
+
+              {/* Ações */}
+              <div className="flex gap-2 pt-1">
+                {isOpen && (
+                  <button
+                    onClick={onPay}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-sm"
+                  >
+                    <CheckCircle size={13} /> Pagar
+                  </button>
+                )}
+                <button
+                  onClick={onEdit}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
+                >
+                  <Edit2 size={12} /> Editar
+                </button>
+                <button
+                  onClick={onView}
+                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
+                >
+                  <Eye size={12} />
+                </button>
+                <button
+                  onClick={onDelete}
+                  className="flex items-center justify-center py-2.5 px-3 hover:bg-red-50 text-zinc-300 hover:text-red-500 rounded-xl transition-all"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
 // ── EditComandaModal ──────────────────────────────────────────────────────────
 
 function EditComandaModal({
@@ -94,7 +341,6 @@ function EditComandaModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  // ── abas do modal
   type Tab = "items" | "info";
   const [tab, setTab] = useState<Tab>("items");
 
@@ -113,8 +359,9 @@ function EditComandaModal({
   const [professionalId, setProfessionalId] = useState(comanda.professionalId || "");
   const [description, setDescription]   = useState(comanda.description || "");
 
-  // ── painel catálogo
-  const [addPanel, setAddPanel]       = useState<"services" | "products" | null>("services");
+  // ── catálogo bottom-sheet
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogTab, setCatalogTab] = useState<"services" | "products">("services");
   const [panelSearch, setPanelSearch] = useState("");
 
   const [saving, setSaving] = useState(false);
@@ -140,11 +387,9 @@ function EditComandaModal({
   // catálogo filtrado
   const filteredServices = useMemo(() => {
     const q = panelSearch.toLowerCase();
-    // serviços individuais (não pacote)
     const singles = services
       .filter((s: any) => s.type !== "package")
       .filter((s: any) => !q || s.name.toLowerCase().includes(q));
-    // pacotes
     const pkgs = services
       .filter((s: any) => s.type === "package")
       .filter((s: any) => !q || s.name.toLowerCase().includes(q));
@@ -171,7 +416,7 @@ function EditComandaModal({
     }
   };
 
-  // adicionar pacote (expande os serviços com tag do pacote)
+  // adicionar pacote
   const addPackage = (pkg: any) => {
     const pkgServices: EditItem[] = (pkg.packageServices || []).map((ps: any) => ({
       id: `pkg-${ps.serviceId || ps.service?.id}-${Date.now()}-${Math.random()}`,
@@ -187,7 +432,6 @@ function EditComandaModal({
   };
 
   const removeItem = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
-  // remove todos os itens de um pacote
   const removePackage = (packageId: string) => setItems(prev => prev.filter(i => i.packageId !== packageId));
   const changeQty   = (id: string, delta: number) =>
     setItems(prev => prev.map(i => i.id === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i));
@@ -197,13 +441,11 @@ function EditComandaModal({
   const save = async () => {
     setSaving(true);
     try {
-      // Salva itens
       await apiFetch(`/api/comandas/${comanda.id}/items`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: items.filter(i => i.name), discount: d, discountType, total }),
       });
-      // Salva dados gerais se houve mudança
       const patch: any = {};
       if (clientId && clientId !== comanda.clientId) patch.clientId = clientId;
       if (professionalId !== (comanda.professionalId || "")) patch.professionalId = professionalId || null;
@@ -222,7 +464,7 @@ function EditComandaModal({
     }
   };
 
-  // agrupa os itens por pacote para exibição
+  // agrupa itens por pacote
   const groupedItems = useMemo(() => {
     const groups: { packageId: string | null; packageName: string | null; items: EditItem[] }[] = [];
     const seen = new Map<string | null, EditItem[]>();
@@ -238,6 +480,93 @@ function EditComandaModal({
     return groups;
   }, [items]);
 
+  // ── renderiza catálogo item
+  const renderCatalogItem = (item: any, type: "service" | "product" | "package") => {
+    if (type === "package") {
+      const inComanda = items.some(i => i.packageId === item.id);
+      return (
+        <button
+          key={item.id}
+          onClick={() => { addPackage(item); }}
+          className="w-full flex items-center gap-3 p-3 rounded-xl border border-zinc-100 hover:border-violet-300 hover:bg-violet-50/40 transition-all text-left active:scale-[0.98]"
+        >
+          <div className="p-2 rounded-xl bg-violet-100 text-violet-700 shrink-0">
+            <Scissors size={14} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs font-black text-zinc-900 truncate">{item.name}</p>
+              <span className="text-[7px] font-black bg-violet-100 text-violet-600 px-1 py-0.5 rounded shrink-0">PACOTE</span>
+            </div>
+            <p className="text-[10px] text-violet-600 font-black mt-0.5">{fmtBRL(Number(item.price))}</p>
+          </div>
+          {inComanda
+            ? <span className="text-[9px] font-black bg-violet-100 text-violet-700 px-2 py-1 rounded-lg shrink-0">✓</span>
+            : <Plus size={16} className="text-zinc-300 shrink-0" />
+          }
+        </button>
+      );
+    }
+
+    if (type === "service") {
+      const qty = items.find(i => i.serviceId === item.id && !i.packageId)?.quantity || 0;
+      return (
+        <button
+          key={item.id}
+          onClick={() => addItem({ name: item.name, price: Number(item.price), quantity: 1, productId: null, serviceId: item.id })}
+          className="w-full flex items-center gap-3 p-3 rounded-xl border border-zinc-100 hover:border-amber-300 hover:bg-amber-50/40 transition-all text-left active:scale-[0.98]"
+        >
+          <div className="p-2 rounded-xl bg-amber-50 text-amber-600 shrink-0">
+            <Scissors size={14} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-zinc-800 truncate">{item.name}</p>
+            <p className="text-[10px] text-amber-600 font-black">{fmtBRL(Number(item.price))}</p>
+          </div>
+          {qty > 0
+            ? <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-2 py-1 rounded-lg shrink-0">{qty}x</span>
+            : <Plus size={16} className="text-zinc-300 shrink-0" />
+          }
+        </button>
+      );
+    }
+
+    // product
+    const qty = items.find(i => i.productId === item.id)?.quantity || 0;
+    const noStock = item.stock <= 0;
+    return (
+      <button
+        key={item.id}
+        onClick={() => !noStock && addItem({ name: item.name, price: Number(item.salePrice), quantity: 1, productId: item.id, serviceId: null })}
+        disabled={noStock}
+        className={cn(
+          "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left active:scale-[0.98]",
+          noStock ? "border-zinc-100 opacity-40 cursor-not-allowed" : "border-zinc-100 hover:border-emerald-300 hover:bg-emerald-50/40"
+        )}
+      >
+        <div className={cn("p-2 rounded-xl shrink-0", noStock ? "bg-zinc-100 text-zinc-400" : "bg-emerald-50 text-emerald-600")}>
+          <Package size={14} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold text-zinc-800 truncate">{item.name}</p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <p className="text-[10px] text-emerald-600 font-black">{fmtBRL(Number(item.salePrice))}</p>
+            <span className={cn(
+              "text-[8px] font-black px-1 py-0.5 rounded",
+              noStock ? "bg-red-50 text-red-500" : item.stock <= (item.minStock || 0) ? "bg-amber-50 text-amber-600" : "bg-zinc-100 text-zinc-500"
+            )}>
+              {noStock ? "Sem estoque" : `Est: ${item.stock}`}
+            </span>
+          </div>
+        </div>
+        {qty > 0
+          ? <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg shrink-0">{qty}x</span>
+          : !noStock ? <Plus size={16} className="text-zinc-300 shrink-0" /> : null
+        }
+      </button>
+    );
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -245,27 +574,26 @@ function EditComandaModal({
       onClick={onClose}
     >
       <motion.div
-        initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 40 }} transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-white w-full sm:max-w-3xl rounded-t-[28px] sm:rounded-[28px] shadow-2xl border border-zinc-200 flex flex-col max-h-[94vh]"
+        initial={{ opacity: 0, y: 60 }} animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 60 }} transition={{ duration: 0.25, ease: "easeOut" }}
+        className="bg-white w-full sm:max-w-2xl rounded-t-[28px] sm:rounded-[28px] shadow-2xl border border-zinc-200 flex flex-col max-h-[96vh] sm:max-h-[90vh]"
         onClick={e => e.stopPropagation()}
       >
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 shrink-0">
-          <div>
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-zinc-100 shrink-0">
+          <div className="min-w-0">
             <h3 className="text-sm font-black text-zinc-900">Editar Comanda</h3>
-            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">
+            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5 truncate">
               #{comanda.id.slice(-6).toUpperCase()} · {selectedClient?.name || comanda.client?.name}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Abas */}
+          <div className="flex items-center gap-1.5 shrink-0">
             <div className="flex bg-zinc-100 rounded-xl p-0.5 gap-0.5">
               <button
                 onClick={() => setTab("items")}
                 className={cn(
                   "px-3 py-1.5 rounded-[10px] text-[10px] font-black uppercase tracking-widest transition-all",
-                  tab === "items" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+                  tab === "items" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"
                 )}
               >
                 Itens
@@ -273,11 +601,11 @@ function EditComandaModal({
               <button
                 onClick={() => setTab("info")}
                 className={cn(
-                  "px-3 py-1.5 rounded-[10px] text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1",
-                  tab === "info" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+                  "px-3 py-1.5 rounded-[10px] text-[10px] font-black uppercase tracking-widest transition-all",
+                  tab === "info" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"
                 )}
               >
-                <ArrowRightLeft size={10}/> Dados
+                Dados
               </button>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-zinc-100 text-zinc-400 rounded-xl transition-all">
@@ -288,321 +616,149 @@ function EditComandaModal({
 
         {/* ── Aba Itens ── */}
         {tab === "items" && (
-          <div className="flex flex-col sm:flex-row flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Lista de itens */}
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+              {items.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-zinc-400">
+                  <Package size={32} className="mb-3 opacity-20"/>
+                  <p className="text-xs font-bold">Nenhum item na comanda</p>
+                  <p className="text-[10px] mt-1">Toque no botão abaixo para adicionar</p>
+                </div>
+              )}
 
-            {/* Painel esquerdo — itens na comanda */}
-            <div className="flex flex-col sm:w-[52%] border-b sm:border-b-0 sm:border-r border-zinc-100 min-h-0">
-              <div className="px-4 py-2.5 border-b border-zinc-100 shrink-0">
-                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Itens na comanda</p>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
-                {items.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-10 text-zinc-400">
-                    <Package size={28} className="mb-2 opacity-20"/>
-                    <p className="text-xs font-bold">Nenhum item</p>
-                    <p className="text-[10px] mt-0.5">Use o painel à direita</p>
-                  </div>
-                )}
-
-                <AnimatePresence initial={false}>
-                  {groupedItems.map(group => (
-                    <div key={group.packageId || "singles"}>
-                      {/* cabeçalho do pacote */}
-                      {group.packageId && (
-                        <div className="flex items-center justify-between px-2.5 py-1.5 mb-1 bg-violet-50 rounded-xl border border-violet-100">
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-violet-400"/>
-                            <span className="text-[10px] font-black text-violet-700 uppercase tracking-widest">
-                              Pacote: {group.packageName}
-                            </span>
-                            <span className="text-[9px] text-violet-400 font-bold">{group.items.length} serviços</span>
-                          </div>
-                          <button
-                            onClick={() => removePackage(group.packageId!)}
-                            className="text-violet-300 hover:text-red-500 transition-all p-0.5 rounded"
-                            title="Remover pacote"
-                          >
-                            <Trash2 size={11}/>
-                          </button>
+              <AnimatePresence initial={false}>
+                {groupedItems.map(group => (
+                  <div key={group.packageId || "singles"}>
+                    {group.packageId && (
+                      <div className="flex items-center justify-between px-2.5 py-1.5 mb-1.5 bg-violet-50 rounded-xl border border-violet-100">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-violet-400"/>
+                          <span className="text-[10px] font-black text-violet-700 uppercase tracking-widest">
+                            Pacote: {group.packageName}
+                          </span>
+                          <span className="text-[9px] text-violet-400 font-bold">{group.items.length} serviços</span>
                         </div>
-                      )}
-
-                      {/* itens do grupo */}
-                      {group.items.map(item => (
-                        <motion.div
-                          key={item.id}
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.15 }}
-                          className={cn(
-                            "flex items-center gap-2 p-2.5 rounded-xl border group mb-1.5",
-                            group.packageId
-                              ? "bg-violet-50/40 border-violet-100 ml-2"
-                              : item.productId
-                                ? "bg-emerald-50/30 border-emerald-100"
-                                : "bg-zinc-50 border-zinc-100"
-                          )}
+                        <button
+                          onClick={() => removePackage(group.packageId!)}
+                          className="text-violet-300 hover:text-red-500 transition-all p-0.5 rounded"
                         >
-                          <div className={cn(
-                            "p-1.5 rounded-lg shrink-0",
-                            item.productId ? "bg-emerald-100 text-emerald-600" : "bg-violet-100 text-violet-600"
-                          )}>
-                            {item.productId ? <Package size={12}/> : <Scissors size={12}/>}
-                          </div>
+                          <Trash2 size={11}/>
+                        </button>
+                      </div>
+                    )}
 
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-zinc-900 truncate">{item.name}</p>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <span className="text-[9px] text-zinc-400 font-bold">R$</span>
-                              <input
-                                type="number" step="0.01" min={0}
-                                className="text-[10px] px-1 py-0.5 w-14 bg-white border border-zinc-200 rounded-md font-bold text-zinc-700 outline-none focus:border-amber-400"
-                                value={item.price}
-                                onChange={e => changePrice(item.id, parseFloat(e.target.value) || 0)}
-                              />
-                              <span className="text-[9px] font-black text-zinc-400">= {fmtBRL(item.price * item.quantity)}</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button onClick={() => changeQty(item.id, -1)} className="w-6 h-6 rounded-lg bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-all">
-                              <Minus size={9}/>
-                            </button>
-                            <span className="w-5 text-center text-xs font-black text-zinc-900">{item.quantity}</span>
-                            <button onClick={() => changeQty(item.id, 1)} className="w-6 h-6 rounded-lg bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-all">
-                              <Plus size={9}/>
-                            </button>
-                          </div>
-
-                          <button
-                            onClick={() => removeItem(item.id)}
-                            className="w-6 h-6 rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all shrink-0"
-                          >
-                            <Trash2 size={11}/>
-                          </button>
-                        </motion.div>
-                      ))}
-                    </div>
-                  ))}
-                </AnimatePresence>
-              </div>
-
-              {/* Desconto + total */}
-              <div className="px-4 py-3 border-t border-zinc-100 shrink-0 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest shrink-0">Desconto</span>
-                  <div className="flex gap-1 ml-auto items-center">
-                    {(["value", "percentage"] as const).map(t => (
-                      <button
-                        key={t}
-                        onClick={() => setDiscountType(t)}
+                    {group.items.map(item => (
+                      <motion.div
+                        key={item.id}
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.15 }}
                         className={cn(
-                          "px-2 py-1 rounded-lg text-[10px] font-black border transition-all",
-                          discountType === t ? "bg-zinc-900 text-white border-zinc-900" : "bg-zinc-50 text-zinc-500 border-zinc-200"
+                          "flex items-center gap-2 p-2.5 rounded-xl border group mb-1.5",
+                          group.packageId
+                            ? "bg-violet-50/40 border-violet-100 ml-2"
+                            : item.productId
+                              ? "bg-emerald-50/30 border-emerald-100"
+                              : "bg-zinc-50 border-zinc-100"
                         )}
                       >
-                        {t === "value" ? "R$" : "%"}
-                      </button>
+                        <div className={cn(
+                          "p-1.5 rounded-lg shrink-0",
+                          item.productId ? "bg-emerald-100 text-emerald-600" : "bg-violet-100 text-violet-600"
+                        )}>
+                          {item.productId ? <Package size={12}/> : <Scissors size={12}/>}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-zinc-900 truncate">{item.name}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[9px] text-zinc-400 font-bold">R$</span>
+                            <input
+                              type="number" step="0.01" min={0}
+                              className="text-[10px] px-1 py-0.5 w-14 bg-white border border-zinc-200 rounded-md font-bold text-zinc-700 outline-none focus:border-amber-400"
+                              value={item.price}
+                              onChange={e => changePrice(item.id, parseFloat(e.target.value) || 0)}
+                            />
+                            <span className="text-[9px] font-black text-zinc-400">= {fmtBRL(item.price * item.quantity)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button onClick={() => changeQty(item.id, -1)} className="w-7 h-7 rounded-lg bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-all">
+                            <Minus size={10}/>
+                          </button>
+                          <span className="w-5 text-center text-xs font-black text-zinc-900">{item.quantity}</span>
+                          <button onClick={() => changeQty(item.id, 1)} className="w-7 h-7 rounded-lg bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-all">
+                            <Plus size={10}/>
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => removeItem(item.id)}
+                          className="w-7 h-7 rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all shrink-0"
+                        >
+                          <Trash2 size={12}/>
+                        </button>
+                      </motion.div>
                     ))}
-                    <div className="relative w-20">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 font-bold pointer-events-none">
-                        {discountType === "percentage" ? "%" : "R$"}
-                      </span>
-                      <input
-                        type="number" step="0.01" min={0}
-                        className="w-full text-[11px] pl-6 pr-2 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg font-bold outline-none focus:border-amber-400"
-                        value={discount}
-                        onChange={e => setDiscount(e.target.value)}
-                      />
-                    </div>
                   </div>
-                </div>
-                <div className="flex items-center justify-between pt-1.5 border-t border-zinc-100">
-                  <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Total</span>
-                  <span className="text-lg font-black text-zinc-900">{fmtBRL(total)}</span>
-                </div>
-              </div>
+                ))}
+              </AnimatePresence>
             </div>
 
-            {/* Painel direito — catálogo */}
-            <div className="flex flex-col sm:w-[48%] min-h-0">
-              {/* Abas serviços / produtos */}
-              <div className="flex border-b border-zinc-100 shrink-0">
-                <button
-                  onClick={() => { setAddPanel("services"); setPanelSearch(""); }}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all",
-                    addPanel === "services" ? "border-violet-500 text-violet-700 bg-violet-50/50" : "border-transparent text-zinc-400 hover:text-zinc-600"
-                  )}
-                >
-                  <Scissors size={11}/> Serviços
-                </button>
-                <button
-                  onClick={() => { setAddPanel("products"); setPanelSearch(""); }}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all",
-                    addPanel === "products" ? "border-emerald-500 text-emerald-700 bg-emerald-50/50" : "border-transparent text-zinc-400 hover:text-zinc-600"
-                  )}
-                >
-                  <Package size={11}/> Produtos
-                </button>
-              </div>
+            {/* Botão adicionar itens (abre catálogo) */}
+            <div className="px-4 py-2 border-t border-zinc-100 shrink-0">
+              <button
+                onClick={() => setCatalogOpen(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border border-amber-200"
+              >
+                <Plus size={14} /> Adicionar Serviço ou Produto
+              </button>
+            </div>
 
-              {addPanel === null && (
-                <div className="flex flex-col items-center justify-center flex-1 text-zinc-400 px-6 text-center">
-                  <LayoutGrid size={28} className="mb-2 opacity-20"/>
-                  <p className="text-xs font-bold text-zinc-400">Selecione Serviços ou Produtos para adicionar</p>
+            {/* Desconto + total */}
+            <div className="px-4 py-3 border-t border-zinc-100 shrink-0 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest shrink-0">Desconto</span>
+                <div className="flex gap-1 ml-auto items-center">
+                  {(["value", "percentage"] as const).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setDiscountType(t)}
+                      className={cn(
+                        "px-2 py-1 rounded-lg text-[10px] font-black border transition-all",
+                        discountType === t ? "bg-zinc-900 text-white border-zinc-900" : "bg-zinc-50 text-zinc-500 border-zinc-200"
+                      )}
+                    >
+                      {t === "value" ? "R$" : "%"}
+                    </button>
+                  ))}
+                  <div className="relative w-20">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 font-bold pointer-events-none">
+                      {discountType === "percentage" ? "%" : "R$"}
+                    </span>
+                    <input
+                      type="number" step="0.01" min={0}
+                      className="w-full text-[11px] pl-6 pr-2 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg font-bold outline-none focus:border-amber-400"
+                      value={discount}
+                      onChange={e => setDiscount(e.target.value)}
+                    />
+                  </div>
                 </div>
-              )}
-
-              {addPanel !== null && (
-                <>
-                  <div className="px-3 py-2 border-b border-zinc-100 shrink-0">
-                    <div className="relative">
-                      <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400"/>
-                      <input
-                        type="text"
-                        placeholder={addPanel === "services" ? "Buscar serviço ou pacote..." : "Buscar produto..."}
-                        value={panelSearch}
-                        onChange={e => setPanelSearch(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-amber-400"
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
-
-                    {/* ── Serviços individuais ── */}
-                    {addPanel === "services" && (
-                      <>
-                        {/* Pacotes */}
-                        {filteredServices.pkgs.length > 0 && (
-                          <>
-                            <p className="text-[9px] font-black text-violet-500 uppercase tracking-widest px-1 pt-1 pb-0.5 flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block"/> Pacotes
-                            </p>
-                            {filteredServices.pkgs.map((pkg: any) => {
-                              const inComanda = items.some(i => i.packageId === pkg.id);
-                              return (
-                                <button
-                                  key={pkg.id}
-                                  onClick={() => addPackage(pkg)}
-                                  className="w-full flex items-start gap-2.5 p-2.5 rounded-xl border border-zinc-100 hover:border-violet-300 hover:bg-violet-50/40 transition-all text-left group"
-                                >
-                                  <div className="p-1.5 rounded-lg bg-violet-100 text-violet-700 group-hover:bg-violet-200 shrink-0 mt-0.5">
-                                    <Scissors size={12}/>
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5">
-                                      <p className="text-xs font-black text-zinc-900 truncate">{pkg.name}</p>
-                                      <span className="text-[8px] font-black bg-violet-100 text-violet-600 px-1 py-0.5 rounded shrink-0">PACOTE</span>
-                                    </div>
-                                    <p className="text-[9px] text-violet-600 font-black mt-0.5">{fmtBRL(Number(pkg.price))}</p>
-                                    <p className="text-[9px] text-zinc-400 font-bold mt-0.5">
-                                      {(pkg.packageServices || []).map((ps: any) => ps.service?.name || ps.name).filter(Boolean).join(", ")}
-                                    </p>
-                                  </div>
-                                  {inComanda
-                                    ? <span className="text-[9px] font-black bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-lg shrink-0 self-center">✓</span>
-                                    : <Plus size={13} className="text-zinc-300 group-hover:text-violet-500 shrink-0 self-center"/>
-                                  }
-                                </button>
-                              );
-                            })}
-                            {filteredServices.singles.length > 0 && (
-                              <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1 pt-2 pb-0.5 flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"/> Serviços
-                              </p>
-                            )}
-                          </>
-                        )}
-
-                        {filteredServices.singles.length === 0 && filteredServices.pkgs.length === 0 && (
-                          <p className="text-[10px] text-zinc-400 text-center py-6 font-bold">Nenhum serviço encontrado</p>
-                        )}
-
-                        {filteredServices.singles.map((s: any) => {
-                          const qty = items.find(i => i.serviceId === s.id && !i.packageId)?.quantity || 0;
-                          return (
-                            <button
-                              key={s.id}
-                              onClick={() => addItem({ name: s.name, price: Number(s.price), quantity: 1, productId: null, serviceId: s.id })}
-                              className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border border-zinc-100 hover:border-amber-300 hover:bg-amber-50/40 transition-all text-left group"
-                            >
-                              <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-100 shrink-0">
-                                <Scissors size={12}/>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-zinc-800 truncate">{s.name}</p>
-                                <p className="text-[10px] text-amber-600 font-black">{fmtBRL(Number(s.price))}</p>
-                              </div>
-                              {qty > 0
-                                ? <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-lg shrink-0">{qty}x</span>
-                                : <Plus size={13} className="text-zinc-300 group-hover:text-amber-500 shrink-0"/>
-                              }
-                            </button>
-                          );
-                        })}
-                      </>
-                    )}
-
-                    {/* ── Produtos ── */}
-                    {addPanel === "products" && (
-                      <>
-                        {filteredProducts.length === 0 && (
-                          <p className="text-[10px] text-zinc-400 text-center py-6 font-bold">Nenhum produto no PDV</p>
-                        )}
-                        {filteredProducts.map((p: any) => {
-                          const qty = items.find(i => i.productId === p.id)?.quantity || 0;
-                          const noStock = p.stock <= 0;
-                          return (
-                            <button
-                              key={p.id}
-                              onClick={() => !noStock && addItem({ name: p.name, price: Number(p.salePrice), quantity: 1, productId: p.id, serviceId: null })}
-                              disabled={noStock}
-                              className={cn(
-                                "w-full flex items-center gap-2.5 p-2.5 rounded-xl border transition-all text-left group",
-                                noStock ? "border-zinc-100 opacity-40 cursor-not-allowed" : "border-zinc-100 hover:border-emerald-300 hover:bg-emerald-50/40 cursor-pointer"
-                              )}
-                            >
-                              <div className={cn("p-1.5 rounded-lg shrink-0", noStock ? "bg-zinc-100 text-zinc-400" : "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100")}>
-                                <Package size={12}/>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-zinc-800 truncate">{p.name}</p>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <p className="text-[10px] text-emerald-600 font-black">{fmtBRL(Number(p.salePrice))}</p>
-                                  <span className={cn(
-                                    "text-[8px] font-black px-1 py-0.5 rounded",
-                                    noStock ? "bg-red-50 text-red-500" : p.stock <= (p.minStock || 0) ? "bg-amber-50 text-amber-600" : "bg-zinc-100 text-zinc-500"
-                                  )}>
-                                    {noStock ? "Sem estoque" : `Est: ${p.stock}`}
-                                  </span>
-                                </div>
-                              </div>
-                              {qty > 0
-                                ? <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-lg shrink-0">{qty}x</span>
-                                : !noStock ? <Plus size={13} className="text-zinc-300 group-hover:text-emerald-500 shrink-0"/> : null
-                              }
-                            </button>
-                          );
-                        })}
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
+              </div>
+              <div className="flex items-center justify-between pt-1.5 border-t border-zinc-100">
+                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Total</span>
+                <span className="text-xl font-black text-zinc-900">{fmtBRL(total)}</span>
+              </div>
             </div>
           </div>
         )}
 
         {/* ── Aba Dados ── */}
         {tab === "info" && (
-          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
-
+          <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-5 space-y-5">
             {/* Transferir cliente */}
             <div className="space-y-2">
               <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
@@ -698,7 +854,7 @@ function EditComandaModal({
         )}
 
         {/* Footer */}
-        <div className="px-5 py-3.5 border-t border-zinc-100 flex gap-3 shrink-0">
+        <div className="px-4 sm:px-5 py-3.5 border-t border-zinc-100 flex gap-3 shrink-0">
           <button onClick={onClose} className="flex-1 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-black text-xs uppercase tracking-widest transition-all">
             Cancelar
           </button>
@@ -707,10 +863,118 @@ function EditComandaModal({
             disabled={saving}
             className="flex-1 py-2.5 bg-zinc-900 hover:bg-black text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50"
           >
-            {saving ? "Salvando..." : "Salvar Alterações"}
+            {saving ? "Salvando..." : "Salvar"}
           </button>
         </div>
       </motion.div>
+
+      {/* ── Catálogo Bottom-Sheet ── */}
+      <AnimatePresence>
+        {catalogOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 z-[70]"
+            onClick={() => setCatalogOpen(false)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[28px] max-h-[80vh] flex flex-col shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Handle bar */}
+              <div className="flex justify-center pt-3 pb-1 shrink-0">
+                <div className="w-10 h-1 bg-zinc-200 rounded-full" />
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-zinc-100 shrink-0 px-4">
+                <button
+                  onClick={() => { setCatalogTab("services"); setPanelSearch(""); }}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all",
+                    catalogTab === "services" ? "border-violet-500 text-violet-700 bg-violet-50/50" : "border-transparent text-zinc-400"
+                  )}
+                >
+                  <Scissors size={12}/> Serviços
+                </button>
+                <button
+                  onClick={() => { setCatalogTab("products"); setPanelSearch(""); }}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all",
+                    catalogTab === "products" ? "border-emerald-500 text-emerald-700 bg-emerald-50/50" : "border-transparent text-zinc-400"
+                  )}
+                >
+                  <Package size={12}/> Produtos
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="px-4 py-2.5 border-b border-zinc-100 shrink-0">
+                <div className="relative">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"/>
+                  <input
+                    type="text"
+                    placeholder={catalogTab === "services" ? "Buscar serviço ou pacote..." : "Buscar produto..."}
+                    value={panelSearch}
+                    onChange={e => setPanelSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-amber-400"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* Lista */}
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5">
+                {catalogTab === "services" && (
+                  <>
+                    {filteredServices.pkgs.length > 0 && (
+                      <>
+                        <p className="text-[9px] font-black text-violet-500 uppercase tracking-widest px-1 pt-1 pb-1 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block"/> Pacotes
+                        </p>
+                        {filteredServices.pkgs.map(pkg => renderCatalogItem(pkg, "package"))}
+                        {filteredServices.singles.length > 0 && (
+                          <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1 pt-3 pb-1 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"/> Serviços
+                          </p>
+                        )}
+                      </>
+                    )}
+                    {filteredServices.singles.length === 0 && filteredServices.pkgs.length === 0 && (
+                      <p className="text-[10px] text-zinc-400 text-center py-8 font-bold">Nenhum serviço encontrado</p>
+                    )}
+                    {filteredServices.singles.map(s => renderCatalogItem(s, "service"))}
+                  </>
+                )}
+
+                {catalogTab === "products" && (
+                  <>
+                    {filteredProducts.length === 0 && (
+                      <p className="text-[10px] text-zinc-400 text-center py-8 font-bold">Nenhum produto no PDV</p>
+                    )}
+                    {filteredProducts.map(p => renderCatalogItem(p, "product"))}
+                  </>
+                )}
+              </div>
+
+              {/* Fechar */}
+              <div className="px-4 py-3 border-t border-zinc-100 shrink-0">
+                <button
+                  onClick={() => setCatalogOpen(false)}
+                  className="w-full py-2.5 bg-zinc-900 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all"
+                >
+                  Fechar Catálogo ({items.length} {items.length === 1 ? 'item' : 'itens'})
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -756,34 +1020,38 @@ export function ComandasTab({
   }, [comandas, statusFilter, search]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 relative pb-20 sm:pb-0">
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* ── KPIs — compactos no mobile ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         {[
-          { label: "Em Aberto",      value: openCount,          sub: "aguardando pagamento", color: "text-amber-600" },
-          { label: "A Receber",      value: fmtBRL(totalOpen),  sub: "valor pendente",        color: "text-red-500" },
-          { label: "Pagas",          value: paidCount,          sub: "finalizadas",            color: "text-emerald-600" },
-          { label: "Total Recebido", value: fmtBRL(totalPaid),  sub: "receita total",          color: "text-zinc-900" },
+          { label: "Em Aberto",      value: openCount,          sub: fmtBRL(totalOpen), icon: <Receipt size={18} />,      color: "text-amber-600",   bg: "bg-amber-50", border: "border-amber-100" },
+          { label: "A Receber",      value: fmtBRL(totalOpen),  sub: `${openCount} pendentes`,  icon: <DollarSign size={18} />, color: "text-red-500",     bg: "bg-red-50",    border: "border-red-100" },
+          { label: "Pagas",          value: paidCount,          sub: fmtBRL(totalPaid), icon: <CheckCircle size={18} />,  color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100" },
+          { label: "Recebido",       value: fmtBRL(totalPaid),  sub: `${paidCount} finalizadas`, icon: <DollarSign size={18} />, color: "text-zinc-900",    bg: "bg-zinc-50",    border: "border-zinc-100" },
         ].map(kpi => (
-          <div key={kpi.label} className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm">
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{kpi.label}</p>
-            <p className={cn("text-2xl font-black mt-1", kpi.color)}>{kpi.value}</p>
-            <p className="text-[10px] text-zinc-400 mt-1">{kpi.sub}</p>
+          <div key={kpi.label} className={cn("rounded-2xl border p-3 sm:p-4 shadow-sm", kpi.bg, kpi.border)}>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{kpi.label}</p>
+              <div className={cn("p-1.5 rounded-lg opacity-30", kpi.bg)}>{kpi.icon}</div>
+            </div>
+            <p className={cn("text-lg sm:text-2xl font-black", kpi.color)}>{kpi.value}</p>
+            <p className="text-[9px] sm:text-[10px] text-zinc-400 mt-0.5">{kpi.sub}</p>
           </div>
         ))}
       </div>
 
-      {/* Tabela */}
-      <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-zinc-100 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
+      {/* ── Filtros + Busca ── */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+        <div className="p-3 sm:p-5 border-b border-zinc-100">
+          {/* Filtros de status */}
+          <div className="flex items-center gap-2 mb-3 overflow-x-auto no-scrollbar">
             {(["all", "open", "paid"] as const).map(s => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
                 className={cn(
-                  "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                  "px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap shrink-0",
                   statusFilter === s
                     ? s === "open" ? "bg-amber-500 text-white border-amber-500"
                       : s === "paid" ? "bg-emerald-500 text-white border-emerald-500"
@@ -791,27 +1059,58 @@ export function ComandasTab({
                     : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
                 )}
               >
-                {s === "all" ? `Todos (${comandas.length})` : s === "open" ? `Em Aberto (${openCount})` : `Pagas (${paidCount})`}
+                {s === "all" ? `Todos (${comandas.length})` : s === "open" ? `Aberto (${openCount})` : `Pagas (${paidCount})`}
               </button>
             ))}
-            <div className="relative">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400"/>
+          </div>
+
+          {/* Busca + botão nova comanda (desktop) */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"/>
               <input
-                type="text" placeholder="Buscar..." value={search}
+                type="text" placeholder="Buscar por cliente, item..."
+                value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-amber-400 w-40"
+                className="w-full pl-9 pr-3 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-amber-400 font-bold"
               />
             </div>
+            <button
+              onClick={() => setIsComandaModalOpen(true)}
+              className="hidden sm:flex px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-xs shadow-sm items-center gap-1.5 transition-all shrink-0"
+            >
+              <Plus size={14}/> Nova Comanda
+            </button>
           </div>
-          <button
-            onClick={() => setIsComandaModalOpen(true)}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
-          >
-            <Plus size={14}/> Nova Comanda
-          </button>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* ── Mobile: Cards ── */}
+        <div className="sm:hidden">
+          {filtered.length === 0 ? (
+            <div className="px-6 py-16 text-center">
+              <Receipt size={32} className="mx-auto mb-3 text-zinc-200" />
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
+                Nenhuma comanda encontrada
+              </p>
+            </div>
+          ) : (
+            <div className="p-3 space-y-2">
+              {filtered.map(c => (
+                <ComandaCard
+                  key={c.id}
+                  comanda={c}
+                  onPay={() => handlePayComanda(c)}
+                  onEdit={() => setEditingComanda(c)}
+                  onView={() => { setSelectedComanda(c); setIsComandaDetailOpen(true); }}
+                  onDelete={() => handleDeleteComanda(c.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Desktop: Tabela ── */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-zinc-50 border-b border-zinc-100">
@@ -890,34 +1189,24 @@ export function ComandasTab({
                           <CheckCircle size={11}/> Pagar
                         </button>
                       )}
-                      <button
-                        onClick={() => setEditingComanda(c)}
-                        className="p-1.5 hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 rounded-lg transition-all"
-                        title="Editar"
-                      >
-                        <Edit2 size={14}/>
-                      </button>
-                      <button
-                        onClick={() => { setSelectedComanda(c); setIsComandaDetailOpen(true); }}
-                        className="px-2.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-lg text-[10px] font-bold transition-all"
-                      >
-                        Ver
-                      </button>
-                      <button
-                        onClick={() => handleDeleteComanda(c.id)}
-                        className="p-1.5 hover:bg-red-50 text-zinc-300 hover:text-red-500 rounded-lg transition-all"
-                        title="Excluir"
-                      >
-                        <Trash2 size={14}/>
-                      </button>
+                      <ActionMenu
+                        comanda={c}
+                        onPay={() => handlePayComanda(c)}
+                        onEdit={() => setEditingComanda(c)}
+                        onView={() => { setSelectedComanda(c); setIsComandaDetailOpen(true); }}
+                        onDelete={() => handleDeleteComanda(c.id)}
+                      />
                     </div>
                   </td>
                 </motion.tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-8 py-16 text-center text-xs font-bold text-zinc-400 uppercase tracking-widest">
-                    Nenhuma comanda encontrada.
+                  <td colSpan={8} className="px-8 py-16 text-center">
+                    <Receipt size={32} className="mx-auto mb-3 text-zinc-200" />
+                    <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
+                      Nenhuma comanda encontrada
+                    </p>
                   </td>
                 </tr>
               )}
@@ -926,39 +1215,47 @@ export function ComandasTab({
         </div>
       </div>
 
+      {/* ── FAB Mobile — Nova Comanda ── */}
+      <button
+        onClick={() => setIsComandaModalOpen(true)}
+        className="sm:hidden fixed bottom-24 right-4 z-50 w-14 h-14 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl shadow-xl shadow-amber-500/30 flex items-center justify-center transition-all active:scale-90"
+      >
+        <Plus size={24} />
+      </button>
+
       {/* Modal Detalhes */}
       <AnimatePresence>
         {isComandaDetailOpen && selectedComanda && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-[2px]"
+            className="fixed inset-0 bg-black/50 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-[2px]"
             onClick={() => setIsComandaDetailOpen(false)}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.97, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.97, y: 8 }}
-              transition={{ duration: 0.18 }}
-              className="bg-white rounded-[28px] shadow-2xl w-full max-w-lg border border-zinc-200 overflow-hidden"
+              initial={{ opacity: 0, y: 60 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 60 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-t-[28px] sm:rounded-[28px] shadow-2xl w-full sm:max-w-lg border border-zinc-200 overflow-hidden max-h-[92vh]"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-5 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-zinc-900 rounded-xl text-white"><FileText size={16}/></div>
-                  <div>
+              <div className="p-4 sm:p-5 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 bg-zinc-900 rounded-xl text-white shrink-0"><FileText size={16}/></div>
+                  <div className="min-w-0">
                     <h3 className="text-sm font-black text-zinc-900">Comanda #{selectedComanda.id.slice(-6).toUpperCase()}</h3>
                     <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
                       {format(new Date(selectedComanda.createdAt || Date.now()), "dd/MM/yyyy 'às' HH:mm")}
                     </p>
                   </div>
                 </div>
-                <button onClick={() => setIsComandaDetailOpen(false)} className="p-2 hover:bg-zinc-100 text-zinc-400 rounded-xl"><X size={16}/></button>
+                <button onClick={() => setIsComandaDetailOpen(false)} className="p-2 hover:bg-zinc-100 text-zinc-400 rounded-xl shrink-0"><X size={16}/></button>
               </div>
 
-              <div className="p-5 space-y-4 max-h-[72vh] overflow-y-auto">
+              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(92vh - 130px)' }}>
                 {/* Cliente */}
                 <div className="flex items-center gap-3 p-3 bg-amber-50/60 rounded-2xl border border-amber-100">
-                  <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-sm font-black text-amber-600">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-sm font-black text-amber-600 shrink-0">
                     {selectedComanda.client?.name?.charAt(0).toUpperCase() || "?"}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -968,7 +1265,7 @@ export function ComandasTab({
                     </p>
                   </div>
                   <span className={cn(
-                    "px-2 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border",
+                    "px-2 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border shrink-0",
                     selectedComanda.status === "open" ? "bg-amber-50 text-amber-600 border-amber-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
                   )}>
                     {selectedComanda.status === "open" ? "Em Aberto" : "Pago"}
@@ -983,14 +1280,14 @@ export function ComandasTab({
                     </p>
                     {selectedComanda.items.filter((i: any) => !i.productId).map((it: any) => (
                       <div key={it.id} className="flex items-center justify-between p-2.5 bg-violet-50/50 rounded-xl border border-violet-100">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-violet-100 text-violet-600"><Scissors size={11}/></div>
-                          <div>
-                            <p className="text-xs font-bold text-zinc-900">{it.name}</p>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="p-1.5 rounded-lg bg-violet-100 text-violet-600 shrink-0"><Scissors size={11}/></div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-zinc-900 truncate">{it.name}</p>
                             <p className="text-[9px] text-zinc-400 font-bold">{it.quantity}x · Un: {fmtBRL(Number(it.price))}</p>
                           </div>
                         </div>
-                        <p className="text-sm font-black text-zinc-900">{fmtBRL(Number(it.total || it.price * it.quantity))}</p>
+                        <p className="text-sm font-black text-zinc-900 shrink-0 ml-2">{fmtBRL(Number(it.total || it.price * it.quantity))}</p>
                       </div>
                     ))}
                   </div>
@@ -1004,14 +1301,14 @@ export function ComandasTab({
                     </p>
                     {selectedComanda.items.filter((i: any) => i.productId).map((it: any) => (
                       <div key={it.id} className="flex items-center justify-between p-2.5 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600"><Package size={11}/></div>
-                          <div>
-                            <p className="text-xs font-bold text-zinc-900">{it.name}</p>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600 shrink-0"><Package size={11}/></div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-zinc-900 truncate">{it.name}</p>
                             <p className="text-[9px] text-zinc-400 font-bold">{it.quantity}x · Un: {fmtBRL(Number(it.price))}</p>
                           </div>
                         </div>
-                        <p className="text-sm font-black text-zinc-900">{fmtBRL(Number(it.total || it.price * it.quantity))}</p>
+                        <p className="text-sm font-black text-zinc-900 shrink-0 ml-2">{fmtBRL(Number(it.total || it.price * it.quantity))}</p>
                       </div>
                     ))}
                   </div>
@@ -1046,7 +1343,7 @@ export function ComandasTab({
                         onClick={() => { handlePayComanda(selectedComanda); setIsComandaDetailOpen(false); }}
                         className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-1.5"
                       >
-                        <CheckCircle size={13}/> Pagar Agora
+                        <CheckCircle size={13}/> Pagar
                       </button>
                     )}
                   </div>

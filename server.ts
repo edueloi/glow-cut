@@ -178,22 +178,65 @@ async function runAutoMigrations() {
     console.warn("⚠️  Auto-migration Sector ignorada:", e2);
   }
 
-  // ── Product.sectorId: coluna de vínculo ao setor ─────────────
+
+  // ── CashEntry: tabela de lançamentos financeiros ──────────
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS CashEntry (
+        id          VARCHAR(36)  NOT NULL PRIMARY KEY,
+        tenantId    VARCHAR(36)  NOT NULL,
+        type        VARCHAR(20)  NOT NULL DEFAULT 'income',
+        category    VARCHAR(100) NULL,
+        description VARCHAR(500) NULL,
+        amount      DOUBLE       NOT NULL DEFAULT 0,
+        date        DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        comandaId   VARCHAR(36)  NULL,
+        createdAt   DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        INDEX idx_cashentry_tenant  (tenantId),
+        INDEX idx_cashentry_comanda (comandaId),
+        INDEX idx_cashentry_date    (date)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log("✅ Tabela CashEntry garantida");
+  } catch (e2) {
+    console.warn("⚠️  Auto-migration CashEntry ignorada:", e2);
+  }
+
+  // ── ServiceConsumption: receita de consumo de estoque por serviço ──
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS ServiceConsumption (
+        id         VARCHAR(36) NOT NULL PRIMARY KEY,
+        serviceId  VARCHAR(36) NOT NULL,
+        productId  VARCHAR(36) NOT NULL,
+        quantity   DOUBLE      NOT NULL DEFAULT 1,
+        tenantId   VARCHAR(36) NOT NULL,
+        INDEX idx_svccons_service (serviceId),
+        INDEX idx_svccons_product (productId),
+        INDEX idx_svccons_tenant  (tenantId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log("✅ Tabela ServiceConsumption garantida");
+  } catch (e2) {
+    console.warn("⚠️  Auto-migration ServiceConsumption ignorada:", e2);
+  }
+
+  // ── Product.unit: unidade de medida ────────────────────────
   try {
     await (prisma as any).$executeRawUnsafe(
-      `ALTER TABLE Product ADD COLUMN IF NOT EXISTS sectorId VARCHAR(36) NULL`
+      `ALTER TABLE Product ADD COLUMN IF NOT EXISTS unit VARCHAR(20) DEFAULT 'un'`
     );
   } catch (_) {
     try {
       const cols: any[] = await (prisma as any).$queryRaw`
         SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Product' AND COLUMN_NAME = 'sectorId'
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Product' AND COLUMN_NAME = 'unit'
       `;
       if (cols.length === 0) {
-        await (prisma as any).$executeRawUnsafe(`ALTER TABLE Product ADD COLUMN sectorId VARCHAR(36) NULL`);
+        await (prisma as any).$executeRawUnsafe(`ALTER TABLE Product ADD COLUMN unit VARCHAR(20) DEFAULT 'un'`);
       }
     } catch (e2) {
-      console.warn("⚠️  Auto-migration Product.sectorId ignorada:", e2);
+      console.warn("⚠️  Auto-migration Product.unit ignorada:", e2);
     }
   }
 }
@@ -1772,6 +1815,56 @@ app.put("/api/comandas/:id", async (req, res) => {
       );
     }
 
+    // ── Auto-sync: ao pagar, cria CashEntry + deduz estoque de receitas de serviço ──
+    if (status === "paid" && tenantId) {
+      // 1. Cria lançamento financeiro automático
+      try {
+        const cmdData: any[] = await (prisma as any).$queryRawUnsafe(
+          `SELECT total, clientId FROM Comanda WHERE id = ?`, req.params.id
+        );
+        if (cmdData[0]) {
+          // Remove CashEntry anterior desta comanda (caso reaberta e paga novamente)
+          await (prisma as any).$executeRawUnsafe(
+            `DELETE FROM CashEntry WHERE comandaId = ? AND tenantId = ?`, req.params.id, tenantId
+          );
+          await (prisma as any).$executeRawUnsafe(
+            `INSERT INTO CashEntry (id, tenantId, type, category, description, amount, date, comandaId)
+             VALUES (?, ?, 'income', 'Comanda', ?, ?, NOW(), ?)`,
+            randomUUID(), tenantId,
+            `Pagamento comanda #${req.params.id.slice(-6).toUpperCase()}`,
+            cmdData[0].total || 0,
+            req.params.id
+          );
+        }
+      } catch (e2: any) {
+        console.warn("⚠️ Auto CashEntry creation failed:", e2.message);
+      }
+
+      // 2. Deduz estoque com base nas receitas de consumo dos serviços
+      try {
+        const svcItems: any[] = await (prisma as any).$queryRawUnsafe(
+          `SELECT ci.serviceId, ci.quantity FROM ComandaItem ci WHERE ci.comandaId = ? AND ci.serviceId IS NOT NULL`,
+          req.params.id
+        );
+        for (const item of svcItems) {
+          if (!item.serviceId) continue;
+          const recipes: any[] = await (prisma as any).$queryRawUnsafe(
+            `SELECT productId, quantity FROM ServiceConsumption WHERE serviceId = ?`,
+            item.serviceId
+          );
+          for (const recipe of recipes) {
+            const totalDeduct = recipe.quantity * (Number(item.quantity) || 1);
+            await (prisma as any).$executeRawUnsafe(
+              `UPDATE Product SET stock = GREATEST(0, stock - ?) WHERE id = ?`,
+              totalDeduct, recipe.productId
+            );
+          }
+        }
+      } catch (e2: any) {
+        console.warn("⚠️ Auto stock deduction failed:", e2.message);
+      }
+    }
+
     const comanda = await (prisma as any).$queryRawUnsafe(
       `SELECT c.*, cl.id as clientId_ref, cl.name as clientName, cl.phone as clientPhone
        FROM Comanda c LEFT JOIN Client cl ON c.clientId = cl.id
@@ -1859,6 +1952,177 @@ app.put("/api/comandas/:id/items", async (req, res) => {
   } catch (e: any) {
     console.error("[PUT /api/comandas/:id/items] Erro:", e?.message || e);
     res.status(500).json({ error: e?.message || "Erro ao atualizar itens." });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════
+//  LANÇAMENTOS FINANCEIROS (CashEntry) — Livro Caixa
+// ═════════════════════════════════════════════════════════════
+app.get("/api/cash-entries", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  const { from, to, type } = req.query;
+  try {
+    let where = `WHERE ce.tenantId = ?`;
+    const params: any[] = [tenantId];
+    if (from) { where += ` AND ce.date >= ?`; params.push(new Date(from as string)); }
+    if (to)   { where += ` AND ce.date <= ?`; params.push(new Date(to as string)); }
+    if (type && type !== "all") { where += ` AND ce.type = ?`; params.push(type); }
+    const entries: any[] = await (prisma as any).$queryRawUnsafe(
+      `SELECT ce.*, c.id as cmdId
+       FROM CashEntry ce
+       LEFT JOIN Comanda c ON ce.comandaId = c.id
+       ${where}
+       ORDER BY ce.date DESC, ce.createdAt DESC`,
+      ...params
+    );
+    res.json(entries);
+  } catch (e: any) {
+    console.error("[GET /api/cash-entries] Erro:", e?.message || e);
+    res.status(500).json({ error: e?.message || "Erro ao buscar lançamentos." });
+  }
+});
+
+app.post("/api/cash-entries", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  const { type, category, description, amount, date } = req.body;
+  if (!type || !amount) return res.status(400).json({ error: "type e amount são obrigatórios." });
+  try {
+    const id = randomUUID();
+    await (prisma as any).$executeRawUnsafe(
+      `INSERT INTO CashEntry (id, tenantId, type, category, description, amount, date)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      id, tenantId, type,
+      category || null,
+      description || null,
+      parseFloat(amount) || 0,
+      date ? new Date(date) : new Date()
+    );
+    const rows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT * FROM CashEntry WHERE id = ?`, id);
+    res.json(rows[0] || { id });
+  } catch (e: any) {
+    console.error("[POST /api/cash-entries] Erro:", e?.message || e);
+    res.status(500).json({ error: e?.message || "Erro ao criar lançamento." });
+  }
+});
+
+app.put("/api/cash-entries/:id", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  const { type, category, description, amount, date } = req.body;
+  try {
+    const sets: string[] = [];
+    const vals: any[] = [];
+    if (type !== undefined)        { sets.push("type = ?");        vals.push(type); }
+    if (category !== undefined)    { sets.push("category = ?");    vals.push(category); }
+    if (description !== undefined) { sets.push("description = ?"); vals.push(description); }
+    if (amount !== undefined)      { sets.push("amount = ?");      vals.push(parseFloat(amount) || 0); }
+    if (date !== undefined)        { sets.push("date = ?");        vals.push(new Date(date)); }
+    if (sets.length > 0) {
+      vals.push(req.params.id, tenantId);
+      await (prisma as any).$executeRawUnsafe(
+        `UPDATE CashEntry SET ${sets.join(", ")} WHERE id = ? AND tenantId = ?`, ...vals
+      );
+    }
+    const rows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT * FROM CashEntry WHERE id = ?`, req.params.id);
+    res.json(rows[0] || { success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || "Erro ao atualizar lançamento." });
+  }
+});
+
+app.delete("/api/cash-entries/:id", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  try {
+    await (prisma as any).$executeRawUnsafe(
+      `DELETE FROM CashEntry WHERE id = ? AND tenantId = ?`, req.params.id, tenantId
+    );
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || "Erro ao excluir lançamento." });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════
+//  RECEITAS DE CONSUMO (ServiceConsumption) — quanto cada serviço gasta do estoque
+// ═════════════════════════════════════════════════════════════
+app.get("/api/service-consumptions", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  const { serviceId } = req.query;
+  try {
+    let where = `WHERE sc.tenantId = ?`;
+    const params: any[] = [tenantId];
+    if (serviceId) { where += ` AND sc.serviceId = ?`; params.push(serviceId); }
+    const rows: any[] = await (prisma as any).$queryRawUnsafe(
+      `SELECT sc.*, p.name as productName, p.unit as productUnit, p.stock as productStock,
+              s.name as serviceName
+       FROM ServiceConsumption sc
+       LEFT JOIN Product p ON sc.productId = p.id
+       LEFT JOIN Service s ON sc.serviceId = s.id
+       ${where}
+       ORDER BY s.name ASC, p.name ASC`,
+      ...params
+    );
+    res.json(rows);
+  } catch (e: any) {
+    console.error("[GET /api/service-consumptions] Erro:", e?.message || e);
+    res.status(500).json({ error: e?.message || "Erro ao buscar receitas." });
+  }
+});
+
+app.post("/api/service-consumptions", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  const { serviceId, productId, quantity } = req.body;
+  if (!serviceId || !productId) return res.status(400).json({ error: "serviceId e productId são obrigatórios." });
+  try {
+    const id = randomUUID();
+    await (prisma as any).$executeRawUnsafe(
+      `INSERT INTO ServiceConsumption (id, serviceId, productId, quantity, tenantId)
+       VALUES (?, ?, ?, ?, ?)`,
+      id, serviceId, productId, parseFloat(quantity) || 1, tenantId
+    );
+    const rows: any[] = await (prisma as any).$queryRawUnsafe(
+      `SELECT sc.*, p.name as productName, p.unit as productUnit, s.name as serviceName
+       FROM ServiceConsumption sc
+       LEFT JOIN Product p ON sc.productId = p.id
+       LEFT JOIN Service s ON sc.serviceId = s.id
+       WHERE sc.id = ?`, id
+    );
+    res.json(rows[0] || { id });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || "Erro ao criar receita." });
+  }
+});
+
+app.put("/api/service-consumptions/:id", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  const { quantity } = req.body;
+  try {
+    await (prisma as any).$executeRawUnsafe(
+      `UPDATE ServiceConsumption SET quantity = ? WHERE id = ? AND tenantId = ?`,
+      parseFloat(quantity) || 1, req.params.id, tenantId
+    );
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || "Erro ao atualizar receita." });
+  }
+});
+
+app.delete("/api/service-consumptions/:id", async (req, res) => {
+  const tenantId = getTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+  try {
+    await (prisma as any).$executeRawUnsafe(
+      `DELETE FROM ServiceConsumption WHERE id = ? AND tenantId = ?`, req.params.id, tenantId
+    );
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || "Erro ao excluir receita." });
   }
 });
 
@@ -2044,21 +2308,22 @@ app.get("/api/products", async (req, res) => {
 app.post("/api/products", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata, sectorId } = req.body;
+  const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata, sectorId, unit } = req.body;
   if (!name) return res.status(400).json({ error: "Nome obrigatório." });
   try {
     const id = randomUUID();
     await (prisma as any).$executeRawUnsafe(
-      `INSERT INTO Product (id, tenantId, name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata, sectorId)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO Product (id, tenantId, name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata, sectorId, unit)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id, tenantId, name,
       description || null, photo || null,
       parseFloat(costPrice || "0"), parseFloat(salePrice || "0"),
-      parseInt(stock || "0"), parseInt(minStock || "0"),
+      parseFloat(stock || "0"), parseFloat(minStock || "0"),
       validUntil ? new Date(validUntil) : null,
       code || null, isForSale !== false ? 1 : 0,
       metadata ? JSON.stringify(metadata) : null,
-      sectorId || null
+      sectorId || null,
+      unit || "un"
     );
     const rows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT * FROM Product WHERE id = ?`, id);
     res.json(rows[0] || { id });
@@ -2071,20 +2336,21 @@ app.post("/api/products", async (req, res) => {
 app.put("/api/products/:id", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata, sectorId } = req.body;
+  const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata, sectorId, unit } = req.body;
   try {
     await (prisma as any).$executeRawUnsafe(
       `UPDATE Product SET name=?, description=?, photo=?, costPrice=?, salePrice=?, stock=?, minStock=?,
-       validUntil=?, code=?, isForSale=?, metadata=?, sectorId=?
+       validUntil=?, code=?, isForSale=?, metadata=?, sectorId=?, unit=?
        WHERE id=? AND tenantId=?`,
       name,
       description || null, photo || null,
       parseFloat(costPrice || "0"), parseFloat(salePrice || "0"),
-      parseInt(stock || "0"), parseInt(minStock || "0"),
+      parseFloat(stock || "0"), parseFloat(minStock || "0"),
       validUntil ? new Date(validUntil) : null,
       code || null, isForSale !== false ? 1 : 0,
       metadata ? JSON.stringify(metadata) : null,
       sectorId || null,
+      unit || "un",
       req.params.id, tenantId
     );
     res.json({ success: true });
