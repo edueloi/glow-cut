@@ -210,6 +210,9 @@ model Service {
   tenantId                                         String?          @db.VarChar(36)
   photo                                            String?          @db.Text
   professionalIds                                  String?          @default("[]") @db.VarChar(2000)
+  commissionValue                                  Float            @default(0)
+  commissionType                                   String           @default("percentage") @db.VarChar(20)
+  taxRate                                          Float            @default(0)
   createdAt                                        DateTime         @default(now()) @db.DateTime(0)
   appointment                                      Appointment[]
   comandaItem                                      ComandaItem[]

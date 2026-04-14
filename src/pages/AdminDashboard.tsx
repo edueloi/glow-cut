@@ -877,7 +877,10 @@ export default function AdminDashboard() {
     discountType: "value" as "value" | "percentage",
     includedServices: [] as { id: string, name: string, quantity: number, price?: number, type?: string, sessions?: number }[],
     professionalIds: [] as string[],
-    productsConsumed: [] as { id: string, name: string, quantity: number, costPrice?: number, stock?: number }[]
+    productsConsumed: [] as { id: string, name: string, quantity: number, costPrice?: number, stock?: number }[],
+    commissionValue: 0,
+    commissionType: "percentage" as "percentage" | "value",
+    taxRate: 0
   });
 
   // Comanda detail view
@@ -1001,7 +1004,7 @@ export default function AdminDashboard() {
     }
     setIsServiceModalOpen(false);
     setEditingService(null);
-    setNewService({ name: "", description: "", price: "", duration: "", type: "service", discount: "0", discountType: "value", includedServices: [], professionalIds: [], productsConsumed: [] });
+    setNewService({ name: "", description: "", price: "", duration: "", type: "service", discount: "0", discountType: "value", includedServices: [], professionalIds: [], productsConsumed: [], commissionValue: 0, commissionType: "percentage", taxRate: 0 });
     apiFetch("/api/services").then(res => res.json()).then(d => setServices(Array.isArray(d) ? d : []));
   };
 
@@ -1977,6 +1980,113 @@ export default function AdminDashboard() {
                   ))}
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-300 pointer-events-none"><Plus size={14}/></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Controladoria de Custos */}
+          <div className="space-y-4 pt-6 mt-6 border-t border-zinc-100">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-5 h-5 rounded-lg bg-amber-500 flex items-center justify-center text-white">
+                <TrendingUp size={12} strokeWidth={3} />
+              </div>
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Controladoria de Custos</h4>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Comissão Profissional</label>
+                <div className="flex bg-white border border-zinc-200 rounded-xl p-1 h-[42px]">
+                  <input
+                    type="number"
+                    className="flex-1 w-full px-3 text-sm bg-transparent border-none outline-none font-bold"
+                    placeholder="0.00"
+                    value={newService.commissionValue}
+                    onChange={e => setNewService({...newService, commissionValue: parseFloat(e.target.value) || 0})}
+                  />
+                  <div className="flex bg-zinc-50 rounded-lg p-0.5 border border-zinc-100">
+                    <button
+                      type="button"
+                      onClick={() => setNewService({...newService, commissionType: "percentage"})}
+                      className={cn("px-2 text-[10px] font-black rounded-md transition-all h-full", newService.commissionType === "percentage" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400")}
+                    >%</button>
+                    <button
+                      type="button"
+                      onClick={() => setNewService({...newService, commissionType: "value"})}
+                      className={cn("px-2 text-[10px] font-black rounded-md transition-all h-full", newService.commissionType === "value" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400")}
+                    >R$</button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Taxas / Impostos (%)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    className="w-full text-sm px-3 h-[42px] bg-white border border-zinc-200 rounded-xl text-zinc-900 font-bold outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/15"
+                    placeholder="0.00"
+                    value={newService.taxRate}
+                    onChange={e => setNewService({...newService, taxRate: parseFloat(e.target.value) || 0})}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-300">%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Simulator Box */}
+            <div className="bg-zinc-900 rounded-2xl p-4 shadow-xl shadow-zinc-200/50">
+              <div className="flex justify-between items-center mb-3 pb-2 border-b border-white/10">
+                <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Simulador de Lucro</p>
+                <div className="px-2 py-0.5 bg-zinc-800 rounded-full">
+                  <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Ficha de Custo</span>
+                </div>
+              </div>
+              
+              <div className="space-y-1.5 mb-3">
+                {(() => {
+                  const price = parseFloat(newService.price) || 0;
+                  const productCost = (newService.productsConsumed || []).reduce((acc: number, p: any) => acc + ((Number(p.costPrice) || 0) * (Number(p.quantity) || 1)), 0);
+                  const taxCost = price * (newService.taxRate / 100);
+                  const commCost = newService.commissionType === "percentage" ? (price * (newService.commissionValue / 100)) : (Number(newService.commissionValue) || 0);
+                  const netProfit = price - productCost - taxCost - commCost;
+                  const margin = price > 0 ? (netProfit / price) * 100 : 0;
+
+                  return (
+                    <>
+                      <div className="flex justify-between text-[10px] font-bold">
+                        <span className="text-zinc-500">Valor do Serviço</span>
+                        <span className="text-white">R$ {price.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-bold">
+                        <span className="text-zinc-500">Custo de Produtos</span>
+                        <span className="text-rose-400">- R$ {productCost.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-bold">
+                        <span className="text-zinc-500">Taxas / Operação</span>
+                        <span className="text-rose-400">- R$ {taxCost.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-bold">
+                        <span className="text-zinc-500">Comissão Profissional</span>
+                        <span className="text-rose-400">- R$ {commCost.toFixed(2)}</span>
+                      </div>
+                      <div className="pt-2 mt-2 border-t border-white/5 flex justify-between items-end">
+                        <div>
+                          <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest leading-none">Lucro Líquido</p>
+                          <p className={cn("text-lg font-black leading-none mt-1", netProfit >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                            R$ {netProfit.toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Margem</p>
+                          <p className="text-xs font-black text-white leading-none mt-1">
+                            {margin.toFixed(1)}%
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

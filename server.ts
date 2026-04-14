@@ -1075,14 +1075,14 @@ app.get("/api/services", async (req, res) => {
 app.post("/api/services", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { name, description, price, duration, type, discount, discountType, includedServices, professionalIds, productsConsumed } = req.body;
+  const { name, description, price, duration, type, discount, discountType, includedServices, professionalIds, productsConsumed, commissionValue, commissionType, taxRate } = req.body;
   if (!name || !price) return res.status(400).json({ error: "Nome e preço são obrigatórios." });
   let serviceId: string | null = null;
   try {
     serviceId = randomUUID();
     await (prisma as any).$executeRawUnsafe(
-      `INSERT INTO Service (id, name, description, price, duration, type, discount, discountType, professionalIds, tenantId)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO Service (id, name, description, price, duration, type, discount, discountType, professionalIds, tenantId, commissionValue, commissionType, taxRate)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       serviceId,
       name,
       description || null,
@@ -1092,7 +1092,10 @@ app.post("/api/services", async (req, res) => {
       parseFloat(discount) || 0,
       discountType || "value",
       JSON.stringify(professionalIds || []),
-      tenantId
+      tenantId,
+      parseFloat(commissionValue) || 0,
+      commissionType || "percentage",
+      parseFloat(taxRate) || 0
     );
   } catch (e: any) {
     console.error("❌ service.create failed:", e.message);
@@ -1160,29 +1163,36 @@ app.post("/api/services", async (req, res) => {
 
 app.put("/api/services/:id", async (req, res) => {
   const tenantId = getTenantId(req);
-  const { name, description, price, duration, type, discount, discountType, includedServices, professionalIds, productsConsumed } = req.body;
+  const { name, description, price, duration, type, discount, discountType, includedServices, professionalIds, productsConsumed, commissionValue, commissionType, taxRate } = req.body;
   try {
-    await (prisma as any).service.updateMany({
-      where: { id: req.params.id, tenantId: tenantId || undefined },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(description !== undefined && { description }),
-        ...(price !== undefined && { price: parseFloat(price) || 0 }),
-        ...(duration !== undefined && { duration: parseInt(duration) || 60 }),
-        ...(type !== undefined && { type }),
-        ...(discount !== undefined && { discount: parseFloat(discount) || 0 }),
-        ...(discountType !== undefined && { discountType }),
-      }
-    });
-    // professionalIds não está no client gerado — atualiza via raw
-    if (professionalIds !== undefined) {
-      await (prisma as any).$executeRawUnsafe(
-        `UPDATE Service SET professionalIds = ? WHERE id = ? AND tenantId = ?`,
-        JSON.stringify(professionalIds),
-        req.params.id,
-        tenantId
-      );
-    }
+    await (prisma as any).$executeRawUnsafe(
+      `UPDATE Service SET 
+        name = ?, 
+        description = ?, 
+        price = ?, 
+        duration = ?, 
+        type = ?, 
+        discount = ?, 
+        discountType = ?, 
+        professionalIds = ?,
+        commissionValue = ?,
+        commissionType = ?,
+        taxRate = ?
+      WHERE id = ? AND tenantId = ?`,
+      name,
+      description || null,
+      parseFloat(price) || 0,
+      parseInt(duration) || 60,
+      type || "service",
+      parseFloat(discount) || 0,
+      discountType || "value",
+      JSON.stringify(professionalIds || []),
+      parseFloat(commissionValue) || 0,
+      commissionType || "percentage",
+      parseFloat(taxRate) || 0,
+      req.params.id,
+      tenantId
+    );
   } catch (e: any) {
     console.error("❌ service.updateMany failed:", e.message);
     return res.status(400).json({ error: e.message || "Erro ao atualizar serviço." });
@@ -2688,7 +2698,36 @@ async function startServer() {
           return acc + (Number(row.itemQty) * Number(row.prodPerSvc) * Number(row.costPrice));
         }, 0);
 
-        // 3. Outras Despesas (CashEntries de Saída)
+        // 4. Comissões e Taxas (Baseado nas novas regras de serviço)
+        const commTaxRows: any[] = await (prisma as any).$queryRawUnsafe(
+          `SELECT 
+            ci.total as itemTotal, 
+            s.commissionValue, 
+            s.commissionType, 
+            s.taxRate
+           FROM ComandaItem ci
+           JOIN Comanda c ON ci.comandaId = c.id
+           JOIN Service s ON ci.serviceId = s.id
+           WHERE c.tenantId = ? AND c.status = 'paid' AND c.createdAt >= ? AND c.createdAt <= ?`,
+          tenantId, fromDate, toDate
+        );
+
+        let totalCommissions = 0;
+        let totalTaxes = 0;
+
+        commTaxRows.forEach(row => {
+          const itemTotal = Number(row.itemTotal) || 0;
+          // Taxas
+          totalTaxes += itemTotal * (Number(row.taxRate || 0) / 100);
+          // Comissões
+          if (row.commissionType === 'percentage') {
+            totalCommissions += itemTotal * (Number(row.commissionValue || 0) / 100);
+          } else {
+            totalCommissions += Number(row.commissionValue || 0);
+          }
+        });
+
+        // 5. Outras Despesas (CashEntries de Saída)
         const expenseRows: any[] = await (prisma as any).$queryRawUnsafe(
           `SELECT SUM(amount) as expenses
            FROM CashEntry
@@ -2700,10 +2739,13 @@ async function startServer() {
         res.json({
           revenue: grossRevenue,
           cogs: totalCOGS,
+          commissions: totalCommissions,
+          taxes: totalTaxes,
           otherExpenses,
           grossProfit: grossRevenue - totalCOGS,
-          netProfit: grossRevenue - totalCOGS - otherExpenses,
-          period: { from: fromDate, to: toDate }
+          netProfit: grossRevenue - totalCOGS - otherExpenses - totalCommissions - totalTaxes,
+          fromDate,
+          toDate
         });
       } catch (e: any) {
         console.error("[GET /api/reports/profitability] Erro:", e?.message || e);

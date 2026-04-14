@@ -78,27 +78,26 @@ function StatCard({
   accent?: string;
   badge?: React.ReactNode;
 }) {
+  const colors: any = {
+    amber: { border: "border-amber-100 hover:border-amber-200", bg: "bg-amber-50 text-amber-500 group-hover:bg-amber-100", text: "text-amber-600" },
+    red: { border: "border-red-100 hover:border-red-200", bg: "bg-red-50 text-red-500 group-hover:bg-red-100", text: "text-red-600" },
+    blue: { border: "border-blue-100 hover:border-blue-200", bg: "bg-blue-50 text-blue-500 group-hover:bg-blue-100", text: "text-blue-600" },
+    emerald: { border: "border-emerald-100 hover:border-emerald-200", bg: "bg-emerald-50 text-emerald-500 group-hover:bg-emerald-100", text: "text-emerald-600" },
+    zinc: { border: "border-zinc-100 hover:border-zinc-200", bg: "bg-zinc-50 text-zinc-500 group-hover:bg-zinc-100", text: "text-zinc-900" },
+  };
+  const c = accent && colors[accent] ? colors[accent] : colors.zinc;
+
   return (
-    <div
-      className={cn(
-        "bg-white p-5 rounded-3xl border shadow-sm flex flex-col justify-between group transition-all",
-        accent ? `border-${accent}-100 hover:border-${accent}-200` : "border-zinc-100 hover:border-zinc-200"
-      )}
-    >
-      <div className="flex justify-between items-start mb-4">
-        <div
-          className={cn(
-            "p-2.5 rounded-2xl transition-colors",
-            accent ? `bg-${accent}-50 text-${accent}-500 group-hover:bg-${accent}-100` : "bg-zinc-50 text-zinc-500 group-hover:bg-zinc-100"
-          )}
-        >
+    <div className={cn("bg-white p-3 sm:p-5 rounded-2xl sm:rounded-3xl border shadow-sm flex flex-col justify-between group transition-all", c.border)}>
+      <div className="flex justify-between items-start mb-2 sm:mb-4">
+        <div className={cn("p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl transition-colors", c.bg)}>
           {icon}
         </div>
         {badge}
       </div>
       <div>
-        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{label}</p>
-        <p className={cn("text-2xl font-black tracking-tighter", accent ? `text-${accent}-600` : "text-zinc-900")}>
+        <p className="text-[9px] sm:text-[10px] font-black text-zinc-400 uppercase tracking-widest">{label}</p>
+        <p className={cn("text-lg sm:text-2xl font-black tracking-tighter", c.text)}>
           {value}
         </p>
         {sub && <p className="text-[10px] text-zinc-400 font-bold mt-0.5">{sub}</p>}
@@ -264,44 +263,46 @@ export function ProductsTab({
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
         <StatCard
-          icon={<Package size={22} />}
+          icon={<Package size={20} />}
           label="Total de Itens"
           value={products.length}
-          sub={`${forSaleItems.length} no PDV · ${internalItems.length} internos`}
+          sub={<span className="hidden sm:inline">{`${forSaleItems.length} no PDV · ${internalItems.length} internos`}</span>}
           accent="amber"
         />
         <StatCard
-          icon={criticalCount > 0 ? <AlertTriangle size={22} /> : <CheckCircle size={22} />}
-          label={criticalCount > 0 ? "Estoque Crítico" : "Estoque Saudável"}
+          icon={criticalCount > 0 ? <AlertTriangle size={20} /> : <CheckCircle size={20} />}
+          label={criticalCount > 0 ? "Crítico" : "Saudável"}
           value={criticalCount}
           sub={
-            criticalCount > 0
-              ? `${outOfStockItems.length} zerados · ${lowStockItems.length} baixos`
-              : "Todos os itens OK"
+            <span className="hidden sm:inline">
+              {criticalCount > 0
+                ? `${outOfStockItems.length} zerados · ${lowStockItems.length} baixos`
+                : "Todos os itens OK"}
+            </span>
           }
           accent={criticalCount > 0 ? "red" : "emerald"}
           badge={
             criticalCount > 0 ? (
-              <span className="text-[9px] font-black text-red-600 bg-red-100 px-2.5 py-1 rounded-full uppercase tracking-widest border border-red-200">
-                Atenção
+              <span className="text-[8px] sm:text-[9px] font-black text-red-600 bg-red-100 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full uppercase tracking-widest border border-red-200">
+                !
               </span>
             ) : undefined
           }
         />
         <StatCard
-          icon={<DollarSign size={22} />}
-          label="Valor em Estoque"
+          icon={<DollarSign size={20} />}
+          label="Em Estoque"
           value={`R$ ${totalStockValue.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-          sub="preço de custo total"
+          sub={<span className="hidden sm:inline">preço de custo</span>}
           accent="blue"
         />
         <StatCard
-          icon={potentialProfit >= 0 ? <TrendingUp size={22} /> : <TrendingDown size={22} />}
-          label="Lucro Potencial"
+          icon={potentialProfit >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+          label="Lucro Previsto"
           value={`R$ ${potentialProfit.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-          sub={`PDV: R$ ${totalSaleValue.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          sub={<span className="hidden sm:inline">{`PDV: R$ ${totalSaleValue.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}</span>}
           accent={potentialProfit >= 0 ? "emerald" : "red"}
         />
       </div>
@@ -369,8 +370,8 @@ export function ProductsTab({
             </div>
           </div>
 
-          {/* Pie chart – PDV vs Internal */}
-          <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-6 flex flex-col">
+          {/* Pie chart – PDV vs Internal (HIDDEN ON MOBILE) */}
+          <div className="hidden lg:flex bg-white rounded-3xl border border-zinc-100 shadow-sm p-6 flex-col">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-2 h-6 bg-emerald-500 rounded-full" />
               <div>
@@ -508,251 +509,136 @@ export function ProductsTab({
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto max-h-[520px] overflow-y-auto custom-scrollbar">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto max-h-[520px] overflow-y-auto custom-scrollbar">
           <table className="w-full text-left border-separate border-spacing-0">
             <thead>
               <tr className="bg-zinc-50/70 sticky top-0 z-10">
-                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">
-                  Produto
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">
-                  Código / SKU
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">
-                  Estoque
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">
-                  Preços (R$)
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">
-                  Margem
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 text-right">
-                  Ações
-                </th>
+                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">Produto</th>
+                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">Código / SKU</th>
+                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">Estoque</th>
+                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">Preços (R$)</th>
+                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">Margem</th>
+                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">Status</th>
+                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-8 py-24 text-center">
-                    <div className="flex flex-col items-center">
-                      <div className="w-20 h-20 rounded-3xl bg-zinc-50 flex items-center justify-center text-zinc-200 mb-4 border-2 border-dashed border-zinc-100">
-                        {search ? <Search size={36} /> : <Package size={36} />}
+              {filtered.map((p: any) => {
+                const stockStatus = p.stock <= 0 ? "out" : p.stock <= p.minStock ? "low" : "ok";
+                const margin = p.costPrice > 0 ? (((Number(p.salePrice) - Number(p.costPrice)) / Number(p.costPrice)) * 100).toFixed(0) : null;
+                return (
+                  <tr key={p.id} className="hover:bg-zinc-50/80 transition-all group">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-300 font-black text-lg group-hover:bg-zinc-100">
+                          {p.photo ? <img src={p.photo} className="w-full h-full rounded-2xl object-cover" /> : p.name?.charAt(0)?.toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-black text-zinc-800 tracking-tight truncate max-w-[140px]">{p.name}</p>
+                            <SectorBadge product={p} sectors={sectors} />
+                          </div>
+                          <p className="text-[10px] text-zinc-400 font-bold truncate max-w-[160px] mt-0.5">{p.description || "Sem descrição"}</p>
+                        </div>
                       </div>
-                      <p className="text-sm font-black text-zinc-400 uppercase tracking-widest">
-                        {search ? "Nenhum resultado encontrado" : "Nenhum produto aqui"}
-                      </p>
-                      {!search && products.length === 0 && (
-                        <button
-                          onClick={openNew}
-                          className="mt-4 text-[10px] font-black text-amber-600 uppercase tracking-widest hover:underline"
-                        >
-                          + Adicionar primeiro produto
-                        </button>
-                      )}
-                      {search && (
-                        <button
-                          onClick={() => setSearch("")}
-                          className="mt-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest hover:underline"
-                        >
-                          Limpar busca
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((p: any) => {
-                  const stockStatus = p.stock <= 0 ? "out" : p.stock <= p.minStock ? "low" : "ok";
-                  const margin =
-                    p.costPrice > 0
-                      ? (((Number(p.salePrice) - Number(p.costPrice)) / Number(p.costPrice)) * 100).toFixed(0)
-                      : null;
-
-                  return (
-                    <tr key={p.id} className="hover:bg-zinc-50/80 transition-all group">
-                      {/* Product */}
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-3.5">
-                          <div className="relative shrink-0">
-                            {p.photo ? (
-                              <img
-                                src={p.photo}
-                                className="w-12 h-12 rounded-2xl object-cover border border-zinc-100 shadow-sm"
-                                alt={p.name}
-                              />
-                            ) : (
-                              <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-300 font-black text-lg group-hover:bg-zinc-100 transition-colors">
-                                {p.name?.charAt(0)?.toUpperCase()}
-                              </div>
-                            )}
-                            {stockStatus === "out" && (
-                              <div className="absolute inset-0 bg-red-500/10 rounded-2xl flex items-center justify-center">
-                                <XCircle size={14} className="text-red-500" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-black text-zinc-800 tracking-tight truncate max-w-[140px]">
-                                {p.name}
-                              </p>
-                              <SectorBadge product={p} sectors={sectors} />
-                            </div>
-                            <p className="text-[10px] text-zinc-400 font-bold truncate max-w-[160px] mt-0.5">
-                              {p.description || "Sem descrição"}
-                            </p>
-                          </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className="px-2.5 py-1.5 bg-zinc-100 text-zinc-500 text-[10px] font-black rounded-xl tracking-widest uppercase border border-zinc-200/50">{p.code || "S/ SKU"}</span>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-baseline gap-1">
+                          <span className={cn("text-base font-black tracking-tighter", stockStatus === "out" ? "text-red-500" : stockStatus === "low" ? "text-amber-500" : "text-zinc-900")}>{p.stock}</span>
+                          <span className="text-[10px] font-bold text-zinc-400">{p.unit || "un"}</span>
                         </div>
-                      </td>
-
-                      {/* SKU */}
-                      <td className="px-6 py-5">
-                        <span className="px-2.5 py-1.5 bg-zinc-100 text-zinc-500 text-[10px] font-black rounded-xl tracking-widest uppercase border border-zinc-200/50">
-                          {p.code || "S/ SKU"}
-                        </span>
-                      </td>
-
-                      {/* Stock */}
-                      <td className="px-6 py-5">
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex items-baseline gap-1">
-                            <span
-                              className={cn(
-                                "text-base font-black tracking-tighter",
-                                stockStatus === "out"
-                                  ? "text-red-500"
-                                  : stockStatus === "low"
-                                  ? "text-amber-500"
-                                  : "text-zinc-900"
-                              )}
-                            >
-                              {p.stock - (p.reservedStock || 0)}
-                            </span>
-                            <span className="text-[10px] font-bold text-zinc-400">{p.unit || "un"} livre</span>
-                            {p.reservedStock > 0 && (
-                              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100 ml-1">
-                                {p.reservedStock} res.
-                              </span>
-                            )}
-                            <span className="text-[10px] font-bold text-zinc-300 ml-1">/ tot {p.stock}</span>
-                          </div>
-                          <div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                            <div
-                              className={cn(
-                                "h-full rounded-full transition-all duration-700",
-                                stockStatus === "out"
-                                  ? "bg-red-500 w-full"
-                                  : stockStatus === "low"
-                                  ? "bg-amber-500"
-                                  : "bg-emerald-500"
-                              )}
-                              style={{
-                                width: `${Math.min(100, (p.stock / (p.minStock * 4 || 10)) * 100)}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Prices */}
-                      <td className="px-6 py-5">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest w-10">
-                              Custo
-                            </span>
-                            <span className="text-[10px] font-bold text-zinc-500">
-                              R$ {Number(p.costPrice).toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest w-10">
-                              Venda
-                            </span>
-                            <span className="text-sm font-black text-emerald-600 tracking-tighter">
-                              R$ {Number(p.salePrice).toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Margin */}
-                      <td className="px-6 py-5">
-                        {margin !== null ? (
-                          <div className="flex flex-col gap-1">
-                            <span
-                              className={cn(
-                                "text-sm font-black tracking-tighter",
-                                Number(margin) >= 30
-                                  ? "text-emerald-600"
-                                  : Number(margin) >= 10
-                                  ? "text-amber-500"
-                                  : "text-red-500"
-                              )}
-                            >
-                              {margin}%
-                            </span>
-                            <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">
-                              margem
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-[10px] font-bold text-zinc-300">—</span>
-                        )}
-                      </td>
-
-                      {/* Sale status */}
-                      <td className="px-6 py-5">
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all shadow-sm",
-                            p.isForSale
-                              ? "bg-amber-50 text-amber-600 border-amber-100"
-                              : "bg-zinc-100 text-zinc-400 border-zinc-200"
-                          )}
-                        >
-                          {p.isForSale ? (
-                            <>
-                              <Zap size={9} fill="currentColor" /> No PDV
-                            </>
-                          ) : (
-                            <>
-                              <Archive size={9} /> Interno
-                            </>
-                          )}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-6 py-5 text-right">
-                        <div className="flex items-center justify-end gap-2 sm:opacity-0 group-hover:opacity-100 transition-all">
-                          <button
-                            onClick={() => openEdit(p)}
-                            className="p-2.5 rounded-xl bg-white border border-zinc-200 text-zinc-400 hover:text-amber-500 hover:border-amber-200 hover:shadow-lg hover:shadow-amber-500/10 transition-all active:scale-90"
-                            title="Editar"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteProduct(p.id)}
-                            className="p-2.5 rounded-xl bg-white border border-zinc-200 text-zinc-400 hover:text-red-500 hover:border-red-200 hover:shadow-lg hover:shadow-red-500/10 transition-all active:scale-90"
-                            title="Excluir"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+                        <div className="w-20 h-1 bg-zinc-100 rounded-full"><div className={cn("h-full rounded-full transition-all", stockStatus === "out" ? "bg-red-500 w-full" : stockStatus === "low" ? "bg-amber-500 w-1/2" : "bg-emerald-500 w-full")} /></div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none mb-1">Custo: R$ {Number(p.costPrice).toFixed(2)}</p>
+                      <p className="text-[13px] font-black text-emerald-600 leading-none tracking-tighter">Venda: R$ {Number(p.salePrice).toFixed(2)}</p>
+                    </td>
+                    <td className="px-6 py-5">
+                      {margin !== null ? <span className={cn("text-sm font-black tracking-tighter", Number(margin) >= 30 ? "text-emerald-600" : "text-amber-500")}>{margin}%</span> : "—"}
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className={cn("px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border", p.isForSale ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-zinc-100 text-zinc-400 border-zinc-200")}>{p.isForSale ? "No PDV" : "Interno"}</span>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => openEdit(p)} className="p-2.5 rounded-xl bg-white border border-zinc-200 text-zinc-400 hover:text-amber-500 transition-all"><Edit2 size={14} /></button>
+                        <button onClick={() => handleDeleteProduct(p.id)} className="p-2.5 rounded-xl bg-white border border-zinc-200 text-zinc-400 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-zinc-100">
+          {filtered.length === 0 ? (
+            <div className="py-12 text-center text-zinc-400 text-xs font-bold uppercase tracking-widest">Nenhum produto encontrado</div>
+          ) : (
+            filtered.map((p: any) => {
+              const stockStatus = p.stock <= 0 ? "out" : p.stock <= p.minStock ? "low" : "ok";
+              const margin = p.costPrice > 0 ? (((Number(p.salePrice) - Number(p.costPrice)) / Number(p.costPrice)) * 100).toFixed(0) : null;
+              return (
+                <div key={p.id} className="p-4 bg-white active:bg-zinc-50 transition-colors">
+                  <div className="flex items-start gap-3">
+                    <div className="w-14 h-14 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-300 font-black text-xl shrink-0">
+                      {p.photo ? <img src={p.photo} className="w-full h-full rounded-2xl object-cover" /> : p.name?.charAt(0)?.toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h4 className="text-[13px] font-black text-zinc-900 truncate tracking-tight">{p.name}</h4>
+                        <SectorBadge product={p} sectors={sectors} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-zinc-400 tracking-widest uppercase">{p.code || "Sem SKU"}</span>
+                        <span className={cn("px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border", p.isForSale ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-zinc-50 text-zinc-400 border-zinc-200")}>{p.isForSale ? "PDV" : "Uso Interno"}</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3 mt-3">
+                        <div className="bg-zinc-50 rounded-xl p-2 border border-zinc-100">
+                          <p className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Estoque</p>
+                          <div className="flex items-baseline gap-1">
+                            <span className={cn("text-sm font-black tracking-tighter", stockStatus === "out" ? "text-red-500" : stockStatus === "low" ? "text-amber-500" : "text-zinc-900")}>{p.stock}</span>
+                            <span className="text-[9px] font-bold text-zinc-400">{p.unit || "un"}</span>
+                          </div>
+                        </div>
+                        <div className="bg-emerald-50/50 rounded-xl p-2 border border-emerald-100/50">
+                          <p className="text-[8px] font-black text-emerald-500/70 uppercase tracking-widest mb-1">Venda</p>
+                          <p className="text-sm font-black text-emerald-600 tracking-tighter leading-none">R$ {Number(p.salePrice).toFixed(2)}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Custo</span>
+                            <span className="text-[10px] font-bold text-zinc-600">R$ {Number(p.costPrice).toFixed(2)}</span>
+                          </div>
+                          <div className="w-px h-5 bg-zinc-100" />
+                          <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Margem</span>
+                            <span className={cn("text-[10px] font-black", Number(margin) >= 30 ? "text-emerald-500" : "text-amber-500")}>{margin}%</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => openEdit(p)} className="p-2 bg-zinc-100 text-zinc-500 rounded-xl hover:bg-amber-50 hover:text-amber-600 transition-all"><Edit2 size={13}/></button>
+                          <button onClick={() => handleDeleteProduct(p.id)} className="p-2 bg-zinc-100 text-zinc-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><Trash2 size={13}/></button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Table footer */}

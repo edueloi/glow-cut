@@ -98,7 +98,7 @@ export function ServicesTab({
         <Button
           onClick={() => {
             setEditingService(null);
-            setNewService({ name: "", description: "", price: "", duration: "", type: serviceSubTab === 'services' ? 'service' : 'package', discount: "0", discountType: "value", includedServices: [], professionalIds: [] });
+            setNewService({ name: "", description: "", price: "", duration: "", type: serviceSubTab === 'services' ? 'service' : 'package', discount: "0", discountType: "value", includedServices: [], professionalIds: [], productsConsumed: [], commissionValue: 0, commissionType: "percentage", taxRate: 0 });
             setIsServiceModalOpen(true);
           }}
           className="bg-zinc-900 hover:bg-black text-white rounded-xl px-5 font-bold shadow-sm flex items-center gap-1.5 text-xs h-9 transition-all active:scale-95"
@@ -164,7 +164,11 @@ export function ServicesTab({
                       discount: (item.discount || 0).toString(),
                       discountType: item.discountType || "value",
                       includedServices: item.packageServices?.map((ps: any) => ({ id: ps.serviceId, name: ps.service.name, quantity: ps.quantity })) || [],
-                      professionalIds: item.professionalIds ? (typeof item.professionalIds === 'string' ? JSON.parse(item.professionalIds) : item.professionalIds) : []
+                      professionalIds: item.professionalIds ? (typeof item.professionalIds === 'string' ? JSON.parse(item.professionalIds) : item.professionalIds) : [],
+                      productsConsumed: item.serviceProducts?.map((sp: any) => ({ id: sp.product.id, name: sp.product.name, quantity: sp.quantity, costPrice: sp.product.costPrice, stock: sp.product.stock })) || [],
+                      commissionValue: item.commissionValue || 0,
+                      commissionType: item.commissionType || "percentage",
+                      taxRate: item.taxRate || 0
                     });
                     setIsServiceModalOpen(true);
                   }}
@@ -230,7 +234,11 @@ export function ServicesTab({
                               discount: (item.discount || 0).toString(),
                               discountType: item.discountType || "value",
                               includedServices: item.packageServices?.map((ps: any) => ({ id: ps.serviceId, name: ps.service.name, quantity: ps.quantity })) || [],
-                              professionalIds: item.professionalIds ? (typeof item.professionalIds === 'string' ? JSON.parse(item.professionalIds) : item.professionalIds) : []
+                              professionalIds: item.professionalIds ? (typeof item.professionalIds === 'string' ? JSON.parse(item.professionalIds) : item.professionalIds) : [],
+                              productsConsumed: item.serviceProducts?.map((sp: any) => ({ id: sp.product.id, name: sp.product.name, quantity: sp.quantity, costPrice: sp.product.costPrice, stock: sp.product.stock })) || [],
+                              commissionValue: item.commissionValue || 0,
+                              commissionType: item.commissionType || "percentage",
+                              taxRate: item.taxRate || 0
                             });
                             setIsServiceModalOpen(true);
                           }}
