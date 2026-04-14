@@ -2949,7 +2949,7 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Cliente + Data */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Cliente</label>
                             <div className="relative">
@@ -2988,7 +2988,7 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Valor + Atendimentos */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Valor Uni. (R$)</label>
                             <div className="relative">
@@ -3178,7 +3178,7 @@ export default function AdminDashboard() {
                       {comandaAppt.generate && (
                         <div className="px-4 pb-4 pt-3 space-y-4 bg-amber-50/30 border-t border-amber-100/60">
                           {/* Data + Hora */}
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                               <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Data</label>
                               <input
@@ -3227,7 +3227,7 @@ export default function AdminDashboard() {
 
                           {/* Nº de repetições + intervalo (quando não é 'none') */}
                           {comandaAppt.recurrence.type !== 'none' && (
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Nº de Sessões</label>
                                 <input
