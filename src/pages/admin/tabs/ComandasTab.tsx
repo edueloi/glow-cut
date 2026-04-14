@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import {
   Plus, CheckCircle, X, Scissors, Banknote, CreditCard, Smartphone,
@@ -89,64 +90,91 @@ function ActionMenu({ comanda, onPay, onEdit, onView, onDelete }: {
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = useState({ top: 0, right: 0 });
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
+      // Ignorar cliques no botão toggle
+      if (buttonRef.current && buttonRef.current.contains(e.target as Node)) return;
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
+    
+    const scrollHandler = () => setOpen(false);
+
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    window.addEventListener("scroll", scrollHandler, true); // capture = true (para pegar scrolls internos)
+
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right
+      });
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      window.removeEventListener("scroll", scrollHandler, true);
+    };
   }, [open]);
 
+  const menu = (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          ref={ref}
+          initial={{ opacity: 0, scale: 0.95, y: -4 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: -4 }}
+          transition={{ duration: 0.12 }}
+          style={{ top: coords.top, right: coords.right }}
+          className="fixed bg-white rounded-2xl shadow-2xl border border-zinc-200 py-1.5 z-[100] min-w-[160px] overflow-hidden"
+        >
+          {comanda.status === "open" && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setOpen(false); onPay(); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition-all"
+            >
+              <CheckCircle size={14} /> Pagar
+            </button>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); setOpen(false); onEdit(); }}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition-all"
+          >
+            <Edit2 size={14} /> Editar
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setOpen(false); onView(); }}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition-all"
+          >
+            <Eye size={14} /> Detalhes
+          </button>
+          <div className="border-t border-zinc-100 my-1" />
+          <button
+            onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 transition-all"
+          >
+            <Trash2 size={14} /> Excluir
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
+        ref={buttonRef}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         className="p-2 hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 rounded-xl transition-all"
       >
         <MoreVertical size={16} />
       </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -4 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -4 }}
-            transition={{ duration: 0.12 }}
-            className="absolute right-0 top-full mt-1 bg-white rounded-2xl shadow-2xl border border-zinc-200 py-1.5 z-50 min-w-[160px] overflow-hidden"
-          >
-            {comanda.status === "open" && (
-              <button
-                onClick={(e) => { e.stopPropagation(); setOpen(false); onPay(); }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition-all"
-              >
-                <CheckCircle size={14} /> Pagar
-              </button>
-            )}
-            <button
-              onClick={(e) => { e.stopPropagation(); setOpen(false); onEdit(); }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition-all"
-            >
-              <Edit2 size={14} /> Editar
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); setOpen(false); onView(); }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition-all"
-            >
-              <Eye size={14} /> Detalhes
-            </button>
-            <div className="border-t border-zinc-100 my-1" />
-            <button
-              onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 transition-all"
-            >
-              <Trash2 size={14} /> Excluir
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      {typeof document !== "undefined" && createPortal(menu, document.body)}
+    </>
   );
 }
 

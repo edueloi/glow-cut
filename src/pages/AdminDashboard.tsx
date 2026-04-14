@@ -2909,10 +2909,10 @@ export default function AdminDashboard() {
           return (
             <>
               <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-                onClick={closeComanda} className="fixed inset-0 z-[60] bg-black/30" />
-              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
-                <motion.div initial={{opacity:0,scale:0.97,y:8}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.97,y:8}} transition={{duration:0.18}}
-                  className="w-full max-w-lg bg-white rounded-2xl shadow-2xl pointer-events-auto border border-zinc-200 flex flex-col max-h-[92vh]">
+                onClick={closeComanda} className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-[2px]" />
+              <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
+                <motion.div initial={{opacity:0,y:60}} animate={{opacity:1,y:0}} exit={{opacity:0,y:60}} transition={{duration:0.25,ease:"easeOut"}}
+                  className="w-full sm:max-w-xl bg-white rounded-t-[28px] sm:rounded-[28px] shadow-2xl pointer-events-auto border border-zinc-200 flex flex-col max-h-[96vh] sm:max-h-[90vh]">
 
                   {/* Header */}
                   <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
