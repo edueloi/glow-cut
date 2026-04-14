@@ -1031,8 +1031,12 @@ app.get("/api/services", async (req, res) => {
       servicesRaw = await (prisma as any).service.findMany({
         where: { tenantId },
         include: {
+        include: {
           packageservice_packageservice_packageIdToservice: {
             include: { service_packageservice_serviceIdToservice: { select: { id: true, name: true, duration: true, price: true } } }
+          },
+          serviceProducts: {
+            include: { product: { select: { id: true, name: true, stock: true, costPrice: true, salePrice: true, code: true } } }
           }
         },
         orderBy: { name: "asc" }
@@ -1051,7 +1055,15 @@ app.get("/api/services", async (req, res) => {
         ...ps,
         service: ps.service_packageservice_serviceIdToservice
       })) || [],
-      packageservice_packageservice_packageIdToservice: undefined
+      productsConsumed: s.serviceProducts?.map((sp: any) => ({
+        id: sp.product.id,
+        name: sp.product.name,
+        quantity: sp.quantity,
+        costPrice: sp.product.costPrice,
+        stock: sp.product.stock,
+      })) || [],
+      packageservice_packageservice_packageIdToservice: undefined,
+      serviceProducts: undefined
     }));
 
     res.json(services);
@@ -1064,7 +1076,7 @@ app.get("/api/services", async (req, res) => {
 app.post("/api/services", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-  const { name, description, price, duration, type, discount, discountType, includedServices, professionalIds } = req.body;
+  const { name, description, price, duration, type, discount, discountType, includedServices, professionalIds, productsConsumed } = req.body;
   if (!name || !price) return res.status(400).json({ error: "Nome e preço são obrigatórios." });
   let serviceId: string | null = null;
   try {
@@ -1100,12 +1112,27 @@ app.post("/api/services", async (req, res) => {
       }
     }
   }
+  // Cria relações de produtos consumidos
+  if (Array.isArray(productsConsumed)) {
+    for (const p of productsConsumed) {
+      try {
+        await (prisma as any).serviceProduct.create({
+          data: { id: randomUUID(), serviceId: serviceId, productId: p.id, quantity: p.quantity || 1 }
+        });
+      } catch (e: any) {
+        console.error("❌ serviceProduct.create failed for productId", p.id, ":", e.message);
+      }
+    }
+  }
   // Busca o serviço completo com relações de pacote
   let full: any = null;
   try {
     const fullRaw = await (prisma as any).service.findFirst({
       where: { id: serviceId },
-      include: { packageservice_packageservice_packageIdToservice: { include: { service_packageservice_serviceIdToservice: { select: { id: true, name: true } } } } }
+      include: { 
+        packageservice_packageservice_packageIdToservice: { include: { service_packageservice_serviceIdToservice: { select: { id: true, name: true } } } },
+        serviceProducts: { include: { product: { select: { id: true, name: true, costPrice: true, stock: true } } } }
+      }
     });
     full = fullRaw ? {
       ...fullRaw,
@@ -1113,7 +1140,15 @@ app.post("/api/services", async (req, res) => {
         ...ps,
         service: ps.service_packageservice_serviceIdToservice
       })) || [],
-      packageservice_packageservice_packageIdToservice: undefined
+      productsConsumed: fullRaw.serviceProducts?.map((sp: any) => ({
+        id: sp.product.id,
+        name: sp.product.name,
+        quantity: sp.quantity,
+        costPrice: sp.product.costPrice,
+        stock: sp.product.stock,
+      })) || [],
+      packageservice_packageservice_packageIdToservice: undefined,
+      serviceProducts: undefined
     } : null;
   } catch (e: any) {
     console.warn("⚠️  findFirst com include falhou, retornando serviço básico:", e.message);
@@ -1126,7 +1161,7 @@ app.post("/api/services", async (req, res) => {
 
 app.put("/api/services/:id", async (req, res) => {
   const tenantId = getTenantId(req);
-  const { name, description, price, duration, type, discount, discountType, includedServices, professionalIds } = req.body;
+  const { name, description, price, duration, type, discount, discountType, includedServices, professionalIds, productsConsumed } = req.body;
   try {
     await (prisma as any).service.updateMany({
       where: { id: req.params.id, tenantId: tenantId || undefined },
@@ -1166,11 +1201,27 @@ app.put("/api/services/:id", async (req, res) => {
       console.error("❌ packageService update failed:", e.message);
     }
   }
+  // Atualiza produtos consumidos
+  if (Array.isArray(productsConsumed)) {
+    try {
+      await (prisma as any).serviceProduct.deleteMany({ where: { serviceId: req.params.id } });
+      for (const p of productsConsumed) {
+        await (prisma as any).serviceProduct.create({
+          data: { id: randomUUID(), serviceId: req.params.id, productId: p.id, quantity: p.quantity || 1 }
+        });
+      }
+    } catch (e: any) {
+      console.error("❌ serviceProduct update failed:", e.message);
+    }
+  }
   let full: any = null;
   try {
     const fullRaw = await (prisma as any).service.findFirst({
       where: { id: req.params.id },
-      include: { packageservice_packageservice_packageIdToservice: { include: { service_packageservice_serviceIdToservice: { select: { id: true, name: true } } } } }
+      include: { 
+        packageservice_packageservice_packageIdToservice: { include: { service_packageservice_serviceIdToservice: { select: { id: true, name: true } } } },
+        serviceProducts: { include: { product: { select: { id: true, name: true, costPrice: true, stock: true } } } }
+      }
     });
     full = fullRaw ? {
       ...fullRaw,
@@ -1178,7 +1229,15 @@ app.put("/api/services/:id", async (req, res) => {
         ...ps,
         service: ps.service_packageservice_serviceIdToservice
       })) || [],
-      packageservice_packageservice_packageIdToservice: undefined
+      productsConsumed: fullRaw.serviceProducts?.map((sp: any) => ({
+        id: sp.product.id,
+        name: sp.product.name,
+        quantity: sp.quantity,
+        costPrice: sp.product.costPrice,
+        stock: sp.product.stock,
+      })) || [],
+      packageservice_packageservice_packageIdToservice: undefined,
+      serviceProducts: undefined
     } : null;
   } catch (e: any) {
     console.warn("⚠️  findFirst com include falhou no PUT, retornando serviço básico:", e.message);
@@ -1490,6 +1549,22 @@ app.get("/api/appointments/client", async (req, res) => {
   }
 });
 
+// ── Helper: Reserva/Libera Estoque a partir de um Serviço ──
+async function handleAppointmentStockReservation(serviceId: string | null, action: 'reserve' | 'release') {
+  if (!serviceId) return;
+  try {
+    const prods = await (prisma as any).serviceProduct.findMany({ where: { serviceId } });
+    for (const p of prods) {
+      await (prisma as any).product.updateMany({
+        where: { id: p.productId },
+        data: { reservedStock: { [action === 'reserve' ? 'increment' : 'decrement']: p.quantity } }
+      });
+    }
+  } catch (e: any) {
+    console.error("[Stock Reservation Error]", e?.message);
+  }
+}
+
 app.post("/api/appointments", async (req, res) => {
   const tenantId = getTenantId(req);
   if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
@@ -1540,6 +1615,12 @@ app.post("/api/appointments", async (req, res) => {
         }
       });
       results.push(appt);
+
+      // Reservar estoque
+      const finalStatus = status || "scheduled";
+      if (finalStatus === "scheduled" || finalStatus === "confirmed") {
+        await handleAppointmentStockReservation(appt.serviceId, "reserve");
+      }
     }
 
     // ── Auto-disparo WPP de confirmação ao criar agendamento no balcão ──
@@ -1558,6 +1639,8 @@ app.put("/api/appointments/:id", async (req, res) => {
   const tenantId = getTenantId(req);
   const { date, startTime, endTime, clientId, serviceId, professionalId, status, notes, duration, type } = req.body;
   try {
+    const oldAppt = await (prisma as any).appointment.findUnique({ where: { id: req.params.id } });
+    
     await (prisma as any).appointment.updateMany({
       where: { id: req.params.id, tenantId: tenantId || undefined },
       data: {
@@ -1581,6 +1664,27 @@ app.put("/api/appointments/:id", async (req, res) => {
         professional: { select: { id: true, name: true } },
       }
     });
+
+    // Lógica de Reserva/Liberação de Estoque
+    if (oldAppt) {
+      const oldIsActive = oldAppt.status === "scheduled" || oldAppt.status === "confirmed";
+      const newIsActive = status === "scheduled" || status === "confirmed";
+      const oldSvc = oldAppt.serviceId;
+      const newSvc = serviceId !== undefined ? serviceId : oldAppt.serviceId;
+
+      if (oldIsActive && !newIsActive) {
+        // Cancelado: devolve ao estoque
+        await handleAppointmentStockReservation(oldSvc, "release");
+      } else if (!oldIsActive && newIsActive) {
+        // Re-agendado: reserva novamente
+        await handleAppointmentStockReservation(newSvc, "reserve");
+      } else if (oldIsActive && newIsActive && oldSvc !== newSvc) {
+        // Mudou de serviço enquanto ativo
+        await handleAppointmentStockReservation(oldSvc, "release");
+        await handleAppointmentStockReservation(newSvc, "reserve");
+      }
+    }
+
     // Disparar WPP de confirmação se status mudou para "confirmed"
     if (status === "confirmed" && appt?.client?.phone && appt.tenantId) {
       fireWppConfirmation(appt.tenantId, appt).catch(() => {});
@@ -1601,7 +1705,10 @@ app.patch("/api/appointments/:id", async (req, res) => {
     }
   }
   try {
+    const oldAppt = await (prisma as any).appointment.findUnique({ where: { id: req.params.id } });
+    
     await (prisma as any).appointment.updateMany({ where: { id: req.params.id, tenantId: tenantId || undefined }, data });
+    
     const appt = await (prisma as any).appointment.findFirst({
       where: { id: req.params.id },
       include: {
@@ -1610,6 +1717,25 @@ app.patch("/api/appointments/:id", async (req, res) => {
         professional: { select: { id: true, name: true } },
       }
     });
+
+    // Lógica de Reserva/Liberação de Estoque no Patch
+    if (oldAppt) {
+      const statusToUse = req.body.status !== undefined ? req.body.status : oldAppt.status;
+      const svcToUse = req.body.serviceId !== undefined ? req.body.serviceId : oldAppt.serviceId;
+
+      const oldIsActive = oldAppt.status === "scheduled" || oldAppt.status === "confirmed";
+      const newIsActive = statusToUse === "scheduled" || statusToUse === "confirmed";
+      
+      if (oldIsActive && !newIsActive) {
+        await handleAppointmentStockReservation(oldAppt.serviceId, "release");
+      } else if (!oldIsActive && newIsActive) {
+        await handleAppointmentStockReservation(svcToUse, "reserve");
+      } else if (oldIsActive && newIsActive && oldAppt.serviceId !== svcToUse) {
+        await handleAppointmentStockReservation(oldAppt.serviceId, "release");
+        await handleAppointmentStockReservation(svcToUse, "reserve");
+      }
+    }
+
     // Disparar WPP de confirmação se status mudou para "confirmed"
     if (req.body.status === "confirmed" && appt?.client?.phone && appt.tenantId) {
       fireWppConfirmation(appt.tenantId, appt).catch(() => {});
@@ -1623,6 +1749,11 @@ app.patch("/api/appointments/:id", async (req, res) => {
 app.delete("/api/appointments/:id", async (req, res) => {
   const tenantId = getTenantId(req);
   try {
+    const oldAppt = await (prisma as any).appointment.findUnique({ where: { id: req.params.id } });
+    if (oldAppt && (oldAppt.status === "scheduled" || oldAppt.status === "confirmed")) {
+      await handleAppointmentStockReservation(oldAppt.serviceId, "release");
+    }
+
     await (prisma as any).appointment.deleteMany({ where: { id: req.params.id, tenantId: tenantId || undefined } });
     res.json({ success: true });
   } catch (e: any) {
@@ -1840,7 +1971,7 @@ app.put("/api/comandas/:id", async (req, res) => {
         console.warn("⚠️ Auto CashEntry creation failed:", e2.message);
       }
 
-      // 2. Deduz estoque com base nas receitas de consumo dos serviços
+      // 2. Deduz estoque com base nos receitas de consumo dos serviços (usando ServiceProduct)
       try {
         const svcItems: any[] = await (prisma as any).$queryRawUnsafe(
           `SELECT ci.serviceId, ci.quantity FROM ComandaItem ci WHERE ci.comandaId = ? AND ci.serviceId IS NOT NULL`,
@@ -1848,20 +1979,27 @@ app.put("/api/comandas/:id", async (req, res) => {
         );
         for (const item of svcItems) {
           if (!item.serviceId) continue;
-          const recipes: any[] = await (prisma as any).$queryRawUnsafe(
-            `SELECT productId, quantity FROM ServiceConsumption WHERE serviceId = ?`,
-            item.serviceId
-          );
-          for (const recipe of recipes) {
-            const totalDeduct = recipe.quantity * (Number(item.quantity) || 1);
+          
+          // Busca os produtos vinculados a este serviço (receita)
+          const serviceProds = await (prisma as any).serviceProduct.findMany({
+            where: { serviceId: item.serviceId }
+          });
+
+          for (const sp of serviceProds) {
+            const totalDeduct = sp.quantity * (Number(item.quantity) || 1);
+            
+            // Abate do estoque real E limpa da reserva (pois agora foi "consumido")
             await (prisma as any).$executeRawUnsafe(
-              `UPDATE Product SET stock = GREATEST(0, stock - ?) WHERE id = ?`,
-              totalDeduct, recipe.productId
+              `UPDATE Product SET 
+                stock = GREATEST(0, stock - ?),
+                reservedStock = GREATEST(0, reservedStock - ?)
+               WHERE id = ?`,
+              totalDeduct, totalDeduct, sp.productId
             );
           }
         }
       } catch (e2: any) {
-        console.warn("⚠️ Auto stock deduction failed:", e2.message);
+        console.warn("⚠️  Auto stock deduction failed:", e2.message);
       }
     }
 

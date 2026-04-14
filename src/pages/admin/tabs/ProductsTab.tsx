@@ -631,10 +631,15 @@ export function ProductsTab({
                                   : "text-zinc-900"
                               )}
                             >
-                              {p.stock}
+                              {p.stock - (p.reservedStock || 0)}
                             </span>
-                            <span className="text-[10px] font-bold text-zinc-400">{p.unit || "un"}</span>
-                            <span className="text-[10px] font-bold text-zinc-300 ml-1">/ mín {p.minStock}</span>
+                            <span className="text-[10px] font-bold text-zinc-400">{p.unit || "un"} livre</span>
+                            {p.reservedStock > 0 && (
+                              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100 ml-1">
+                                {p.reservedStock} res.
+                              </span>
+                            )}
+                            <span className="text-[10px] font-bold text-zinc-300 ml-1">/ tot {p.stock}</span>
                           </div>
                           <div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
                             <div

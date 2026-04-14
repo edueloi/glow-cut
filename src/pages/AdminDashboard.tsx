@@ -857,7 +857,8 @@ export default function AdminDashboard() {
     discount: "0",
     discountType: "value" as "value" | "percentage",
     includedServices: [] as { id: string, name: string, quantity: number, price?: number, type?: string, sessions?: number }[],
-    professionalIds: [] as string[]
+    professionalIds: [] as string[],
+    productsConsumed: [] as { id: string, name: string, quantity: number, costPrice?: number, stock?: number }[]
   });
 
   // Comanda detail view
@@ -981,7 +982,7 @@ export default function AdminDashboard() {
     }
     setIsServiceModalOpen(false);
     setEditingService(null);
-    setNewService({ name: "", description: "", price: "", duration: "", type: "service", discount: "0", discountType: "value", includedServices: [], professionalIds: [] });
+    setNewService({ name: "", description: "", price: "", duration: "", type: "service", discount: "0", discountType: "value", includedServices: [], professionalIds: [], productsConsumed: [] });
     apiFetch("/api/services").then(res => res.json()).then(d => setServices(Array.isArray(d) ? d : []));
   };
 
@@ -1859,6 +1860,57 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+
+          {/* Controle de Custo / Produtos Consumidos */}
+          <div className="space-y-1.5 border-t border-zinc-100 pt-4 mt-4">
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] font-black text-amber-600 uppercase tracking-[0.1em]">🛒 Controle de Custo</label>
+              <span className="text-[9px] font-medium text-zinc-400">Produtos usados neste serviço</span>
+            </div>
+            
+            {(newService.productsConsumed || []).length > 0 && (
+              <div className="text-[10px] font-bold text-zinc-500 mb-1 flex items-center justify-between px-1">
+                <span>Custo Previsto: R$ {(newService.productsConsumed || []).reduce((acc: number, p: any) => acc + ((Number(p.costPrice) || 0) * (Number(p.quantity) || 1)), 0).toFixed(2)}</span>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              {(newService.productsConsumed || []).map((pc: any, idx: number) => (
+                <div key={idx} className="flex gap-2 items-center bg-zinc-50 border border-zinc-200 p-2 rounded-xl">
+                  <div className="flex-1 truncate text-xs font-bold text-zinc-700">{pc.name} <span className="text-[9px] font-normal text-zinc-400 ml-1">(Estoque: {pc.stock})</span></div>
+                  <div className="flex items-center gap-1">
+                    <input type="number" min="0.01" step="0.01" className="w-16 py-1.5 px-1 text-xs text-center border border-zinc-200 bg-white rounded-lg outline-none focus:border-amber-400" value={pc.quantity} onChange={e => {
+                      const newProd = [...newService.productsConsumed];
+                      newProd[idx].quantity = parseFloat(e.target.value) || 0;
+                      setNewService({...newService, productsConsumed: newProd});
+                    }} />
+                    <span className="text-[9px] text-zinc-400 font-bold uppercase">Und</span>
+                  </div>
+                  <button type="button" onClick={() => {
+                    setNewService({...newService, productsConsumed: (newService.productsConsumed || []).filter((_: any, i: number) => i !== idx)});
+                  }} className="text-zinc-400 hover:text-red-500 p-1.5 bg-white border border-zinc-200 hover:border-red-200 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={13}/></button>
+                </div>
+              ))}
+              <div className="relative">
+                <select className="w-full text-xs p-3 bg-white border border-dashed border-zinc-300 hover:border-amber-400 rounded-xl text-zinc-500 font-bold outline-none appearance-none transition-all cursor-pointer" onChange={e => {
+                  const pId = e.target.value;
+                  if (!pId) return;
+                  const prod = products.find((p: any) => p.id === pId);
+                  if (prod && !(newService.productsConsumed || []).find((x: any) => x.id === pId)) {
+                    setNewService({...newService, productsConsumed: [...(newService.productsConsumed || []), {id: prod.id, name: prod.name, quantity: 1, costPrice: prod.costPrice, stock: prod.stock}]});
+                  }
+                  e.target.value = "";
+                }}>
+                  <option value="">+ Adicionar Produto do Estoque...</option>
+                  {products.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name} (Esq: {p.stock}) - Custo: R$ {Number(p.costPrice || 0).toFixed(2)}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-300 pointer-events-none"><Plus size={14}/></div>
+              </div>
+            </div>
+          </div>
+
 
           <Button
             className="w-full bg-zinc-900 hover:bg-black text-white rounded-xl py-3 text-xs font-black shadow-sm transition-all flex items-center justify-center gap-2"

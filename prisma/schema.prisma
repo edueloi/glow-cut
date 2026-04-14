@@ -121,22 +121,25 @@ model PackageService {
 }
 
 model Product {
-  id           String        @id @db.VarChar(36)
-  name         String        @db.VarChar(255)
-  description  String?       @db.Text
-  photo        String?       @db.Text
-  costPrice    Float         @default(0)
-  salePrice    Float         @default(0)
-  stock        Int           @default(0)
-  minStock     Int           @default(0)
-  validUntil   DateTime?     @db.DateTime(0)
-  code         String?       @db.VarChar(100)
-  isForSale    Boolean       @default(true)
-  tenantId     String?       @db.VarChar(36)
-  sectorId     String?       @db.VarChar(36)
-  metadata     String?       @db.Text
-  createdAt    DateTime      @default(now()) @db.DateTime(0)
-  comandaItem  ComandaItem[]
+  id              String           @id @db.VarChar(36)
+  name            String           @db.VarChar(255)
+  description     String?          @db.Text
+  photo           String?          @db.Text
+  costPrice       Float            @default(0)
+  salePrice       Float            @default(0)
+  stock           Int              @default(0)
+  reservedStock   Int              @default(0)
+  minStock        Int              @default(0)
+  unit            String           @default("un") @db.VarChar(20)
+  validUntil      DateTime?        @db.DateTime(0)
+  code            String?          @db.VarChar(100)
+  isForSale       Boolean          @default(true)
+  tenantId        String?          @db.VarChar(36)
+  sectorId        String?          @db.VarChar(36)
+  metadata        String?          @db.Text
+  createdAt       DateTime         @default(now()) @db.DateTime(0)
+  comandaItem     ComandaItem[]
+  serviceProducts ServiceProduct[]
 
   @@index([tenantId], map: "idx_product_tenant")
 }
@@ -210,10 +213,24 @@ model Service {
   createdAt                                        DateTime         @default(now()) @db.DateTime(0)
   appointment                                      Appointment[]
   comandaItem                                      ComandaItem[]
+  serviceProducts                                  ServiceProduct[]
   packageservice_packageservice_packageIdToservice PackageService[] @relation("packageservice_packageIdToservice")
   packageservice_packageservice_serviceIdToservice PackageService[] @relation("packageservice_serviceIdToservice")
 
   @@index([tenantId], map: "idx_service_tenant")
+}
+
+model ServiceProduct {
+  id        String  @id @db.VarChar(36)
+  serviceId String  @db.VarChar(36)
+  productId String  @db.VarChar(36)
+  quantity  Float   @default(1)
+
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId], map: "idx_svcprod_service")
+  @@index([productId], map: "idx_svcprod_product")
 }
 
 model WorkingHours {
