@@ -1031,7 +1031,6 @@ app.get("/api/services", async (req, res) => {
       servicesRaw = await (prisma as any).service.findMany({
         where: { tenantId },
         include: {
-        include: {
           packageservice_packageservice_packageIdToservice: {
             include: { service_packageservice_serviceIdToservice: { select: { id: true, name: true, duration: true, price: true } } }
           },
