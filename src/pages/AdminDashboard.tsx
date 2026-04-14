@@ -1184,19 +1184,45 @@ export default function AdminDashboard() {
       )}
 
       {/* ── Overlay mobile sidebar ──────────────────────────── */}
-      {isSidebarOpen && (
-        <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
-      )}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-zinc-900/40 backdrop-blur-sm lg:hidden" 
+            onClick={() => setIsSidebarOpen(false)} 
+          />
+        )}
+      </AnimatePresence>
 
       {/* Sidebar */}
       <aside className={cn(
-        "bg-white border-r border-zinc-200 flex flex-col z-50 shadow-sm transition-all duration-300",
-        "fixed inset-y-0 left-0 lg:relative lg:translate-x-0",
+        "bg-white border-r border-zinc-200 flex flex-col z-[70] shadow-2xl transition-all duration-300",
+        "fixed inset-y-0 left-0 lg:relative lg:translate-x-0 lg:shadow-none",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         sidebarCollapsed ? "lg:w-[72px]" : "w-72"
       )}>
-        {/* Logo */}
-        <div className={cn("p-4 flex items-center transition-all duration-300", sidebarCollapsed ? "justify-center" : "p-8")}>
+        {/* Mobile Header Sidebar */}
+        <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-50 bg-zinc-50/50">
+          <div className="flex items-center gap-2">
+            <img src={logoFavicon} alt="Agendelle" className="w-6 h-6 object-contain" />
+            <span className="text-sm font-black text-zinc-900 uppercase tracking-tighter">Agendelle</span>
+          </div>
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-2 rounded-xl bg-white border border-zinc-200 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-all shadow-sm"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Logo (Desktop / Mobile body) */}
+        <div className={cn(
+          "flex items-center transition-all duration-300", 
+          sidebarCollapsed ? "p-4 justify-center" : "p-8",
+          "hidden lg:flex" // Esconde no mobile para usar o header compacto acima
+        )}>
           <div className="flex items-center gap-3">
             <div className={cn("bg-zinc-50 rounded-xl flex items-center justify-center border border-zinc-100 shadow-sm shrink-0", sidebarCollapsed ? "w-10 h-10 p-1.5" : "w-11 h-11 p-2")}>
               <img src={logoFavicon} alt="Agendelle" className="w-full h-full object-contain" />
@@ -1210,7 +1236,10 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <nav className={cn("flex-1 space-y-1 scrollbar-hide transition-all duration-300", sidebarCollapsed ? "px-2 overflow-visible" : "px-4 overflow-y-auto")}>
+        <nav className={cn(
+          "flex-1 space-y-1 scrollbar-hide transition-all duration-300 pt-4 lg:pt-0",
+          sidebarCollapsed ? "px-2 overflow-visible" : "px-4 overflow-y-auto"
+        )}>
           {!sidebarCollapsed && (
             <div className="px-4 mb-4">
               <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Principal</p>
@@ -1397,10 +1426,13 @@ export default function AdminDashboard() {
               <AnimatePresence>
                 {isNotificationsOpen && (
                   <>
-                    {/* Backdrop para fechar ao clicar fora */}
+                    {/* Backdrop para fechar ao clicar fora - z-index alto para cobrir tudo abaixo do alerta */}
                     <div 
-                      className="fixed inset-0 z-[54] bg-black/5" 
-                      onClick={() => setIsNotificationsOpen(false)} 
+                      className="fixed inset-0 z-[60] bg-zinc-900/10 backdrop-blur-[1px]" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsNotificationsOpen(false);
+                      }} 
                     />
                     
                     <motion.div
@@ -1408,11 +1440,9 @@ export default function AdminDashboard() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
                       className={cn(
-                        "fixed md:absolute z-[55] mt-3 overflow-hidden bg-white border border-zinc-100 rounded-3xl",
-                        "shadow-[0_20px_50px_rgba(0,0,0,0.15)]",
-                        // Mobile: Centralizado na tela
+                        "fixed md:absolute z-[70] mt-3 overflow-hidden bg-white border border-zinc-100 rounded-3xl",
+                        "shadow-[0_20px_60px_rgba(0,0,0,0.25)]",
                         "left-4 right-4 top-20 md:top-full",
-                        // Desktop: Alinhado à direita do botão
                         "md:left-auto md:right-0 md:w-[320px]"
                       )}
                     >
@@ -1421,7 +1451,10 @@ export default function AdminDashboard() {
                         <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-2 py-0.5 rounded-full">2 Novas</span>
                       </div>
                       <div className="max-h-[350px] overflow-y-auto">
-                        <div className="p-4 border-b border-zinc-50 hover:bg-zinc-50 transition-colors cursor-pointer group">
+                        <div 
+                          className="p-4 border-b border-zinc-50 hover:bg-zinc-50 transition-colors cursor-pointer group"
+                          onClick={() => setIsNotificationsOpen(false)}
+                        >
                           <div className="flex gap-3">
                             <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
                               <CheckCircle size={16} />
@@ -1432,7 +1465,10 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                         </div>
-                        <div className="p-4 border-b border-zinc-50 hover:bg-zinc-50 transition-colors cursor-pointer group">
+                        <div 
+                          className="p-4 border-b border-zinc-50 hover:bg-zinc-50 transition-colors cursor-pointer group"
+                          onClick={() => setIsNotificationsOpen(false)}
+                        >
                           <div className="flex gap-3">
                             <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
                               <AlertTriangle size={16} />
@@ -1444,7 +1480,10 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       </div>
-                      <button className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 transition-all border-t border-zinc-50">
+                      <button 
+                        onClick={() => setIsNotificationsOpen(false)}
+                        className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 transition-all border-t border-zinc-50"
+                      >
                         Ver Tudo
                       </button>
                     </motion.div>
