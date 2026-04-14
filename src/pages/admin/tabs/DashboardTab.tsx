@@ -8,7 +8,7 @@ import {
 import {
   DollarSign, CalendarIcon, UserPlus, TrendingUp, Cake,
   Eye, EyeOff, Plus, Receipt, Users, BarChart2, Scissors,
-  ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Zap, Trophy, Star
+  ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Zap, Trophy, Star, Activity
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { calculateAge } from "@/src/lib/masks";
@@ -38,8 +38,8 @@ const PROF_COLORS = ["#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899"];
 
 type StatPeriod = "today" | "week" | "month";
 
-function StatCard({ title, value, icon: Icon, description, hidden }: {
-  title: string; value: string; icon: any; description?: string; hidden?: boolean;
+function StatCard({ title, value, icon: Icon, description, hidden, accent = "amber" }: {
+  title: string; value: string; icon: any; description?: string; hidden?: boolean; accent?: "emerald" | "red" | "amber";
 }) {
   return (
     <div className="bg-white rounded-2xl border border-zinc-200 p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -50,7 +50,12 @@ function StatCard({ title, value, icon: Icon, description, hidden }: {
             {hidden ? "••••" : value}
           </p>
         </div>
-        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shrink-0">
+        <div className={cn(
+          "w-9 h-9 sm:w-10 sm:h-10 rounded-xl border flex items-center justify-center shrink-0",
+          accent === "emerald" ? "bg-emerald-50 border-emerald-100 text-emerald-500" :
+          accent === "red" ? "bg-red-50 border-red-100 text-red-500" :
+          "bg-amber-50 border-amber-100 text-amber-500"
+        )}>
           <Icon size={18} />
         </div>
       </div>
