@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { PermissionsProvider } from "@/src/contexts/PermissionsContext";
+import { fullPermissions, type PermissionSet } from "@/src/lib/permissions";
 import ClientBooking from "./pages/ClientBooking";
 import PATQueue from "./pages/PATQueue";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -255,6 +256,45 @@ function LoginPage() {
   );
 }
 
+// ── Converte permissões do backend (vários formatos) para PermissionSet ──────
+function parsePermissions(raw: any): PermissionSet | null {
+  if (!raw) return null;
+
+  // Já é um objeto PermissionSet (formato {module: {action: true}})
+  if (typeof raw === "object" && !Array.isArray(raw)) return raw as PermissionSet;
+
+  // É uma string JSON — precisa ser parseada
+  let parsed: any = raw;
+  if (typeof raw === "string") {
+    try { parsed = JSON.parse(raw); } catch { return null; }
+  }
+
+  // ["all"] → acesso total
+  if (Array.isArray(parsed) && parsed.length === 1 && parsed[0] === "all") {
+    return fullPermissions();
+  }
+
+  // Array flat ["module.action", ...] → converter para PermissionSet
+  if (Array.isArray(parsed)) {
+    const result: PermissionSet = {};
+    for (const key of parsed) {
+      if (typeof key !== "string") continue;
+      const dot = key.indexOf(".");
+      if (dot === -1) continue;
+      const mod = key.slice(0, dot) as any;
+      const action = key.slice(dot + 1) as any;
+      if (!result[mod]) result[mod] = {} as any;
+      (result[mod] as any)[action] = true;
+    }
+    return result;
+  }
+
+  // Objeto PermissionSet chegou como string parseada
+  if (typeof parsed === "object" && !Array.isArray(parsed)) return parsed as PermissionSet;
+
+  return null;
+}
+
 // ── Wrapper do admin que injeta as permissões do usuário logado ──────────────
 function AdminWithPermissions() {
   const adminUser = (() => {
@@ -268,9 +308,12 @@ function AdminWithPermissions() {
     : adminUser.role === "manager" ? "Gerente"
     : "Usuário");
 
+  // permissions pode ser: null, string JSON, array, ou objeto — normalizar tudo
+  const permissions = parsePermissions(adminUser.permissions);
+
   return (
     <PermissionsProvider
-      permissions={adminUser.permissions ?? null}
+      permissions={permissions}
       roleLabel={roleLabel}
     >
       <AdminDashboard />
