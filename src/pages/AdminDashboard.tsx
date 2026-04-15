@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
+import { useAuth } from "@/src/App";
 import { 
   Calendar as CalendarIcon,
   Scissors,
@@ -133,9 +134,9 @@ import {
 
 // ── Componente de item de navegação da sidebar ──────────────────────────────
 export default function AdminDashboard() {
-  const adminUser = (() => { try { return JSON.parse(localStorage.getItem("adminUser") || "{}"); } catch { return {}; } })();
-  const [tenantName, setTenantName] = useState<string>(adminUser.tenantName || "Studio Admin");
-  const [tenantSlug, setTenantSlug] = useState<string>(adminUser.tenantSlug || "");
+  const { user: adminUser, logout } = useAuth();
+  const [tenantName, setTenantName] = useState<string>(adminUser?.tenantName || "Studio Admin");
+  const [tenantSlug, setTenantSlug] = useState<string>(adminUser?.tenantSlug || "");
   const location = useLocation();
 
   // Sub-aba de profissionais
@@ -365,7 +366,7 @@ export default function AdminDashboard() {
   const [profPasswordVisible, setProfPasswordVisible] = useState(false);
 
   // Perfis de permissão (salvos em localStorage por tenant)
-  const permProfilesKey = `${adminUser.tenantId}:permissionProfiles`;
+  const permProfilesKey = `${adminUser?.tenantId}:permissionProfiles`;
   const [permissionProfiles, setPermissionProfiles] = useState<{ id: string; name: string; permissions: Record<string, Record<string, boolean>> }[]>(() => {
     try { return JSON.parse(localStorage.getItem(permProfilesKey) || "[]"); } catch { return []; }
   });
@@ -936,7 +937,7 @@ export default function AdminDashboard() {
   const [isComandaDetailOpen, setIsComandaDetailOpen] = useState(false);
 
   // User preferences — chaveadas por userId para isolar preferências por usuário
-  const userPrefsKey = `prefs:${adminUser.id || 'default'}`;
+  const userPrefsKey = `prefs:${adminUser?.id || 'default'}`;
   const loadUserPrefs = () => { try { return JSON.parse(localStorage.getItem(userPrefsKey) || '{}'); } catch { return {}; } };
   const saveUserPref = (key: string, value: any) => {
     const prefs = loadUserPrefs();
@@ -1258,11 +1259,7 @@ export default function AdminDashboard() {
         isNotificationsOpen={isNotificationsOpen}
         isProfileMenuOpen={isProfileMenuOpen}
         isSidebarOpen={isSidebarOpen}
-        onLogout={() => {
-          localStorage.removeItem("isLogged");
-          localStorage.removeItem("adminUser");
-          window.location.href = "/login";
-        }}
+        onLogout={logout}
         onSubModuleChange={handleSubModuleChange}
         profileMenuRef={profileMenuRef}
         setIsNotificationsOpen={setIsNotificationsOpen}

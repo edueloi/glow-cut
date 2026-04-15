@@ -1,9 +1,14 @@
 import { Router } from "express";
 import { agendaController } from "../controllers/agendaController";
 
+// Rotas que NÃO precisam de autenticação (públicas)
+export const agendaPublicRouter = Router();
+agendaPublicRouter.get("/pat/:professionalId", agendaController.getPatQueue);
+agendaPublicRouter.get("/availability", agendaController.getAvailability);
+
+// Rotas protegidas
 export const agendaRouter = Router();
 
-agendaRouter.get("/availability", agendaController.getAvailability);
 agendaRouter.get("/calendar-status", agendaController.getCalendarStatus);
 agendaRouter.get("/appointments", agendaController.list);
 agendaRouter.get("/appointments/client", agendaController.clientAppointments);
@@ -13,9 +18,6 @@ agendaRouter.patch("/appointments/:id", agendaController.patch);
 agendaRouter.delete("/appointments/:id", agendaController.delete);
 agendaRouter.get("/appointments/group/:groupId", agendaController.getGroup);
 agendaRouter.delete("/appointments/batch", agendaController.batchDelete);
-
-// PAT público (sem autenticação)
-agendaRouter.get("/pat/:professionalId", agendaController.getPatQueue);
 
 // Settings
 agendaRouter.get("/settings/agenda", agendaController.getSettings);

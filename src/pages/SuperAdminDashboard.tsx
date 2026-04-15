@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/src/lib/utils";
+import { apiFetch } from "@/src/lib/api";
 import {
   LayoutDashboard, Users, Building2, CreditCard,
   LogOut, Plus, Edit2, Trash2, X, Check, ChevronDown,
@@ -126,7 +127,7 @@ function DashboardTab() {
   const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
-    fetch("/api/super-admin/stats").then(r => r.json()).then(setStats);
+    apiFetch("/api/super-admin/stats").then(r => r.json()).then(setStats);
   }, []);
 
   if (!stats) return <div className="flex items-center justify-center h-40 text-zinc-400 text-xs font-bold">Carregando...</div>;
@@ -180,7 +181,7 @@ function PlansTab() {
   const [form, setForm] = useState<any>(emptyForm);
 
   const load = useCallback(async () => {
-    const r = await fetch("/api/super-admin/plans");
+    const r = await apiFetch("/api/super-admin/plans");
     setPlans(await r.json());
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -201,19 +202,19 @@ function PlansTab() {
       features: form.features.split("\n").map((s: string) => s.trim()).filter(Boolean),
     };
     const url = editing ? `/api/super-admin/plans/${editing.id}` : "/api/super-admin/plans";
-    await fetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    await apiFetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setModal(false);
     load();
   };
 
   const del = async (id: string) => {
     if (!confirm("Excluir este plano?")) return;
-    await fetch(`/api/super-admin/plans/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/super-admin/plans/${id}`, { method: "DELETE" });
     load();
   };
 
   const toggle = async (p: any) => {
-    await fetch(`/api/super-admin/plans/${p.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...p, features: JSON.parse(p.features || "[]"), isActive: !p.isActive }) });
+    await apiFetch(`/api/super-admin/plans/${p.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...p, features: JSON.parse(p.features || "[]"), isActive: !p.isActive }) });
     load();
   };
 
@@ -371,7 +372,7 @@ function TenantsTab({ plans }: { plans: any[] }) {
   };
 
   const load = useCallback(async () => {
-    const r = await fetch("/api/super-admin/tenants");
+    const r = await apiFetch("/api/super-admin/tenants");
     setTenants(await r.json());
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -400,7 +401,7 @@ function TenantsTab({ plans }: { plans: any[] }) {
     if (payload.maxAdminUsersOverride === "") payload.maxAdminUsersOverride = null;
     if (payload.expiresAt === "") payload.expiresAt = null;
     const url = editing ? `/api/super-admin/tenants/${editing.id}` : "/api/super-admin/tenants";
-    const r = await fetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const r = await apiFetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     if (!r.ok) { const e = await r.json(); alert(e.error); return; }
     setModal(false);
     load();
@@ -410,13 +411,13 @@ function TenantsTab({ plans }: { plans: any[] }) {
   
   const confirmDel = async () => {
     if (!deleteConfirm) return;
-    await fetch(`/api/super-admin/tenants/${deleteConfirm.id}`, { method: "DELETE" });
+    await apiFetch(`/api/super-admin/tenants/${deleteConfirm.id}`, { method: "DELETE" });
     setDeleteConfirm(null);
     load();
   };
 
   const toggleActive = async (t: any) => {
-    await fetch(`/api/super-admin/tenants/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !t.isActive }) });
+    await apiFetch(`/api/super-admin/tenants/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !t.isActive }) });
     load();
   };
 
@@ -624,7 +625,7 @@ function UsersTab({ tenants }: { tenants: any[] }) {
   const [form, setForm] = useState<any>(emptyForm);
 
   const load = useCallback(async () => {
-    const r = await fetch("/api/super-admin/admin-users");
+    const r = await apiFetch("/api/super-admin/admin-users");
     setUsers(await r.json());
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -640,7 +641,7 @@ function UsersTab({ tenants }: { tenants: any[] }) {
 
   const save = async () => {
     const url = editing ? `/api/super-admin/admin-users/${editing.id}` : "/api/super-admin/admin-users";
-    const r = await fetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const r = await apiFetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
     if (!r.ok) { const e = await r.json(); alert(e.error); return; }
     setModal(false);
     load();
@@ -648,12 +649,12 @@ function UsersTab({ tenants }: { tenants: any[] }) {
 
   const del = async (id: string) => {
     if (!confirm("Excluir este usuário?")) return;
-    await fetch(`/api/super-admin/admin-users/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/super-admin/admin-users/${id}`, { method: "DELETE" });
     load();
   };
 
   const toggleActive = async (u: any) => {
-    await fetch(`/api/super-admin/admin-users/${u.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...u, isActive: !u.isActive }) });
+    await apiFetch(`/api/super-admin/admin-users/${u.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...u, isActive: !u.isActive }) });
     load();
   };
 
@@ -814,7 +815,7 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
   const [filterTenant, setFilterTenant] = useState("all");
 
   const load = useCallback(async () => {
-    const r = await fetch("/api/super-admin/admin-users");
+    const r = await apiFetch("/api/super-admin/admin-users");
     setUsers(await r.json());
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -850,7 +851,7 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
       canCreateUsers: permissions.includes("criar_usuarios"),
       canDeleteAccount: permissions.includes("excluir_conta"),
     };
-    await fetch(`/api/super-admin/admin-users/${selectedUser.id}`, {
+    await apiFetch(`/api/super-admin/admin-users/${selectedUser.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -984,7 +985,7 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
    ABA: EQUIPE (STAFF)
    Acesso interno à plataforma (outros Super Admins)
 ═══════════════════════════════════════════ */
-function StaffTab() {
+function StaffTab({ username }: { username: string }) {
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(false);
@@ -992,11 +993,10 @@ function StaffTab() {
   const [showPass, setShowPass] = useState(false);
   const [form, setForm] = useState({ username: "", password: "" });
 
-  const sessionUser = (() => { try { return JSON.parse(localStorage.getItem("superAdminLogged") || "{}").username || ""; } catch { return ""; } })();
-  const isMaster = sessionUser.toLowerCase() === "admin" || sessionUser.toLowerCase() === "flavio_sikorsky";
+  const isMaster = username.toLowerCase() === "admin" || username.toLowerCase() === "flavio_sikorsky";
 
   const load = useCallback(async () => {
-    const r = await fetch("/api/super-admin/staff");
+    const r = await apiFetch("/api/super-admin/staff");
     setUsers(await r.json());
   }, []);
 
@@ -1004,7 +1004,7 @@ function StaffTab() {
 
   const save = async () => {
     const url = editing ? `/api/super-admin/staff/${editing.id}` : "/api/super-admin/staff";
-    const r = await fetch(url, {
+    const r = await apiFetch(url, {
       method: editing ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form)
@@ -1016,13 +1016,13 @@ function StaffTab() {
 
   const del = async (id: string) => {
     if (!confirm("Excluir este acesso administrativo?")) return;
-    await fetch(`/api/super-admin/staff/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/super-admin/staff/${id}`, { method: "DELETE" });
     load();
   };
 
   const openForm = (u?: any) => {
     if (!isMaster && !u) return; // Não adm não pode criar novo
-    if (!isMaster && u && u.username !== sessionUser) return; // Não adm não pode editar os outros
+    if (!isMaster && u && u.username !== username) return; // Não adm não pode editar os outros
     
     setEditing(u || null);
     setForm({ username: u?.username || "", password: "" });
@@ -1066,10 +1066,10 @@ function StaffTab() {
                 <td className="px-4 py-3 text-[11px] text-zinc-500">{new Date(u.createdAt).toLocaleDateString("pt-BR")}</td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1">
-                    {(isMaster || u.username === sessionUser) && (
+                    {(isMaster || u.username === username) && (
                       <button onClick={() => openForm(u)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors"><Edit2 size={13} /></button>
                     )}
-                    {isMaster && u.username !== sessionUser && (
+                    {isMaster && u.username !== username && (
                       <button onClick={() => del(u.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
                     )}
                   </div>
@@ -1271,8 +1271,8 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/super-admin/plans").then(r => r.json()).then(setPlans);
-    fetch("/api/super-admin/tenants").then(r => r.json()).then(setTenants);
+    apiFetch("/api/super-admin/plans").then(r => r.json()).then(setPlans);
+    apiFetch("/api/super-admin/tenants").then(r => r.json()).then(setTenants);
   }, []);
 
   return (
@@ -1316,7 +1316,7 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
           {tab === "tenants"     && <TenantsTab plans={plans} />}
           {tab === "users"       && <UsersTab tenants={tenants} />}
           {tab === "permissions" && <PermissionsTab tenants={tenants} />}
-          {tab === "staff"       && <StaffTab />}
+          {tab === "staff"       && <StaffTab username={username} />}
           {tab === "profile"     && <ProfileTab username={username} />}
         </div>
       </main>

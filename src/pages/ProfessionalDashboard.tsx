@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/src/App";
 import {
   CalendarIcon, Scissors, Clock, LogOut,
   ChevronLeft, ChevronRight, UserCog, Check,
@@ -900,6 +901,7 @@ function ServicesSection({ prof }: { prof: ProfData }) {
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
 export default function ProfessionalDashboard() {
+  const { user: authUser, logout } = useAuth();
   const [prof, setProf] = useState<ProfData | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [comandasForDash, setComandasForDash] = useState<Comanda[]>([]);
@@ -908,15 +910,12 @@ export default function ProfessionalDashboard() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("dashboard");
 
-  // Load prof from localStorage
+  // Carrega prof do AuthContext (já validado pelo RequireProfessional)
   useEffect(() => {
-    const stored = localStorage.getItem("professionalLogged");
-    if (stored) {
-      setProf(JSON.parse(stored));
-    } else {
-      window.location.href = "/login";
+    if (authUser) {
+      setProf(authUser as any);
     }
-  }, []);
+  }, [authUser]);
 
   // Parse permissions
   const perms = prof ? parsePerms(prof.permissions) : {};
@@ -1015,10 +1014,7 @@ export default function ProfessionalDashboard() {
     }
   }, [activeTab, prof]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("professionalLogged");
-    window.location.href = "/login";
-  };
+  const handleLogout = logout;
 
   if (!prof) return null;
 

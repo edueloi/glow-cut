@@ -2,7 +2,7 @@ import React from "react";
 import { Globe, Copy, ExternalLink, Image as ImageIcon, Link as LinkIcon, X, MapPin, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
 import { cn } from "@/src/lib/utils";
-
+import { apiFetch } from "@/src/lib/api";
 import { useToast } from "@/src/components/ui/Toast";
 
 interface MinhaAgendaTabProps {
@@ -49,17 +49,10 @@ export function MinhaAgendaTab({
   const [isLoading, setIsLoading] = React.useState(false);
   const [studioName, setStudioName] = React.useState(propStudioName);
 
-  const adminUser = (() => { try { return JSON.parse(localStorage.getItem("adminUser") || "{}"); } catch { return {}; } })();
-  const headers = { 
-    "Authorization": `Bearer ${adminUser.token}`,
-    "Content-Type": "application/json", 
-    "x-tenant-id": adminUser.tenantId || "" 
-  };
-
   React.useEffect(() => {
     const fetchBranding = async () => {
       try {
-        const res = await fetch("/api/admin/tenant", { headers });
+        const res = await apiFetch("/api/admin/tenant");
         if (res.ok) {
           const t = await res.json();
           setLogoPreview(t.logoUrl || null);
@@ -78,14 +71,13 @@ export function MinhaAgendaTab({
       }
     };
     fetchBranding();
-  }, [adminUser.tenantId]);
+  }, []);
 
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/admin/tenant/branding", {
+      const res = await apiFetch("/api/admin/tenant/branding", {
         method: "POST",
-        headers,
         body: JSON.stringify({
           themeColor: localColor,
           logoUrl: logoPreview,
@@ -120,19 +112,18 @@ export function MinhaAgendaTab({
   const [isCreatingProfessional, setIsCreatingProfessional] = React.useState(false);
 
   React.useEffect(() => {
-    fetch("/api/professionals", { headers })
+    apiFetch("/api/professionals")
       .then(r => r.ok ? r.json() : [])
       .then(d => setHasProfessionals(Array.isArray(d) && d.length > 0));
-  }, [adminUser.tenantId]);
+  }, []);
 
   const handleCreateAdminAsProfessional = async () => {
     setIsCreatingProfessional(true);
     try {
-      const res = await fetch("/api/professionals", {
+      const res = await apiFetch("/api/professionals", {
         method: "POST",
-        headers,
         body: JSON.stringify({
-          name: adminUser.name || studioName,
+          name: studioName,
           role: "Proprietário",
           password: "prof123",
           isActive: true,
@@ -159,9 +150,8 @@ export function MinhaAgendaTab({
         reader.onload = async () => {
           try {
             const base64 = reader.result as string;
-            const res = await fetch("/api/admin/upload", {
+            const res = await apiFetch("/api/admin/upload", {
               method: "POST",
-              headers,
               body: JSON.stringify({ data: base64, mimeType: file.type }),
             });
             if (res.ok) {

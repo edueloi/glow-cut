@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useAuth } from "@/src/App";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
 import {
@@ -516,21 +517,15 @@ function AvatarUpload({
     reader.onload = async (ev) => {
       const base64 = ev.target?.result as string;
       try {
-        const stored = localStorage.getItem("adminUser");
-        const adminUser = stored ? JSON.parse(stored) : null;
         const res = await apiFetch("/api/admin/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data: base64, mimeType, tenantId: adminUser?.tenantId }),
+          body: JSON.stringify({ data: base64, mimeType }),
         });
         if (!res.ok) throw new Error();
         const { url } = await res.json();
         onPhotoChange(url);
-        if (adminUser) {
-          localStorage.setItem("adminUser", JSON.stringify({ ...adminUser, photo: url }));
-        }
       } catch {
-        // fallback: usa base64 localmente se upload falhar
         onPhotoChange(base64);
       }
     };
@@ -561,7 +556,7 @@ function AvatarUpload({
       </div>
       {photo && (
         <button
-          onClick={(e) => { e.stopPropagation(); onPhotoChange(null); const s = localStorage.getItem("adminUser"); if (s) { const u = JSON.parse(s); u.photo = null; localStorage.setItem("adminUser", JSON.stringify(u)); } }}
+          onClick={(e) => { e.stopPropagation(); onPhotoChange(null); }}
           className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
           title="Remover foto"
         >
@@ -594,9 +589,8 @@ function RoleBadge({ role }: { role: string }) {
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════ */
 export function AdminProfileTab() {
-  const stored = localStorage.getItem("adminUser");
-  const adminUser = stored ? JSON.parse(stored) : null;
-  const isOwner = !adminUser || adminUser.role === "admin";
+  const { user: adminUser, logout, refreshUser } = useAuth();
+  const isOwner = !adminUser || adminUser.role === "admin" || adminUser.role === "owner";
 
   const [photo, setPhoto] = useState<string | null>(adminUser?.photo ?? null);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -607,7 +601,7 @@ export function AdminProfileTab() {
   const [form, setForm] = useState({
     name: adminUser?.name ?? "Admin Studio",
     jobTitle: adminUser?.jobTitle ?? "",
-    bio: adminUser?.bio ?? "",
+    bio: (adminUser as any)?.bio ?? "",
     phone: adminUser?.phone ?? "",
     password: "",
     confirmPassword: "",
@@ -647,7 +641,8 @@ export function AdminProfileTab() {
         });
         if (!r.ok) throw new Error();
       }
-      localStorage.setItem("adminUser", JSON.stringify({ ...adminUser, ...body }));
+      // Atualiza contexto via API (não localStorage)
+      await refreshUser();
       setForm(f => ({ ...f, password: "", confirmPassword: "" }));
       setEditingProfile(false);
       setSaved(true);
@@ -697,19 +692,20 @@ export function AdminProfileTab() {
     loadTeam();
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("isLogged");
-    localStorage.removeItem("adminUser");
-    window.location.href = "/login";
-  };
-
   const initials = (form.name || "A").split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
   const filtered = teamUsers.filter(u =>
     u.name.toLowerCase().includes(search.toLowerCase()) ||
     u.email?.toLowerCase().includes(search.toLowerCase())
   );
-  const myPerms: string[] = adminUser?.permissions
-    ? (() => { try { return JSON.parse(adminUser.permissions); } catch { return PRESETS[adminUser?.role] ?? []; } })()
+  // Permissões já chegam como objeto PermissionSet do AuthContext
+  // Para a matrix local (que usa array flat), converter
+  const myPermsObj = adminUser?.permissions as any;
+  const myPerms: string[] = myPermsObj
+    ? Object.entries(myPermsObj).flatMap(([mod, actions]) =>
+        Object.entries(actions as Record<string, boolean>)
+          .filter(([, v]) => v)
+          .map(([action]) => `${mod}.${action}`)
+      )
     : PRESETS[adminUser?.role ?? "admin"] ?? [];
 
   return (
@@ -742,7 +738,7 @@ export function AdminProfileTab() {
                 {editingProfile ? "Cancelar" : "Editar Perfil"}
               </button>
               <button
-                onClick={handleLogout}
+                onClick={logout}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold text-red-500 hover:bg-red-50 border border-red-100 hover:border-red-200 transition-all"
               >
                 <LogOut size={12} /> Sair

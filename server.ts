@@ -8,17 +8,21 @@ import fs from "fs";
 import { randomUUID } from "crypto";
 
 // Import routers
+import { authRouter } from "./src/backend/routes/authRoutes";
 import { superAdminRouter } from "./src/backend/routes/superAdmin";
 import { adminRouter } from "./src/backend/routes/adminRoutes";
 import { clientRouter } from "./src/backend/routes/clientRoutes";
 import { professionalRouter } from "./src/backend/routes/professionalRoutes";
 import { serviceRouter } from "./src/backend/routes/serviceRoutes";
-import { agendaRouter } from "./src/backend/routes/agendaRoutes";
+import { agendaRouter, agendaPublicRouter } from "./src/backend/routes/agendaRoutes";
 import { comandaRouter } from "./src/backend/routes/comandaRoutes";
 import { financeRouter } from "./src/backend/routes/financeRoutes";
 import { productRouter } from "./src/backend/routes/productRoutes";
 import { reportRouter } from "./src/backend/routes/reportRoutes";
 import { inventoryRouter } from "./src/backend/routes/inventoryRoutes";
+
+// Import middleware
+import { requireAuth, requireSuperAdmin } from "./src/backend/middleware/auth";
 
 // Import controllers
 import { adminController } from "./src/backend/controllers/adminController";
@@ -33,21 +37,27 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
 
-app.use("/api/super-admin", superAdminRouter);
-app.use("/api/admin", adminRouter);
-app.use("/api/clients", clientRouter);
-app.use("/api/professionals", professionalRouter);
-app.use("/api/services", serviceRouter);
-app.use("/api", agendaRouter);
-app.use("/api/comandas", comandaRouter);
-app.use("/api", financeRouter);
-app.use("/api/products", productRouter);
-app.use("/api/reports", reportRouter);
-app.use("/api/inventory", inventoryRouter);
-
-// Rotas raiz /api
+// ── Autenticação (público — sem requireAuth) ──────────────────────────────────
+app.use("/api/auth", authRouter);
+// Manter compatibilidade com clientes antigos (remove após deploy estável)
 app.post("/api/login", adminController.unifiedLogin);
 app.get("/api/tenant-by-slug/:slug", adminController.getTenantBySlug);
+
+// ── Rotas que requerem autenticação ──────────────────────────────────────────
+app.use("/api/super-admin", requireSuperAdmin, superAdminRouter);
+app.use("/api/admin", requireAuth, adminRouter);
+app.use("/api/clients", requireAuth, clientRouter);
+app.use("/api/professionals", requireAuth, professionalRouter);
+app.use("/api/services", requireAuth, serviceRouter);
+app.use("/api/comandas", requireAuth, comandaRouter);
+app.use("/api", requireAuth, financeRouter);
+app.use("/api/products", requireAuth, productRouter);
+app.use("/api/reports", requireAuth, reportRouter);
+app.use("/api/inventory", requireAuth, inventoryRouter);
+
+// ── Agenda: PAT e availability são públicos, o resto precisa de auth ─────────
+app.use("/api", agendaPublicRouter);
+app.use("/api", requireAuth, agendaRouter);
 
 // Servir uploads
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
