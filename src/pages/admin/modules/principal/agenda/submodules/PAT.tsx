@@ -305,8 +305,13 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
             </div>
           </div>
 
-          {settings.enablePatTerminal && selectedProf && (
-            <div className="space-y-2">
+          {selectedProf && (
+            <div className={cn("space-y-2", !settings.enablePatTerminal && "opacity-60")}>
+              {!settings.enablePatTerminal && (
+                <p className="text-[11px] text-amber-600 font-bold text-center py-1">
+                  Ative o Terminal PAT acima para liberar o acesso.
+                </p>
+              )}
               <div className="flex items-start gap-2 p-3 rounded-xl bg-zinc-50 border border-zinc-200">
                 <QrCode size={16} className="text-zinc-400 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
