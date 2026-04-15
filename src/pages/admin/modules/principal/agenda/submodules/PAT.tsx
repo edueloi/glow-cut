@@ -46,6 +46,13 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
   const [saving, setSaving] = useState(false);
   const [selectedProf, setSelectedProf] = useState<string>(professionals[0]?.id ?? "");
 
+  // Garante que selectedProf é populado quando professionals carrega depois do mount
+  useEffect(() => {
+    if (!selectedProf && professionals.length > 0) {
+      setSelectedProf(professionals[0].id);
+    }
+  }, [professionals]);
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -219,9 +226,9 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
 
         {/* Preview da fila */}
         <div className="space-y-4">
-          {professionals.length > 1 && (
+          {professionals.length > 0 && (
             <div>
-              <label className="ds-label">Visualizar fila do profissional</label>
+              <label className="ds-label">Profissional</label>
               <select
                 value={selectedProf}
                 onChange={(e) => setSelectedProf(e.target.value)}
