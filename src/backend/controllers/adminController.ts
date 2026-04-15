@@ -1,0 +1,201 @@
+import { Request, Response } from "express";
+import { prisma } from "../prisma";
+import path from "path";
+import fs from "fs";
+import { randomUUID } from "crypto";
+import { getTenantId, asBool, formatDateOnly } from "../utils/helpers";
+
+const __filename = ""; // not used here as we use process.cwd()
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const DEFAULT_AGENDA_SETTINGS = {
+  onlineBookingEnabled: true,
+  enablePatTerminal: false,
+  enableSelfService: true,
+  enableClientAgendaView: true,
+  enableAppointmentSearch: true,
+  enableWhatsAppReminders: true,
+  autoConfirmAppointments: false,
+  allowClientCancellation: true,
+  allowClientReschedule: true,
+  blockNationalHolidays: false,
+  slotIntervalMinutes: 30,
+  minAdvanceMinutes: 30,
+  maxAdvanceDays: 60,
+  notes: "",
+};
+
+function normalizeAgendaSettings(row: any, tenantId: string) {
+  return {
+    id: row?.id || "",
+    tenantId,
+    onlineBookingEnabled: asBool(row?.onlineBookingEnabled, DEFAULT_AGENDA_SETTINGS.onlineBookingEnabled),
+    enablePatTerminal: asBool(row?.enablePatTerminal, DEFAULT_AGENDA_SETTINGS.enablePatTerminal),
+    enableSelfService: asBool(row?.enableSelfService, DEFAULT_AGENDA_SETTINGS.enableSelfService),
+    enableClientAgendaView: asBool(row?.enableClientAgendaView, DEFAULT_AGENDA_SETTINGS.enableClientAgendaView),
+    enableAppointmentSearch: asBool(row?.enableAppointmentSearch, DEFAULT_AGENDA_SETTINGS.enableAppointmentSearch),
+    enableWhatsAppReminders: asBool(row?.enableWhatsAppReminders, DEFAULT_AGENDA_SETTINGS.enableWhatsAppReminders),
+    autoConfirmAppointments: asBool(row?.autoConfirmAppointments, DEFAULT_AGENDA_SETTINGS.autoConfirmAppointments),
+    allowClientCancellation: asBool(row?.allowClientCancellation, DEFAULT_AGENDA_SETTINGS.allowClientCancellation),
+    allowClientReschedule: asBool(row?.allowClientReschedule, DEFAULT_AGENDA_SETTINGS.allowClientReschedule),
+    blockNationalHolidays: asBool(row?.blockNationalHolidays, DEFAULT_AGENDA_SETTINGS.blockNationalHolidays),
+    notes: row?.notes || "",
+  };
+}
+
+async function ensureAgendaSettingsRecord(tenantId: string) {
+  const rows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT * FROM AgendaSettings WHERE tenantId = ? LIMIT 1`, tenantId);
+  if (rows.length > 0) return normalizeAgendaSettings(rows[0], tenantId);
+  return normalizeAgendaSettings({ tenantId }, tenantId);
+}
+
+export const adminController = {
+  // Atualizar perfil do próprio admin (dashboard)
+  async updateProfile(req: Request, res: Response) {
+    const { name, jobTitle, bio, phone, password, photo } = req.body;
+    
+    console.log(`[Profile] Atualizando perfil usuário ${req.params.id}`, { name, photo: photo ? (photo.substring(0, 30) + "...") : null });
+
+    try {
+      const user = await (prisma as any).adminUser.update({
+        where: { id: req.params.id },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(jobTitle !== undefined && { jobTitle }),
+          ...(bio !== undefined && { bio }),
+          ...(phone !== undefined && { phone }),
+          ...(password !== undefined && { password }),
+          ...(photo !== undefined && { photo }),
+        },
+      });
+      res.json(user);
+    } catch (e: any) {
+      console.error("[Profile] Erro ao atualizar:", e.message);
+      res.status(400).json({ error: "Erro ao atualizar perfil." });
+    }
+  },
+
+  async login(req: Request, res: Response) {
+    const { email, password } = req.body;
+    const user = await (prisma as any).adminUser.findFirst({
+      where: { email, password, isActive: true },
+      include: { tenant: { include: { plan: true } } }
+    });
+    if (!user) return res.status(401).json({ error: "E-mail ou senha inválidos." });
+    await (prisma as any).adminUser.update({ where: { id: user.id }, data: { lastLogin: new Date() } });
+    res.json({
+      id: user.id, name: user.name, email: user.email, role: user.role,
+      jobTitle: user.jobTitle, tenantId: user.tenantId,
+      tenantName: user.tenant.name, planName: user.tenant.plan.name,
+      canCreateUsers: user.canCreateUsers, canDeleteAccount: user.canDeleteAccount,
+      permissions: user.permissions,
+    });
+  },
+
+  async getTenant(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    const tenant = await (prisma as any).tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) return res.status(404).json({ error: "Estúdio não encontrado." });
+    res.json(tenant);
+  },
+
+  async updateBranding(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    
+    const { themeColor, logoUrl, coverUrl, address, instagram, welcomeMessage, title, description, slug } = req.body;
+    
+    console.log(`[Branding] Atualizando tenant ${tenantId}`, { logoUrl, coverUrl, slug });
+
+    try {
+      const data: any = {};
+      if (themeColor !== undefined) data.themeColor = themeColor;
+      if (logoUrl !== undefined) data.logoUrl = logoUrl;
+      if (coverUrl !== undefined) data.coverUrl = coverUrl;
+      if (address !== undefined) data.address = address;
+      if (instagram !== undefined) data.instagram = instagram;
+      if (welcomeMessage !== undefined) data.welcomeMessage = welcomeMessage;
+      if (description !== undefined) data.description = description;
+      if (title !== undefined) data.name = title;
+      if (slug !== undefined) data.slug = slug;
+
+      const tenant = await (prisma as any).tenant.update({
+        where: { id: tenantId },
+        data
+      });
+      res.json(tenant);
+    } catch (e: any) {
+      console.error("[Branding] Erro ao salvar:", e.message);
+      if (e.code === 'P2002') {
+        return res.status(400).json({ error: "Este link (slug) já está sendo usado por outro estúdio." });
+      }
+      res.status(400).json({ error: "Erro ao salvar configurações do estúdio." });
+    }
+  },
+
+  async upload(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    const { data, mimeType } = req.body as { data?: string; mimeType?: string };
+    if (!data || !mimeType) return res.status(400).json({ error: "data e mimeType são obrigatórios." });
+    const base64 = data.includes(",") ? data.split(",")[1] : data;
+    const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+    const filename = `${tenantId}-${randomUUID()}.${ext}`;
+    const filepath = path.join(uploadsDir, filename);
+    try {
+      fs.writeFileSync(filepath, Buffer.from(base64, "base64"));
+      res.json({ url: `/uploads/${filename}` });
+    } catch (e: any) {
+      res.status(500).json({ error: "Erro ao salvar imagem." });
+    }
+  },
+
+  async unifiedLogin(req: Request, res: Response) {
+    const { identifier, password } = req.body;
+    if (!identifier || !password) return res.status(400).json({ error: "Preencha todos os campos." });
+
+    const sa = await (prisma as any).superAdmin.findFirst({ where: { username: identifier, password } });
+    if (sa) return res.json({ type: "superadmin", id: sa.id, username: sa.username, role: "superadmin" });
+
+    const adminUser = await (prisma as any).adminUser.findFirst({
+      where: { email: identifier, password, isActive: true },
+      include: { tenant: { include: { plan: true } } }
+    });
+    if (adminUser) {
+      await (prisma as any).adminUser.update({ where: { id: adminUser.id }, data: { lastLogin: new Date() } });
+      return res.json({
+        type: "admin", id: adminUser.id, name: adminUser.name, email: adminUser.email, role: adminUser.role,
+        jobTitle: adminUser.jobTitle, tenantId: adminUser.tenantId, tenantName: adminUser.tenant.name,
+        tenantSlug: adminUser.tenant.slug, planName: adminUser.tenant.plan.name,
+        canCreateUsers: adminUser.canCreateUsers, canDeleteAccount: adminUser.canDeleteAccount,
+        permissions: adminUser.permissions,
+      });
+    }
+
+    const prof = await (prisma as any).professional.findFirst({
+      where: { OR: [ { name: identifier }, { email: identifier } ], password, isActive: true },
+    });
+    if (prof) {
+      return res.json({ type: "professional", id: prof.id, name: prof.name, role: prof.role, tenantId: prof.tenantId, permissions: (prof as any).permissions });
+    }
+    return res.status(401).json({ error: "Usuário ou senha inválidos." });
+  },
+
+  async getTenantBySlug(req: Request, res: Response) {
+    const tenant = await (prisma as any).tenant.findFirst({
+      where: { slug: req.params.slug, isActive: true },
+      select: { id: true, name: true, themeColor: true, logoUrl: true, coverUrl: true, address: true, instagram: true, welcomeMessage: true }
+    });
+    if (!tenant) return res.status(404).json({ error: "Estúdio não encontrado." });
+    let agendaSettings: any = { onlineBookingEnabled: true, enableSelfService: true, enableAppointmentSearch: true, enableClientAgendaView: true };
+    try {
+      const settings = await ensureAgendaSettingsRecord(tenant.id);
+      agendaSettings = { onlineBookingEnabled: settings.onlineBookingEnabled, enableSelfService: settings.enableSelfService, enableAppointmentSearch: settings.enableAppointmentSearch, enableClientAgendaView: settings.enableClientAgendaView };
+    } catch (e) {
+      console.warn("[tenant-by-slug] AgendaSettings fallback used.");
+    }
+    res.json({ ...tenant, agendaSettings });
+  }
+};

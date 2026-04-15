@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { PermissionsProvider } from "@/src/contexts/PermissionsContext";
 import ClientBooking from "./pages/ClientBooking";
+import PATQueue from "./pages/PATQueue";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProfessionalDashboard from "./pages/ProfessionalDashboard";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
@@ -253,6 +255,29 @@ function LoginPage() {
   );
 }
 
+// ── Wrapper do admin que injeta as permissões do usuário logado ──────────────
+function AdminWithPermissions() {
+  const adminUser = (() => {
+    try { return JSON.parse(localStorage.getItem("adminUser") || "{}"); }
+    catch { return {}; }
+  })();
+
+  const roleLabel: string =
+    adminUser.roleLabel ??
+    (adminUser.role === "owner" || adminUser.role === "admin" ? "Administrador"
+    : adminUser.role === "manager" ? "Gerente"
+    : "Usuário");
+
+  return (
+    <PermissionsProvider
+      permissions={adminUser.permissions ?? null}
+      roleLabel={roleLabel}
+    >
+      <AdminDashboard />
+    </PermissionsProvider>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -260,8 +285,8 @@ function App() {
         <Route path="/login"           element={<LoginPage />} />
         <Route path="/pro/login"       element={<Navigate to="/login" replace />} />
         <Route path="/pro"             element={<ProfessionalDashboard />} />
-        <Route path="/admin"           element={<AdminDashboard />} />
-        <Route path="/admin/*"         element={<AdminDashboard />} />
+        <Route path="/admin"           element={<AdminWithPermissions />} />
+        <Route path="/admin/*"         element={<AdminWithPermissions />} />
         <Route path="/super-admin/*"   element={<SuperAdminDashboard username={(() => { try { return JSON.parse(localStorage.getItem("superAdminLogged") || "{}").username || "Admin"; } catch { return "Admin"; } })()} onLogout={() => { localStorage.removeItem("superAdminLogged"); window.location.href = "/login"; }} />} />
         <Route path="/" element={(() => {
           if (localStorage.getItem("superAdminLogged")) return <Navigate to="/super-admin" replace />;
@@ -269,6 +294,7 @@ function App() {
           if (localStorage.getItem("professionalLogged")) return <Navigate to="/pro" replace />;
           return <LandingPage />;
         })()} />
+        <Route path="/pat/:professionalId" element={<PATQueue />} />
         <Route path="/:slug" element={<ClientBooking />} />
         <Route path="/agendar/:slug" element={<ClientBooking />} />
       </Routes>

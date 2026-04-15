@@ -84,6 +84,70 @@ model ClosedDay {
   @@index([tenantId], map: "idx_closedday_tenant")
 }
 
+model AgendaSettings {
+  id                          String   @id @db.VarChar(36)
+  tenantId                    String   @unique(map: "AgendaSettings_tenantId_key") @db.VarChar(36)
+  onlineBookingEnabled        Boolean  @default(true)
+  // PAT — Terminal de Atendimento Profissional
+  enablePatTerminal           Boolean  @default(false)
+  patShowClientName           Boolean  @default(true)
+  patShowService              Boolean  @default(true)
+  patShowTime                 Boolean  @default(true)
+  patAutoAdvance              Boolean  @default(false)
+  patAutoAdvanceMinutes       Int      @default(5)
+  // Self-Service — Portal de Agendamento Online
+  enableSelfService           Boolean  @default(true)
+  selfServiceRequireLogin     Boolean  @default(false)
+  selfServiceShowProfessional Boolean  @default(true)
+  selfServiceShowPrices       Boolean  @default(true)
+  selfServiceWelcomeMessage   String?  @db.VarChar(500)
+  // Configurações gerais de booking
+  enableClientAgendaView      Boolean  @default(true)
+  enableAppointmentSearch     Boolean  @default(true)
+  enableWhatsAppReminders     Boolean  @default(true)
+  autoConfirmAppointments     Boolean  @default(false)
+  allowClientCancellation     Boolean  @default(true)
+  allowClientReschedule       Boolean  @default(false)
+  blockNationalHolidays       Boolean  @default(false)
+  slotIntervalMinutes         Int      @default(30)
+  minAdvanceMinutes           Int      @default(30)
+  maxAdvanceDays              Int      @default(60)
+  notes                       String?  @db.Text
+  createdAt                   DateTime @default(now()) @db.DateTime(0)
+  updatedAt                   DateTime @updatedAt @db.DateTime(0)
+}
+
+model ScheduleRelease {
+  id             String   @id @db.VarChar(36)
+  tenantId       String   @db.VarChar(36)
+  professionalId String?  @db.VarChar(36)
+  date           DateTime @db.DateTime(0)
+  startTime      String   @db.VarChar(5)
+  endTime        String   @db.VarChar(5)
+  description    String?  @db.VarChar(255)
+  createdAt      DateTime @default(now()) @db.DateTime(0)
+
+  @@index([tenantId], map: "ScheduleRelease_tenantId_idx")
+  @@index([tenantId, date], map: "ScheduleRelease_tenantId_date_idx")
+  @@index([professionalId], map: "ScheduleRelease_professionalId_idx")
+}
+
+model SpecialScheduleDay {
+  id             String   @id @db.VarChar(36)
+  tenantId       String   @db.VarChar(36)
+  professionalId String?  @db.VarChar(36)
+  date           DateTime @db.DateTime(0)
+  isClosed       Boolean  @default(true)
+  startTime      String?  @db.VarChar(5)
+  endTime        String?  @db.VarChar(5)
+  description    String?  @db.VarChar(255)
+  createdAt      DateTime @default(now()) @db.DateTime(0)
+
+  @@index([tenantId], map: "SpecialScheduleDay_tenantId_idx")
+  @@index([tenantId, date], map: "SpecialScheduleDay_tenantId_date_idx")
+  @@index([professionalId], map: "SpecialScheduleDay_professionalId_idx")
+}
+
 model Comanda {
   id             String        @id @db.VarChar(36)
   status         String        @default("open") @db.VarChar(20)
@@ -136,12 +200,66 @@ model Product {
   isForSale       Boolean          @default(true)
   tenantId        String?          @db.VarChar(36)
   sectorId        String?          @db.VarChar(36)
+  supplierId      String?          @db.VarChar(36)
+  manufacturerId  String?          @db.VarChar(36)
   metadata        String?          @db.Text
   createdAt       DateTime         @default(now()) @db.DateTime(0)
   comandaItem     ComandaItem[]
   serviceProducts ServiceProduct[]
+  stockMovements  StockMovement[]
 
   @@index([tenantId], map: "idx_product_tenant")
+}
+
+model Supplier {
+  id        String   @id @db.VarChar(36)
+  tenantId  String   @db.VarChar(36)
+  name      String   @db.VarChar(255)
+  cnpj      String?  @db.VarChar(20)
+  phone     String?  @db.VarChar(30)
+  email     String?  @db.VarChar(255)
+  contact   String?  @db.VarChar(255)
+  address   String?  @db.Text
+  notes     String?  @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+
+  @@index([tenantId], map: "idx_supplier_tenant")
+}
+
+model Manufacturer {
+  id        String   @id @db.VarChar(36)
+  tenantId  String   @db.VarChar(36)
+  name      String   @db.VarChar(255)
+  cnpj      String?  @db.VarChar(20)
+  phone     String?  @db.VarChar(30)
+  email     String?  @db.VarChar(255)
+  website   String?  @db.VarChar(500)
+  notes     String?  @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+
+  @@index([tenantId], map: "idx_manufacturer_tenant")
+}
+
+model StockMovement {
+  id          String   @id @db.VarChar(36)
+  tenantId    String   @db.VarChar(36)
+  productId   String   @db.VarChar(36)
+  type        String   @db.VarChar(20) // entrada, saida, ajuste, venda, consumo
+  quantity    Int
+  previousQty Int      @default(0)
+  newQty      Int      @default(0)
+  reason      String?  @db.VarChar(500)
+  reference   String?  @db.VarChar(255) // ex: comanda ID, serviço name
+  createdBy   String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @db.DateTime(0)
+
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId], map: "idx_stockmov_tenant")
+  @@index([productId], map: "idx_stockmov_product")
+  @@index([tenantId, createdAt], map: "idx_stockmov_tenant_date")
 }
 
 model ComandaItem {

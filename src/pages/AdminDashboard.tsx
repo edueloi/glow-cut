@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { 
-  LayoutDashboard,
   Calendar as CalendarIcon,
-  Globe,
   Scissors,
   Users,
   CheckCircle,
@@ -28,7 +26,6 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Banknote,
-  Package,
   Star,
   Zap,
   FileText,
@@ -51,7 +48,6 @@ import {
   Heart,
   GraduationCap,
   Baby,
-  MessageCircle,
   MapPin as MapPinIcon,
   Hash,
   Camera
@@ -80,19 +76,42 @@ import { apiFetch } from "@/src/lib/api";
 import { Button } from "@/src/components/ui/Button";
 import { Modal } from "@/src/components/ui/Modal";
 import { StatCard } from "@/src/components/ui/StatCard";
-import { DashboardTab } from "@/src/pages/admin/tabs/DashboardTab";
-import { ComandasTab } from "@/src/pages/admin/tabs/ComandasTab";
-import { FluxoTab } from "@/src/pages/admin/tabs/FluxoTab";
-import { ProfessionalsTab } from "@/src/pages/admin/tabs/ProfessionalsTab";
-import { HorariosTab } from "@/src/pages/admin/tabs/HorariosTab";
-import { SettingsTab } from "@/src/pages/admin/tabs/SettingsTab";
-import { ClientsTab } from "@/src/pages/admin/tabs/ClientsTab";
-import { ServicesTab } from "@/src/pages/admin/tabs/ServicesTab";
-import { AgendaTab } from "@/src/pages/admin/tabs/AgendaTab";
-import { MinhaAgendaTab } from "@/src/pages/admin/tabs/MinhaAgendaTab";
-import { AdminProfileTab } from "@/src/pages/admin/tabs/AdminProfileTab";
-import { WppTab } from "@/src/pages/admin/tabs/WppTab";
-import { ProductsTab } from "@/src/pages/admin/tabs/ProductsTab";
+import { NavItem } from "@/src/pages/admin/components/NavItem";
+import {
+  ADMIN_DEFAULT_TAB,
+  ADMIN_NAV_SECTIONS,
+  ADMIN_SLUG_TO_TAB,
+  ADMIN_TAB_SLUGS,
+  ADMIN_TAB_TITLES,
+  type AdminTabId,
+} from "@/src/pages/admin/config/navigation";
+import {
+  DashboardTab,
+  ComandasTab,
+  FluxoTab,
+  ProfessionalsTab,
+  HorariosTab,
+  SettingsTab,
+  ClientsTab,
+  ServicesTab,
+  AgendaTab,
+  MinhaAgendaTab,
+  AdminProfileTab,
+  WppTab,
+  ProductsTab,
+} from "@/src/pages/admin/modules";
+import { AdminDashboardShell } from "@/src/pages/admin/dashboard/components/AdminDashboardShell";
+import { AdminTabContent } from "@/src/pages/admin/dashboard/components/AdminTabContent";
+import { AdminScheduleAuxModals } from "@/src/pages/admin/dashboard/components/AdminScheduleAuxModals";
+import { AdminScheduleActionModals } from "@/src/pages/admin/dashboard/components/AdminScheduleActionModals";
+import {
+  ServiceModal,
+  DeleteConfirmModal,
+  ClientModal,
+  ProfessionalModal,
+  PermProfileModal,
+  ProductModal,
+} from "@/src/pages/admin/dashboard/components/modals";
 import { PaymentModal } from "@/src/components/ui/PaymentModal";
 import { Combobox, ComboboxOption } from "@/src/components/ui/Combobox";
 import { motion, AnimatePresence } from "motion/react";
@@ -113,69 +132,11 @@ import {
 // revenueData e servicesData são calculados dinamicamente dentro do componente
 
 // ── Componente de item de navegação da sidebar ──────────────────────────────
-function NavItem({
-  active,
-  onClick,
-  icon,
-  label,
-  collapsed,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  collapsed: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={collapsed ? label : undefined}
-      // touchAction: manipulation evita o delay de 300ms no iOS/Android
-      style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
-      className={cn(
-        "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-150 group select-none min-h-[44px]",
-        collapsed ? "justify-center px-2" : "",
-        active
-          ? "bg-amber-500 text-white shadow-sm"
-          : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200"
-      )}
-    >
-      <span className={cn("shrink-0 transition-colors", active ? "text-white" : "text-zinc-400 group-hover:text-zinc-700")}>
-        {icon}
-      </span>
-      {!collapsed && (
-        <span className="text-xs font-bold truncate">{label}</span>
-      )}
-    </button>
-  );
-}
-
 export default function AdminDashboard() {
-  const navigate = useNavigate();
   const adminUser = (() => { try { return JSON.parse(localStorage.getItem("adminUser") || "{}"); } catch { return {}; } })();
   const [tenantName, setTenantName] = useState<string>(adminUser.tenantName || "Studio Admin");
   const [tenantSlug, setTenantSlug] = useState<string>(adminUser.tenantSlug || "");
   const location = useLocation();
-
-  // Mapeamento de abas para Slugs de URL
-  const tabSlugs: Record<string, string> = {
-    'dash': 'painel',
-    'agenda': 'agenda',
-    'minha-agenda': 'meu-link',
-    'services': 'servicos',
-    'clients': 'clientes',
-    'comandas': 'comandas',
-    'fluxo': 'fluxo',
-    'professionals': 'profissionais',
-    'horarios': 'horarios',
-    'settings': 'config',
-    'profile': 'perfil',
-    'wpp': 'whatsapp',
-    'products': 'produtos',
-  };
-
-  // Inverter o mapa para carregar a aba correta pela URL
-  const slugToTab = Object.fromEntries(Object.entries(tabSlugs).map(([tab, slug]) => [slug, tab]));
 
   // Sub-aba de profissionais
   const [profSubTab, setProfSubTab] = useState<"lista" | "permissoes">(() => {
@@ -187,23 +148,38 @@ export default function AdminDashboard() {
     window.history.pushState(null, '', sub === 'permissoes' ? '/admin/profissionais/permissoes' : '/admin/profissionais');
   };
 
-  const [activeTab, setActiveTab] = useState<"dash" | "agenda" | "minha-agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios" | "profile" | "wpp" | "products">(() => {
+  const [activeTab, setActiveTab] = useState<AdminTabId>(() => {
     const parts = location.pathname.replace('/admin/', '').split('/');
     const slug = parts[0];
     // Se URL é /admin/profissionais/permissoes, seta tab professionals
     if (parts[0] === 'profissionais') return 'professionals';
-    return (slugToTab[slug || ''] as any) || "dash";
+    return ADMIN_SLUG_TO_TAB[slug || ""] || ADMIN_DEFAULT_TAB;
   });
 
   // Sempre que a aba mudar, atualizar a URL (sem recarregar a página)
-  const handleTabChange = (tab: typeof activeTab) => {
+  const handleTabChange = (tab: AdminTabId) => {
     setIsSidebarOpen(false);
     setActiveTab(tab);
     if (tab === 'professionals') {
       setProfSubTab('lista');
       window.history.pushState(null, '', '/admin/profissionais');
+    } else if (tab === 'agenda') {
+      setActiveSubModule('minha_agenda');
+      window.history.pushState(null, '', '/admin/agenda/minha_agenda');
+    } else if (tab === 'services') {
+      setActiveSubModule('todos_servicos');
+      window.history.pushState(null, '', '/admin/servicos/todos_servicos');
+    } else if (tab === 'packages') {
+      setActiveSubModule('todos_pacotes');
+      window.history.pushState(null, '', '/admin/pacotes/todos_pacotes');
+    } else if (tab === 'products') {
+      setActiveSubModule('produtos');
+      window.history.pushState(null, '', '/admin/produtos');
+    } else if (tab === 'financeiro') {
+      setActiveSubModule('controle');
+      window.history.pushState(null, '', '/admin/financeiro/controle');
     } else {
-      const slug = tabSlugs[tab] || 'painel';
+      const slug = ADMIN_TAB_SLUGS[tab] || ADMIN_TAB_SLUGS[ADMIN_DEFAULT_TAB];
       window.history.pushState(null, '', `/admin/${slug}`);
     }
     
@@ -264,7 +240,7 @@ export default function AdminDashboard() {
   const [holidays, setHolidays] = useState<{ id: string; date: string; name: string }[]>([]);
   const [newHoliday, setNewHoliday] = useState({ date: '', name: '' });
   const [localWorkingHours, setLocalWorkingHours] = useState<any[]>([]);
-  const [settingsOpenCard, setSettingsOpenCard] = useState<string | null>('studio');
+  const [settingsOpenCard, setSettingsOpenCard] = useState<string | null>('agenda');
 
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -357,7 +333,34 @@ export default function AdminDashboard() {
     clients:   { ver: false, criar: false, editar_proprio: false, editar_todos: false },
     fluxo:     { ver: false },
   };
-  const emptyProfessional = { name: "", role: "", password: "", phone: "", email: "", bio: "", photo: "", permissions: emptyPermissions };
+  const emptyProfessional = {
+    name: "",
+    nickname: "",
+    role: "",
+    cpf: "",
+    gender: "male",
+    birthDate: "",
+    phone: "",
+    email: "",
+    instagram: "",
+    bio: "",
+    photo: "",
+    password: "",
+    permissions: emptyPermissions,
+    accessLevel: "no-access", // "no-access", "full", "custom"
+    patAccess: false,
+    canAddServicePhotos: false,
+    workingHours: [
+      { day: "segunda-feira", active: true, start: "09:00", end: "20:00", lunchStart: "", lunchEnd: "", breakStart: "", breakEnd: "" },
+      { day: "terca-feira", active: true, start: "09:00", end: "20:00", lunchStart: "", lunchEnd: "", breakStart: "", breakEnd: "" },
+      { day: "quarta-feira", active: true, start: "09:00", end: "20:00", lunchStart: "", lunchEnd: "", breakStart: "", breakEnd: "" },
+      { day: "quinta-feira", active: true, start: "09:00", end: "20:00", lunchStart: "", lunchEnd: "", breakStart: "", breakEnd: "" },
+      { day: "sexta-feira", active: true, start: "09:00", end: "20:00", lunchStart: "", lunchEnd: "", breakStart: "", breakEnd: "" },
+      { day: "sabado", active: true, start: "09:00", end: "20:00", lunchStart: "", lunchEnd: "", breakStart: "", breakEnd: "" },
+      { day: "domingo", active: false, start: "", end: "", lunchStart: "", lunchEnd: "", breakStart: "", breakEnd: "" },
+    ],
+    services: [], // Array of service IDs or objects with commission details
+  };
   const [newProfessional, setNewProfessional] = useState<any>({ ...emptyProfessional });
   const [profPasswordVisible, setProfPasswordVisible] = useState(false);
 
@@ -410,6 +413,32 @@ export default function AdminDashboard() {
   }, [isProfileMenuOpen]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeSubModule, setActiveSubModule] = useState(() => {
+    const parts = location.pathname.replace(/^\/admin\//, "").split("/");
+    if ((parts[0] === "produtos" || parts[0] === "financeiro" || parts[0] === "agenda" || parts[0] === "servicos" || parts[0] === "pacotes") && parts[1]) {
+      return parts[1];
+    }
+    if (parts[0] === "financeiro") return "controle";
+    if (parts[0] === "agenda") return "minha_agenda";
+    if (parts[0] === "servicos") return "todos_servicos";
+    if (parts[0] === "pacotes") return "todos_pacotes";
+    return "produtos";
+  });
+
+  const handleSubModuleChange = (subModule: string) => {
+    setActiveSubModule(subModule);
+    if (activeTab === "products") {
+      window.history.pushState(null, "", subModule === "produtos" ? "/admin/produtos" : `/admin/produtos/${subModule}`);
+    } else if (activeTab === "financeiro") {
+      window.history.pushState(null, "", `/admin/financeiro/${subModule}`);
+    } else if (activeTab === "agenda") {
+      window.history.pushState(null, "", `/admin/agenda/${subModule}`);
+    } else if (activeTab === "services") {
+      window.history.pushState(null, "", `/admin/servicos/${subModule}`);
+    } else if (activeTab === "packages") {
+      window.history.pushState(null, "", `/admin/pacotes/${subModule}`);
+    }
+  };
   const [isViewAppointmentModalOpen, setIsViewAppointmentModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   
@@ -629,6 +658,25 @@ export default function AdminDashboard() {
     });
     setRepeatLabel("Não Repete");
     setClientComandaStatus(null);
+    fetchAppointments();
+  };
+
+  const handleCreateBlockAppointment = async (data: { date: Date; startTime: string; endTime: string; professionalId: string }) => {
+    const startMinutes = parseInt(data.startTime.split(":")[0]) * 60 + parseInt(data.startTime.split(":")[1]);
+    const endMinutes = parseInt(data.endTime.split(":")[0]) * 60 + parseInt(data.endTime.split(":")[1]);
+    await apiFetch("/api/appointments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        date: data.date,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        duration: endMinutes - startMinutes,
+        professionalId: data.professionalId,
+        type: "bloqueio",
+        status: "confirmed",
+      }),
+    });
     fetchAppointments();
   };
 
@@ -1104,12 +1152,22 @@ export default function AdminDashboard() {
     }
     const body: any = {
       name: newProfessional.name,
+      nickname: newProfessional.nickname,
       role: newProfessional.role,
+      cpf: newProfessional.cpf,
+      gender: newProfessional.gender,
+      birthDate: newProfessional.birthDate,
       phone: newProfessional.phone,
       email: newProfessional.email,
+      instagram: newProfessional.instagram,
       bio: newProfessional.bio,
       photo: newProfessional.photo,
       permissions: mergedPerms,
+      accessLevel: newProfessional.accessLevel,
+      patAccess: newProfessional.patAccess,
+      canAddServicePhotos: newProfessional.canAddServicePhotos,
+      workingHours: newProfessional.workingHours,
+      services: newProfessional.services,
     };
     if (newProfessional.password) body.password = newProfessional.password;
     await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -1191,1257 +1249,185 @@ export default function AdminDashboard() {
   });
 
   return (
-    <div className="flex h-screen bg-zinc-50 text-zinc-700 font-sans selection:bg-amber-500/30 overflow-hidden">
-      {/* ── Tooltip flutuante de slot ───────────────────────── */}
-      {slotHover && (
-        <div className="fixed z-[200] pointer-events-none" style={{ left: slotHover.x + 14, top: slotHover.y - 36 }}>
-          <div className="bg-zinc-900/95 text-white text-[11px] font-bold rounded-xl px-3 py-2 shadow-2xl whitespace-nowrap flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
-              <Plus size={11} className="text-white"/>
-            </span>
-            {slotHover.label}
-          </div>
-          <div className="w-2 h-2 bg-zinc-900/95 rotate-45 ml-3 -mt-1" />
-        </div>
-      )}
-
-      {/* ── Overlay mobile sidebar ──────────────────────────── */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-zinc-900/40 backdrop-blur-sm lg:hidden" 
-            onClick={() => setIsSidebarOpen(false)} 
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Sidebar */}
-      <aside className={cn(
-        "bg-white border-r border-zinc-200 flex flex-col z-[70] shadow-2xl transition-all duration-300",
-        "fixed inset-y-0 left-0 lg:relative lg:translate-x-0 lg:shadow-none",
-        isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
-        sidebarCollapsed ? "lg:w-[72px]" : "w-72"
-      )}>
-        {/* Mobile Header Sidebar */}
-        <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-50 bg-zinc-50/50">
-          <div className="flex items-center gap-2">
-            <img src={logoFavicon} alt="Agendelle" className="w-6 h-6 object-contain" />
-            <span className="text-sm font-black text-zinc-900 uppercase tracking-tighter">Agendelle</span>
-          </div>
-          <button 
-            onClick={() => setIsSidebarOpen(false)}
-            className="p-2 rounded-xl bg-white border border-zinc-200 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-all shadow-sm"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Logo (Desktop / Mobile body) */}
-        <div className={cn(
-          "flex items-center transition-all duration-300", 
-          sidebarCollapsed ? "p-4 justify-center" : "p-8",
-          "hidden lg:flex" // Esconde no mobile para usar o header compacto acima
-        )}>
-          <div className="flex items-center gap-3">
-            <div className={cn("bg-zinc-50 rounded-xl flex items-center justify-center border border-zinc-100 shadow-sm shrink-0", sidebarCollapsed ? "w-10 h-10 p-1.5" : "w-11 h-11 p-2")}>
-              <img src={logoFavicon} alt="Agendelle" className="w-full h-full object-contain" />
-            </div>
-            {!sidebarCollapsed && (
-              <div className="overflow-hidden">
-                <h1 className="text-lg font-black text-zinc-900 tracking-tight font-display leading-none">Agendelle</h1>
-                <p className="text-[8px] text-zinc-400 font-bold tracking-[0.1em] uppercase mt-1">Smart Schedulings</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <nav className={cn(
-          "flex-1 space-y-1 scrollbar-hide transition-all duration-300 pt-4 lg:pt-0",
-          sidebarCollapsed ? "px-2 overflow-visible" : "px-4 overflow-y-auto"
-        )}>
-          {!sidebarCollapsed && (
-            <div className="px-4 mb-4">
-              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Principal</p>
-            </div>
-          )}
-          {sidebarCollapsed && <div className="mb-2" />}
-          <NavItem
-            active={activeTab === 'dash'}
-            onClick={() => handleTabChange('dash')}
-            icon={<LayoutDashboard size={18} />}
-            label="Dashboard"
-            collapsed={sidebarCollapsed}
-          />
-          <NavItem
-            active={activeTab === 'agenda'}
-            onClick={() => handleTabChange('agenda')}
-            icon={<CalendarIcon size={18} />}
-            label="Agenda & Reservas"
-            collapsed={sidebarCollapsed}
-          />
-          <NavItem
-            active={activeTab === 'minha-agenda'}
-            onClick={() => handleTabChange('minha-agenda')}
-            icon={<Globe size={18} />}
-            label="Minha Agenda Online"
-            collapsed={sidebarCollapsed}
-          />
-
-          {!sidebarCollapsed && (
-            <div className="px-4 mt-8 mb-4">
-              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Operacional</p>
-            </div>
-          )}
-          {sidebarCollapsed && <div className="mt-4" />}
-          <NavItem
-            active={activeTab === 'comandas'}
-            onClick={() => handleTabChange('comandas')}
-            icon={<CheckCircle size={18} />}
-            label="Comandas"
-            collapsed={sidebarCollapsed}
-          />
-          <NavItem
-            active={activeTab === 'fluxo'}
-            onClick={() => handleTabChange('fluxo')}
-            icon={<Banknote size={18} />}
-            label="Fluxo de Caixa"
-            collapsed={sidebarCollapsed}
-          />
-          <NavItem
-            active={activeTab === 'services'}
-            onClick={() => handleTabChange('services')}
-            icon={<Scissors size={18} />}
-            label="Serviços & Pacotes"
-            collapsed={sidebarCollapsed}
-          />
-          <NavItem
-            active={activeTab === 'products'}
-            onClick={() => handleTabChange('products')}
-            icon={<Package size={18} />}
-            label="Produtos & Estoque"
-            collapsed={sidebarCollapsed}
-          />
-          <NavItem
-            active={activeTab === 'clients'}
-            onClick={() => handleTabChange('clients')}
-            icon={<Users size={18} />}
-            label="Gestão de Clientes"
-            collapsed={sidebarCollapsed}
-          />
-          <NavItem
-            active={activeTab === 'professionals'}
-            onClick={() => handleTabChange('professionals')}
-            icon={<UserCog size={18} />}
-            label="Profissionais"
-            collapsed={sidebarCollapsed}
-          />
-
-          {!sidebarCollapsed && (
-            <div className="px-4 mt-8 mb-4">
-              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Sistema</p>
-            </div>
-          )}
-          {sidebarCollapsed && <div className="mt-4" />}
-          <NavItem
-            active={activeTab === 'horarios'}
-            onClick={() => handleTabChange('horarios')}
-            icon={<Clock size={18} />}
-            label="Horários"
-            collapsed={sidebarCollapsed}
-          />
-          <NavItem
-            active={activeTab === 'wpp'}
-            onClick={() => handleTabChange('wpp')}
-            icon={<MessageCircle size={18} />}
-            label="WhatsApp"
-            collapsed={sidebarCollapsed}
-          />
-          <NavItem
-            active={activeTab === 'settings'}
-            onClick={() => handleTabChange('settings')}
-            icon={<Settings size={18} />}
-            label="Configurações"
-            collapsed={sidebarCollapsed}
-          />
-        </nav>
-
-        <div className={cn("mt-auto border-t border-zinc-200 transition-all duration-300", sidebarCollapsed ? "p-2" : "p-4")}>
-          {!sidebarCollapsed ? (
-            <>
-              <button onClick={() => { localStorage.removeItem("isLogged"); localStorage.removeItem("adminUser"); window.location.href = "/login"; }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 transition-all">
-                <LogOut size={18} />
-                <span>Sair do Sistema</span>
-              </button>
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-zinc-200 flex items-center justify-center text-zinc-500">
-                <Users size={18} />
-              </div>
-              <button
-                onClick={() => { localStorage.removeItem("isLogged"); localStorage.removeItem("adminUser"); window.location.href = "/login"; }}
-                className="w-9 h-9 flex items-center justify-center rounded-xl text-red-400 hover:bg-red-50 transition-all"
-                title="Sair do Sistema"
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
-          )}
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-zinc-50">
-        {/* Header */}
-        <header className="h-16 md:h-20 bg-white/90 backdrop-blur-xl border-b border-zinc-200 px-4 md:px-8 flex items-center justify-between sticky top-0 z-[52] shrink-0 isolate">
-          <div className="flex items-center gap-3">
-            {/* Hamburger — mobile only */}
-            <button onClick={() => setIsSidebarOpen(true)} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 lg:hidden transition-all">
-              <Menu size={20} />
-            </button>
-            <div>
-              <h2 className="text-sm md:text-xl font-bold text-zinc-900 font-display capitalize tracking-tight leading-tight">
-                {activeTab === 'dash' ? 'Painel de Controle' :
-                 activeTab === 'agenda' ? 'Agenda' :
-                 activeTab === 'services' ? 'Serviços & Pacotes' :
-                 activeTab === 'minha-agenda' ? 'Minha Agenda Online' :
-                 activeTab === 'clients' ? 'Clientes' :
-                 activeTab === 'comandas' ? 'Comandas' :
-                 activeTab === 'fluxo' ? 'Fluxo de Caixa' :
-                 activeTab === 'professionals' ? 'Profissionais' :
-                 activeTab === 'horarios' ? 'Horários' :
-                 activeTab === 'wpp' ? 'WhatsApp' :
-                 activeTab === 'profile' ? 'Meu Perfil' : 'Configurações'}
-              </h2>
-              <p className="text-[9px] md:text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5 hidden sm:block">
-                {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 md:gap-4 relative">
-            {/* Hambúrguer desktop — colapsa/expande sidebar */}
-            <button
-              onClick={() => setSidebarCollapsed(c => !c)}
-              className="hidden lg:flex p-2 rounded-xl hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-all"
-              title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
-            >
-              <Menu size={20} />
-            </button>
-
-            {/* Notificações */}
-            <div className="relative">
-              <button 
-                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className={cn(
-                  "p-2 md:p-2.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-xl transition-all relative",
-                  isNotificationsOpen && "bg-zinc-100 text-zinc-900 shadow-sm"
-                )}
-              >
-                <Bell size={20} />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-amber-500 rounded-full border-2 border-white"></span>
-              </button>
-
-              <AnimatePresence>
-                {isNotificationsOpen && (
-                  <>
-                    {/* Backdrop para fechar ao clicar fora - z-index alto para cobrir tudo abaixo do alerta */}
-                    <div 
-                      className="fixed inset-0 z-[60] bg-zinc-900/10 backdrop-blur-[1px]" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsNotificationsOpen(false);
-                      }} 
-                    />
-                    
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className={cn(
-                        "fixed md:absolute z-[70] mt-3 overflow-hidden bg-white border border-zinc-100 rounded-3xl",
-                        "shadow-[0_20px_60px_rgba(0,0,0,0.25)]",
-                        "left-4 right-4 top-20 md:top-full",
-                        "md:left-auto md:right-0 md:w-[320px]"
-                      )}
-                    >
-                      <div className="px-5 py-4 border-b border-zinc-50 flex items-center justify-between bg-zinc-50/50">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Notificações</p>
-                        <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-2 py-0.5 rounded-full">2 Novas</span>
-                      </div>
-                      <div className="max-h-[350px] overflow-y-auto">
-                        <div 
-                          className="p-4 border-b border-zinc-50 hover:bg-zinc-50 transition-colors cursor-pointer group"
-                          onClick={() => setIsNotificationsOpen(false)}
-                        >
-                          <div className="flex gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-                              <CheckCircle size={16} />
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-zinc-800">Novo Agendamento</p>
-                              <p className="text-[10px] text-zinc-400 mt-0.5">Novo agendamento recebido para hoje às 14:30.</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div 
-                          className="p-4 border-b border-zinc-50 hover:bg-zinc-50 transition-colors cursor-pointer group"
-                          onClick={() => setIsNotificationsOpen(false)}
-                        >
-                          <div className="flex gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
-                              <AlertTriangle size={16} />
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-zinc-800">Lembrete de Estoque</p>
-                              <p className="text-[10px] text-zinc-400 mt-0.5">O produto "Pomada Efeito Matte" está quase acabando.</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => setIsNotificationsOpen(false)}
-                        className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 transition-all border-t border-zinc-50"
-                      >
-                        Ver Tudo
-                      </button>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <div className="h-6 w-px bg-zinc-200 hidden md:block mx-1"></div>
-
-            {/* Menu Perfil */}
-            <div className="relative" ref={profileMenuRef}>
-              <button
-                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="flex items-center gap-2 p-1 pl-3 pr-2 rounded-xl hover:bg-zinc-100 transition-all group border border-transparent hover:border-zinc-200"
-              >
-                <div className="hidden md:block text-right">
-                  <p className="text-[11px] font-black text-zinc-900 leading-none">{adminUser.name || "Admin Studio"}</p>
-                  <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider mt-1">{adminUser.role === "owner" ? "Proprietário" : adminUser.role === "admin" ? "Admin" : adminUser.role === "manager" ? "Gerente" : "Visualizador"}</p>
-                </div>
-                <div className="w-9 h-9 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-500 overflow-hidden group-hover:shadow-sm transition-all">
-                  {adminUser.photo
-                    ? <img src={adminUser.photo} alt="Avatar" className="w-full h-full object-cover" />
-                    : <span className="font-black text-xs">{(adminUser.name || "AS").split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)}</span>
-                  }
-                </div>
-                <ChevronDown size={14} className={cn("text-zinc-400 transition-transform duration-300", isProfileMenuOpen && "rotate-180")} />
-              </button>
-
-              <AnimatePresence>
-                {isProfileMenuOpen && (
-                  <>
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.12)] border border-zinc-100/80 z-[55] overflow-hidden"
-                    >
-                      {/* Header com avatar + info */}
-                      <div className="p-4 flex items-center gap-3 border-b border-zinc-100">
-                        <div className="w-10 h-10 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0">
-                          {adminUser.photo
-                            ? <img src={adminUser.photo} alt="Avatar" className="w-full h-full object-cover" />
-                            : <span className="font-black text-xs text-zinc-600">{(adminUser.name || "AS").split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)}</span>
-                          }
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-black text-zinc-900 truncate leading-tight">{adminUser.name || "Admin"}</p>
-                          <p className="text-[10px] text-zinc-400 truncate mt-0.5">{adminUser.email || "—"}</p>
-                          <span className="inline-block mt-1 text-[9px] font-black uppercase tracking-wider text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded-md">
-                            {adminUser.role === "owner" ? "Proprietário" : adminUser.role === "manager" ? "Gerente" : adminUser.role === "admin" ? "Admin" : "Visualizador"}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Ações */}
-                      <div className="p-2">
-                        <button onClick={() => { setIsProfileMenuOpen(false); handleTabChange('profile'); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all">
-                          <UserCog size={15} className="text-zinc-400" /> Meu Perfil
-                        </button>
-                        <button onClick={() => { setIsProfileMenuOpen(false); handleTabChange('settings'); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all">
-                          <Settings size={15} className="text-zinc-400" /> Configurações
-                        </button>
-                      </div>
-
-                      {/* Sair */}
-                      <div className="p-2 pt-0">
-                        <div className="border-t border-zinc-100 pt-2">
-                          <button onClick={() => { localStorage.removeItem("isLogged"); localStorage.removeItem("adminUser"); window.location.href = "/login"; }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 transition-all">
-                            <LogOut size={15} /> Sair da conta
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
-
-          </div>
-        </header>
-
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 scrollbar-hide">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-            >
-
-        {activeTab === 'dash' && (() => {
-          // Calcula revenueData: faturamento por dia da semana atual (comandas fechadas)
-          const DAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-          const today = new Date();
-          const startOfWeek = new Date(today); startOfWeek.setDate(today.getDate() - today.getDay());
-          startOfWeek.setHours(0,0,0,0);
-          const revenueByDay: Record<number, number> = {0:0,1:0,2:0,3:0,4:0,5:0,6:0};
-          comandas.forEach((c: any) => {
-            if (c.status === 'closed' && c.total > 0) {
-              const d = new Date(c.createdAt);
-              if (d >= startOfWeek) revenueByDay[d.getDay()] = (revenueByDay[d.getDay()] || 0) + c.total;
-            }
-          });
-          const revenueData = DAYS.map((name, i) => ({ name, value: revenueByDay[i] || 0 }));
-
-          // Calcula servicesData: top serviços por count de agendamentos
-          const COLORS = ['#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#ef4444'];
-          const svcCount: Record<string, number> = {};
-          appointments.forEach((a: any) => {
-            if (a.service?.name) svcCount[a.service.name] = (svcCount[a.service.name] || 0) + 1;
-          });
-          const total = Object.values(svcCount).reduce((s, v) => s + v, 0) || 1;
-          const servicesData = Object.entries(svcCount)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([name, count], i) => ({ name, value: Math.round(count / total * 100), color: COLORS[i] }));
-
-          return (
-            <DashboardTab
-              revenueData={revenueData}
-              servicesData={servicesData}
-              appointments={appointments}
-              comandas={comandas}
-              clients={clients}
-              handleTabChange={handleTabChange}
-              setIsAppointmentModalOpen={setIsAppointmentModalOpen}
-              setIsComandaModalOpen={setIsComandaModalOpen}
-              setIsClientModalOpen={setIsClientModalOpen}
-            />
-          );
-        })()}
-
-        {activeTab === 'agenda' && (
-          <AgendaTab
-            view={view}
-            setView={setView}
-            currentMonth={currentMonth}
-            setCurrentMonth={setCurrentMonth}
-            setIsAppointmentModalOpen={setIsAppointmentModalOpen}
-            selectedProfessional={selectedProfessional}
-            setSelectedProfessional={setSelectedProfessional}
-            professionals={professionals}
-            appointments={appointments}
-            daysInMonth={daysInMonth}
-            setSlotHover={setSlotHover}
-            setNewAppointment={setNewAppointment}
-            hoveredAppointment={hoveredAppointment}
-            setHoveredAppointment={setHoveredAppointment}
-            onAppointmentClick={(app) => {
-              setSelectedAppointment(app);
-              setIsViewAppointmentModalOpen(true);
-            }}
-          />
-        )}
-
-        {activeTab === 'minha-agenda' && (
-          <MinhaAgendaTab 
-            studioName={tenantName} 
-            tenantSlug={tenantSlug}
-            onUpdateName={setTenantName}
-            onUpdateSlug={setTenantSlug}
-            onRefreshProfessionals={fetchProfessionals}
-          />
-        )}
-
-        {activeTab === 'services' && (
-          <ServicesTab
-            services={services}
-            serviceSubTab={serviceSubTab}
-            setServiceSubTab={setServiceSubTab}
-            setEditingService={setEditingService}
-            setNewService={setNewService}
-            setIsServiceModalOpen={setIsServiceModalOpen}
-            handleDeleteService={handleDeleteService}
-            viewMode={serviceView}
-            setViewMode={setServiceView}
-          />
-        )}
-
-        {activeTab === 'clients' && (
-          <ClientsTab
-            clientView={clientView}
-            setClientView={setClientView}
-            clients={clients}
-            setIsClientModalOpen={setIsClientModalOpen}
-            calculateAge={calculateAge}
-            handleEditClient={handleEditClient}
-            handleDeleteClient={handleDeleteClient}
-          />
-        )}
-
-        {activeTab === 'comandas' && (
-          <ComandasTab
-            comandas={comandas}
-            products={products}
-            services={services}
-            professionals={professionals}
-            setIsComandaModalOpen={setIsComandaModalOpen}
-            selectedComanda={selectedComanda}
-            setSelectedComanda={setSelectedComanda}
-            isComandaDetailOpen={isComandaDetailOpen}
-            setIsComandaDetailOpen={setIsComandaDetailOpen}
-            handlePayComanda={handlePayComanda}
-            handleDeleteComanda={handleDeleteComanda}
-            fetchComandas={fetchComandas}
-          />
-        )}
-
-        {activeTab === 'fluxo' && (
-          <FluxoTab comandas={comandas} sectors={sectors} />
-        )}
-
-        {activeTab === 'professionals' && (
-          <ProfessionalsTab
-            professionals={professionals}
-            setEditingProfessional={setEditingProfessional}
-            setNewProfessional={setNewProfessional}
-            setIsProfessionalModalOpen={setIsProfessionalModalOpen}
-            handleDeleteProfessional={handleDeleteProfessional}
-            emptyProfessional={emptyProfessional}
-            permissionProfiles={permissionProfiles}
-            profSubTab={profSubTab}
-            onSubTabChange={handleProfSubTab}
-            onOpenPermProfileModal={() => { setEditingPermProfile(null); setNewPermProfile({ ...emptyPermProfile }); setIsPermProfileModalOpen(true); }}
-            onEditPermProfile={(p: any) => { setEditingPermProfile(p); setNewPermProfile({ name: p.name, permissions: { ...p.permissions } }); setIsPermProfileModalOpen(true); }}
-            onDeletePermProfile={(id: string) => savePermProfiles(permissionProfiles.filter(p => p.id !== id))}
-          />
-        )}
-
-        {/* ── HORÁRIOS ─────────────────────────────────────────── */}
-        {activeTab === 'horarios' && (
-          <HorariosTab
-            workingHours={workingHours}
-            setWorkingHours={setWorkingHours}
-            localWorkingHours={localWorkingHours}
-            setLocalWorkingHours={setLocalWorkingHours}
-            holidays={holidays}
-            setHolidays={setHolidays}
-            newHoliday={newHoliday}
-            setNewHoliday={setNewHoliday}
-          />
-        )}
-
-        {/* ── MEU PERFIL ───────────────────────────────────────── */}
-        {activeTab === 'profile' && (
-          <AdminProfileTab />
-        )}
-
-        {activeTab === 'wpp' && (
-          <WppTab />
-        )}
-
-        {activeTab === 'products' && (
-          <ProductsTab
-            products={products}
-            sectors={sectors}
-            setIsProductModalOpen={setIsProductModalOpen}
-            setEditingProduct={setEditingProduct}
-            setNewProduct={setNewProduct}
-            fetchProducts={fetchProducts}
-            fetchSectors={fetchSectors}
-          />
-        )}
-
-        {/* ── CONFIGURAÇÕES ────────────────────────────────────── */}
-        {activeTab === 'settings' && (
-          <SettingsTab
-            currentTheme={currentTheme}
-            themeColors={themeColors}
-            themeColor={themeColor}
-            handleThemeChange={handleThemeChange}
-            settingsOpenCard={settingsOpenCard}
-            setSettingsOpenCard={setSettingsOpenCard}
-          />
-        )}
-      </motion.div>
-    </AnimatePresence>
-  </div>
-</main>
+    <>
+      <AdminDashboardShell
+        activeTab={activeTab}
+        activeSubModule={activeSubModule}
+        adminUser={adminUser}
+        handleTabChange={handleTabChange}
+        isNotificationsOpen={isNotificationsOpen}
+        isProfileMenuOpen={isProfileMenuOpen}
+        isSidebarOpen={isSidebarOpen}
+        onLogout={() => {
+          localStorage.removeItem("isLogged");
+          localStorage.removeItem("adminUser");
+          window.location.href = "/login";
+        }}
+        onSubModuleChange={handleSubModuleChange}
+        profileMenuRef={profileMenuRef}
+        setIsNotificationsOpen={setIsNotificationsOpen}
+        setIsProfileMenuOpen={setIsProfileMenuOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+        setSidebarCollapsed={setSidebarCollapsed}
+        sidebarCollapsed={sidebarCollapsed}
+        slotHover={slotHover}
+      >
+        <AdminTabContent
+          activeTab={activeTab}
+          activeSubModule={activeSubModule}
+          setActiveSubModule={handleSubModuleChange}
+          appointments={appointments}
+          calculateAge={calculateAge}
+          clients={clients}
+          clientView={clientView}
+          comandas={comandas}
+          currentMonth={currentMonth}
+          currentTheme={currentTheme}
+          daysInMonth={daysInMonth}
+          emptyPermProfile={emptyPermProfile}
+          emptyProfessional={emptyProfessional}
+          fetchComandas={fetchComandas}
+          fetchProducts={fetchProducts}
+          fetchProfessionals={fetchProfessionals}
+          fetchSectors={fetchSectors}
+          handleDeleteClient={handleDeleteClient}
+          handleDeleteComanda={handleDeleteComanda}
+          handleDeleteProfessional={handleDeleteProfessional}
+          handleDeleteService={handleDeleteService}
+          handleEditClient={handleEditClient}
+          handlePayComanda={handlePayComanda}
+          handleProfSubTab={handleProfSubTab}
+          handleTabChange={handleTabChange}
+          handleThemeChange={handleThemeChange}
+          holidays={holidays}
+          hoveredAppointment={hoveredAppointment}
+          isComandaDetailOpen={isComandaDetailOpen}
+          localWorkingHours={localWorkingHours}
+          newHoliday={newHoliday}
+          permissionProfiles={permissionProfiles}
+          products={products}
+          profSubTab={profSubTab}
+          professionals={professionals}
+          savePermProfiles={savePermProfiles}
+          sectors={sectors}
+          selectedComanda={selectedComanda}
+          selectedProfessional={selectedProfessional}
+          serviceSubTab={serviceSubTab}
+          serviceView={serviceView}
+          services={services}
+          setClientView={setClientView}
+          setCurrentMonth={setCurrentMonth}
+          setEditingPermProfile={setEditingPermProfile}
+          setEditingProduct={setEditingProduct}
+          setEditingProfessional={setEditingProfessional}
+          setEditingService={setEditingService}
+          setHolidays={setHolidays}
+          setHoveredAppointment={setHoveredAppointment}
+          setIsAppointmentModalOpen={setIsAppointmentModalOpen}
+          setIsClientModalOpen={setIsClientModalOpen}
+          setIsComandaDetailOpen={setIsComandaDetailOpen}
+          setIsComandaModalOpen={setIsComandaModalOpen}
+          setIsPermProfileModalOpen={setIsPermProfileModalOpen}
+          setIsProductModalOpen={setIsProductModalOpen}
+          setIsProfessionalModalOpen={setIsProfessionalModalOpen}
+          setIsServiceModalOpen={setIsServiceModalOpen}
+          setIsViewAppointmentModalOpen={setIsViewAppointmentModalOpen}
+          setLocalWorkingHours={setLocalWorkingHours}
+          setNewAppointment={setNewAppointment}
+          setNewHoliday={setNewHoliday}
+          setNewPermProfile={setNewPermProfile}
+          setNewProduct={setNewProduct}
+          setNewProfessional={setNewProfessional}
+          setNewService={setNewService}
+          setSelectedAppointment={setSelectedAppointment}
+          setSelectedComanda={setSelectedComanda}
+          setSelectedProfessional={setSelectedProfessional}
+          setServiceSubTab={setServiceSubTab}
+          setServiceView={setServiceView}
+          setSettingsOpenCard={setSettingsOpenCard}
+          setSlotHover={setSlotHover}
+          setTenantName={setTenantName}
+          setTenantSlug={setTenantSlug}
+          settingsOpenCard={settingsOpenCard}
+          tenantName={tenantName}
+          tenantSlug={tenantSlug}
+          themeColor={themeColor}
+          themeColors={themeColors}
+          view={view}
+          workingHours={workingHours}
+          setWorkingHours={setWorkingHours}
+          setView={setView}
+          handleUpdateAppointmentStatus={handleUpdateAppointmentStatus}
+          handleDeleteAppointment={handleDeleteAppointment}
+          handleCreateBlockAppointment={handleCreateBlockAppointment}
+          fetchAppointments={fetchAppointments}
+        />
+      </AdminDashboardShell>
 
       {/* Modals */}
-      {/* ── MODAL: SERVIÇO INDIVIDUAL ── */}
-      <Modal
-        isOpen={isServiceModalOpen && newService.type === 'service'}
-        onClose={() => { setIsServiceModalOpen(false); setEditingService(null); }}
-        title={editingService ? "Editar Serviço" : "Novo Serviço"}
-        className="max-w-md w-full"
-      >
-        <div className="flex flex-col gap-4">
-          {/* Nome */}
-          <div className="space-y-1">
-            <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Nome do Serviço</label>
-            <input
-              type="text"
-              autoFocus
-              className="w-full text-sm px-3 py-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-900 font-semibold placeholder:text-zinc-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/15 outline-none transition-all"
-              placeholder="Ex: Corte Degradê"
-              value={newService.name}
-              onChange={e => setNewService({ ...newService, name: e.target.value })}
-            />
-          </div>
+      <AdminScheduleAuxModals
+        customRepeat={customRepeat}
+        handleDeleteAppointment={handleDeleteAppointment}
+        handleMarkRealizado={handleMarkRealizado}
+        handleTabChange={handleTabChange}
+        handleUpdateAppointmentStatus={handleUpdateAppointmentStatus}
+        isCustomRepeatModalOpen={isCustomRepeatModalOpen}
+        isRepeatModalOpen={isRepeatModalOpen}
+        isViewAppointmentModalOpen={isViewAppointmentModalOpen}
+        repeatLabel={repeatLabel}
+        selectedAppointment={selectedAppointment}
+        setChangeProfAppt={setChangeProfAppt}
+        setChangeProfId={setChangeProfId}
+        setCustomRepeat={setCustomRepeat}
+        setIsAppointmentModalOpen={setIsAppointmentModalOpen}
+        setIsChangeProfModalOpen={setIsChangeProfModalOpen}
+        setIsCustomRepeatModalOpen={setIsCustomRepeatModalOpen}
+        setIsLinkComandaModalOpen={setIsLinkComandaModalOpen}
+        setIsRepeatModalOpen={setIsRepeatModalOpen}
+        setIsViewAppointmentModalOpen={setIsViewAppointmentModalOpen}
+        setLinkComandaAppt={setLinkComandaAppt}
+        setNewAppointment={setNewAppointment}
+        setRepeatLabel={setRepeatLabel}
+      />
 
-          {/* Descrição */}
-          <div className="space-y-1">
-            <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Descrição <span className="normal-case font-medium text-zinc-300">(opcional)</span></label>
-            <textarea
-              className="w-full text-sm px-3 py-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/15 outline-none transition-all resize-none"
-              placeholder="O que este serviço inclui..."
-              rows={2}
-              value={newService.description}
-              onChange={e => setNewService({ ...newService, description: e.target.value })}
-            />
-          </div>
+      <AdminScheduleActionModals
+        apptDeleteModal={apptDeleteModal}
+        changeProfAppt={changeProfAppt}
+        changeProfId={changeProfId}
+        comandas={comandas}
+        confirmDeleteAppointments={confirmDeleteAppointments}
+        handleChangeProfessional={handleChangeProfessional}
+        handleConfirmPayment={handleConfirmPayment}
+        handleLinkComanda={handleLinkComanda}
+        isChangeProfModalOpen={isChangeProfModalOpen}
+        isLinkComandaModalOpen={isLinkComandaModalOpen}
+        isPaymentModalOpen={isPaymentModalOpen}
+        linkComandaAppt={linkComandaAppt}
+        payingComanda={payingComanda}
+        professionals={professionals}
+        setApptDeleteModal={setApptDeleteModal}
+        setChangeProfId={setChangeProfId}
+        setIsChangeProfModalOpen={setIsChangeProfModalOpen}
+        setIsLinkComandaModalOpen={setIsLinkComandaModalOpen}
+        setIsPaymentModalOpen={setIsPaymentModalOpen}
+      />
 
-          {/* Preço + Duração */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Preço (R$)</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-bold">R$</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className="w-full text-sm pl-8 pr-3 py-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-900 font-bold placeholder:text-zinc-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/15 outline-none transition-all"
-                  placeholder="0,00"
-                  value={newService.price}
-                  onChange={e => setNewService({ ...newService, price: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Duração (min)</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min="5"
-                  step="5"
-                  className="w-full text-sm px-3 py-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-900 font-bold placeholder:text-zinc-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/15 outline-none transition-all text-center"
-                  placeholder="30"
-                  value={newService.duration}
-                  onChange={e => setNewService({ ...newService, duration: e.target.value })}
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-300 text-[10px] font-bold pointer-events-none">min</span>
-              </div>
-            </div>
-          </div>
+      {/* ── MODAIS EXTRAÍDOS ══════════════════════════════════════ */}
 
-          {/* Desconto + Preço Final */}
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50/60 p-3 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Preço Final</p>
-              <p className="text-lg font-black text-zinc-900 leading-tight">
-                R$ {(() => {
-                  const p = parseFloat(newService.price) || 0;
-                  const d = parseFloat(newService.discount) || 0;
-                  return newService.discountType === 'percentage' ? (p * (1 - d / 100)).toFixed(2) : (p - d).toFixed(2);
-                })()}
-              </p>
-              {parseFloat(newService.discount) > 0 && (
-                <p className="text-[9px] text-zinc-400 line-through">R$ {parseFloat(newService.price || '0').toFixed(2)}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="flex rounded-lg overflow-hidden border border-zinc-200 h-7">
-                {(['value', 'percentage'] as const).map(dt => (
-                  <button key={dt} onClick={() => setNewService({ ...newService, discountType: dt })}
-                    className={cn("px-2 text-[9px] font-black transition-all", newService.discountType === dt ? "bg-zinc-800 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50")}
-                  >{dt === 'value' ? 'R$' : '%'}</button>
-                ))}
-              </div>
-              <input
-                type="number"
-                min="0"
-                className="w-14 h-7 text-xs px-2 bg-white border border-zinc-200 rounded-lg text-center font-bold outline-none focus:border-amber-400 transition-all"
-                placeholder="0"
-                value={newService.discount}
-                onChange={e => setNewService({ ...newService, discount: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {/* Profissionais */}
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Profissionais</label>
-            <div className="flex flex-col gap-1.5">
-              <button type="button" onClick={() => setNewService({ ...newService, professionalIds: [] })}
-                className={cn("flex items-center gap-2.5 px-3 py-2 rounded-xl border text-left transition-all",
-                  (newService.professionalIds || []).length === 0 ? "bg-emerald-50 border-emerald-200" : "bg-white border-zinc-200 hover:border-zinc-300"
-                )}>
-                <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
-                  (newService.professionalIds || []).length === 0 ? "bg-emerald-500 border-emerald-500" : "border-zinc-300"
-                )}>
-                  {(newService.professionalIds || []).length === 0 && <Check className="text-white" size={8} strokeWidth={4} />}
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-zinc-800">Todos os Profissionais</p>
-                  <p className="text-[9px] text-zinc-400">Qualquer membro da equipe</p>
-                </div>
-              </button>
-              <div className="grid grid-cols-2 gap-1.5">
-                {professionals.filter((p: any) => p.isActive !== false).map((p: any) => {
-                  const isSelected = (newService.professionalIds || []).includes(p.id);
-                  return (
-                    <button key={p.id} type="button"
-                      onClick={() => {
-                        const ids: string[] = newService.professionalIds || [];
-                        setNewService({ ...newService, professionalIds: isSelected ? ids.filter(id => id !== p.id) : [...ids, p.id] });
-                      }}
-                      className={cn("flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all",
-                        isSelected ? "bg-amber-50 border-amber-200" : "bg-white border-zinc-200 hover:border-zinc-300"
-                      )}>
-                      <div className={cn("w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 transition-all",
-                        isSelected ? "bg-amber-500 text-white" : "bg-zinc-100 border border-zinc-200"
-                      )}>
-                        {isSelected && <Check size={8} strokeWidth={4} />}
-                      </div>
-                      <span className={cn("text-xs font-semibold truncate", isSelected ? "text-amber-800" : "text-zinc-600")}>{p.name.split(" ")[0]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Controle de Custo / Produtos Consumidos */}
-          <div className="space-y-1.5 border-t border-zinc-100 pt-4 mt-4">
-            <div className="flex items-center justify-between">
-              <label className="text-[9px] font-black text-amber-600 uppercase tracking-[0.1em]">🛒 Controle de Custo</label>
-              <span className="text-[9px] font-medium text-zinc-400">Produtos usados neste serviço</span>
-            </div>
-            
-            {(newService.productsConsumed || []).length > 0 && (
-              <div className="text-[10px] font-bold text-zinc-500 mb-1 flex items-center justify-between px-1">
-                <span>Custo Previsto: R$ {(newService.productsConsumed || []).reduce((acc: number, p: any) => acc + ((Number(p.costPrice) || 0) * (Number(p.quantity) || 1)), 0).toFixed(2)}</span>
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              {(newService.productsConsumed || []).map((pc: any, idx: number) => (
-                <div key={idx} className="flex gap-2 items-center bg-zinc-50 border border-zinc-200 p-2 rounded-xl">
-                  <div className="flex-1 truncate text-xs font-bold text-zinc-700">{pc.name} <span className="text-[9px] font-normal text-zinc-400 ml-1">(Estoque: {pc.stock})</span></div>
-                  <div className="flex items-center gap-1">
-                    <input type="number" min="0.01" step="0.01" className="w-16 py-1.5 px-1 text-xs text-center border border-zinc-200 bg-white rounded-lg outline-none focus:border-amber-400" value={pc.quantity} onChange={e => {
-                      const newProd = [...newService.productsConsumed];
-                      newProd[idx].quantity = parseFloat(e.target.value) || 0;
-                      setNewService({...newService, productsConsumed: newProd});
-                    }} />
-                    <span className="text-[9px] text-zinc-400 font-bold uppercase">Und</span>
-                  </div>
-                  <button type="button" onClick={() => {
-                    setNewService({...newService, productsConsumed: (newService.productsConsumed || []).filter((_: any, i: number) => i !== idx)});
-                  }} className="text-zinc-400 hover:text-red-500 p-1.5 bg-white border border-zinc-200 hover:border-red-200 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={13}/></button>
-                </div>
-              ))}
-              <div className="relative">
-                <select className="w-full text-xs p-3 bg-white border border-dashed border-zinc-300 hover:border-amber-400 rounded-xl text-zinc-500 font-bold outline-none appearance-none transition-all cursor-pointer" onChange={e => {
-                  const pId = e.target.value;
-                  if (!pId) return;
-                  const prod = products.find((p: any) => p.id === pId);
-                  if (prod && !(newService.productsConsumed || []).find((x: any) => x.id === pId)) {
-                    setNewService({...newService, productsConsumed: [...(newService.productsConsumed || []), {id: prod.id, name: prod.name, quantity: 1, costPrice: prod.costPrice, stock: prod.stock}]});
-                  }
-                  e.target.value = "";
-                }}>
-                  <option value="">+ Adicionar Produto do Estoque...</option>
-                  {products.map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.name} (Esq: {p.stock}) - Custo: R$ {Number(p.costPrice || 0).toFixed(2)}</option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-300 pointer-events-none"><Plus size={14}/></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Controladoria de Custos */}
-          <div className="space-y-4 pt-6 mt-6 border-t border-zinc-100">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-5 h-5 rounded-lg bg-amber-500 flex items-center justify-center text-white">
-                <TrendingUp size={12} strokeWidth={3} />
-              </div>
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Controladoria de Custos</h4>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Comissão Profissional</label>
-                <div className="flex bg-white border border-zinc-200 rounded-xl p-1 h-[42px]">
-                  <input
-                    type="number"
-                    className="flex-1 w-full px-3 text-sm bg-transparent border-none outline-none font-bold"
-                    placeholder="0.00"
-                    value={newService.commissionValue}
-                    onChange={e => setNewService({...newService, commissionValue: parseFloat(e.target.value) || 0})}
-                  />
-                  <div className="flex bg-zinc-50 rounded-lg p-0.5 border border-zinc-100">
-                    <button
-                      type="button"
-                      onClick={() => setNewService({...newService, commissionType: "percentage"})}
-                      className={cn("px-2 text-[10px] font-black rounded-md transition-all h-full", newService.commissionType === "percentage" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400")}
-                    >%</button>
-                    <button
-                      type="button"
-                      onClick={() => setNewService({...newService, commissionType: "value"})}
-                      className={cn("px-2 text-[10px] font-black rounded-md transition-all h-full", newService.commissionType === "value" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400")}
-                    >R$</button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Taxas / Impostos (%)</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    className="w-full text-sm px-3 h-[42px] bg-white border border-zinc-200 rounded-xl text-zinc-900 font-bold outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/15"
-                    placeholder="0.00"
-                    value={newService.taxRate}
-                    onChange={e => setNewService({...newService, taxRate: parseFloat(e.target.value) || 0})}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-300">%</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Simulator Box */}
-            <div className="bg-zinc-900 rounded-2xl p-4 shadow-xl shadow-zinc-200/50">
-              <div className="flex justify-between items-center mb-3 pb-2 border-b border-white/10">
-                <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Simulador de Lucro</p>
-                <div className="px-2 py-0.5 bg-zinc-800 rounded-full">
-                  <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Ficha de Custo</span>
-                </div>
-              </div>
-              
-              <div className="space-y-1.5 mb-3">
-                {(() => {
-                  const price = parseFloat(newService.price) || 0;
-                  const productCost = (newService.productsConsumed || []).reduce((acc: number, p: any) => acc + ((Number(p.costPrice) || 0) * (Number(p.quantity) || 1)), 0);
-                  const taxCost = price * (newService.taxRate / 100);
-                  const commCost = newService.commissionType === "percentage" ? (price * (newService.commissionValue / 100)) : (Number(newService.commissionValue) || 0);
-                  const netProfit = price - productCost - taxCost - commCost;
-                  const margin = price > 0 ? (netProfit / price) * 100 : 0;
-
-                  return (
-                    <>
-                      <div className="flex justify-between text-[10px] font-bold">
-                        <span className="text-zinc-500">Valor do Serviço</span>
-                        <span className="text-white">R$ {price.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-[10px] font-bold">
-                        <span className="text-zinc-500">Custo de Produtos</span>
-                        <span className="text-rose-400">- R$ {productCost.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-[10px] font-bold">
-                        <span className="text-zinc-500">Taxas / Operação</span>
-                        <span className="text-rose-400">- R$ {taxCost.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-[10px] font-bold">
-                        <span className="text-zinc-500">Comissão Profissional</span>
-                        <span className="text-rose-400">- R$ {commCost.toFixed(2)}</span>
-                      </div>
-                      <div className="pt-2 mt-2 border-t border-white/5 flex justify-between items-end">
-                        <div>
-                          <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest leading-none">Lucro Líquido</p>
-                          <p className={cn("text-lg font-black leading-none mt-1", netProfit >= 0 ? "text-emerald-400" : "text-rose-400")}>
-                            R$ {netProfit.toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Margem</p>
-                          <p className="text-xs font-black text-white leading-none mt-1">
-                            {margin.toFixed(1)}%
-                          </p>
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-          </div>
-
-
-          <Button
-            className="w-full bg-zinc-900 hover:bg-black text-white rounded-xl py-3 text-xs font-black shadow-sm transition-all flex items-center justify-center gap-2"
-            onClick={handleCreateService}
-            disabled={!newService.name || !newService.price}
-          >
-            {editingService ? <Edit2 size={14} /> : <Plus size={14} />}
-            {editingService ? "Salvar Alterações" : "Cadastrar Serviço"}
-          </Button>
-        </div>
-      </Modal>
-
-      {/* ── MODAL: PACOTE ── */}
-      <Modal
-        isOpen={isServiceModalOpen && newService.type === 'package'}
-        onClose={() => { setIsServiceModalOpen(false); setEditingService(null); }}
-        title={editingService ? "Editar Pacote" : "Novo Pacote"}
-        className="max-w-xl w-full"
-      >
-        <div className="flex flex-col gap-4">
-          {/* Nome + Descrição */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Nome do Pacote</label>
-              <input
-                type="text"
-                autoFocus
-                className="w-full text-sm px-3 py-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-900 font-semibold placeholder:text-zinc-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/15 outline-none transition-all"
-                placeholder="Ex: Combo Barba & Cabelo"
-                value={newService.name}
-                onChange={e => setNewService({ ...newService, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Descrição <span className="normal-case font-medium text-zinc-300">(opcional)</span></label>
-              <input
-                type="text"
-                className="w-full text-sm px-3 py-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/15 outline-none transition-all"
-                placeholder="Breve descrição..."
-                value={newService.description}
-                onChange={e => setNewService({ ...newService, description: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {/* Serviços do pacote */}
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Serviços incluídos</label>
-            <div className="relative">
-              <select
-                className="w-full text-sm px-3 py-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-700 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/15 outline-none transition-all appearance-none"
-                onChange={(e) => handleAddServiceToPackage(e.target.value)}
-                value=""
-              >
-                <option value="" disabled>+ Adicionar serviço ao pacote</option>
-                {services.filter(s => s.type === 'service').map(s => (
-                  <option key={s.id} value={s.id}>{s.name} — R$ {parseFloat(s.price).toFixed(2)}</option>
-                ))}
-              </select>
-              <Plus size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
-            </div>
-
-            <div className="rounded-xl border border-zinc-100 bg-zinc-50/40 min-h-[80px] overflow-hidden">
-              {newService.includedServices.length === 0 ? (
-                <div className="flex items-center justify-center h-[80px]">
-                  <p className="text-[10px] text-zinc-300 italic">Nenhum serviço adicionado</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-zinc-100">
-                  {newService.includedServices.map(s => (
-                    <div key={s.id} className="flex items-center justify-between px-3 py-2">
-                      <div>
-                        <span className="text-xs font-semibold text-zinc-800">{s.name}</span>
-                        <span className="text-[9px] text-zinc-400 ml-2">R$ {((s.price || 0) * (s.quantity || 1)).toFixed(2)}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center border border-zinc-200 rounded-lg overflow-hidden h-6 bg-white">
-                          <button onClick={() => {
-                            const val = Math.max(1, (s.quantity || 1) - 1);
-                            setNewService((prev: any) => {
-                              const ni = prev.includedServices.map((item: any) => item.id === s.id ? { ...item, quantity: val } : item);
-                              return { ...prev, includedServices: ni, price: calcPackagePrice(ni) };
-                            });
-                          }} className="w-6 text-zinc-500 hover:bg-zinc-100 text-xs font-bold leading-none flex items-center justify-center">−</button>
-                          <span className="w-6 text-center text-[10px] font-black text-zinc-800 border-x border-zinc-200">{s.quantity}</span>
-                          <button onClick={() => {
-                            const val = (s.quantity || 1) + 1;
-                            setNewService((prev: any) => {
-                              const ni = prev.includedServices.map((item: any) => item.id === s.id ? { ...item, quantity: val } : item);
-                              return { ...prev, includedServices: ni, price: calcPackagePrice(ni) };
-                            });
-                          }} className="w-6 text-zinc-500 hover:bg-zinc-100 text-xs font-bold leading-none flex items-center justify-center">+</button>
-                        </div>
-                        <button onClick={() => setNewService((prev: any) => {
-                          const ni = prev.includedServices.filter((item: any) => item.id !== s.id);
-                          return { ...prev, includedServices: ni, price: calcPackagePrice(ni) };
-                        })} className="w-6 h-6 flex items-center justify-center text-zinc-300 hover:text-red-400 transition-colors">
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Duração + Desconto */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Duração (min)</label>
-              <input type="number" min="5" step="5"
-                className="w-full text-sm px-2 py-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-900 font-bold outline-none focus:border-amber-400 transition-all text-center"
-                placeholder="—"
-                value={newService.duration}
-                onChange={e => setNewService({ ...newService, duration: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Desconto</label>
-              <div className="flex items-center gap-1">
-                <div className="flex rounded-lg overflow-hidden border border-zinc-200 h-[38px] shrink-0">
-                  {(['value', 'percentage'] as const).map(dt => (
-                    <button key={dt} onClick={() => setNewService({ ...newService, discountType: dt })}
-                      className={cn("px-2 text-[9px] font-black transition-all h-full", newService.discountType === dt ? "bg-zinc-800 text-white" : "bg-white text-zinc-400")}
-                    >{dt === 'value' ? 'R$' : '%'}</button>
-                  ))}
-                </div>
-                <input type="number" min="0"
-                  className="flex-1 min-w-0 h-[38px] text-sm px-2 bg-white border border-zinc-200 rounded-lg text-center font-bold outline-none focus:border-amber-400 transition-all"
-                  placeholder="0"
-                  value={newService.discount}
-                  onChange={e => setNewService({ ...newService, discount: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Preço final destaque */}
-          <div className="flex items-center justify-between rounded-xl bg-amber-50 border border-amber-100 px-4 py-3">
-            <div>
-              <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Total serviços</p>
-              <p className="text-xs text-amber-400 line-through">R$ {parseFloat(newService.price || '0').toFixed(2)}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Preço Final</p>
-              <p className="text-xl font-black text-amber-700">
-                R$ {(() => {
-                  const p = parseFloat(newService.price) || 0;
-                  const d = parseFloat(newService.discount) || 0;
-                  return newService.discountType === 'percentage' ? (p * (1 - d / 100)).toFixed(2) : (p - d).toFixed(2);
-                })()}
-              </p>
-            </div>
-          </div>
-
-          {/* Profissionais */}
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Profissionais</label>
-            <div className="flex flex-wrap gap-1.5">
-              <button type="button" onClick={() => setNewService({ ...newService, professionalIds: [] })}
-                className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all",
-                  (newService.professionalIds || []).length === 0 ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-300"
-                )}>
-                {(newService.professionalIds || []).length === 0 && <Check size={10} strokeWidth={3} />}
-                Todos
-              </button>
-              {professionals.filter((p: any) => p.isActive !== false).map((p: any) => {
-                const isSelected = (newService.professionalIds || []).includes(p.id);
-                return (
-                  <button key={p.id} type="button"
-                    onClick={() => {
-                      const ids: string[] = newService.professionalIds || [];
-                      setNewService({ ...newService, professionalIds: isSelected ? ids.filter(id => id !== p.id) : [...ids, p.id] });
-                    }}
-                    className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all",
-                      isSelected ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-300"
-                    )}>
-                    {isSelected && <Check size={10} strokeWidth={3} />}
-                    {p.name.split(" ")[0]}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <Button
-            className="w-full bg-zinc-900 hover:bg-black text-white rounded-xl py-3 text-xs font-black shadow-sm transition-all flex items-center justify-center gap-2"
-            onClick={handleCreateService}
-            disabled={!newService.name || newService.includedServices.length === 0}
-          >
-            {editingService ? <Edit2 size={14} /> : <Plus size={14} />}
-            {editingService ? "Salvar Alterações" : "Cadastrar Pacote"}
-          </Button>
-        </div>
-      </Modal>
-
-      {/* ── MODAL: DETALHES DO AGENDAMENTO ────────────────────────── */}
-      <Modal
-        isOpen={isViewAppointmentModalOpen}
-        onClose={() => setIsViewAppointmentModalOpen(false)}
-        title="Detalhes do Agendamento"
-        size="md"
-      >
-        {selectedAppointment && (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4 p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
-              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
-                <CalendarDays size={24} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-black text-zinc-900 truncate">{selectedAppointment.client?.name || 'Cliente não identificado'}</p>
-                <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
-                  {format(new Date(selectedAppointment.date), "EEEE, d 'de' MMMM", { locale: ptBR })} • {selectedAppointment.startTime}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-white border border-zinc-100 rounded-xl">
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Serviço/Pacote</p>
-                <p className="text-xs font-bold text-zinc-800 truncate">{selectedAppointment.service?.name || '-'}</p>
-              </div>
-              <div className="p-3 bg-white border border-zinc-100 rounded-xl">
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Profissional</p>
-                <p className="text-xs font-bold text-zinc-800 truncate">{selectedAppointment.professional?.name || '-'}</p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl border flex items-center justify-between gap-4 bg-white border-zinc-200">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-                  selectedAppointment.comanda ? (selectedAppointment.comanda.status === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600') : 'bg-zinc-100 text-zinc-400'
-                )}>
-                  <Banknote size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-zinc-900">Status Financeiro</p>
-                  <p className="text-[10px] font-medium text-zinc-500">
-                    {selectedAppointment.comanda 
-                      ? (selectedAppointment.comanda.status === 'paid' ? 'Comanda Paga' : 'Comanda Aberta')
-                      : 'Sem comanda vinculada'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {selectedAppointment.comanda ? (
-                  <Button variant="outline" size="sm" onClick={() => { setIsViewAppointmentModalOpen(false); handleTabChange('comandas'); }}>
-                    Ver Comanda
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    className="bg-amber-500 hover:bg-amber-600 text-white"
-                    onClick={() => {
-                      setLinkComandaAppt(selectedAppointment);
-                      setIsLinkComandaModalOpen(true);
-                    }}
-                  >
-                    Importar Comanda
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-3 ml-1">Gerenciar Status</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <button
-                  onClick={() => handleUpdateAppointmentStatus(selectedAppointment.id, 'confirmed')}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-emerald-100 bg-emerald-50/50 text-emerald-600 hover:bg-emerald-100 transition-all group"
-                >
-                  <CheckCircle size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Confirmar</span>
-                </button>
-                <button
-                  onClick={() => handleMarkRealizado(selectedAppointment)}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-zinc-300 bg-zinc-900 text-white hover:bg-zinc-800 transition-all group"
-                >
-                  <CheckCircle size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Realizado</span>
-                </button>
-                <button
-                  onClick={() => handleUpdateAppointmentStatus(selectedAppointment.id, 'noshow')}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-red-100 bg-red-50/50 text-red-600 hover:bg-red-100 transition-all group"
-                >
-                  <AlertTriangle size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Falta</span>
-                </button>
-                <button
-                  onClick={() => { 
-                    setNewAppointment({
-                      id: selectedAppointment.id,
-                      date: new Date(selectedAppointment.date),
-                      startTime: selectedAppointment.startTime,
-                      duration: selectedAppointment.duration || 60,
-                      clientId: selectedAppointment.clientId || "",
-                      clientPhone: selectedAppointment.client?.phone || "",
-                      clientName: selectedAppointment.client?.name || "",
-                      serviceId: selectedAppointment.serviceId || "",
-                      packageId: selectedAppointment.packageId || "",
-                      serviceIds: [selectedAppointment.serviceId, selectedAppointment.packageId].filter(Boolean) as string[],
-                      professionalId: selectedAppointment.professionalId || "",
-                      status: selectedAppointment.status || "agendado",
-                      notes: selectedAppointment.notes || "",
-                      type: selectedAppointment.type || "atendimento",
-                      recurrence: { type: "none", count: 1, interval: 7 },
-                      comandaId: selectedAppointment.comandaId || ""
-                    });
-                    setIsViewAppointmentModalOpen(false); 
-                    setIsAppointmentModalOpen(true); 
-                  }}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-blue-100 bg-blue-50/50 text-blue-600 hover:bg-blue-100 transition-all group"
-                >
-                  <Clock size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Reagendar</span>
-                </button>
-                <button
-                  onClick={() => handleUpdateAppointmentStatus(selectedAppointment.id, 'cancelled')}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-500 hover:bg-zinc-100 transition-all group"
-                >
-                  <XCircle size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Cancelar</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setChangeProfAppt(selectedAppointment);
-                    setChangeProfId(selectedAppointment.professionalId || "");
-                    setIsChangeProfModalOpen(true);
-                  }}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-violet-200 bg-violet-50/50 text-violet-600 hover:bg-violet-100 transition-all group"
-                >
-                  <UserCog size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Trocar Prof.</span>
-                </button>
-                <button
-                  onClick={() => {
-                      handleDeleteAppointment(selectedAppointment);
-                      setIsViewAppointmentModalOpen(false);
-                  }}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-red-200 bg-white text-red-400 hover:bg-red-50 transition-all group"
-                >
-                  <Trash2 size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Excluir</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <ServiceModal
+        isServiceModalOpen={isServiceModalOpen}
+        setIsServiceModalOpen={setIsServiceModalOpen}
+        editingService={editingService}
+        setEditingService={setEditingService}
+        newService={newService}
+        setNewService={setNewService}
+        professionals={professionals}
+        products={products}
+        handleCreateService={handleCreateService}
+        handleAddServiceToPackage={handleAddServiceToPackage}
+        calcPackagePrice={calcPackagePrice}
+        services={services}
+      />
 
       {/* ═══ MODAL AGENDAMENTO ═══════════════════════════════════ */}
       <AnimatePresence>
@@ -2464,7 +1450,6 @@ export default function AdminDashboard() {
             <>
               <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
                 onClick={closeAppt} className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-[2px]" />
-              {/* Modal — bottom-sheet on mobile, centered on sm+ */}
               <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
                 <motion.div
                   initial={{opacity:0, y:40}} animate={{opacity:1, y:0}} exit={{opacity:0, y:40}}
@@ -2472,12 +1457,9 @@ export default function AdminDashboard() {
                   className="w-full sm:max-w-2xl bg-white sm:rounded-2xl rounded-t-2xl shadow-2xl pointer-events-auto border border-zinc-200 flex flex-col"
                   style={{maxHeight:'92dvh'}}
                 >
-                  {/* Mobile drag handle */}
                   <div className="flex justify-center pt-3 pb-1 sm:hidden shrink-0">
                     <div className="w-10 h-1 rounded-full bg-zinc-300" />
                   </div>
-
-                  {/* Header */}
                   <div className="flex items-start justify-between px-4 sm:px-6 pt-3 sm:pt-5 pb-0 shrink-0">
                     <div>
                       <h2 className="text-sm sm:text-base font-black text-zinc-900">Novo Agendamento</h2>
@@ -2489,8 +1471,6 @@ export default function AdminDashboard() {
                       <X size={16} />
                     </button>
                   </div>
-
-                  {/* Type Tabs */}
                   <div className="px-4 sm:px-6 pt-3 pb-2 shrink-0">
                     <div className="flex gap-1 p-1 bg-zinc-100 rounded-xl">
                       {([
@@ -2514,19 +1494,14 @@ export default function AdminDashboard() {
                       ))}
                     </div>
                   </div>
-
-                  {/* Scrollable Content */}
                   <div className="px-4 sm:px-6 pb-2 overflow-y-auto flex-1">
                     {newAppointment.type === 'atendimento' && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                        {/* ── ESQUERDA: Identificação ── */}
                         <div className="space-y-3 sm:space-y-4">
                           <div className="flex items-center gap-2">
                             <div className="w-1 h-4 rounded-full bg-amber-500" />
                             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Identificação</p>
                           </div>
-
-                          {/* Cliente combobox */}
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Cliente</label>
                             <div className="relative">
@@ -2578,8 +1553,6 @@ export default function AdminDashboard() {
                               </p>
                             )}
                           </div>
-                          
-                          {/* Comanda section */}
                           {newAppointment.clientId && (
                             <div className="space-y-1.5 p-3 bg-zinc-50 border border-zinc-100 rounded-2xl">
                               <div className="flex items-center justify-between mb-1.5">
@@ -2613,32 +1586,25 @@ export default function AdminDashboard() {
                                 onChange={(e) => {
                                   const cid = e.target.value;
                                   const selectedCom = comandas.find((c: any) => c.id === cid);
-
-                                  // Monta lista de IDs de serviços/pacotes a partir da comanda
                                   let autoIds: string[] = [];
                                   if (selectedCom) {
                                     if (selectedCom.type === 'pacote' && selectedCom.packageId) {
-                                      // Comanda de pacote: usa o pacote
                                       autoIds = [selectedCom.packageId];
                                     } else if (Array.isArray(selectedCom.items) && selectedCom.items.length > 0) {
-                                      // Comanda com itens: pega os serviceIds dos itens
                                       autoIds = selectedCom.items
                                         .map((i: any) => i.serviceId)
                                         .filter(Boolean)
                                         .filter((id: string, idx: number, arr: string[]) => arr.indexOf(id) === idx);
                                     } else if (selectedCom.description) {
-                                      // Comanda normal: tenta casar pelo nome
                                       const matched = services.find((s: any) =>
                                         s.name.toLowerCase() === selectedCom.description.toLowerCase()
                                       );
                                       if (matched) autoIds = [matched.id];
                                     }
                                   }
-
                                   const firstSvc = autoIds.find((id: string) => services.find((s: any) => s.id === id && s.type !== 'package'));
                                   const firstPkg = autoIds.find((id: string) => services.find((s: any) => s.id === id && s.type === 'package'));
                                   const firstAny = services.find((s: any) => s.id === autoIds[0]);
-
                                   setNewAppointment((prev: any) => ({
                                     ...prev,
                                     comandaId: cid || null,
@@ -2677,8 +1643,6 @@ export default function AdminDashboard() {
                               )}
                             </div>
                           )}
-
-                          {/* Serviço / Pacote — multi-select unificado */}
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
                               <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
@@ -2730,8 +1694,6 @@ export default function AdminDashboard() {
                               size="sm"
                             />
                           </div>
-
-                          {/* Status */}
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Status</label>
                             <div className="relative">
@@ -2750,15 +1712,11 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                         </div>
-
-                        {/* ── DIREITA: Horário e Repetição ── */}
                         <div className="space-y-3 sm:space-y-4">
                           <div className="flex items-center gap-2">
                             <div className="w-1 h-4 rounded-full bg-emerald-500" />
                             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Horário e Repetição</p>
                           </div>
-
-                          {/* Data + Hora + Duração — 3 cols on sm+, 2 cols on xs, stacked on mobile */}
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             <div className="space-y-1">
                               <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Data</label>
@@ -2785,8 +1743,6 @@ export default function AdminDashboard() {
                               />
                             </div>
                           </div>
-
-                          {/* Término previsto */}
                           <div className="flex items-center gap-3 p-3 bg-zinc-50 border border-zinc-200 rounded-xl">
                             <Clock size={14} className="text-zinc-400 shrink-0"/>
                             <div className="flex-1">
@@ -2794,8 +1750,6 @@ export default function AdminDashboard() {
                               <p className="text-base font-black text-amber-600">{endTime}h</p>
                             </div>
                           </div>
-
-                            {/* Profissional */}
                             <div className="space-y-1.5">
                               <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Profissional Responsável</label>
                               <Combobox
@@ -2813,8 +1767,6 @@ export default function AdminDashboard() {
                                 size="sm"
                               />
                             </div>
-
-                          {/* Repetição */}
                           <button
                             onClick={() => setIsRepeatModalOpen(true)}
                             className="w-full flex items-center gap-3 p-3 bg-zinc-50 border border-zinc-200 rounded-xl hover:border-amber-300 hover:bg-amber-50/30 transition-all group"
@@ -2833,8 +1785,6 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     )}
-
-                    {/* Pessoal / Bloqueio layout simples */}
                     {(newAppointment.type === 'pessoal' || newAppointment.type === 'bloqueio') && (
                       <div className="space-y-3 py-1">
                         <div className={cn("p-3 sm:p-4 rounded-xl border text-xs font-bold",
@@ -2875,8 +1825,6 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     )}
-
-                    {/* Observações */}
                     {newAppointment.type === 'atendimento' && (
                       <div className="mt-3 sm:mt-4 space-y-1.5">
                         <div className="flex items-center gap-2">
@@ -2892,8 +1840,6 @@ export default function AdminDashboard() {
                       </div>
                     )}
                   </div>
-
-                  {/* Footer */}
                   <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-t border-zinc-100 shrink-0">
                     <button onClick={closeAppt} className="px-3 sm:px-4 py-2 text-sm font-bold text-zinc-400 hover:text-zinc-700 transition-all">
                       Descartar
@@ -2920,215 +1866,6 @@ export default function AdminDashboard() {
         })()}
       </AnimatePresence>
 
-      {/* ═══ MODAL SELEÇÃO DE REPETIÇÃO ════════════════════════ */}
-      <AnimatePresence>
-        {isRepeatModalOpen && (() => {
-          const repeatOpts = [
-            { label: 'Não Repete', type:'none', interval:0, count:0 },
-            { label: 'Semanal — 4 vezes',   type:'weekly', interval:7,  count:4  },
-            { label: 'Semanal — 8 vezes',   type:'weekly', interval:7,  count:8  },
-            { label: 'Semanal — 12 vezes',  type:'weekly', interval:7,  count:12 },
-            { label: 'Semanal — 16 vezes',  type:'weekly', interval:7,  count:16 },
-            { label: 'Semanal — 20 vezes',  type:'weekly', interval:7,  count:20 },
-            { label: 'A cada 15 dias — 4 vezes', type:'biweekly', interval:15, count:4 },
-            { label: 'A cada 15 dias — 8 vezes', type:'biweekly', interval:15, count:8 },
-            { label: 'Mensal — 3 vezes',  type:'monthly', interval:30, count:3  },
-            { label: 'Mensal — 6 vezes',  type:'monthly', interval:30, count:6  },
-            { label: 'Mensal — 12 vezes', type:'monthly', interval:30, count:12 },
-            { label: 'Personalizado...', type:'custom', interval:0, count:0 },
-          ];
-          return (
-            <>
-              <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-                onClick={() => setIsRepeatModalOpen(false)} className="fixed inset-0 z-[60] bg-black/30" />
-              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
-                <motion.div initial={{opacity:0,scale:0.97,y:8}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.97,y:8}} transition={{duration:0.15}}
-                  className="w-full max-w-sm bg-white rounded-2xl shadow-2xl pointer-events-auto border border-zinc-200">
-                  <div className="flex items-start justify-between px-5 pt-5 pb-2">
-                    <div>
-                      <h3 className="text-sm font-bold text-zinc-900">Seleção Atual</h3>
-                      <p className="text-[11px] text-zinc-400 mt-0.5">Escolha uma opção abaixo para mudar a seleção</p>
-                    </div>
-                    <button onClick={() => setIsRepeatModalOpen(false)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-all">
-                      <X size={14}/>
-                    </button>
-                  </div>
-
-                  {/* Current selection highlight */}
-                  <div className="px-5 pb-3">
-                    <div className="flex items-center gap-3 p-3.5 bg-blue-50 border border-blue-200 rounded-xl">
-                      <div className="p-1.5 bg-blue-100 rounded-lg">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-blue-600">
-                          <path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-blue-400 uppercase tracking-widest">Opção Atual</p>
-                        <p className="text-sm font-bold text-blue-800">{repeatLabel}</p>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-blue-500 italic mt-2 px-1">
-                      Dica: Escolha repetição semanal caso queira que sempre caia no mesmo dia da semana
-                    </p>
-                  </div>
-
-                  {/* List */}
-                  <div className="max-h-64 overflow-y-auto border-t border-zinc-100 divide-y divide-zinc-100">
-                    {repeatOpts.map(opt => (
-                      <button key={opt.label}
-                        onClick={() => {
-                          if (opt.type === 'custom') {
-                            setIsRepeatModalOpen(false);
-                            setIsCustomRepeatModalOpen(true);
-                            return;
-                          }
-                          setRepeatLabel(opt.label);
-                          setNewAppointment(p => ({...p, recurrence: {type: opt.type, count: opt.count, interval: opt.interval}}));
-                          setIsRepeatModalOpen(false);
-                        }}
-                        className={cn(
-                          "w-full flex items-center justify-between px-5 py-3.5 text-xs font-bold transition-all hover:bg-zinc-50",
-                          repeatLabel === opt.label ? "text-blue-600 bg-blue-50" : "text-zinc-700"
-                        )}
-                      >
-                        <span className="uppercase tracking-widest">{opt.label}</span>
-                        <ChevronRight size={14} className="text-zinc-400"/>
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
-              </div>
-            </>
-          );
-        })()}
-      </AnimatePresence>
-
-      {/* ═══ MODAL REPETIÇÃO PERSONALIZADA ═════════════════════ */}
-      <AnimatePresence>
-        {isCustomRepeatModalOpen && (() => {
-          const freqOpts = ['Semanalmente', 'Mensalmente', 'Diariamente', 'A cada 15 dias'];
-          const unitMap: Record<string, string> = {
-            'Semanalmente':'SEMANA(S)', 'Mensalmente':'MÊS(ES)', 'Diariamente':'DIA(S)', 'A cada 15 dias':'SEMANA(S)'
-          };
-          return (
-            <>
-              <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-                onClick={() => setIsCustomRepeatModalOpen(false)} className="fixed inset-0 z-[70] bg-black/30"/>
-              <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 pointer-events-none">
-                <motion.div initial={{opacity:0,scale:0.97,y:8}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.97,y:8}} transition={{duration:0.15}}
-                  className="w-full max-w-sm bg-white rounded-2xl shadow-2xl pointer-events-auto border border-zinc-200">
-                  <div className="flex items-start justify-between px-5 pt-5 pb-4">
-                    <div>
-                      <h3 className="text-sm font-bold text-zinc-900">Configurar Repetição</h3>
-                      <p className="text-[11px] text-zinc-400 mt-0.5">Defina como este agendamento irá se repetir</p>
-                    </div>
-                    <button onClick={() => setIsCustomRepeatModalOpen(false)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-all">
-                      <X size={14}/>
-                    </button>
-                  </div>
-
-                  <div className="px-5 pb-5 space-y-5">
-                    {/* Frequência */}
-                    <div className="border border-zinc-200 rounded-xl overflow-hidden">
-                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-4 py-3 bg-zinc-50 border-b border-zinc-100">Frequência de Repetição</p>
-                      <div className="p-3">
-                        <select
-                          className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold outline-none"
-                          value={customRepeat.frequency}
-                          onChange={e => setCustomRepeat(p => ({...p, frequency: e.target.value, unit: unitMap[e.target.value]||'SEMANA(S)'}))}
-                        >
-                          {freqOpts.map(f => <option key={f} value={f}>{f}</option>)}
-                        </select>
-                        <div className="grid grid-cols-2 gap-3 mt-3">
-                          <div>
-                            <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">A Cada</p>
-                            <input type="number" min={1}
-                              className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold outline-none text-center"
-                              value={customRepeat.interval}
-                              onChange={e => setCustomRepeat(p => ({...p, interval: parseInt(e.target.value)||1}))}
-                            />
-                          </div>
-                          <div>
-                            <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Unidade</p>
-                            <div className="p-3 bg-zinc-100 border border-zinc-200 rounded-xl text-[10px] font-black text-zinc-500 uppercase tracking-widest text-center">
-                              {customRepeat.unit}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Terminar em */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-zinc-400">
-                          <path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/>
-                        </svg>
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Terminar Em</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          onClick={() => setCustomRepeat(p => ({...p, endType:'count'}))}
-                          className={cn("p-4 rounded-xl border-2 text-center transition-all",
-                            customRepeat.endType === 'count' ? "border-amber-400 bg-amber-50" : "border-zinc-200 bg-zinc-50 hover:border-zinc-300"
-                          )}
-                        >
-                          <p className={cn("text-[9px] font-black uppercase tracking-widest mb-2", customRepeat.endType==='count'?"text-amber-500":"text-zinc-400")}>Por Vezes</p>
-                          <div className="flex items-center justify-center gap-2">
-                            <input type="number" min={1}
-                              className="w-12 text-center text-sm font-black bg-white border border-zinc-200 rounded-lg p-1 outline-none"
-                              value={customRepeat.count}
-                              onClick={e => { e.stopPropagation(); setCustomRepeat(p => ({...p, endType:'count'})); }}
-                              onChange={e => setCustomRepeat(p => ({...p, count: parseInt(e.target.value)||1}))}
-                            />
-                            <span className="text-[9px] font-bold text-zinc-400 uppercase">Vezes</span>
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => setCustomRepeat(p => ({...p, endType:'date'}))}
-                          className={cn("p-4 rounded-xl border-2 text-center transition-all",
-                            customRepeat.endType === 'date' ? "border-amber-400 bg-amber-50" : "border-zinc-200 bg-zinc-50 hover:border-zinc-300"
-                          )}
-                        >
-                          <p className={cn("text-[9px] font-black uppercase tracking-widest mb-2", customRepeat.endType==='date'?"text-amber-500":"text-zinc-400")}>Por Data</p>
-                          <input type="date"
-                            className="w-full text-[10px] text-center bg-white border border-zinc-200 rounded-lg p-1 outline-none font-bold"
-                            value={customRepeat.endDate}
-                            onClick={e => { e.stopPropagation(); setCustomRepeat(p => ({...p, endType:'date'})); }}
-                            onChange={e => setCustomRepeat(p => ({...p, endDate: e.target.value}))}
-                          />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-3 pt-1">
-                      <button
-                        onClick={() => { setIsCustomRepeatModalOpen(false); setIsRepeatModalOpen(true); }}
-                        className="flex-1 py-3 text-xs font-bold text-zinc-500 hover:text-zinc-700 border border-zinc-200 rounded-xl transition-all"
-                      >
-                        Voltar
-                      </button>
-                      <button
-                        onClick={() => {
-                          const label = `${customRepeat.frequency} — ${customRepeat.endType==='count' ? `${customRepeat.count} vezes` : `até ${customRepeat.endDate}`}`;
-                          setRepeatLabel(label);
-                          setNewAppointment(p => ({...p, recurrence: {type:'custom', count: customRepeat.count, interval: customRepeat.interval}}));
-                          setIsCustomRepeatModalOpen(false);
-                        }}
-                        className="flex-1 py-3 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-all shadow-sm"
-                      >
-                        Salvar
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-            </>
-          );
-        })()}
-      </AnimatePresence>
-
       {/* ═══ MODAL NOVA COMANDA ═══════════════════════════════ */}
       <AnimatePresence>
         {isComandaModalOpen && (() => {
@@ -3145,17 +1882,11 @@ export default function AdminDashboard() {
               <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
                 <motion.div initial={{opacity:0,y:60}} animate={{opacity:1,y:0}} exit={{opacity:0,y:60}} transition={{duration:0.25,ease:"easeOut"}}
                   className="w-full sm:max-w-xl bg-white rounded-t-[28px] sm:rounded-[28px] shadow-2xl pointer-events-auto border border-zinc-200 flex flex-col max-h-[96vh] sm:max-h-[90vh]">
-
-                  {/* Header */}
                   <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
                     <h2 className="text-base font-bold text-zinc-900">Criando Comanda</h2>
                     <button onClick={closeComanda} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-all"><X size={16}/></button>
                   </div>
-
-                  {/* Scrollable Content */}
                   <div className="px-6 py-5 overflow-y-auto flex-1 space-y-5">
-
-                    {/* ── TIPO ── */}
                     <div className="flex items-center gap-4">
                       <span className="text-xs font-bold text-zinc-500">Tipo:</span>
                       {(['normal','pacote'] as const).map(t => (
@@ -3169,18 +1900,14 @@ export default function AdminDashboard() {
                         </label>
                       ))}
                     </div>
-
                     {newComanda.type === 'normal' ? (
                       <>
-                        {/* Descrição */}
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Descrição</label>
                           <input type="text" className="w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
                             placeholder="Ex: Sessão de Corte, Coloração, etc"
                             value={newComanda.description} onChange={e => setNewComanda(p => ({...p, description: e.target.value}))} />
                         </div>
-
-                        {/* Cliente + Data */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Cliente</label>
@@ -3218,8 +1945,6 @@ export default function AdminDashboard() {
                               value={newComanda.date} onChange={e => setNewComanda(p => ({...p, date: e.target.value}))} />
                           </div>
                         </div>
-
-                        {/* Valor + Atendimentos */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Valor Uni. (R$)</label>
@@ -3238,8 +1963,6 @@ export default function AdminDashboard() {
                               value={newComanda.sessionCount} onChange={e => setNewComanda(p => ({...p, sessionCount: e.target.value}))} />
                           </div>
                         </div>
-
-                        {/* Profissional */}
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Profissional</label>
                           <div className="relative">
@@ -3254,7 +1977,6 @@ export default function AdminDashboard() {
                       </>
                     ) : (
                       <>
-                        {/* Pacote */}
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Pacote</label>
                           <div className="relative">
@@ -3263,7 +1985,6 @@ export default function AdminDashboard() {
                                 const pkgId = e.target.value;
                                 const pkg = services.find(s => s.id === pkgId);
                                 if (!pkg) { setNewComanda(p => ({...p, packageId: ""})); return; }
-                                // Monta itens a partir dos serviços do pacote
                                 const pkgItems = (pkg.packageServices || []).map((ps: any) => ({
                                   id: `pkg-${ps.serviceId || ps.service?.id}-${Date.now()}-${Math.random()}`,
                                   name: ps.service?.name || ps.name || "",
@@ -3287,8 +2008,6 @@ export default function AdminDashboard() {
                             <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"/>
                           </div>
                         </div>
-
-                        {/* Cliente */}
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Cliente</label>
                           <div className="relative">
@@ -3312,8 +2031,6 @@ export default function AdminDashboard() {
                             {newComanda.clientId && <p className="text-[9px] text-emerald-600 font-bold flex items-center gap-1 mt-1 ml-1"><CheckCircle size={9}/> {newComanda.clientName}</p>}
                           </div>
                         </div>
-
-                        {/* Profissional */}
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Profissional</label>
                           <div className="relative">
@@ -3325,8 +2042,6 @@ export default function AdminDashboard() {
                             <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"/>
                           </div>
                         </div>
-
-                        {/* Itens (PDV) */}
                         <div className="space-y-2">
                           <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Itens / PDV:</label>
                           <div className="grid grid-cols-[1fr_60px_80px_32px] gap-1 items-center px-1">
@@ -3381,8 +2096,6 @@ export default function AdminDashboard() {
                         </div>
                       </>
                     )}
-
-                    {/* ── GERAR AGENDAMENTO ── */}
                     <div className="border border-zinc-100 rounded-2xl overflow-hidden">
                       <button
                         type="button"
@@ -3406,32 +2119,20 @@ export default function AdminDashboard() {
                           )} />
                         </div>
                       </button>
-
                       {comandaAppt.generate && (
                         <div className="px-4 pb-4 pt-3 space-y-4 bg-amber-50/30 border-t border-amber-100/60">
-                          {/* Data + Hora */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                               <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Data</label>
-                              <input
-                                type="date"
-                                className="w-full text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-500/20 outline-none"
-                                value={comandaAppt.date}
-                                onChange={e => setComandaAppt(p => ({ ...p, date: e.target.value }))}
-                              />
+                              <input type="date" className="w-full text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                value={comandaAppt.date} onChange={e => setComandaAppt(p => ({ ...p, date: e.target.value }))} />
                             </div>
                             <div className="space-y-1.5">
                               <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Horário</label>
-                              <input
-                                type="time"
-                                className="w-full text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-500/20 outline-none"
-                                value={comandaAppt.startTime}
-                                onChange={e => setComandaAppt(p => ({ ...p, startTime: e.target.value }))}
-                              />
+                              <input type="time" className="w-full text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                value={comandaAppt.startTime} onChange={e => setComandaAppt(p => ({ ...p, startTime: e.target.value }))} />
                             </div>
                           </div>
-
-                          {/* Repetição */}
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Repetição</label>
                             <div className="flex gap-2">
@@ -3440,9 +2141,7 @@ export default function AdminDashboard() {
                                 { v: 'weekly', label: 'Semanal' },
                                 { v: 'custom', label: 'Personalizada' },
                               ] as const).map(opt => (
-                                <button
-                                  key={opt.v}
-                                  type="button"
+                                <button key={opt.v} type="button"
                                   onClick={() => setComandaAppt(p => ({ ...p, recurrence: { ...p.recurrence, type: opt.v } }))}
                                   className={cn(
                                     "flex-1 py-2 rounded-xl text-[10px] font-bold transition-all border",
@@ -3456,37 +2155,24 @@ export default function AdminDashboard() {
                               ))}
                             </div>
                           </div>
-
-                          {/* Nº de repetições + intervalo (quando não é 'none') */}
                           {comandaAppt.recurrence.type !== 'none' && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Nº de Sessões</label>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={52}
-                                  className="w-full text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                <input type="number" min={1} max={52} className="w-full text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
                                   value={comandaAppt.recurrence.count}
-                                  onChange={e => setComandaAppt(p => ({ ...p, recurrence: { ...p.recurrence, count: parseInt(e.target.value) || 1 } }))}
-                                />
+                                  onChange={e => setComandaAppt(p => ({ ...p, recurrence: { ...p.recurrence, count: parseInt(e.target.value) || 1 } }))} />
                               </div>
                               {comandaAppt.recurrence.type === 'custom' && (
                                 <div className="space-y-1.5">
                                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Intervalo (dias)</label>
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    className="w-full text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                  <input type="number" min={1} className="w-full text-xs p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none"
                                     value={comandaAppt.recurrence.interval}
-                                    onChange={e => setComandaAppt(p => ({ ...p, recurrence: { ...p.recurrence, interval: parseInt(e.target.value) || 7 } }))}
-                                  />
+                                    onChange={e => setComandaAppt(p => ({ ...p, recurrence: { ...p.recurrence, interval: parseInt(e.target.value) || 7 } }))} />
                                 </div>
                               )}
                             </div>
                           )}
-
-                          {/* Resumo do agendamento */}
                           <div className="bg-white border border-amber-100 rounded-xl p-3 space-y-1">
                             <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-2">Resumo do Agendamento</p>
                             <div className="flex items-center justify-between text-[10px]">
@@ -3522,8 +2208,6 @@ export default function AdminDashboard() {
                         </div>
                       )}
                     </div>
-
-                    {/* ── TOTAIS ── */}
                     <div className="border-t border-zinc-100 pt-4 space-y-2">
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-zinc-500 font-medium">Valor Total:</span>
@@ -3550,8 +2234,6 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Footer */}
                   <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 shrink-0">
                     <button onClick={closeComanda} className="px-4 py-2 text-sm font-bold text-zinc-400 hover:text-zinc-700 border border-zinc-200 rounded-xl transition-all hover:border-zinc-300">
                       Fechar
@@ -3572,893 +2254,72 @@ export default function AdminDashboard() {
         })()}
       </AnimatePresence>
 
-      <Modal isOpen={isProfessionalModalOpen} onClose={() => { setIsProfessionalModalOpen(false); setEditingProfessional(null); }} title={editingProfessional ? "Editar Profissional" : "Novo Profissional"} className="max-w-lg">
-        {(() => {
-          const inp = "w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none";
-          const lbl = "text-[10px] font-bold text-zinc-500 uppercase tracking-widest";
-          const perms = newProfessional.permissions || emptyPermissions;
-          const toggleAction = (mod: string, action: string) => setNewProfessional((p: any) => ({
-            ...p, permissions: { ...p.permissions, [mod]: { ...p.permissions[mod], [action]: !p.permissions[mod]?.[action] } }
-          }));
-          const PERM_LIST = [
-            { key: "dashboard", label: "Dashboard",       icon: "📊", groups: [] },
-            { key: "agenda",    label: "Agenda",          icon: "📅", groups: [
-              { label: "Criar", actions: ["criar"] },
-              { label: "Editar",  actions: ["editar_proprio", "editar_todos"],  labels: ["Próprios", "Todos"] },
-              { label: "Excluir", actions: ["excluir_proprio", "excluir_todos"], labels: ["Próprios", "Todos"] },
-            ]},
-            { key: "comandas",  label: "Comandas",        icon: "🧾", groups: [
-              { label: "Criar", actions: ["criar"] },
-              { label: "Editar",  actions: ["editar_proprio", "editar_todos"],  labels: ["Próprios", "Todos"] },
-              { label: "Excluir", actions: ["excluir_proprio", "excluir_todos"], labels: ["Próprios", "Todos"] },
-            ]},
-            { key: "services",  label: "Serviços",        icon: "✂️",  groups: [] },
-            { key: "clients",   label: "Clientes",        icon: "👤", groups: [
-              { label: "Criar", actions: ["criar"] },
-              { label: "Editar",  actions: ["editar_proprio", "editar_todos"],  labels: ["Próprios", "Todos"] },
-            ]},
-            { key: "fluxo",     label: "Fluxo de Caixa", icon: "💰", groups: [] },
-          ];
-          const isModuleActive = (mod: string) => Object.values(perms[mod] || {}).some(Boolean);
-          return (
-            <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
-              {/* Foto */}
-              <div className="flex items-center gap-4">
-                <div className="relative shrink-0">
-                  {newProfessional.photo ? (
-                    <img src={newProfessional.photo} className="w-20 h-20 rounded-2xl object-cover border border-zinc-200" />
-                  ) : (
-                    <div className="w-20 h-20 rounded-2xl bg-amber-50 border-2 border-dashed border-amber-200 flex items-center justify-center text-amber-400 text-2xl font-black">
-                      {newProfessional.name ? newProfessional.name.charAt(0).toUpperCase() : "?"}
-                    </div>
-                  )}
-                  <label className="absolute -bottom-2 -right-2 w-7 h-7 bg-amber-500 rounded-xl flex items-center justify-center cursor-pointer shadow-md hover:bg-amber-600 transition-colors">
-                    <Camera size={13} className="text-white" />
-                    <input type="file" accept="image/*" className="hidden" onChange={e => {
-                      const file = e.target.files?.[0];
-                      if (file) { const r = new FileReader(); r.onload = ev => setNewProfessional((p: any) => ({ ...p, photo: ev.target?.result as string })); r.readAsDataURL(file); }
-                    }} />
-                  </label>
-                </div>
-                <div className="flex-1 space-y-2">
-                  <div className="space-y-1">
-                    <label className={lbl}>Nome Completo *</label>
-                    <input className={inp} placeholder="Ex: João Silva" value={newProfessional.name} onChange={e => setNewProfessional((p: any) => ({ ...p, name: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className={lbl}>Cargo / Especialidade</label>
-                    <input className={inp} placeholder="Ex: Barbeiro, Manicure..." value={newProfessional.role} onChange={e => setNewProfessional((p: any) => ({ ...p, role: e.target.value }))} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Contato */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className={lbl}>Telefone / WhatsApp</label>
-                  <input className={inp} placeholder="(11) 99999-9999" value={newProfessional.phone} onChange={e => {
-                    const d = e.target.value.replace(/\D/g,"").slice(0,11);
-                    const v = d.length <= 10 ? d.replace(/(\d{2})(\d{4})(\d{0,4})/,"($1) $2-$3") : d.replace(/(\d{2})(\d{5})(\d{0,4})/,"($1) $2-$3");
-                    setNewProfessional((p: any) => ({ ...p, phone: v.replace(/-$/,"") }));
-                  }} />
-                </div>
-                <div className="space-y-1">
-                  <label className={lbl}>E-mail</label>
-                  <input className={inp} type="email" placeholder="joao@email.com" value={newProfessional.email} onChange={e => setNewProfessional((p: any) => ({ ...p, email: e.target.value }))} />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className={lbl}>Bio / Descrição</label>
-                <textarea className={inp + " resize-none"} rows={2} placeholder="Especialidades, anos de experiência..." value={newProfessional.bio} onChange={e => setNewProfessional((p: any) => ({ ...p, bio: e.target.value }))} />
-              </div>
-
-              {/* Senha */}
-              <div className="space-y-1">
-                <label className={lbl}>{editingProfessional ? "Nova Senha (vazio = manter)" : "Senha de Acesso *"}</label>
-                <div className="relative">
-                  <input type={profPasswordVisible ? "text" : "password"} className={inp + " pr-10"} placeholder="Mínimo 4 caracteres" value={newProfessional.password} onChange={e => setNewProfessional((p: any) => ({ ...p, password: e.target.value }))} />
-                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700" onClick={() => setProfPasswordVisible(v => !v)}>
-                    {profPasswordVisible ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Perfil de permissão */}
-              {permissionProfiles.length > 0 && (
-                <div className="space-y-1">
-                  <label className={lbl}>Aplicar Perfil de Permissão</label>
-                  <select className={inp} defaultValue="" onChange={e => {
-                    const profile = permissionProfiles.find(p => p.id === e.target.value);
-                    if (profile) setNewProfessional((p: any) => ({ ...p, permissions: { ...profile.permissions } }));
-                  }}>
-                    <option value="">Selecionar perfil...</option>
-                    {permissionProfiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
-              )}
-
-              {/* Permissões granulares */}
-              <div className="space-y-2">
-                <label className={lbl}>Permissões de Acesso</label>
-                <div className="space-y-2">
-                  {PERM_LIST.map(({ key, label, icon, groups }) => {
-                    const modPerms = perms[key] || {};
-                    const active = isModuleActive(key);
-                    return (
-                      <div key={key} className={`rounded-2xl border transition-all overflow-hidden ${active ? 'border-zinc-200 bg-white shadow-sm' : 'border-zinc-100 bg-zinc-50'}`}>
-                        <div className="flex items-center justify-between px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm leading-none">{icon}</span>
-                            <p className="text-xs font-black text-zinc-800">{label}</p>
-                          </div>
-                          <button type="button" onClick={() => toggleAction(key, "ver")}
-                            className="relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 outline-none"
-                            style={{ background: modPerms.ver ? currentTheme.hex : '#e4e4e7' }}
-                          >
-                            <span className="absolute top-0.5 h-4 w-4 bg-white rounded-full shadow transition-all duration-200" style={{ left: modPerms.ver ? '1.25rem' : '0.125rem' }} />
-                          </button>
-                        </div>
-                        {modPerms.ver && groups.length > 0 && (
-                          <div className="border-t border-zinc-100 px-4 pb-3 pt-3 space-y-3">
-                            {groups.map(group => (
-                              <div key={group.label} className="space-y-1.5">
-                                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{group.label}</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {group.actions.map((action, ai) => {
-                                    const chipLabel = group.labels ? group.labels[ai] : group.label;
-                                    const on = !!modPerms[action];
-                                    return (
-                                      <button key={action} type="button" onClick={() => toggleAction(key, action)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all cursor-pointer outline-none focus:outline-none"
-                                        style={on
-                                          ? { background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }
-                                          : { background: '#f4f4f5', color: '#71717a', borderColor: '#e4e4e7' }
-                                        }
-                                      >
-                                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: on ? currentTheme.hex : '#d4d4d8' }} />
-                                        {chipLabel}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl border" style={{ background: currentTheme.light, borderColor: currentTheme.border }}>
-                <p className="text-[10px] font-bold" style={{ color: currentTheme.hex }}>Acesso em <span className="font-black">/pro/login</span> ou pela tela de login com e-mail/nome e senha.</p>
-              </div>
-              <Button
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-bold shadow-sm"
-                onClick={handleCreateProfessional}
-                disabled={!newProfessional.name || (!editingProfessional && !newProfessional.password)}
-              >
-                {editingProfessional ? "Salvar Alterações" : "Cadastrar Profissional"}
-              </Button>
-            </div>
-          );
-        })()}
-      </Modal>
-
-      {/* ── MODAL NOVO / EDITAR CLIENTE ── */}
-      <Modal
-        isOpen={isClientModalOpen}
-        onClose={() => { setIsClientModalOpen(false); setEditingClient(null); setNewClient({ ...emptyClient }); }}
-        title={editingClient ? "Editar Cliente" : "Novo Cliente"}
-        className="max-w-lg"
-      >
-        <div className="space-y-4">
-          {/* Nome + Telefone */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Nome Completo *</label>
-              <input
-                type="text"
-                placeholder="Ex: Maria Silva"
-                value={newClient.name}
-                onChange={e => setNewClient({ ...newClient, name: e.target.value })}
-                className="w-full text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Telefone / WhatsApp</label>
-              <input
-                type="tel"
-                placeholder="(00) 00000-0000"
-                value={newClient.phone}
-                onChange={e => setNewClient({ ...newClient, phone: e.target.value })}
-                className="w-full text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">E-mail</label>
-              <input
-                type="email"
-                placeholder="email@exemplo.com"
-                value={newClient.email}
-                onChange={e => setNewClient({ ...newClient, email: e.target.value })}
-                className="w-full text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Data de nascimento + CPF */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Data de Nascimento</label>
-              <input
-                type="date"
-                value={newClient.birthDate}
-                onChange={e => setNewClient({ ...newClient, birthDate: e.target.value })}
-                className="w-full text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">CPF</label>
-              <input
-                type="text"
-                placeholder="000.000.000-00"
-                value={newClient.cpf}
-                onChange={e => setNewClient({ ...newClient, cpf: e.target.value })}
-                className="w-full text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Observações */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Observações</label>
-            <textarea
-              placeholder="Anotações sobre o cliente..."
-              rows={3}
-              value={newClient.notes}
-              onChange={e => setNewClient({ ...newClient, notes: e.target.value })}
-              className="w-full text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all resize-none"
-            />
-          </div>
-
-          <button
-            onClick={handleCreateClient}
-            disabled={!newClient.name}
-            className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-sm transition-all"
-          >
-            {editingClient ? "Salvar Alterações" : "Cadastrar Cliente"}
-          </button>
-        </div>
-      </Modal>
-
-      {/* Modal de confirmação de exclusão */}
-      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Confirmar Exclusão" className="max-w-sm">
-        <div className="space-y-5">
-          <div className="flex items-start gap-3 p-4 bg-red-50 rounded-2xl border border-red-100">
-            <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-              <Trash2 size={16} className="text-red-500" />
-            </div>
-            <div>
-              <p className="text-sm font-black text-zinc-900">Excluir profissional</p>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                Tem certeza que deseja excluir <span className="font-bold text-zinc-800">{deleteConfirm?.name}</span>? Esta ação não pode ser desfeita.
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 rounded-xl font-bold border-zinc-200 text-zinc-600 cursor-pointer" onClick={() => setDeleteConfirm(null)}>
-              Cancelar
-            </Button>
-            <Button className="flex-1 rounded-xl font-bold bg-red-500 hover:bg-red-600 text-white cursor-pointer" onClick={confirmDelete}>
-              Excluir
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal de Perfil de Permissão */}
-      <Modal isOpen={isPermProfileModalOpen} onClose={() => setIsPermProfileModalOpen(false)} title={editingPermProfile ? "Editar Perfil" : "Novo Perfil de Permissão"} className="max-w-md">
-        {(() => {
-          const inp = "w-full text-xs p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none";
-          const lbl = "text-[10px] font-bold text-zinc-500 uppercase tracking-widest";
-          const PP_LIST = [
-            { key: "dashboard", label: "Dashboard",       icon: "📊", groups: [] },
-            { key: "agenda",    label: "Agenda",          icon: "📅", groups: [
-              { label: "Criar",   actions: ["criar"] },
-              { label: "Editar",  actions: ["editar_proprio", "editar_todos"],  labels: ["Próprios", "Todos"] },
-              { label: "Excluir", actions: ["excluir_proprio", "excluir_todos"], labels: ["Próprios", "Todos"] },
-            ]},
-            { key: "comandas",  label: "Comandas",        icon: "🧾", groups: [
-              { label: "Criar",   actions: ["criar"] },
-              { label: "Editar",  actions: ["editar_proprio", "editar_todos"],  labels: ["Próprios", "Todos"] },
-              { label: "Excluir", actions: ["excluir_proprio", "excluir_todos"], labels: ["Próprios", "Todos"] },
-            ]},
-            { key: "services",  label: "Serviços",        icon: "✂️",  groups: [] },
-            { key: "clients",   label: "Clientes",        icon: "👤", groups: [
-              { label: "Criar",   actions: ["criar"] },
-              { label: "Editar",  actions: ["editar_proprio", "editar_todos"],  labels: ["Próprios", "Todos"] },
-            ]},
-            { key: "fluxo",     label: "Fluxo de Caixa", icon: "💰", groups: [] },
-          ];
-          const perms = newPermProfile.permissions || emptyPermissions;
-          const toggleP = (mod: string, action: string) => setNewPermProfile((p: any) => ({
-            ...p, permissions: { ...p.permissions, [mod]: { ...p.permissions[mod], [action]: !p.permissions[mod]?.[action] } }
-          }));
-          return (
-            <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
-              <div className="space-y-1">
-                <label className={lbl}>Nome do Perfil *</label>
-                <input className={inp} placeholder="Ex: Barbeiro Completo, Recepcionista..." value={newPermProfile.name} onChange={e => setNewPermProfile((p: any) => ({ ...p, name: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <label className={lbl}>Permissões</label>
-                <div className="space-y-2">
-                  {PP_LIST.map(({ key, label, icon, groups }) => {
-                    const modPerms = perms[key] || {};
-                    const active = Object.values(modPerms).some(Boolean);
-                    return (
-                      <div key={key} className={`rounded-2xl border transition-all overflow-hidden ${active ? 'border-zinc-200 bg-white shadow-sm' : 'border-zinc-100 bg-zinc-50'}`}>
-                        <div className="flex items-center justify-between px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm leading-none">{icon}</span>
-                            <p className="text-xs font-black text-zinc-800">{label}</p>
-                          </div>
-                          <button type="button" onClick={() => toggleP(key, "ver")}
-                            className="relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 outline-none"
-                            style={{ background: modPerms.ver ? currentTheme.hex : '#e4e4e7' }}
-                          >
-                            <span className="absolute top-0.5 h-4 w-4 bg-white rounded-full shadow transition-all duration-200" style={{ left: modPerms.ver ? '1.25rem' : '0.125rem' }} />
-                          </button>
-                        </div>
-                        {modPerms.ver && groups.length > 0 && (
-                          <div className="border-t border-zinc-100 px-4 pb-3 pt-3 space-y-3">
-                            {groups.map((group: any) => (
-                              <div key={group.label} className="space-y-1.5">
-                                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{group.label}</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {group.actions.map((action: string, ai: number) => {
-                                    const chipLabel = group.labels ? group.labels[ai] : group.label;
-                                    const on = !!modPerms[action];
-                                    return (
-                                      <button key={action} type="button" onClick={() => toggleP(key, action)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all cursor-pointer outline-none focus:outline-none"
-                                        style={on
-                                          ? { background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }
-                                          : { background: '#f4f4f5', color: '#71717a', borderColor: '#e4e4e7' }
-                                        }
-                                      >
-                                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: on ? currentTheme.hex : '#d4d4d8' }} />
-                                        {chipLabel}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <Button
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-bold shadow-sm cursor-pointer"
-                onClick={() => {
-                  if (!newPermProfile.name) return;
-                  if (editingPermProfile) {
-                    savePermProfiles(permissionProfiles.map((p: any) =>
-                      p.id === editingPermProfile.id ? { ...p, ...newPermProfile } : p
-                    ));
-                  } else {
-                    savePermProfiles([...permissionProfiles, { ...newPermProfile, id: Date.now().toString() }]);
-                  }
-                  setIsPermProfileModalOpen(false);
-                }}
-                disabled={!newPermProfile.name}
-              >
-                {editingPermProfile ? "Salvar Alterações" : "Criar Perfil"}
-              </Button>
-            </div>
-          );
-        })()}
-      </Modal>
-
-      {/* ── MODAL DE PRODUTO ─────────────────────────────────────── */}
-      <Modal
-        isOpen={isProductModalOpen}
-        onClose={() => { setIsProductModalOpen(false); setEditingProduct(null); setNewProduct(emptyProduct); setShowNewSectorForm(false); setNewSectorName(""); }}
-        title={editingProduct ? "Editar Produto" : "Novo Produto"}
-        className="max-w-lg"
-      >
-        <div className="space-y-5">
-          {/* Nome */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Nome *</label>
-            <input
-              type="text"
-              className="w-full text-xs p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-              placeholder="Ex: Shampoo Premium"
-              value={newProduct.name}
-              onChange={e => setNewProduct({ ...newProduct, name: e.target.value })}
-            />
-          </div>
-
-          {/* Descrição */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Descrição</label>
-            <textarea
-              className="w-full text-xs p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all resize-none"
-              placeholder="Detalhes sobre o produto..."
-              rows={2}
-              value={newProduct.description}
-              onChange={e => setNewProduct({ ...newProduct, description: e.target.value })}
-            />
-          </div>
-
-          {/* Setor */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Setor</label>
-              <button
-                type="button"
-                onClick={() => setShowNewSectorForm(v => !v)}
-                className="text-[9px] font-black text-amber-600 hover:text-amber-700 uppercase tracking-widest"
-              >
-                {showNewSectorForm ? "Cancelar" : "+ Novo Setor"}
-              </button>
-            </div>
-
-            {/* Formulário inline para criar setor */}
-            {showNewSectorForm && (
-              <div className="flex gap-2 items-center p-2.5 bg-zinc-50 rounded-xl border border-zinc-200">
-                <input
-                  type="color"
-                  value={newSectorColor}
-                  onChange={e => setNewSectorColor(e.target.value)}
-                  className="w-8 h-8 rounded-lg border border-zinc-200 cursor-pointer shrink-0"
-                />
-                <input
-                  type="text"
-                  placeholder="Nome do setor..."
-                  value={newSectorName}
-                  onChange={e => setNewSectorName(e.target.value)}
-                  className="flex-1 text-xs p-2 bg-white border border-zinc-200 rounded-lg outline-none focus:border-amber-400"
-                />
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!newSectorName.trim()) return;
-                    const res = await apiFetch("/api/sectors", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ name: newSectorName.trim(), color: newSectorColor })
-                    });
-                    if (res.ok) {
-                      const created = await res.json();
-                      await fetchSectors();
-                      setNewProduct({ ...newProduct, sectorId: created.id });
-                      setNewSectorName("");
-                      setNewSectorColor("#6b7280");
-                      setShowNewSectorForm(false);
-                    }
-                  }}
-                  className="px-3 py-1.5 bg-zinc-900 text-white text-[10px] font-black rounded-lg hover:bg-black"
-                >
-                  Criar
-                </button>
-              </div>
-            )}
-
-            {/* Lista de setores */}
-            {sectors.length === 0 ? (
-              <p className="text-[10px] text-zinc-400 font-bold p-2">
-                Nenhum setor criado ainda. Clique em "+ Novo Setor" para criar.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setNewProduct({ ...newProduct, sectorId: '' })}
-                  className={cn(
-                    "px-3 py-1.5 rounded-xl border-2 text-xs font-black transition-all",
-                    !newProduct.sectorId
-                      ? "border-zinc-900 bg-zinc-900 text-white"
-                      : "border-zinc-200 bg-zinc-50 text-zinc-500 hover:border-zinc-300"
-                  )}
-                >
-                  Sem setor
-                </button>
-                {sectors.map((s: any) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => setNewProduct({ ...newProduct, sectorId: s.id })}
-                    className={cn(
-                      "px-3 py-1.5 rounded-xl border-2 text-xs font-black transition-all flex items-center gap-1.5",
-                      newProduct.sectorId === s.id
-                        ? "border-amber-400 bg-amber-50 text-amber-800"
-                        : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300"
-                    )}
-                  >
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                    {s.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Código / SKU */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Código / SKU</label>
-            <input
-              type="text"
-              className="w-full text-xs p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-              placeholder="Ex: SHAM-001"
-              value={newProduct.code}
-              onChange={e => setNewProduct({ ...newProduct, code: e.target.value })}
-            />
-          </div>
-
-          {/* Preços */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Preço de Custo (R$)</label>
-              <input
-                type="number"
-                className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-                placeholder="0.00"
-                value={newProduct.costPrice}
-                onChange={e => setNewProduct({ ...newProduct, costPrice: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Preço de Venda (R$)</label>
-              <input
-                type="number"
-                className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-                placeholder="0.00"
-                value={newProduct.salePrice}
-                onChange={e => setNewProduct({ ...newProduct, salePrice: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {/* Estoque e Unidade */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Estoque</label>
-              <input
-                type="number"
-                className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all text-center"
-                placeholder="0"
-                value={newProduct.stock}
-                onChange={e => setNewProduct({ ...newProduct, stock: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Mínimo</label>
-              <input
-                type="number"
-                className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all text-center"
-                placeholder="0"
-                value={newProduct.minStock}
-                onChange={e => setNewProduct({ ...newProduct, minStock: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Medida</label>
-              <select
-                className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-black focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-                value={newProduct.unit}
-                onChange={e => setNewProduct({ ...newProduct, unit: e.target.value })}
-              >
-                <option value="un">un (Unidade)</option>
-                <option value="ml">ml (Mililitro)</option>
-                <option value="L">L (Litro)</option>
-                <option value="g">g (Grama)</option>
-                <option value="kg">kg (Quilograma)</option>
-                <option value="cm">cm (Centímetro)</option>
-                <option value="m">m (Metro)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Validade */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Validade (opcional)</label>
-            <input
-              type="date"
-              className="w-full text-xs p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all"
-              value={newProduct.validUntil}
-              onChange={e => setNewProduct({ ...newProduct, validUntil: e.target.value })}
-            />
-          </div>
-
-          {/* No PDV toggle */}
-          <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Disponível no PDV</p>
-              <p className="text-[10px] text-amber-600 font-medium mt-0.5">Aparece no ponto de venda para clientes</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setNewProduct({ ...newProduct, isForSale: !newProduct.isForSale })}
-              className="relative w-12 h-6 rounded-full transition-colors shrink-0 outline-none"
-              style={{ background: newProduct.isForSale ? '#f59e0b' : '#e4e4e7' }}
-            >
-              <span
-                className="absolute top-1 h-4 w-4 bg-white rounded-full shadow transition-all duration-200"
-                style={{ left: newProduct.isForSale ? '1.5rem' : '0.25rem' }}
-              />
-            </button>
-          </div>
-
-          {/* Botão salvar */}
-          <Button
-            className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-2xl py-3.5 font-black text-sm shadow-sm cursor-pointer transition-all"
-            onClick={handleCreateProduct}
-            disabled={!newProduct.name}
-          >
-            {editingProduct ? "Salvar Produto" : "Cadastrar Produto"}
-          </Button>
-        </div>
-      </Modal>
-
-      {/* ── MODAL EXCLUSÃO DE AGENDAMENTO COM REPETIÇÕES ─────────── */}
-      <AnimatePresence>
-        {apptDeleteModal && (() => {
-          const { targetId, targetAppt, siblings, selectedIds } = apptDeleteModal;
-          const allIds = [targetId, ...siblings.map((s: any) => s.id)];
-          const toggleId = (id: string) => {
-            setApptDeleteModal(prev => {
-              if (!prev) return prev;
-              const next = new Set(prev.selectedIds);
-              if (id === targetId) return prev; // o próprio não pode desmarcar
-              next.has(id) ? next.delete(id) : next.add(id);
-              return { ...prev, selectedIds: next };
-            });
-          };
-          const selectAll = () => setApptDeleteModal(prev => prev ? { ...prev, selectedIds: new Set(allIds) } : prev);
-          const selectOnlyThis = () => setApptDeleteModal(prev => prev ? { ...prev, selectedIds: new Set([targetId]) } : prev);
-          const allSelected = allIds.every(id => selectedIds.has(id));
-
-          return (
-            <>
-              <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-                onClick={() => setApptDeleteModal(null)}
-                className="fixed inset-0 z-[80] bg-black/40" />
-              <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 pointer-events-none">
-                <motion.div
-                  initial={{opacity:0, scale:0.96, y:8}} animate={{opacity:1, scale:1, y:0}}
-                  exit={{opacity:0, scale:0.96, y:8}} transition={{duration:0.18}}
-                  className="w-full max-w-md bg-white rounded-2xl shadow-2xl pointer-events-auto border border-zinc-200"
-                >
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-zinc-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center">
-                        <Trash2 size={16} className="text-red-500" />
-                      </div>
-                      <div>
-                        <h2 className="text-sm font-black text-zinc-900">Excluir Agendamento</h2>
-                        <p className="text-[10px] text-zinc-400 font-medium">
-                          Sessão {targetAppt.sessionNumber}/{targetAppt.totalSessions} da série
-                        </p>
-                      </div>
-                    </div>
-                    <button onClick={() => setApptDeleteModal(null)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400">
-                      <X size={15}/>
-                    </button>
-                  </div>
-
-                  {/* Body */}
-                  <div className="px-5 py-4 space-y-4">
-                    <p className="text-xs text-zinc-600">
-                      Este agendamento faz parte de uma série de <span className="font-black text-zinc-900">{targetAppt.totalSessions} repetições</span>.
-                      Selecione quais deseja excluir:
-                    </p>
-
-                    {/* Atalhos */}
-                    <div className="flex gap-2">
-                      <button onClick={selectOnlyThis}
-                        className={cn("flex-1 py-2 text-[10px] font-black rounded-xl border transition-all uppercase tracking-widest",
-                          !allSelected && selectedIds.size === 1
-                            ? "bg-red-500 text-white border-red-500"
-                            : "bg-white text-zinc-500 border-zinc-200 hover:border-red-300 hover:text-red-500"
-                        )}>
-                        Só este
-                      </button>
-                      <button onClick={selectAll}
-                        className={cn("flex-1 py-2 text-[10px] font-black rounded-xl border transition-all uppercase tracking-widest",
-                          allSelected
-                            ? "bg-red-500 text-white border-red-500"
-                            : "bg-white text-zinc-500 border-zinc-200 hover:border-red-300 hover:text-red-500"
-                        )}>
-                        Todos ({allIds.length})
-                      </button>
-                    </div>
-
-                    {/* Lista de repetições */}
-                    <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
-                      {/* Este agendamento (sempre marcado) */}
-                      <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-100">
-                        <div className="w-4 h-4 rounded-[4px] bg-red-500 border-red-500 flex items-center justify-center shrink-0">
-                          <Check size={10} className="text-white"/>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-zinc-900">
-                            {format(new Date(targetAppt.date), "EEE, dd MMM", { locale: ptBR })} · {targetAppt.startTime}h
-                          </p>
-                          <p className="text-[10px] text-red-600 font-bold">Este agendamento (sessão {targetAppt.sessionNumber})</p>
-                        </div>
-                        <span className="text-[9px] font-black bg-red-100 text-red-600 px-2 py-0.5 rounded-md">
-                          {targetAppt.sessionNumber}/{targetAppt.totalSessions}
-                        </span>
-                      </div>
-
-                      {/* Irmãos */}
-                      {siblings.map((sib: any) => {
-                        const checked = selectedIds.has(sib.id);
-                        return (
-                          <button key={sib.id} onClick={() => toggleId(sib.id)}
-                            className={cn(
-                              "w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all",
-                              checked ? "bg-red-50 border-red-200" : "bg-white border-zinc-100 hover:border-zinc-200"
-                            )}>
-                            <div className={cn(
-                              "w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-all",
-                              checked ? "bg-red-500 border-red-500" : "border-zinc-300"
-                            )}>
-                              {checked && <Check size={10} className="text-white"/>}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-zinc-900">
-                                {format(new Date(sib.date), "EEE, dd MMM", { locale: ptBR })} · {sib.startTime}h
-                              </p>
-                              <p className="text-[10px] text-zinc-400 font-medium">Sessão {sib.sessionNumber}</p>
-                            </div>
-                            <span className="text-[9px] font-black bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-md shrink-0">
-                              {sib.sessionNumber}/{sib.totalSessions}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="flex gap-3 px-5 pb-5">
-                    <button onClick={() => setApptDeleteModal(null)}
-                      className="flex-1 py-3 rounded-xl border border-zinc-200 text-xs font-bold text-zinc-500 hover:bg-zinc-50 transition-all">
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={() => confirmDeleteAppointments(Array.from(selectedIds))}
-                      className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-black transition-all flex items-center justify-center gap-2"
-                    >
-                      <Trash2 size={13}/>
-                      Excluir {selectedIds.size === 1 ? "1 agendamento" : `${selectedIds.size} agendamentos`}
-                    </button>
-                  </div>
-                </motion.div>
-              </div>
-            </>
-          );
-        })()}
-      </AnimatePresence>
-
-      {/* ── MODAL: PAGAMENTO (múltiplos métodos + parcelamento) ── */}
-      <PaymentModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => { setIsPaymentModalOpen(false); setPayingComanda(null); }}
-        comanda={payingComanda}
-        onConfirm={handleConfirmPayment}
+      <ProfessionalModal
+        isProfessionalModalOpen={isProfessionalModalOpen}
+        setIsProfessionalModalOpen={setIsProfessionalModalOpen}
+        editingProfessional={editingProfessional}
+        setEditingProfessional={setEditingProfessional}
+        newProfessional={newProfessional}
+        setNewProfessional={setNewProfessional}
+        profPasswordVisible={profPasswordVisible}
+        setProfPasswordVisible={setProfPasswordVisible}
+        permissionProfiles={permissionProfiles}
+        emptyPermissions={emptyPermissions}
+        currentTheme={currentTheme}
+        handleCreateProfessional={handleCreateProfessional}
+        emptyProfessional={emptyProfessional}
+        services={services}
       />
 
-      {/* ── MODAL: TROCAR PROFISSIONAL ─────────────────────────── */}
-      {isChangeProfModalOpen && changeProfAppt && (
-        <div className="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setIsChangeProfModalOpen(false)}>
-          <div className="bg-white rounded-[28px] shadow-2xl w-full max-w-sm border border-zinc-200 p-6 space-y-5" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-black text-zinc-900">Trocar Profissional</h3>
-                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">
-                  {changeProfAppt.client?.name} • {changeProfAppt.startTime}
-                </p>
-              </div>
-              <button onClick={() => setIsChangeProfModalOpen(false)} className="p-2 hover:bg-zinc-100 text-zinc-400 rounded-xl transition-all"><X size={18} /></button>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Selecione o Profissional</label>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {professionals.filter((p: any) => p.isActive).map((p: any) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setChangeProfId(p.id)}
-                    className={cn(
-                      "w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all",
-                      changeProfId === p.id ? "border-violet-400 bg-violet-50" : "border-zinc-100 hover:border-zinc-200 bg-white"
-                    )}
-                  >
-                    <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center text-xs font-black text-violet-600 shrink-0">
-                      {p.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-zinc-900">{p.name}</p>
-                      <p className="text-[10px] text-zinc-400">{p.role || "Profissional"}</p>
-                    </div>
-                    {changeProfId === p.id && <CheckCircle size={16} className="ml-auto text-violet-500 shrink-0" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex gap-2 pt-1">
-              <button onClick={() => setIsChangeProfModalOpen(false)} className="flex-1 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-xl text-xs font-black transition-all">Cancelar</button>
-              <button
-                onClick={handleChangeProfessional}
-                disabled={!changeProfId}
-                className="flex-1 py-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl text-xs font-black transition-all disabled:opacity-40"
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ClientModal
+        isClientModalOpen={isClientModalOpen}
+        setIsClientModalOpen={setIsClientModalOpen}
+        editingClient={editingClient}
+        setEditingClient={setEditingClient}
+        newClient={newClient}
+        setNewClient={setNewClient}
+        handleCreateClient={handleCreateClient}
+        emptyClient={emptyClient}
+      />
 
-      {/* ── MODAL: IMPORTAR / VINCULAR COMANDA ────────────────── */}
-      {isLinkComandaModalOpen && linkComandaAppt && (
-        <div className="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setIsLinkComandaModalOpen(false)}>
-          <div className="bg-white rounded-[28px] shadow-2xl w-full max-w-sm border border-zinc-200 p-6 space-y-5" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-black text-zinc-900">Importar Comanda</h3>
-                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">
-                  {linkComandaAppt.client?.name} • {linkComandaAppt.service?.name}
-                </p>
-              </div>
-              <button onClick={() => setIsLinkComandaModalOpen(false)} className="p-2 hover:bg-zinc-100 text-zinc-400 rounded-xl transition-all"><X size={18} /></button>
-            </div>
+      <DeleteConfirmModal
+        deleteConfirm={deleteConfirm}
+        setDeleteConfirm={setDeleteConfirm}
+        confirmDelete={confirmDelete}
+      />
 
-            {/* Opção 1: criar nova comanda */}
-            <button
-              onClick={() => handleLinkComanda(null)}
-              className="w-full p-4 rounded-2xl border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 text-left transition-all"
-            >
-              <p className="text-xs font-black text-amber-700">➕ Criar nova comanda</p>
-              <p className="text-[10px] text-amber-500 mt-0.5">
-                Valor: R$ {Number(linkComandaAppt.service?.price || 0).toFixed(2)} — {linkComandaAppt.service?.name || "Serviço"}
-              </p>
-            </button>
+      <PermProfileModal
+        isPermProfileModalOpen={isPermProfileModalOpen}
+        setIsPermProfileModalOpen={setIsPermProfileModalOpen}
+        editingPermProfile={editingPermProfile}
+        newPermProfile={newPermProfile}
+        setNewPermProfile={setNewPermProfile}
+        permissionProfiles={permissionProfiles}
+        savePermProfiles={savePermProfiles}
+        emptyPermissions={emptyPermissions}
+        currentTheme={currentTheme}
+      />
 
-            {/* Opção 2: vincular a comanda aberta existente */}
-            {comandas.filter(c => c.status === "open" && c.clientId === linkComandaAppt.clientId).length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Ou vincular a comanda aberta</p>
-                {comandas.filter(c => c.status === "open" && c.clientId === linkComandaAppt.clientId).map((c: any) => (
-                  <button
-                    key={c.id}
-                    onClick={() => handleLinkComanda(c.id)}
-                    className="w-full p-3 rounded-xl border border-zinc-200 hover:border-amber-300 bg-white hover:bg-amber-50 text-left transition-all"
-                  >
-                    <p className="text-xs font-bold text-zinc-900">Comanda #{c.id.slice(-6).toUpperCase()}</p>
-                    <p className="text-[10px] text-zinc-400">R$ {Number(c.total).toFixed(2)} • Em Aberto</p>
-                  </button>
-                ))}
-              </div>
-            )}
+      <ProductModal
+        isProductModalOpen={isProductModalOpen}
+        setIsProductModalOpen={setIsProductModalOpen}
+        editingProduct={editingProduct}
+        setEditingProduct={setEditingProduct}
+        newProduct={newProduct}
+        setNewProduct={setNewProduct}
+        emptyProduct={emptyProduct}
+        handleCreateProduct={handleCreateProduct}
+        sectors={sectors}
+        fetchSectors={fetchSectors}
+        showNewSectorForm={showNewSectorForm}
+        setShowNewSectorForm={setShowNewSectorForm}
+        newSectorName={newSectorName}
+        setNewSectorName={setNewSectorName}
+        newSectorColor={newSectorColor}
+        setNewSectorColor={setNewSectorColor}
+      />
 
-            <button onClick={() => setIsLinkComandaModalOpen(false)} className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-xl text-xs font-black transition-all">Cancelar</button>
-          </div>
-        </div>
-      )}
 
-    </div>
+    </>
   );
 }

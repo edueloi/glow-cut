@@ -1,11 +1,41 @@
-﻿export { Button } from './Button';
-export { Modal } from './Modal';
-export { Calendar } from './Calendar';
+// ── Interação ──────────────────────────────────────────────────────────────
+export { Button, IconButton } from './Button';
+export { Modal, ModalFooter, ConfirmModal } from './Modal';
+export type { ModalProps } from './Modal';
+
+// ── Formulários ────────────────────────────────────────────────────────────
+export { Input, Textarea, Select } from './Input';
+export { Switch } from './Switch';
 export { DatePicker } from './DatePicker';
-export { FilterLine, FilterLineSection, FilterLineItem, FilterLineGroup, FilterLineSegmented, FilterLineViewToggle, FilterLineSearch, FilterLineDateRange } from './FilterLine';
-export { GridTable } from './GridTable';
-export { StatCard } from './StatCard';
+export { Calendar } from './Calendar';
+export { Combobox } from './Combobox';
+
+// ── Feedback ───────────────────────────────────────────────────────────────
+export { Toast, ToastProvider, useToast } from './Toast';
+export type { ToastType } from './Toast';
+export { Badge, StatusBadge, PaymentBadge } from './Badge';
+
+// ── Layout / Estrutura ─────────────────────────────────────────────────────
+export { PageWrapper, SectionTitle, StatGrid, ContentCard, FormRow, Divider } from './PageWrapper';
 export { PanelCard } from './PanelCard';
 export { EmptyState } from './EmptyState';
-export { Switch } from './Switch';
-export type { Column } from './GridTable';
+
+// ── Dados ──────────────────────────────────────────────────────────────────
+export { StatCard } from './StatCard';
+export { GridTable } from './GridTable';
+export type { Column, GridTableProps } from './GridTable';
+
+// ── Filtros / Toolbar ──────────────────────────────────────────────────────
+export {
+  FilterLine,
+  FilterLineSection,
+  FilterLineItem,
+  FilterLineGroup,
+  FilterLineSegmented,
+  FilterLineViewToggle,
+  FilterLineSearch,
+  FilterLineDateRange,
+} from './FilterLine';
+
+// ── Pagamentos ─────────────────────────────────────────────────────────────
+export { PaymentModal } from './PaymentModal';

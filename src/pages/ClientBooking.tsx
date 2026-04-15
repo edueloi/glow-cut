@@ -8,6 +8,20 @@ import { cn } from "@/src/lib/utils";
 
 type Step = "loading" | "home" | "consult" | "choose-mode" | "by-professional" | "by-service" | "pick-professional" | "pick-service" | "date" | "confirm" | "success";
 
+interface PublicAgendaSettings {
+  onlineBookingEnabled: boolean;
+  enableSelfService: boolean;
+  enableAppointmentSearch: boolean;
+  enableClientAgendaView: boolean;
+}
+
+const DEFAULT_PUBLIC_AGENDA_SETTINGS: PublicAgendaSettings = {
+  onlineBookingEnabled: true,
+  enableSelfService: true,
+  enableAppointmentSearch: true,
+  enableClientAgendaView: true,
+};
+
 export default function ClientBooking() {
   const { slug } = useParams();
   const [studioName, setStudioName] = useState("Agendelle");
@@ -79,6 +93,10 @@ export default function ClientBooking() {
   const [isLoading, setIsLoading] = useState(false);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [calendarStatus, setCalendarStatus] = useState<Record<string, any>>({});
+  const [publicAgendaSettings, setPublicAgendaSettings] = useState<PublicAgendaSettings>(DEFAULT_PUBLIC_AGENDA_SETTINGS);
+
+  const canBookOnline = publicAgendaSettings.onlineBookingEnabled && publicAgendaSettings.enableSelfService;
+  const canConsultAppointments = publicAgendaSettings.enableAppointmentSearch && publicAgendaSettings.enableClientAgendaView;
 
   // Filtered lists based on selection
   const servicesForProfessional = (profId: string) =>
@@ -102,6 +120,7 @@ export default function ClientBooking() {
 
   // Ao clicar "Agendar" na home: se só 1 prof → vai direto para serviços
   const handleStartBooking = () => {
+    if (!canBookOnline) return;
     if (onlyOneProfessional) {
       setSelectedProfessional(getDefaultProfessional());
       setStep("by-service");
@@ -177,6 +196,10 @@ export default function ClientBooking() {
             setCustomColor(t.themeColor || "#0a0a0a");
             setInstagram(t.instagram || "");
             setWelcomeMessage(t.welcomeMessage || "");
+            setPublicAgendaSettings({
+              ...DEFAULT_PUBLIC_AGENDA_SETTINGS,
+              ...(t.agendaSettings || {}),
+            });
           }
         } catch {}
       }
@@ -192,6 +215,7 @@ export default function ClientBooking() {
   const handleSearchClient = async () => triggerClientSearch(phone);
 
   const handleConsultAppointments = async () => {
+    if (!canConsultAppointments) return;
     const digits = phone.replace(/\D/g, "");
     if (digits.length < 10) return;
     setIsLoading(true);
@@ -216,6 +240,7 @@ export default function ClientBooking() {
   };
 
   const handleBooking = async () => {
+    if (!canBookOnline) return;
     setIsLoading(true);
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (tenantId) headers["x-tenant-id"] = tenantId;
@@ -395,37 +420,70 @@ export default function ClientBooking() {
                   </div>
 
                   <button
-                    className="w-full flex items-center justify-between p-4 rounded-2xl text-white transition-all active:scale-[0.98] hover:opacity-90 shadow-lg"
-                    style={{ backgroundColor: customColor }}
+                    disabled={!canBookOnline}
+                    className={cn(
+                      "w-full flex items-center justify-between p-4 rounded-2xl transition-all active:scale-[0.98]",
+                      canBookOnline
+                        ? "text-white hover:opacity-90 shadow-lg"
+                        : "bg-zinc-100 text-zinc-400 shadow-none cursor-not-allowed"
+                    )}
+                    style={canBookOnline ? { backgroundColor: customColor } : {}}
                     onClick={handleStartBooking}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
-                        <CalendarIcon size={18} className="text-white" />
+                      <div
+                        className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                          canBookOnline ? "bg-white/15" : "bg-zinc-200/70"
+                        )}
+                      >
+                        <CalendarIcon size={18} className={canBookOnline ? "text-white" : "text-zinc-400"} />
                       </div>
                       <div className="text-left">
-                        <p className="text-sm font-black leading-tight">Agendar Horário</p>
-                        <p className="text-[10px] text-white/60 font-medium mt-0.5">Escolha o serviço e a data</p>
+                        <p className={cn("text-sm font-black leading-tight", canBookOnline ? "text-white" : "text-zinc-700")}>
+                          Agendar Horário
+                        </p>
+                        <p className={cn("text-[10px] font-medium mt-0.5", canBookOnline ? "text-white/60" : "text-zinc-400")}>
+                          {canBookOnline ? "Escolha o serviço e a data" : "Agendamento online indisponível no momento"}
+                        </p>
                       </div>
                     </div>
-                    <ChevronRight size={18} className="text-white/70" />
+                    <ChevronRight size={18} className={canBookOnline ? "text-white/70" : "text-zinc-300"} />
                   </button>
 
                   <button
-                    className="w-full flex items-center justify-between p-4 rounded-2xl bg-zinc-50 border border-zinc-200 transition-all active:scale-[0.98] hover:bg-zinc-100 hover:border-zinc-300"
-                    onClick={() => setStep("consult")}
+                    disabled={!canConsultAppointments}
+                    className={cn(
+                      "w-full flex items-center justify-between p-4 rounded-2xl border transition-all active:scale-[0.98]",
+                      canConsultAppointments
+                        ? "bg-zinc-50 border-zinc-200 hover:bg-zinc-100 hover:border-zinc-300"
+                        : "bg-zinc-50/80 border-zinc-200 text-zinc-400 cursor-not-allowed"
+                    )}
+                    onClick={() => canConsultAppointments && setStep("consult")}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-zinc-200/60 flex items-center justify-center shrink-0">
-                        <Search size={17} className="text-zinc-500" />
+                        <Search size={17} className={canConsultAppointments ? "text-zinc-500" : "text-zinc-300"} />
                       </div>
                       <div className="text-left">
-                        <p className="text-sm font-black text-zinc-800 leading-tight">Meus Agendamentos</p>
-                        <p className="text-[10px] text-zinc-400 font-medium mt-0.5">Consultar pelo telefone</p>
+                        <p className={cn("text-sm font-black leading-tight", canConsultAppointments ? "text-zinc-800" : "text-zinc-500")}>
+                          Meus Agendamentos
+                        </p>
+                        <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
+                          {canConsultAppointments ? "Consultar pelo telefone" : "Consulta pública desativada"}
+                        </p>
                       </div>
                     </div>
                     <ChevronRight size={18} className="text-zinc-300" />
                   </button>
+
+                  {(!canBookOnline || !canConsultAppointments) && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                      <p className="text-[11px] font-bold text-amber-700">
+                        Algumas opções foram desativadas nas configurações da agenda deste estabelecimento.
+                      </p>
+                    </div>
+                  )}
 
                   {instagram && (
                     <a href={instagram} target="_blank" rel="noreferrer" className="block">
