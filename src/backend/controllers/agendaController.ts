@@ -656,10 +656,15 @@ export const agendaController = {
         },
         include: {
           client:  { select: { id: true, name: true, phone: true } },
-          service: { select: { id: true, name: true, duration: true } },
+          service: { select: { id: true, name: true, duration: true, type: true, price: true } },
         },
         orderBy: { startTime: "asc" },
       });
+
+      const nowStr = format(today, "HH:mm");
+      // Encontra o "próximo" — o primeiro cujo horário ainda não passou, ou o último se todos passaram
+      let nextIdx = appointments.findIndex((a: any) => a.startTime >= nowStr);
+      if (nextIdx === -1 && appointments.length > 0) nextIdx = 0; // todos passaram: aponta pro primeiro
 
       const queue = appointments.map((a: any, i: number) => ({
         position: i + 1,
@@ -667,11 +672,14 @@ export const agendaController = {
         startTime: a.startTime,
         endTime: a.endTime,
         status: a.status,
-        clientName: showClientName ? (a.client?.name ?? "Cliente") : null,
+        clientName: showClientName ? (a.client?.name ?? "Cliente") : "Cliente",
         clientPhone: a.client?.phone ?? null,
         serviceName: showService ? (a.service?.name ?? null) : null,
+        serviceType: a.service?.type ?? null,
         serviceDuration: a.service?.duration ?? null,
-        isNext: i === 0,
+        servicePrice: a.service?.price ?? null,
+        isNext: i === nextIdx,
+        isPast: a.endTime ? a.endTime < nowStr : a.startTime < nowStr,
       }));
 
       res.json({
