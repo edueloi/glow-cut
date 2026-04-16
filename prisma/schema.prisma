@@ -59,14 +59,32 @@ model Appointment {
 }
 
 model Client {
-  id          String        @id @db.VarChar(36)
-  name        String        @db.VarChar(255)
-  phone       String        @db.VarChar(30)
-  age         Int?
-  createdAt   DateTime      @default(now()) @db.DateTime(0)
-  tenantId    String?       @db.VarChar(36)
-  appointment Appointment[]
-  comanda     Comanda[]
+  id            String        @id @db.VarChar(36)
+  name          String        @db.VarChar(255)
+  phone         String        @db.VarChar(30)
+  age           Int?
+  email         String?       @db.VarChar(255)
+  cpf           String?       @db.VarChar(20)
+  birthDate     String?       @db.VarChar(10)
+  gender        String?       @db.VarChar(30)
+  whatsapp      Boolean       @default(true)
+  cep           String?       @db.VarChar(10)
+  street        String?       @db.VarChar(255)
+  number        String?       @db.VarChar(30)
+  complement    String?       @db.VarChar(255)
+  neighborhood  String?       @db.VarChar(255)
+  city          String?       @db.VarChar(100)
+  state         String?       @db.VarChar(10)
+  hasChildren   Boolean       @default(false)
+  isMarried     Boolean       @default(false)
+  spouseName    String?       @db.VarChar(255)
+  maritalStatus String?       @db.VarChar(50)
+  education     String?       @db.VarChar(50)
+  notes         String?       @db.Text
+  createdAt     DateTime      @default(now()) @db.DateTime(0)
+  tenantId      String?       @db.VarChar(36)
+  appointment   Appointment[]
+  comanda       Comanda[]
 
   @@unique([phone, tenantId], map: "Client_phone_tenantId_key")
   @@index([tenantId], map: "Client_tenantId_idx")
@@ -159,6 +177,7 @@ model Comanda {
   professionalId String?       @db.VarChar(36)
   description    String?       @db.VarChar(1000)
   paymentMethod  String?       @db.VarChar(30)
+  paymentDetails String?       @db.Text
   sessionCount   Int?          @default(1)
   type           String?       @default("normal") @db.VarChar(20)
   createdAt      DateTime      @default(now()) @db.DateTime(0)
@@ -207,8 +226,22 @@ model Product {
   comandaItem     ComandaItem[]
   serviceProducts ServiceProduct[]
   stockMovements  StockMovement[]
+  sector          Sector?          @relation(fields: [sectorId], references: [id])
+  supplier        Supplier?        @relation(fields: [supplierId], references: [id])
+  manufacturer    Manufacturer?    @relation(fields: [manufacturerId], references: [id])
 
   @@index([tenantId], map: "idx_product_tenant")
+}
+
+model Sector {
+  id        String    @id @db.VarChar(36)
+  tenantId  String    @db.VarChar(36)
+  name      String    @db.VarChar(100)
+  color     String    @default("#6b7280") @db.VarChar(20)
+  createdAt DateTime  @default(now()) @db.DateTime(3)
+  products  Product[]
+
+  @@index([tenantId], map: "idx_sector_tenant")
 }
 
 model Supplier {
@@ -223,6 +256,7 @@ model Supplier {
   notes     String?  @db.Text
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now()) @db.DateTime(0)
+  products   Product[]
 
   @@index([tenantId], map: "idx_supplier_tenant")
 }
@@ -238,8 +272,25 @@ model Manufacturer {
   notes     String?  @db.Text
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now()) @db.DateTime(0)
+  products   Product[]
 
   @@index([tenantId], map: "idx_manufacturer_tenant")
+}
+
+model CashEntry {
+  id          String    @id @db.VarChar(36)
+  tenantId    String    @db.VarChar(36)
+  type        String    @default("income") @db.VarChar(20)
+  category    String?   @db.VarChar(100)
+  description String?   @db.VarChar(500)
+  amount      Float     @default(0)
+  date        DateTime  @default(now()) @db.DateTime(3)
+  comandaId   String?   @db.VarChar(36)
+  createdAt   DateTime  @default(now()) @db.DateTime(3)
+
+  @@index([tenantId], map: "idx_cashentry_tenant")
+  @@index([comandaId], map: "idx_cashentry_comanda")
+  @@index([tenantId, date], map: "idx_cashentry_tenant_date")
 }
 
 model StockMovement {
@@ -300,13 +351,21 @@ model Plan {
 model Professional {
   id           String         @id @db.VarChar(36)
   name         String         @db.VarChar(255)
+  nickname     String?        @db.VarChar(100)
   role         String?        @db.VarChar(100)
   password     String?        @db.VarChar(255)
+  cpf          String?        @db.VarChar(20)
+  gender       String?        @db.VarChar(20)
+  birthDate    String?        @db.VarChar(10)
   phone        String?        @db.VarChar(30)
   email        String?        @db.VarChar(255)
+  instagram    String?        @db.VarChar(255)
   bio          String?        @db.VarChar(1000)
   photo        String?        @db.Text
   permissions  String?        @default("{}") @db.VarChar(2000)
+  accessLevel  String?        @default("no-access") @db.VarChar(20)
+  patAccess    Boolean        @default(false)
+  canAddServicePhotos Boolean @default(false)
   isActive     Boolean        @default(true)
   tenantId     String?        @db.VarChar(36)
   appointment  Appointment[]
@@ -352,6 +411,20 @@ model ServiceProduct {
 
   @@index([serviceId], map: "idx_svcprod_service")
   @@index([productId], map: "idx_svcprod_product")
+}
+
+model ServiceConsumption {
+  id        String   @id @db.VarChar(36)
+  serviceId String   @db.VarChar(36)
+  productId String   @db.VarChar(36)
+  quantity  Float    @default(1)
+  tenantId  String   @db.VarChar(36)
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId], map: "idx_serviceconsumption_service")
+  @@index([productId], map: "idx_serviceconsumption_product")
+  @@index([tenantId], map: "idx_serviceconsumption_tenant")
 }
 
 model WorkingHours {
@@ -416,6 +489,20 @@ model WppBotConfig {
   menuOptions      String?  @db.Text
   createdAt        DateTime @default(now()) @db.DateTime(0)
   updatedAt        DateTime @updatedAt @db.DateTime(0)
+}
+
+model WppInstance {
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  tenantId     String   @unique @db.VarChar(36)
+  instanceName String   @db.VarChar(120)
+  apiUrl       String   @db.VarChar(500)
+  apiKey       String?  @db.VarChar(255)
+  phone        String?  @db.VarChar(30)
+  status       String   @default("not_configured") @db.VarChar(30)
+  qrCode       String?  @db.Text
+  isActive     Boolean  @default(false)
+  createdAt    DateTime @default(now()) @db.DateTime(0)
+  updatedAt    DateTime @updatedAt @db.DateTime(0)
 }
 
 model WppMessageTemplate {

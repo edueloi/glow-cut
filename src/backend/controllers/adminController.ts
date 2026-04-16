@@ -197,5 +197,108 @@ export const adminController = {
       console.warn("[tenant-by-slug] AgendaSettings fallback used.");
     }
     res.json({ ...tenant, agendaSettings });
+  },
+
+  async listTeam(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    try {
+      const users = await (prisma as any).adminUser.findMany({
+        where: { tenantId },
+        orderBy: { createdAt: "desc" },
+      });
+      res.json(users);
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message || "Erro ao buscar equipe." });
+    }
+  },
+
+  async createTeamUser(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+
+    const { name, email, password, role, jobTitle, phone, photo, canCreateUsers, canDeleteAccount, permissions } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "name, email e password são obrigatórios." });
+    }
+
+    try {
+      const existing = await (prisma as any).adminUser.findFirst({ where: { email } });
+      if (existing) return res.status(400).json({ error: "E-mail já cadastrado." });
+
+      const user = await (prisma as any).adminUser.create({
+        data: {
+          id: randomUUID(),
+          tenantId,
+          name,
+          email,
+          password,
+          role: role || "admin",
+          jobTitle: jobTitle || null,
+          phone: phone || null,
+          photo: photo || null,
+          canCreateUsers: !!canCreateUsers,
+          canDeleteAccount: !!canDeleteAccount,
+          isActive: true,
+          permissions: permissions ? (typeof permissions === "string" ? permissions : JSON.stringify(permissions)) : null,
+        },
+      });
+      res.json(user);
+    } catch (e: any) {
+      res.status(400).json({ error: e?.message || "Erro ao criar usuário." });
+    }
+  },
+
+  async updateTeamUser(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+
+    const { name, email, password, role, jobTitle, phone, photo, isActive, canCreateUsers, canDeleteAccount, permissions } = req.body;
+
+    try {
+      const current = await (prisma as any).adminUser.findFirst({
+        where: { id: req.params.id, tenantId },
+      });
+      if (!current) return res.status(404).json({ error: "Usuário não encontrado." });
+
+      const user = await (prisma as any).adminUser.update({
+        where: { id: current.id },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(email !== undefined && { email }),
+          ...(password !== undefined && { password }),
+          ...(role !== undefined && { role }),
+          ...(jobTitle !== undefined && { jobTitle }),
+          ...(phone !== undefined && { phone }),
+          ...(photo !== undefined && { photo }),
+          ...(isActive !== undefined && { isActive }),
+          ...(canCreateUsers !== undefined && { canCreateUsers: !!canCreateUsers }),
+          ...(canDeleteAccount !== undefined && { canDeleteAccount: !!canDeleteAccount }),
+          ...(permissions !== undefined && { permissions: typeof permissions === "string" ? permissions : JSON.stringify(permissions) }),
+        },
+      });
+      res.json(user);
+    } catch (e: any) {
+      res.status(400).json({ error: e?.message || "Erro ao atualizar usuário." });
+    }
+  },
+
+  async deleteTeamUser(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+
+    const authUserId = (req as any)?.auth?.sub;
+    if (authUserId && authUserId === req.params.id) {
+      return res.status(400).json({ error: "Você não pode excluir o próprio usuário." });
+    }
+
+    try {
+      await (prisma as any).adminUser.deleteMany({
+        where: { id: req.params.id, tenantId },
+      });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(400).json({ error: e?.message || "Erro ao excluir usuário." });
+    }
   }
 };

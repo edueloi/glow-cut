@@ -4,6 +4,32 @@ import { randomUUID } from "crypto";
 import { getTenantId } from "../utils/helpers";
 
 export const serviceController = {
+  async publicList(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    try {
+      const services = await (prisma as any).service.findMany({
+        where: { tenantId },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          duration: true,
+          type: true,
+          discount: true,
+          discountType: true,
+          photo: true,
+          professionalIds: true,
+        },
+        orderBy: { name: "asc" },
+      });
+      res.json(services);
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message || "Erro ao buscar serviços." });
+    }
+  },
+
   async list(req: Request, res: Response) {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });

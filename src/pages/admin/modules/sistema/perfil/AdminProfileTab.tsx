@@ -614,7 +614,7 @@ export function AdminProfileTab() {
   const [viewPermsUser, setViewPermsUser] = useState<any>(null);
 
   const loadTeam = useCallback(async () => {
-    const r = await apiFetch("/api/super-admin/admin-users");
+      const r = await apiFetch("/api/admin/team");
     if (!r.ok) return;
     const all = await r.json();
     const tenantId = adminUser?.tenantId;
@@ -669,13 +669,13 @@ export function AdminProfileTab() {
       permissions: JSON.stringify(data.permissions),
     };
     if (editingUser) {
-      await apiFetch(`/api/super-admin/admin-users/${editingUser.id}`, {
+      await apiFetch(`/api/admin/team/${editingUser.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
     } else {
-      await apiFetch("/api/super-admin/admin-users", {
+      await apiFetch("/api/admin/team", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -688,7 +688,7 @@ export function AdminProfileTab() {
 
   const handleDeleteUser = async (id: string) => {
     if (!confirm("Excluir este usuário da equipe?")) return;
-    await apiFetch(`/api/super-admin/admin-users/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/admin/team/${id}`, { method: "DELETE" });
     loadTeam();
   };
 

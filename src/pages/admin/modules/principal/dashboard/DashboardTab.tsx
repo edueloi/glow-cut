@@ -12,7 +12,7 @@ import {
   Lock
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
-import { calculateAge } from "@/src/lib/masks";
+import { calculateAge, parseBirthDateParts } from "@/src/lib/masks";
 import { motion, AnimatePresence } from "motion/react";
 import { apiFetch } from "@/src/lib/api";
 
@@ -112,12 +112,16 @@ export function DashboardTab({
 
   const birthdayClients = clients.filter(c => {
     if (!c.birthDate) return false;
-    const parts = c.birthDate.split("/");
-    if (parts.length !== 3) return false;
-    return parseInt(parts[1]) === currentMonthNum;
-  }).sort((a, b) => parseInt(a.birthDate.split("/")[0]) - parseInt(b.birthDate.split("/")[0]));
+    const parts = parseBirthDateParts(c.birthDate);
+    if (!parts) return false;
+    return parts.month === currentMonthNum;
+  }).sort((a, b) => {
+    const left = parseBirthDateParts(a.birthDate);
+    const right = parseBirthDateParts(b.birthDate);
+    return (left?.day || 0) - (right?.day || 0);
+  });
 
-  const birthdayToday = birthdayClients.filter(c => parseInt(c.birthDate.split("/")[0]) === todayDay);
+  const birthdayToday = birthdayClients.filter(c => parseBirthDateParts(c.birthDate)?.day === todayDay);
 
   const monthName = format(new Date(), "MMMM", { locale: ptBR });
   const greeting = (() => {
@@ -542,9 +546,10 @@ export function DashboardTab({
           ) : (
             <div className="space-y-2">
               {birthdayClients.slice(0, 5).map((c) => {
-                const day = c.birthDate.split("/")[0];
+                const birthParts = parseBirthDateParts(c.birthDate);
+                const day = birthParts?.day ? String(birthParts.day).padStart(2, "0") : "--";
                 const age = calculateAge(c.birthDate);
-                const isToday = parseInt(day) === todayDay;
+                const isToday = birthParts?.day === todayDay;
                 return (
                   <div key={c.id} className={cn("flex items-center gap-2.5 p-2 rounded-xl transition-all", isToday ? "bg-pink-100 border border-pink-200" : "bg-white/60")}>
                     <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0", isToday ? "bg-pink-500 text-white shadow-sm" : "bg-pink-50 border border-pink-100 text-pink-600")}>

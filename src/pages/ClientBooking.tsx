@@ -15,6 +15,14 @@ interface PublicAgendaSettings {
   enableClientAgendaView: boolean;
 }
 
+function toDateInputValue(value: string | null | undefined) {
+  if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const match = String(value).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (match) return `${match[3]}-${match[2]}-${match[1]}`;
+  return String(value).slice(0, 10);
+}
+
 const DEFAULT_PUBLIC_AGENDA_SETTINGS: PublicAgendaSettings = {
   onlineBookingEnabled: true,
   enableSelfService: true,
@@ -77,10 +85,10 @@ export default function ClientBooking() {
     setIsLoading(true);
     const headers: Record<string, string> = {};
     if (tenantId) headers["x-tenant-id"] = tenantId;
-    const res = await fetch(`/api/clients/search?phone=${digits}`, { headers });
+    const res = await fetch(`/api/public/clients/search?phone=${digits}`, { headers });
     const data = await res.json();
     if (data && data.id) {
-      setClientData({ name: data.name || "", age: data.age?.toString() || "", birthDate: data.birthDate?.slice(0, 10) || "" });
+      setClientData({ name: data.name || "", age: data.age?.toString() || "", birthDate: toDateInputValue(data.birthDate) });
       setIsExistingClient(true);
     } else {
       setClientData({ name: "", age: "", birthDate: "" });
@@ -91,6 +99,7 @@ export default function ClientBooking() {
   };
   const [myAppointments, setMyAppointments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [bookingError, setBookingError] = useState("");
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [calendarStatus, setCalendarStatus] = useState<Record<string, any>>({});
   const [publicAgendaSettings, setPublicAgendaSettings] = useState<PublicAgendaSettings>(DEFAULT_PUBLIC_AGENDA_SETTINGS);
@@ -147,7 +156,7 @@ export default function ClientBooking() {
     if (!profId) { setCalendarStatus({}); return; }
     try {
       const headers: Record<string, string> = { "x-tenant-id": tenantId };
-      const res = await fetch(`/api/calendar-status?month=${month.toISOString()}&professionalId=${profId}`, { headers });
+      const res = await fetch(`/api/public/calendar-status?month=${month.toISOString()}&professionalId=${profId}`, { headers });
       const data = await res.json();
       setCalendarStatus(data);
     } catch { setCalendarStatus({}); }
@@ -205,8 +214,8 @@ export default function ClientBooking() {
       }
       const headers: Record<string, string> = {};
       if (tid) headers["x-tenant-id"] = tid;
-      fetch("/api/services", { headers }).then(r => r.ok ? r.json() : []).then(d => setServices(Array.isArray(d) ? d.filter((s: any) => s.type === "service") : []));
-      fetch("/api/professionals", { headers }).then(r => r.ok ? r.json() : []).then(d => setProfessionals(Array.isArray(d) ? d.filter((p: any) => p.isActive !== false) : []));
+      fetch("/api/public/services", { headers }).then(r => r.ok ? r.json() : []).then(d => setServices(Array.isArray(d) ? d.filter((s: any) => s.type === "service") : []));
+      fetch("/api/public/professionals", { headers }).then(r => r.ok ? r.json() : []).then(d => setProfessionals(Array.isArray(d) ? d.filter((p: any) => p.isActive !== false) : []));
       setTimeout(() => setStep("home"), 1600);
     };
     loadData();
@@ -221,7 +230,7 @@ export default function ClientBooking() {
     setIsLoading(true);
     const headers: Record<string, string> = {};
     if (tenantId) headers["x-tenant-id"] = tenantId;
-    const res = await fetch(`/api/appointments/client?phone=${digits}`, { headers });
+    const res = await fetch(`/api/public/appointments/client?phone=${digits}`, { headers });
     const data = await res.json();
     setMyAppointments(Array.isArray(data) ? data : []);
     setIsLoading(false);
@@ -241,6 +250,7 @@ export default function ClientBooking() {
 
   const handleBooking = async () => {
     if (!canBookOnline) return;
+    setBookingError("");
     setIsLoading(true);
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (tenantId) headers["x-tenant-id"] = tenantId;
@@ -248,15 +258,23 @@ export default function ClientBooking() {
     // Garante profissional resolvido — usa o único se só tiver 1
     const profId = selectedProfessional?.id || (professionals.length === 1 ? professionals[0].id : null);
 
-    const clientRes = await fetch("/api/clients", { method: "POST", headers, body: JSON.stringify({ ...clientData, phone, birthDate: clientData.birthDate || undefined }) });
-    const client = await clientRes.json();
-    const apptRes = await fetch("/api/appointments", {
+    const clientRes = await fetch("/api/public/clients", { method: "POST", headers, body: JSON.stringify({ ...clientData, phone, birthDate: clientData.birthDate || undefined }) });
+    const client = await clientRes.json().catch(() => ({}));
+    if (!clientRes.ok || !client?.id) {
+      setBookingError(client?.error || "NÃ£o foi possÃ­vel validar seus dados.");
+      setIsLoading(false);
+      return;
+    }
+
+    const apptRes = await fetch("/api/public/appointments", {
       method: "POST", headers,
       body: JSON.stringify({ date: selectedDate, startTime: selectedSlot, clientId: client.id, serviceId: selectedService?.id, professionalId: profId })
     });
     if (!apptRes.ok) {
       const err = await apptRes.json().catch(() => ({}));
-      console.error("Erro ao criar agendamento:", err);
+      setBookingError(err?.error || "NÃ£o foi possÃ­vel concluir o agendamento.");
+      setIsLoading(false);
+      return;
     }
     setIsLoading(false);
     setStep("success");
@@ -990,6 +1008,12 @@ export default function ClientBooking() {
                       )}
                     </AnimatePresence>
                   </div>
+
+                  {bookingError && (
+                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-bold text-red-600">
+                      {bookingError}
+                    </div>
+                  )}
 
                   <button
                     onClick={handleBooking}

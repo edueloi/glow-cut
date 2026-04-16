@@ -9,6 +9,7 @@ import { Button, IconButton } from "@/src/components/ui/Button";
 import { EmptyState } from "@/src/components/ui/EmptyState";
 import { motion } from "motion/react";
 import { GridTable } from "@/src/components/ui/GridTable";
+import { parseBirthDateParts } from "@/src/lib/masks";
 
 interface ClientsTabProps {
   clientView: 'grid' | 'list';
@@ -21,11 +22,11 @@ interface ClientsTabProps {
 }
 
 function isBirthday(birthDate: string) {
-  const parts = birthDate.split("/");
+  const parts = parseBirthDateParts(birthDate);
+  if (!parts) return false;
   return (
-    parts.length === 3 &&
-    parseInt(parts[0]) === new Date().getDate() &&
-    parseInt(parts[1]) === new Date().getMonth() + 1
+    parts.day === new Date().getDate() &&
+    parts.month === new Date().getMonth() + 1
   );
 }
 

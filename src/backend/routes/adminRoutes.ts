@@ -9,3 +9,7 @@ adminRouter.get("/tenant", adminController.getTenant);
 adminRouter.post("/tenant/branding", adminController.updateBranding);
 adminRouter.post("/upload", adminController.upload);
 adminRouter.get("/tenant-by-slug/:slug", adminController.getTenantBySlug);
+adminRouter.get("/team", adminController.listTeam);
+adminRouter.post("/team", adminController.createTeamUser);
+adminRouter.put("/team/:id", adminController.updateTeamUser);
+adminRouter.delete("/team/:id", adminController.deleteTeamUser);

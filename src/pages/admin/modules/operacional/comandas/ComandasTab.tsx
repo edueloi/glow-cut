@@ -4,15 +4,16 @@ import { format } from "date-fns";
 import {
   Plus, CheckCircle, X, Scissors, Banknote, CreditCard, Smartphone,
   Shuffle, Package, FileText, Phone, Zap, Trash2, Edit2, Search,
-  Minus, LayoutGrid, User, ArrowRightLeft, ChevronDown, Calendar,
-  MoreVertical, ChevronUp, Eye, DollarSign, Clock, Filter,
-  ShoppingBag, Tag, Hash, Receipt,
+  Minus, User, ArrowRightLeft, ChevronDown,
+  MoreVertical, Eye, DollarSign, Clock,
+  ShoppingBag, Receipt,
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
 import { motion, AnimatePresence } from "motion/react";
 import { Combobox } from "@/src/components/ui/Combobox";
 import { GridTable, Column } from "@/src/components/ui/GridTable";
+import { Button, IconButton } from "@/src/components/ui/Button";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -134,32 +135,48 @@ function ActionMenu({ comanda, onPay, onEdit, onView, onDelete }: {
           className="fixed bg-white rounded-2xl shadow-2xl border border-zinc-200 py-1.5 z-[100] min-w-[160px] overflow-hidden"
         >
           {comanda.status === "open" && (
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
+              fullWidth
+              iconLeft={<CheckCircle size={14} />}
               onClick={(e) => { e.stopPropagation(); setOpen(false); onPay(); }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition-all"
+              className="justify-start px-4 rounded-none text-emerald-700 hover:bg-emerald-50"
             >
-              <CheckCircle size={14} /> Pagar
-            </button>
+              Pagar
+            </Button>
           )}
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
+            fullWidth
+            iconLeft={<Edit2 size={14} />}
             onClick={(e) => { e.stopPropagation(); setOpen(false); onEdit(); }}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition-all"
+            className="justify-start px-4 rounded-none text-zinc-700"
           >
-            <Edit2 size={14} /> Editar
-          </button>
-          <button
+            Editar
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            fullWidth
+            iconLeft={<Eye size={14} />}
             onClick={(e) => { e.stopPropagation(); setOpen(false); onView(); }}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition-all"
+            className="justify-start px-4 rounded-none text-zinc-700"
           >
-            <Eye size={14} /> Detalhes
-          </button>
+            Detalhes
+          </Button>
           <div className="border-t border-zinc-100 my-1" />
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
+            fullWidth
+            iconLeft={<Trash2 size={14} />}
             onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 transition-all"
+            className="justify-start px-4 rounded-none text-red-600 hover:bg-red-50"
           >
-            <Trash2 size={14} /> Excluir
-          </button>
+            Excluir
+          </Button>
         </motion.div>
       )}
     </AnimatePresence>
@@ -167,13 +184,14 @@ function ActionMenu({ comanda, onPay, onEdit, onView, onDelete }: {
 
   return (
     <>
-      <button
+      <IconButton
         ref={buttonRef}
+        variant="ghost"
+        size="sm"
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="p-2 hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 rounded-xl transition-all"
       >
         <MoreVertical size={16} />
-      </button>
+      </IconButton>
       {typeof document !== "undefined" && createPortal(menu, document.body)}
     </>
   );
@@ -319,31 +337,31 @@ function ComandaCard({ comanda, onPay, onEdit, onView, onDelete }: {
               {/* Ações */}
               <div className="flex gap-2 pt-1">
                 {isOpen && (
-                  <button
+                  <Button
+                    variant="success"
+                    size="xs"
+                    fullWidth
+                    iconLeft={<CheckCircle size={13} />}
                     onClick={onPay}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-sm"
                   >
-                    <CheckCircle size={13} /> Pagar
-                  </button>
+                    Pagar
+                  </Button>
                 )}
-                <button
+                <Button
+                  variant="outline"
+                  size="xs"
+                  fullWidth
+                  iconLeft={<Edit2 size={12} />}
                   onClick={onEdit}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
                 >
-                  <Edit2 size={12} /> Editar
-                </button>
-                <button
-                  onClick={onView}
-                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
-                >
+                  Editar
+                </Button>
+                <IconButton variant="outline" size="xs" onClick={onView}>
                   <Eye size={12} />
-                </button>
-                <button
-                  onClick={onDelete}
-                  className="flex items-center justify-center py-2.5 px-3 hover:bg-red-50 text-zinc-300 hover:text-red-500 rounded-xl transition-all"
-                >
+                </IconButton>
+                <IconButton variant="ghost" size="xs" onClick={onDelete} className="text-zinc-300 hover:text-red-500 hover:bg-red-50">
                   <Trash2 size={14} />
-                </button>
+                </IconButton>
               </div>
             </div>
           </motion.div>
@@ -637,9 +655,9 @@ function EditComandaModal({
                 Dados
               </button>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-zinc-100 text-zinc-400 rounded-xl transition-all">
+            <IconButton variant="ghost" size="sm" onClick={onClose}>
               <X size={16}/>
-            </button>
+            </IconButton>
           </div>
         </div>
 
@@ -715,21 +733,23 @@ function EditComandaModal({
                         </div>
 
                         <div className="flex items-center gap-1 shrink-0">
-                          <button onClick={() => changeQty(item.id, -1)} className="w-7 h-7 rounded-lg bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-all">
+                          <IconButton variant="outline" size="xs" onClick={() => changeQty(item.id, -1)}>
                             <Minus size={10}/>
-                          </button>
+                          </IconButton>
                           <span className="w-5 text-center text-xs font-black text-zinc-900">{item.quantity}</span>
-                          <button onClick={() => changeQty(item.id, 1)} className="w-7 h-7 rounded-lg bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-all">
+                          <IconButton variant="outline" size="xs" onClick={() => changeQty(item.id, 1)}>
                             <Plus size={10}/>
-                          </button>
+                          </IconButton>
                         </div>
 
-                        <button
+                        <IconButton
+                          variant="ghost"
+                          size="xs"
                           onClick={() => removeItem(item.id)}
-                          className="w-7 h-7 rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all shrink-0"
+                          className="text-zinc-300 hover:text-red-500 hover:bg-red-50 shrink-0"
                         >
                           <Trash2 size={12}/>
-                        </button>
+                        </IconButton>
                       </motion.div>
                     ))}
                   </div>
@@ -739,12 +759,16 @@ function EditComandaModal({
 
             {/* Botão adicionar itens (abre catálogo) */}
             <div className="px-4 py-2 border-t border-zinc-100 shrink-0">
-              <button
+              <Button
+                variant="outline"
+                size="sm"
+                fullWidth
+                iconLeft={<Plus size={14} />}
                 onClick={() => setCatalogOpen(true)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border border-amber-200"
+                className="border-amber-200 text-amber-700 hover:bg-amber-50"
               >
-                <Plus size={14} /> Adicionar Serviço ou Produto
-              </button>
+                Adicionar Serviço ou Produto
+              </Button>
             </div>
 
             {/* Desconto + total */}
@@ -884,16 +908,12 @@ function EditComandaModal({
 
         {/* Footer */}
         <div className="px-4 sm:px-5 py-3.5 border-t border-zinc-100 flex gap-3 shrink-0">
-          <button onClick={onClose} className="flex-1 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-black text-xs uppercase tracking-widest transition-all">
+          <Button variant="outline" size="sm" fullWidth onClick={onClose}>
             Cancelar
-          </button>
-          <button
-            onClick={save}
-            disabled={saving}
-            className="flex-1 py-2.5 bg-zinc-900 hover:bg-black text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50"
-          >
-            {saving ? "Salvando..." : "Salvar"}
-          </button>
+          </Button>
+          <Button variant="primary" size="sm" fullWidth loading={saving} onClick={save}>
+            Salvar
+          </Button>
         </div>
       </motion.div>
 
@@ -993,12 +1013,9 @@ function EditComandaModal({
 
               {/* Fechar */}
               <div className="px-4 py-3 border-t border-zinc-100 shrink-0">
-                <button
-                  onClick={() => setCatalogOpen(false)}
-                  className="w-full py-2.5 bg-zinc-900 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all"
-                >
+                <Button variant="primary" size="sm" fullWidth onClick={() => setCatalogOpen(false)}>
                   Fechar Catálogo ({items.length} {items.length === 1 ? 'item' : 'itens'})
-                </button>
+                </Button>
               </div>
             </motion.div>
           </motion.div>
@@ -1104,12 +1121,15 @@ export function ComandasTab({
                 className="w-full pl-9 pr-3 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-amber-400 font-bold"
               />
             </div>
-            <button
+            <Button
+              variant="primary"
+              size="sm"
+              iconLeft={<Plus size={14}/>}
               onClick={() => setIsComandaModalOpen(true)}
-              className="hidden sm:flex px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-xs shadow-sm items-center gap-1.5 transition-all shrink-0"
+              className="hidden sm:inline-flex shrink-0"
             >
-              <Plus size={14}/> Nova Comanda
-            </button>
+              Nova Comanda
+            </Button>
           </div>
         </div>
 
@@ -1221,31 +1241,40 @@ export function ComandasTab({
                 {/* Ações */}
                 <div className="flex gap-2 pt-1">
                   {c.status === "open" && (
-                    <button
+                    <Button
+                      variant="success"
+                      size="xs"
+                      fullWidth
+                      iconLeft={<CheckCircle size={13} />}
                       onClick={(e) => { e.stopPropagation(); handlePayComanda(c); }}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-sm"
                     >
-                      <CheckCircle size={13} /> Pagar
-                    </button>
+                      Pagar
+                    </Button>
                   )}
-                  <button
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    fullWidth
+                    iconLeft={<Edit2 size={12} />}
                     onClick={(e) => { e.stopPropagation(); setEditingComanda(c); }}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
                   >
-                    <Edit2 size={12} /> Editar
-                  </button>
-                  <button
+                    Editar
+                  </Button>
+                  <IconButton
+                    variant="outline"
+                    size="xs"
                     onClick={(e) => { e.stopPropagation(); setSelectedComanda(c); setIsComandaDetailOpen(true); }}
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
                   >
                     <Eye size={12} />
-                  </button>
-                  <button
+                  </IconButton>
+                  <IconButton
+                    variant="ghost"
+                    size="xs"
                     onClick={(e) => { e.stopPropagation(); handleDeleteComanda(c.id); }}
-                    className="flex items-center justify-center py-2.5 px-3 hover:bg-red-50 text-zinc-300 hover:text-red-500 rounded-xl transition-all"
+                    className="text-zinc-300 hover:text-red-500 hover:bg-red-50"
                   >
                     <Trash2 size={14} />
-                  </button>
+                  </IconButton>
                 </div>
               </div>
             )}
@@ -1335,12 +1364,14 @@ export function ComandasTab({
                 render: (c) => (
                   <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
                     {c.status === "open" && (
-                      <button
+                      <Button
+                        variant="success"
+                        size="xs"
+                        iconLeft={<CheckCircle size={11} />}
                         onClick={() => handlePayComanda(c)}
-                        className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-bold transition-all flex items-center gap-1"
                       >
-                        <CheckCircle size={11} /> Pagar
-                      </button>
+                        Pagar
+                      </Button>
                     )}
                     <ActionMenu
                       comanda={c}
@@ -1392,7 +1423,7 @@ export function ComandasTab({
                     </p>
                   </div>
                 </div>
-                <button onClick={() => setIsComandaDetailOpen(false)} className="p-2 hover:bg-zinc-100 text-zinc-400 rounded-xl shrink-0"><X size={16}/></button>
+                <IconButton variant="ghost" size="sm" onClick={() => setIsComandaDetailOpen(false)} className="shrink-0"><X size={16}/></IconButton>
               </div>
 
               <div className="p-4 sm:p-5 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(92vh - 130px)' }}>
@@ -1482,12 +1513,14 @@ export function ComandasTab({
                       )}
                     </div>
                     {selectedComanda.status === "open" && (
-                      <button
+                      <Button
+                        variant="success"
+                        size="sm"
+                        iconLeft={<CheckCircle size={13}/>}
                         onClick={() => { handlePayComanda(selectedComanda); setIsComandaDetailOpen(false); }}
-                        className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-1.5"
                       >
-                        <CheckCircle size={13}/> Pagar
-                      </button>
+                        Pagar
+                      </Button>
                     )}
                   </div>
                 </div>

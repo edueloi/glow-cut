@@ -20,6 +20,9 @@ import { financeRouter } from "./src/backend/routes/financeRoutes";
 import { productRouter } from "./src/backend/routes/productRoutes";
 import { reportRouter } from "./src/backend/routes/reportRoutes";
 import { inventoryRouter } from "./src/backend/routes/inventoryRoutes";
+import { wppRouter } from "./src/backend/routes/wppRoutes";
+import { sectorRouter } from "./src/backend/routes/sectorRoutes";
+import { publicBookingRouter } from "./src/backend/routes/publicBookingRoutes";
 
 // Import middleware
 import { requireAuth, requireSuperAdmin } from "./src/backend/middleware/auth";
@@ -42,6 +45,7 @@ app.use("/api/auth", authRouter);
 // Manter compatibilidade com clientes antigos (remove após deploy estável)
 app.post("/api/login", adminController.unifiedLogin);
 app.get("/api/tenant-by-slug/:slug", adminController.getTenantBySlug);
+app.use("/api/public", publicBookingRouter);
 
 // ── Rotas que requerem autenticação ──────────────────────────────────────────
 app.use("/api/super-admin", requireSuperAdmin, superAdminRouter);
@@ -52,8 +56,10 @@ app.use("/api/services", requireAuth, serviceRouter);
 app.use("/api/comandas", requireAuth, comandaRouter);
 app.use("/api", requireAuth, financeRouter);
 app.use("/api/products", requireAuth, productRouter);
+app.use("/api/sectors", requireAuth, sectorRouter);
 app.use("/api/reports", requireAuth, reportRouter);
 app.use("/api/inventory", requireAuth, inventoryRouter);
+app.use("/api/wpp", requireAuth, wppRouter);
 
 // ── Agenda: PAT e availability são públicos, o resto precisa de auth ─────────
 app.use("/api", agendaPublicRouter);

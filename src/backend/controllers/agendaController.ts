@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
 import { addMinutes, format, parse, startOfDay, addDays, startOfMonth, endOfMonth, isSameDay } from "date-fns";
-import { getTenantId, asBool, asNumber, toDateOnly, getDayRange, formatDateOnly, getSaudacao, applyTemplateVars } from "../utils/helpers";
+import { getTenantId, asBool, asNumber, toDateOnly, getDayRange, formatDateOnly, getSaudacao, applyTemplateVars, samePhone, normalizePhone } from "../utils/helpers";
 
 const DEFAULT_AGENDA_SETTINGS = {
   onlineBookingEnabled: true,
@@ -190,7 +190,38 @@ function mapSpecialScheduleDay(row: any) {
 
 
 async function sendWppMessage(tenantId: string, phone: string, message: string) {
-  console.log(`[WPP Mock] Para: ${phone}, Mensagem: ${message}`);
+  const instance = await (prisma as any).wppInstance.findUnique({ where: { tenantId } });
+  if (!instance?.apiUrl || !instance?.instanceName) {
+    console.log(`[WPP Mock] Para: ${phone}, Mensagem: ${message}`);
+    return;
+  }
+
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone || !String(message || "").trim()) return;
+
+  try {
+    const response = await fetch(
+      `${sanitizeApiUrl(instance.apiUrl)}/message/sendText/${encodeURIComponent(instance.instanceName)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(instance.apiKey ? { apikey: instance.apiKey } : {}),
+        },
+        body: JSON.stringify({
+          number: normalizedPhone,
+          text: String(message),
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || `Evolution API retornou ${response.status}.`);
+    }
+  } catch (err) {
+    console.warn("[WPP] Falha ao enviar mensagem:", err);
+  }
 }
 
 async function fireWppConfirmationBalcao(tenantId: string, appt: any) {
@@ -266,24 +297,70 @@ async function handleAppointmentStockReservation(serviceId: string | null, actio
   }
 }
 
+async function findTenantClientByPhone(tenantId: string, phone: string) {
+  const clients = await (prisma as any).client.findMany({ where: { tenantId } });
+  return clients.find((client: any) => samePhone(client.phone, phone)) || null;
+}
+
+function sanitizeApiUrl(apiUrl: string) {
+  return apiUrl.replace(/\/+$/, "");
+}
+
+function resolveEndTime(targetDate: Date, startTime: string, providedEndTime: string | null | undefined, duration: number) {
+  if (providedEndTime) return providedEndTime;
+  const dateStr = format(targetDate, "yyyy-MM-dd");
+  const start = parse(`${dateStr} ${startTime}`, "yyyy-MM-dd HH:mm", new Date());
+  return format(addMinutes(start, duration), "HH:mm");
+}
+
+async function ensureSlotAvailable(tenantId: string, professionalId: string, targetDate: Date, startTime: string, endTime: string) {
+  const { start, end } = getDayRange(targetDate);
+  const appointments = await (prisma as any).appointment.findMany({
+    where: {
+      tenantId,
+      professionalId,
+      date: { gte: start, lt: end },
+      status: { notIn: ["cancelled", "canceled", "cancelado"] },
+    },
+    select: { startTime: true, endTime: true },
+  });
+
+  if (hasSlotOverlap(startTime, endTime, appointments)) {
+    throw new Error("JÃ¡ existe um agendamento neste horÃ¡rio para este profissional.");
+  }
+}
+
 export const agendaController = {
   async getAvailability(req: Request, res: Response) {
     const tenantId = getTenantId(req);
     const { date, serviceId, professionalId } = req.query;
 
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     if (!date || !serviceId || !professionalId) return res.status(400).json({ error: "date, serviceId and professionalId required." });
 
     try {
       const targetDate = new Date(date as string);
       const dayOfWeek = targetDate.getDay();
-      const settings = tenantId ? await ensureAgendaSettingsRecord(tenantId) : normalizeAgendaSettings({}, "");
-      const service = await (prisma as any).service.findUnique({ where: { id: serviceId as string } });
+      const settings = await ensureAgendaSettingsRecord(tenantId);
+      const service = await (prisma as any).service.findFirst({ where: { id: serviceId as string, tenantId } });
       if (!service) return res.status(404).json({ error: "Serviço não encontrado." });
+      const clientId: string | null = null;
+      const client = clientId
+        ? await (prisma as any).client.findFirst({ where: { id: clientId, tenantId } })
+        : null;
+      if (clientId && !client) {
+        return res.status(404).json({ error: "Cliente nÃ£o encontrado." });
+      }
 
-      if (tenantId && (!settings.onlineBookingEnabled || !settings.enableSelfService)) return res.json([]);
+      const professional = await (prisma as any).professional.findFirst({
+        where: { id: professionalId as string, tenantId, isActive: true },
+      });
+      if (!professional) return res.status(404).json({ error: "Profissional não encontrado." });
+
+      if (!settings.onlineBookingEnabled || !settings.enableSelfService) return res.json([]);
 
       const maxBookingDate = addDays(startOfDay(new Date()), settings.maxAdvanceDays);
-      if (tenantId && startOfDay(targetDate) > maxBookingDate) return res.json([]);
+      if (startOfDay(targetDate) > maxBookingDate) return res.json([]);
 
       const wh = await (prisma as any).workingHours.findFirst({ where: { professionalId: professionalId as string, dayOfWeek } });
       const { start, end } = getDayRange(targetDate);
@@ -347,13 +424,14 @@ export const agendaController = {
     const tenantId = getTenantId(req);
     const { month, professionalId } = req.query;
 
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     if (!month || !professionalId) return res.status(400).json({ error: "month e professionalId são obrigatórios." });
 
     try {
       const targetDate = new Date(month as string);
       const start = startOfMonth(targetDate);
       const end = endOfMonth(targetDate);
-      const settings = tenantId ? await ensureAgendaSettingsRecord(tenantId) : normalizeAgendaSettings({}, "");
+      const settings = await ensureAgendaSettingsRecord(tenantId);
 
       const workingHours = await (prisma as any).workingHours.findMany({ where: { professionalId: professionalId as string } });
       const closedDays = await (prisma as any).closedDay.findMany({ where: { tenantId, date: { gte: start, lte: end } } });
@@ -431,7 +509,7 @@ export const agendaController = {
       if (!agendaSettings.enableAppointmentSearch || !agendaSettings.enableClientAgendaView) {
         return res.status(403).json({ error: "Consulta pública desativada." });
       }
-      const client = await (prisma as any).client.findFirst({ where: { phone: String(phone), tenantId } });
+      const client = await findTenantClientByPhone(tenantId, String(phone));
       if (!client) return res.json([]);
       const appointments = await (prisma as any).appointment.findMany({
         where: { clientId: client.id, tenantId },
@@ -449,6 +527,7 @@ export const agendaController = {
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { date, startTime, endTime, clientId, serviceId, professionalId: rawProfessionalId, comandaId, duration, notes, status, type, sessionNumber, totalSessions, recurrence } = req.body;
     if (!date || !startTime) return res.status(400).json({ error: "data e horário são obrigatórios." });
+    const isPublicRequest = !(req as any).auth;
 
     let professionalId = rawProfessionalId || null;
     if (!professionalId) {
@@ -459,20 +538,69 @@ export const agendaController = {
 
     try {
       const agendaSettings = await ensureAgendaSettingsRecord(tenantId);
-      const effectiveStatus = status || (agendaSettings.autoConfirmAppointments ? "confirmed" : "scheduled");
+      if (isPublicRequest && (!agendaSettings.onlineBookingEnabled || !agendaSettings.enableSelfService)) {
+        return res.status(403).json({ error: "Autoagendamento desativado." });
+      }
+      if (isPublicRequest && (!clientId || !serviceId)) {
+        return res.status(400).json({ error: "clientId e serviceId são obrigatórios no autoagendamento." });
+      }
+
+      const service = serviceId
+        ? await (prisma as any).service.findFirst({ where: { id: serviceId, tenantId } })
+        : null;
+      if (serviceId && !service) {
+        return res.status(404).json({ error: "Serviço não encontrado." });
+      }
+
+      const client = clientId
+        ? await (prisma as any).client.findFirst({ where: { id: clientId, tenantId } })
+        : null;
+      if (clientId && !client) {
+        return res.status(404).json({ error: "Cliente nÃ£o encontrado." });
+      }
+
+      const professional = await (prisma as any).professional.findFirst({
+        where: { id: professionalId, tenantId, isActive: true },
+      });
+      if (!professional) {
+        return res.status(404).json({ error: "Profissional não encontrado." });
+      }
+
+      try {
+        const assignedIds = JSON.parse(service?.professionalIds || "[]");
+        if (Array.isArray(assignedIds) && assignedIds.length > 0 && !assignedIds.includes(professionalId)) {
+          return res.status(400).json({ error: "Este profissional nÃ£o atende o serviÃ§o selecionado." });
+        }
+      } catch {
+        // Ignora JSON invÃ¡lido em professionalIds.
+      }
+
+      const effectiveStatus = isPublicRequest
+        ? (agendaSettings.autoConfirmAppointments ? "confirmed" : "scheduled")
+        : (status || (agendaSettings.autoConfirmAppointments ? "confirmed" : "scheduled"));
       const baseDate = new Date(date);
-      const count = (recurrence && recurrence.type !== "none") ? (recurrence.count || 1) : 1;
-      const interval = (recurrence && recurrence.type !== "none") ? (recurrence.interval || 7) : 7;
+      const count = !isPublicRequest && recurrence && recurrence.type !== "none" ? (recurrence.count || 1) : 1;
+      const interval = !isPublicRequest && recurrence && recurrence.type !== "none" ? (recurrence.interval || 7) : 7;
+      const effectiveDuration = Number(duration) > 0 ? Number(duration) : Number(service?.duration || 60);
       
       const groupId = count > 1 ? randomUUID() : null;
       const results = [];
       for (let i = 0; i < count; i++) {
         const apptDate = addDays(baseDate, i * interval);
+        const resolvedEndTime = resolveEndTime(apptDate, startTime, endTime, effectiveDuration);
+
+        await ensureSlotAvailable(tenantId, professionalId, apptDate, startTime, resolvedEndTime);
+
         const appt = await (prisma as any).appointment.create({
           data: {
-            id: randomUUID(), date: apptDate, startTime, endTime: endTime || startTime, status: effectiveStatus,
-            type: type || "atendimento", clientId: clientId || null, serviceId: serviceId || null,
-            professionalId, comandaId: comandaId || null, duration: duration || 60, notes: notes || null,
+            id: randomUUID(), date: apptDate, startTime, endTime: resolvedEndTime, status: effectiveStatus,
+            type: isPublicRequest ? "atendimento" : (type || "atendimento"),
+            clientId: clientId || null,
+            serviceId: serviceId || null,
+            professionalId,
+            comandaId: isPublicRequest ? null : (comandaId || null),
+            duration: effectiveDuration,
+            notes: isPublicRequest ? null : (notes || null),
             tenantId, sessionNumber: i + 1, totalSessions: count, repeatGroupId: groupId,
           },
           include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true } }, professional: { select: { id: true, name: true } } }

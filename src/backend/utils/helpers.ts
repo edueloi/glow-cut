@@ -2,7 +2,18 @@ import { Request } from "express";
 import { format, startOfDay, addDays } from "date-fns";
 
 export function getTenantId(req: Request): string | null {
-  return (req.headers["x-tenant-id"] as string) || (req.query.tenantId as string) || null;
+  const authTenantId = (req as any)?.auth?.tenantId;
+  return (req.headers["x-tenant-id"] as string) || (req.query.tenantId as string) || authTenantId || null;
+}
+
+export function normalizePhone(value: string | null | undefined): string {
+  return String(value || "").replace(/\D/g, "");
+}
+
+export function samePhone(a: string | null | undefined, b: string | null | undefined): boolean {
+  const left = normalizePhone(a);
+  const right = normalizePhone(b);
+  return !!left && !!right && left === right;
 }
 
 export function asBool(value: any, fallback = false): boolean {

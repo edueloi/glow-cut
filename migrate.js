@@ -623,6 +623,116 @@ const MIGRATIONS = [
     `,
   },
 
+  // 033 - Comanda: detalhes de pagamento
+  {
+    name: '033_comanda_add_payment_details',
+    sql: `ALTER TABLE Comanda ADD COLUMN paymentDetails TEXT NULL AFTER paymentMethod`,
+    ignoreIfExists: true,
+  },
+
+  // 034 - Client: campos completos usados no frontend
+  { name: '034_client_add_email',          sql: `ALTER TABLE Client ADD COLUMN email VARCHAR(255) NULL AFTER age`, ignoreIfExists: true },
+  { name: '034_client_add_cpf',            sql: `ALTER TABLE Client ADD COLUMN cpf VARCHAR(20) NULL AFTER email`, ignoreIfExists: true },
+  { name: '034_client_add_birthDate',      sql: `ALTER TABLE Client ADD COLUMN birthDate VARCHAR(10) NULL AFTER cpf`, ignoreIfExists: true },
+  { name: '034_client_add_gender',         sql: `ALTER TABLE Client ADD COLUMN gender VARCHAR(30) NULL AFTER birthDate`, ignoreIfExists: true },
+  { name: '034_client_add_whatsapp',       sql: `ALTER TABLE Client ADD COLUMN whatsapp BOOLEAN NOT NULL DEFAULT TRUE AFTER gender`, ignoreIfExists: true },
+  { name: '034_client_add_cep',            sql: `ALTER TABLE Client ADD COLUMN cep VARCHAR(10) NULL AFTER whatsapp`, ignoreIfExists: true },
+  { name: '034_client_add_street',         sql: `ALTER TABLE Client ADD COLUMN street VARCHAR(255) NULL AFTER cep`, ignoreIfExists: true },
+  { name: '034_client_add_number',         sql: `ALTER TABLE Client ADD COLUMN number VARCHAR(30) NULL AFTER street`, ignoreIfExists: true },
+  { name: '034_client_add_complement',     sql: `ALTER TABLE Client ADD COLUMN complement VARCHAR(255) NULL AFTER number`, ignoreIfExists: true },
+  { name: '034_client_add_neighborhood',   sql: `ALTER TABLE Client ADD COLUMN neighborhood VARCHAR(255) NULL AFTER complement`, ignoreIfExists: true },
+  { name: '034_client_add_city',           sql: `ALTER TABLE Client ADD COLUMN city VARCHAR(100) NULL AFTER neighborhood`, ignoreIfExists: true },
+  { name: '034_client_add_state',          sql: `ALTER TABLE Client ADD COLUMN state VARCHAR(10) NULL AFTER city`, ignoreIfExists: true },
+  { name: '034_client_add_hasChildren',    sql: `ALTER TABLE Client ADD COLUMN hasChildren BOOLEAN NOT NULL DEFAULT FALSE AFTER state`, ignoreIfExists: true },
+  { name: '034_client_add_isMarried',      sql: `ALTER TABLE Client ADD COLUMN isMarried BOOLEAN NOT NULL DEFAULT FALSE AFTER hasChildren`, ignoreIfExists: true },
+  { name: '034_client_add_spouseName',     sql: `ALTER TABLE Client ADD COLUMN spouseName VARCHAR(255) NULL AFTER isMarried`, ignoreIfExists: true },
+  { name: '034_client_add_maritalStatus',  sql: `ALTER TABLE Client ADD COLUMN maritalStatus VARCHAR(50) NULL AFTER spouseName`, ignoreIfExists: true },
+  { name: '034_client_add_education',      sql: `ALTER TABLE Client ADD COLUMN education VARCHAR(50) NULL AFTER maritalStatus`, ignoreIfExists: true },
+  { name: '034_client_add_notes',          sql: `ALTER TABLE Client ADD COLUMN notes TEXT NULL AFTER education`, ignoreIfExists: true },
+
+  // 035 - Professional: campos completos usados no frontend
+  { name: '035_prof_add_nickname',               sql: `ALTER TABLE Professional ADD COLUMN nickname VARCHAR(100) NULL AFTER name`, ignoreIfExists: true },
+  { name: '035_prof_add_cpf',                    sql: `ALTER TABLE Professional ADD COLUMN cpf VARCHAR(20) NULL AFTER password`, ignoreIfExists: true },
+  { name: '035_prof_add_gender',                 sql: `ALTER TABLE Professional ADD COLUMN gender VARCHAR(20) NULL AFTER cpf`, ignoreIfExists: true },
+  { name: '035_prof_add_birthDate',              sql: `ALTER TABLE Professional ADD COLUMN birthDate VARCHAR(10) NULL AFTER gender`, ignoreIfExists: true },
+  { name: '035_prof_add_instagram',              sql: `ALTER TABLE Professional ADD COLUMN instagram VARCHAR(255) NULL AFTER email`, ignoreIfExists: true },
+  { name: '035_prof_add_accessLevel',            sql: `ALTER TABLE Professional ADD COLUMN accessLevel VARCHAR(20) NOT NULL DEFAULT 'no-access' AFTER permissions`, ignoreIfExists: true },
+  { name: '035_prof_add_patAccess',              sql: `ALTER TABLE Professional ADD COLUMN patAccess BOOLEAN NOT NULL DEFAULT FALSE AFTER accessLevel`, ignoreIfExists: true },
+  { name: '035_prof_add_canAddServicePhotos',    sql: `ALTER TABLE Professional ADD COLUMN canAddServicePhotos BOOLEAN NOT NULL DEFAULT FALSE AFTER patAccess`, ignoreIfExists: true },
+
+  // 036 - Sector
+  {
+    name: '036_create_sector',
+    sql: `
+      CREATE TABLE IF NOT EXISTS Sector (
+        id        VARCHAR(36)  NOT NULL PRIMARY KEY,
+        tenantId  VARCHAR(36)  NOT NULL,
+        name      VARCHAR(100) NOT NULL,
+        color     VARCHAR(20)  NOT NULL DEFAULT '#6b7280',
+        createdAt DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        INDEX idx_sector_tenant (tenantId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
+  // 037 - CashEntry
+  {
+    name: '037_create_cash_entry',
+    sql: `
+      CREATE TABLE IF NOT EXISTS CashEntry (
+        id          VARCHAR(36)  NOT NULL PRIMARY KEY,
+        tenantId    VARCHAR(36)  NOT NULL,
+        type        VARCHAR(20)  NOT NULL DEFAULT 'income',
+        category    VARCHAR(100) NULL,
+        description VARCHAR(500) NULL,
+        amount      DOUBLE       NOT NULL DEFAULT 0,
+        date        DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        comandaId   VARCHAR(36)  NULL,
+        createdAt   DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        INDEX idx_cashentry_tenant (tenantId),
+        INDEX idx_cashentry_comanda (comandaId),
+        INDEX idx_cashentry_tenant_date (tenantId, date)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
+  // 038 - ServiceConsumption
+  {
+    name: '038_create_service_consumption',
+    sql: `
+      CREATE TABLE IF NOT EXISTS ServiceConsumption (
+        id        VARCHAR(36) NOT NULL PRIMARY KEY,
+        serviceId VARCHAR(36) NOT NULL,
+        productId VARCHAR(36) NOT NULL,
+        quantity  DOUBLE      NOT NULL DEFAULT 1,
+        tenantId  VARCHAR(36) NOT NULL,
+        INDEX idx_serviceconsumption_service (serviceId),
+        INDEX idx_serviceconsumption_product (productId),
+        INDEX idx_serviceconsumption_tenant (tenantId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
+  // 039 - WppInstance
+  {
+    name: '039_create_wpp_instance',
+    sql: `
+      CREATE TABLE IF NOT EXISTS WppInstance (
+        id           VARCHAR(36)  NOT NULL PRIMARY KEY,
+        tenantId     VARCHAR(36)  NOT NULL UNIQUE,
+        instanceName VARCHAR(120) NOT NULL,
+        apiUrl       VARCHAR(500) NOT NULL,
+        apiKey       VARCHAR(255) NULL,
+        phone        VARCHAR(30)  NULL,
+        status       VARCHAR(30)  NOT NULL DEFAULT 'not_configured',
+        qrCode       TEXT NULL,
+        isActive     BOOLEAN      NOT NULL DEFAULT FALSE,
+        createdAt    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
 ];
 
 // ─────────────────────────────────────────────────────────────
