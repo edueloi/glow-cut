@@ -223,9 +223,10 @@ model Product {
   manufacturerId  String?          @db.VarChar(36)
   metadata        String?          @db.Text
   createdAt       DateTime         @default(now()) @db.DateTime(0)
-  comandaItem     ComandaItem[]
-  serviceProducts ServiceProduct[]
-  stockMovements  StockMovement[]
+  comandaItem         ComandaItem[]
+  serviceProducts     ServiceProduct[]
+  serviceConsumptions ServiceConsumption[]
+  stockMovements      StockMovement[]
   sector          Sector?          @relation(fields: [sectorId], references: [id])
   supplier        Supplier?        @relation(fields: [supplierId], references: [id])
   manufacturer    Manufacturer?    @relation(fields: [manufacturerId], references: [id])
@@ -394,6 +395,7 @@ model Service {
   appointment                                      Appointment[]
   comandaItem                                      ComandaItem[]
   serviceProducts                                  ServiceProduct[]
+  serviceConsumptions                              ServiceConsumption[]
   packageservice_packageservice_packageIdToservice PackageService[] @relation("packageservice_packageIdToservice")
   packageservice_packageservice_serviceIdToservice PackageService[] @relation("packageservice_serviceIdToservice")
 
