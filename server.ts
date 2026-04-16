@@ -29,6 +29,7 @@ import { requireAuth, requireSuperAdmin } from "./src/backend/middleware/auth";
 
 // Import controllers
 import { adminController } from "./src/backend/controllers/adminController";
+import { agendaController } from "./src/backend/controllers/agendaController";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,6 +40,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
+
+// ── TERMINAL PAT (Bypass absoluto de autenticação) ────────────────────────────
+app.get("/terminal/pat/:professionalId", agendaController.getPatQueue);
+app.get("/terminal/pat-general/:slug", agendaController.getPatGeneral);
+app.patch("/terminal/pat-status/:appointmentId", agendaController.patchPatStatus);
+app.get("/terminal/availability", agendaController.getAvailability);
 
 // ── Autenticação (público — sem requireAuth) ──────────────────────────────────
 app.use("/api/auth", authRouter);

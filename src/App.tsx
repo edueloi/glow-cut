@@ -452,6 +452,7 @@ function App() {
 
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/pat/:professionalId" element={<PATQueue />} />
+          <Route path="/pat/general/:slug" element={<PATQueue />} />
           <Route path="/:slug" element={<ClientBooking />} />
           <Route path="/agendar/:slug" element={<ClientBooking />} />
         </Routes>
