@@ -3,8 +3,9 @@ import { Calendar as CalendarIcon, Clock, User, Phone, Instagram, ArrowRight, Ch
 import { motion, AnimatePresence } from "motion/react";
 import { format, addDays, isSameDay, startOfDay, startOfMonth, endOfMonth, endOfWeek, startOfWeek, isSameMonth, isBefore, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { cn } from "@/src/lib/utils";
+import { Button, Input, Badge, Divider } from "@/src/components/ui";
 
 type Step = "loading" | "home" | "consult" | "choose-mode" | "by-professional" | "by-service" | "pick-professional" | "pick-service" | "date" | "confirm" | "success";
 
@@ -313,12 +314,14 @@ export default function ClientBooking() {
   );
 
   // Chip resumo seleção
-  const SelectionChip = ({ label, sub }: { label: string; sub?: string }) => (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-zinc-200 bg-zinc-50 w-fit">
-      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: customColor }} />
+  const SelectionChip = ({ label, sub, icon: Icon }: { label: string; sub?: string; icon?: any }) => (
+    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-zinc-200 bg-white shadow-sm w-fit animate-in fade-in slide-in-from-left-2 duration-500">
+      <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: customColor + "15" }}>
+        {Icon ? <Icon size={14} style={{ color: customColor }} /> : <div className="w-2 h-2 rounded-full" style={{ backgroundColor: customColor }} />}
+      </div>
       <div>
-        <p className="text-[10px] font-black text-zinc-700 leading-tight">{label}</p>
-        {sub && <p className="text-[9px] text-zinc-400 font-medium">{sub}</p>}
+        <p className="text-[11px] font-black text-zinc-800 leading-none mb-0.5">{label}</p>
+        {sub && <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">{sub}</p>}
       </div>
     </div>
   );
@@ -326,53 +329,96 @@ export default function ClientBooking() {
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row">
 
-      {/* ── LEFT PANEL (desktop) ── */}
+      {/* ── PAINEL ESQUERDO (Desktop) ── */}
       <div
-        className="hidden md:flex md:w-[52%] lg:w-[55%] xl:w-[58%] relative overflow-hidden items-end p-12 lg:p-16 xl:p-20 sticky top-0 h-screen"
+        className="hidden md:flex md:w-[50%] lg:w-[55%] relative overflow-hidden items-center justify-center p-12 lg:p-20 sticky top-0 h-screen"
         style={coverUrl ? heroStyle : { backgroundColor: customColor }}
       >
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10 pointer-events-none" />
+        {/* Camadas de Overlay para profundidade */}
+        <div className="absolute inset-0 bg-black/40 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
+        
+        {/* Elementos Gráficos Animais de Background */}
         {!coverUrl && (
-          <div className="absolute inset-0 opacity-5">
-            <div className="absolute top-16 left-16 w-96 h-96 rounded-full border-2 border-white" />
-            <div className="absolute bottom-32 right-10 w-64 h-64 rounded-full border border-white" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-white" />
+          <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+            <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full border-[1px] border-white/30 animate-pulse" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[1px] border-white/10" />
+            <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full bg-white/5 blur-3xl" />
           </div>
         )}
-        <div className="relative z-10 w-full max-w-lg">
-          <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.6 }}>
+
+        <div className="relative z-10 w-full max-w-xl text-center md:text-left">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          >
             {customLogo && (
-              <div className="w-20 h-20 bg-white rounded-[22px] flex items-center justify-center mb-8 shadow-2xl shadow-black/40 overflow-hidden">
-                <img src={customLogo} alt="Logo" className="w-full h-full object-cover" />
+              <div className="inline-block relative mb-10 group">
+                <div className="absolute -inset-4 bg-white/20 rounded-[32px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative w-24 h-24 bg-white rounded-[28px] flex items-center justify-center p-4 shadow-2xl border border-white/20 overflow-hidden">
+                  <img src={customLogo} alt={studioName} className="w-full h-full object-contain" />
+                </div>
               </div>
             )}
-            <h1 className="text-5xl lg:text-6xl font-black text-white tracking-tighter leading-[0.9] mb-5">{studioName}</h1>
-            <p className="text-base text-white/60 font-medium max-w-sm leading-relaxed">
-              {welcomeMessage || "Agende seu horário de forma rápida e sem precisar baixar apps."}
+            
+            <h1 className="text-6xl lg:text-7xl font-black text-white tracking-tighter leading-[0.9] mb-6 drop-shadow-2xl">
+              {studioName}
+            </h1>
+            
+            <div className="h-1 w-20 bg-white/30 rounded-full mb-8 hidden md:block" />
+
+            <p className="text-lg lg:text-xl text-white/70 font-medium max-w-md leading-relaxed mb-10">
+              {welcomeMessage || "Sua melhor experiência em autocuidado começa aqui. Agende sem complicação."}
             </p>
-            {studioAddress && (
-              <div className="mt-6 inline-flex items-center gap-2 text-white/50 px-4 py-2.5 rounded-full border border-white/10 backdrop-blur-sm bg-black/20">
-                <MapPin size={13} className="text-white/60 shrink-0" />
-                <span className="text-xs font-semibold">{studioAddress}</span>
-              </div>
-            )}
+
+            <div className="flex flex-col gap-4">
+              {studioAddress && (
+                <div className="inline-flex items-center gap-3 text-white/80 px-5 py-3 rounded-2xl border border-white/10 backdrop-blur-md bg-white/5 w-fit hover:bg-white/10 transition-colors">
+                  <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+                    <MapPin size={16} />
+                  </div>
+                  <span className="text-sm font-bold tracking-tight">{studioAddress}</span>
+                </div>
+              )}
+              
+              {instagram && (
+                <a href={instagram} target="_blank" rel="noreferrer" className="inline-flex items-center gap-3 text-white/80 px-5 py-3 rounded-2xl border border-white/10 backdrop-blur-md bg-white/5 w-fit hover:bg-white/10 transition-colors group">
+                  <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center group-hover:text-pink-400 transition-colors">
+                    <Instagram size={16} />
+                  </div>
+                  <span className="text-sm font-bold tracking-tight">Siga no Instagram</span>
+                </a>
+              )}
+            </div>
+
             {showInstallBanner && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="mt-8 flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 max-w-xs">
-                <div className="w-11 h-11 rounded-xl bg-white overflow-hidden flex items-center justify-center shrink-0">
-                  {customLogo ? <img src={customLogo} alt="" className="w-full h-full object-cover" /> : <Scissors size={20} className="text-zinc-800" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[9px] text-white/50 font-bold uppercase tracking-widest">Instalar App</p>
-                  <p className="text-sm text-white font-black truncate">{studioName}</p>
-                </div>
-                <div className="flex gap-1.5 shrink-0">
-                  <button onClick={handleInstall} className="px-3 py-2 rounded-xl text-xs font-bold text-white" style={{ backgroundColor: customColor }}>
-                    <Download size={14} />
-                  </button>
-                  <button onClick={() => setShowInstallBanner(false)} className="px-2 py-2 rounded-xl bg-white/10 text-white/50 hover:text-white transition-colors">
-                    <X size={14} />
-                  </button>
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }} 
+                animate={{ opacity: 1, x: 0 }}
+                className="mt-16 relative group cursor-default"
+              >
+                <div className="absolute -inset-1 bg-gradient-to-r from-white/20 to-transparent rounded-[24px] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
+                <div className="relative flex items-center gap-4 bg-black/30 backdrop-blur-xl border border-white/10 rounded-[22px] p-5 max-w-sm">
+                  <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shrink-0 shadow-lg">
+                    {customLogo ? <img src={customLogo} alt="" className="w-10 h-10 object-contain" /> : <Scissors size={24} className="text-zinc-800" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-0.5">App Agendelle</p>
+                    <p className="text-sm text-white font-black truncate">Instale para acesso rápido</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleInstall}
+                      size="sm"
+                      className="bg-white text-zinc-950 hover:bg-zinc-100 h-10 w-10 p-0 rounded-xl"
+                    >
+                      <Download size={16} />
+                    </Button>
+                    <button onClick={() => setShowInstallBanner(false)} className="h-10 w-10 rounded-xl bg-white/5 text-white/40 hover:text-white transition-colors flex items-center justify-center">
+                      <X size={16} />
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -383,41 +429,28 @@ export default function ClientBooking() {
       {/* ── RIGHT PANEL ── */}
       <div className="w-full md:w-[48%] lg:w-[45%] xl:w-[42%] flex flex-col bg-white min-h-screen md:overflow-y-auto relative">
 
-        {/* Mobile header — sticky */}
-        <div className="md:hidden sticky top-0 z-30 relative overflow-hidden" style={coverUrl ? { ...heroStyle, minHeight: "160px" } : { backgroundColor: customColor, minHeight: "160px" }}>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black/85" />
-          {showInstallBanner && (
-            <motion.div initial={{ y: -60, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-              className="absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-4 py-3 bg-black/60 backdrop-blur-md border-b border-white/10">
-              <div className="w-8 h-8 rounded-full bg-white overflow-hidden flex items-center justify-center shrink-0">
-                {customLogo ? <img src={customLogo} alt="" className="w-full h-full object-cover" /> : <Scissors size={14} className="text-zinc-800" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[9px] text-white/60 font-bold uppercase tracking-widest leading-none">Instalar como app</p>
-                <p className="text-xs text-white font-black truncate leading-tight">{studioName}</p>
-              </div>
-              <button onClick={handleInstall} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-white shrink-0" style={{ backgroundColor: customColor }}>
-                <Download size={11} /> Instalar
-              </button>
-              <button onClick={() => setShowInstallBanner(false)} className="p-1 text-white/50 hover:text-white transition-colors shrink-0"><X size={15} /></button>
-            </motion.div>
-          )}
-          <div className="relative z-10 flex flex-col items-center justify-end text-center pb-5 pt-10 px-6 min-h-[160px]">
+        {/* Mobile header — immersive */}
+        <div className="md:hidden relative min-h-[180px] flex items-end px-6 pb-6 overflow-hidden" style={coverUrl ? heroStyle : { backgroundColor: customColor }}>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/40 to-black/90 z-[1]" />
+          
+          <div className="relative z-10 w-full flex items-center gap-4 animate-in fade-in slide-in-from-bottom-5 duration-700">
             {customLogo ? (
-              <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center mb-3 shadow-xl overflow-hidden border-2 border-white/20">
-                <img src={customLogo} alt="Logo" className="w-full h-full object-cover" />
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl overflow-hidden border-2 border-white/20 shrink-0">
+                <img src={customLogo} alt="Logo" className="w-full h-full object-contain p-2" />
               </div>
             ) : (
-              <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3 bg-white/10 backdrop-blur-sm border-2 border-white/20">
-                <Scissors size={24} className="text-white" />
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-white/10 backdrop-blur-md border-2 border-white/20 shrink-0">
+                <Scissors size={28} className="text-white" />
               </div>
             )}
-            <h2 className="text-lg font-black text-white tracking-tight leading-tight">{studioName}</h2>
-            {studioAddress && (
-              <p className="text-[10px] text-white/50 font-medium mt-1 flex items-center gap-1">
-                <MapPin size={9} /> {studioAddress}
-              </p>
-            )}
+            <div className="min-w-0">
+              <h2 className="text-xl font-black text-white tracking-tight leading-none mb-1.5">{studioName}</h2>
+              {studioAddress && (
+                <p className="text-[10px] text-white/60 font-medium flex items-center gap-1 truncate max-w-[200px]">
+                  <MapPin size={10} /> {studioAddress}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -524,21 +557,28 @@ export default function ClientBooking() {
                 <motion.div key="consult" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-5">
                   <BackBtn to="home" />
                   <div>
-                    <h3 className="text-xl font-black text-zinc-900">Meus Agendamentos</h3>
-                    <p className="text-xs text-zinc-400 font-medium mt-1">Digite seu WhatsApp para buscar</p>
+                    <h3 className="text-2xl font-black text-zinc-900 tracking-tight">Meus Agendamentos</h3>
+                    <p className="text-xs text-zinc-400 font-medium mt-1">Digite seu WhatsApp para buscar seus horários.</p>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-0.5">Telefone (WhatsApp)</label>
-                    <div className="flex gap-2">
-                      <input type="tel" placeholder="(00) 00000-0000"
-                        className="flex-1 text-sm p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 font-bold transition-all h-12"
-                        value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} />
-                      <button onClick={handleConsultAppointments} disabled={isLoading}
-                        className="rounded-xl w-12 h-12 flex items-center justify-center text-white shadow shrink-0 transition-opacity disabled:opacity-60"
-                        style={{ backgroundColor: customColor }}>
-                        {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                      </button>
-                    </div>
+                  
+                  <div className="space-y-4">
+                    <Input
+                      label="WhatsApp"
+                      placeholder="(00) 00000-0000"
+                      value={phone}
+                      onChange={(e: any) => setPhone(formatPhone(e.target.value))}
+                      iconLeft={<Phone size={16} />}
+                      addonRight={
+                        <button 
+                          onClick={handleConsultAppointments} 
+                          disabled={isLoading || phone.length < 10}
+                          className="px-4 h-full flex items-center justify-center text-white disabled:opacity-40 transition-opacity"
+                          style={{ backgroundColor: customColor }}
+                        >
+                          {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                        </button>
+                      }
+                    />
                   </div>
                   {myAppointments.length > 0 ? (
                     <div className="space-y-2">
@@ -936,78 +976,52 @@ export default function ClientBooking() {
                     </div>
                   </div>
 
-                  {/* Dados do cliente */}
-                  <div className="space-y-3">
-                    {/* Telefone sempre visível */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-0.5">WhatsApp</label>
-                      <div className="relative">
-                        <input
-                          type="tel"
-                          placeholder="(00) 00000-0000"
-                          className="w-full text-sm font-bold p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:border-zinc-400 transition-all h-12 pr-10"
-                          value={phone}
-                          onChange={(e) => handlePhoneChange(e.target.value)}
-                          onBlur={handleSearchClient}
-                        />
-                        {isLoading && (
-                          <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                        )}
-                        {phoneSearched && !isLoading && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            {isExistingClient
-                              ? <CheckCircle2 size={16} className="text-emerald-500" />
-                              : <div className="w-4 h-4 rounded-full bg-zinc-200" />}
-                          </div>
-                        )}
-                      </div>
-                      {isExistingClient && (
-                        <p className="text-[10px] text-emerald-600 font-bold ml-0.5 flex items-center gap-1">
-                          ✓ Bem-vindo de volta, {clientData.name.split(" ")[0]}!
-                        </p>
-                      )}
-                    </div>
+                    {/* Dados do cliente */}
+                    <div className="space-y-5">
+                      <Input
+                        label="WhatsApp"
+                        placeholder="(00) 00000-0000"
+                        value={phone}
+                        onChange={(e: any) => handlePhoneChange(e.target.value)}
+                        onBlur={handleSearchClient}
+                        iconLeft={<Phone size={16} />}
+                        iconRight={
+                          isLoading ? <Loader2 size={16} className="animate-spin text-zinc-400" /> :
+                          (phoneSearched && isExistingClient) ? <CheckCircle2 size={18} className="text-emerald-500" /> : null
+                        }
+                        hint={isExistingClient ? `Olá de volta, ${clientData.name.split(" ")[0]}!` : undefined}
+                      />
 
-                    {/* Nome e aniversário — aparecem após busca */}
-                    <AnimatePresence>
-                      {phoneSearched && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="space-y-3 overflow-hidden"
-                        >
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-0.5">
-                              {isExistingClient ? "Nome" : "Seu nome completo"}
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="Como devemos te chamar?"
-                              className="w-full text-sm font-bold p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:border-zinc-400 transition-all h-12"
+                      <AnimatePresence>
+                        {phoneSearched && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="space-y-5"
+                          >
+                            <Input
+                              label={isExistingClient ? "Confirmar Nome" : "Seu nome completo"}
                               value={clientData.name}
-                              onChange={(e) => setClientData({ ...clientData, name: e.target.value })}
+                              onChange={(e: any) => setClientData({ ...clientData, name: e.target.value })}
                               readOnly={isExistingClient}
+                              placeholder="Como devemos te chamar?"
+                              iconLeft={<User size={16} />}
                             />
-                          </div>
 
-                          {!isExistingClient && (
-                            <div className="space-y-1.5">
-                              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-0.5">
-                                Data de Aniversário <span className="text-zinc-300 normal-case font-medium">(opcional)</span>
-                              </label>
-                              <input
+                            {!isExistingClient && (
+                              <Input
+                                label="Data de Aniversário"
                                 type="date"
-                                className="w-full text-sm font-bold p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:border-zinc-400 transition-all h-12"
                                 value={clientData.birthDate}
-                                onChange={(e) => setClientData({ ...clientData, birthDate: e.target.value })}
+                                onChange={(e: any) => setClientData({ ...clientData, birthDate: e.target.value })}
+                                hint="Opcional. Adoraríamos te dar um parabéns!"
+                                iconLeft={<CalendarIcon size={16} />}
                               />
-                            </div>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
 
                   {bookingError && (
                     <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-bold text-red-600">
@@ -1015,66 +1029,77 @@ export default function ClientBooking() {
                     </div>
                   )}
 
-                  <button
+                  <Button
                     onClick={handleBooking}
                     disabled={!clientData.name || phone.replace(/\D/g,"").length < 10 || isLoading}
-                    className="w-full py-4 rounded-2xl text-white font-bold text-sm shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="w-full h-14 rounded-2xl text-white font-black text-base shadow-2xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
                     style={{ backgroundColor: customColor }}
+                    iconLeft={isLoading ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
                   >
-                    {isLoading ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle2 size={18} /> Confirmar Agendamento</>}
-                  </button>
+                    {isLoading ? "Confirmando..." : "Confirmar Agendamento"}
+                  </Button>
                 </motion.div>
               )}
 
               {/* ── SUCCESS ── */}
               {step === "success" && (
-                <motion.div key="success" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                  className="text-center py-8 space-y-6 flex flex-col items-center">
-                  <div className="w-20 h-20 rounded-3xl bg-white shadow-xl overflow-hidden border border-zinc-100 flex items-center justify-center">
-                    {customLogo ? <img src={customLogo} alt="Logo" className="w-full h-full object-cover" /> : (
-                      <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: customColor }}>
-                        <Scissors size={32} className="text-white" />
-                      </div>
-                    )}
-                  </div>
+                <motion.div key="success" 
+                  initial={{ scale: 0.95, opacity: 0 }} 
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="text-center py-4 space-y-8 flex flex-col items-center"
+                >
                   <div className="relative">
-                    <div className="absolute inset-0 rounded-full blur-xl opacity-25" style={{ backgroundColor: customColor }} />
-                    <div className="w-20 h-20 rounded-full flex items-center justify-center relative z-10 border-2"
-                      style={{ backgroundColor: customColor + "15", borderColor: customColor + "30" }}>
-                      <CheckCircle2 size={38} style={{ color: customColor }} className="stroke-[2]" />
+                    <div className="absolute inset-0 rounded-full blur-[40px] opacity-20 animate-pulse" style={{ backgroundColor: customColor }} />
+                    <div className="w-24 h-24 rounded-full flex items-center justify-center relative z-10 border-4 border-white shadow-2xl"
+                      style={{ backgroundColor: customColor }}>
+                      <CheckCircle2 size={48} className="text-white stroke-[2.5] animate-in zoom-in-50 duration-500 delay-200" />
                     </div>
                   </div>
-                  <div>
-                    <h3 className="text-3xl font-black text-zinc-900 tracking-tight">Confirmado!</h3>
-                    <p className="text-sm text-zinc-400 mt-2 max-w-xs mx-auto leading-relaxed">
-                      Sua cadeira está reservada, <strong className="text-zinc-800">{clientData.name.split(" ")[0]}</strong>. Te esperamos no dia!
+
+                  <div className="space-y-3">
+                    <h3 className="text-4xl font-black text-zinc-950 tracking-tighter">Tudo pronto!</h3>
+                    <p className="text-base text-zinc-500 font-medium max-w-[280px] mx-auto leading-relaxed">
+                      Sua reserva foi confirmada com sucesso em <span className="text-zinc-900 font-bold">{studioName}</span>.
                     </p>
                   </div>
-                  <div className="w-full p-4 rounded-2xl border" style={{ borderColor: customColor + "30", backgroundColor: customColor + "08" }}>
-                    <div className="flex items-center gap-3 justify-center">
-                      <CalendarIcon size={15} style={{ color: customColor }} />
+
+                  <div className="w-full p-6 rounded-[28px] border-2 border-zinc-100 bg-zinc-50/50 space-y-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center shrink-0">
+                        <CalendarIcon size={20} style={{ color: customColor }} />
+                      </div>
                       <div className="text-left">
-                        <p className="text-xs font-black text-zinc-900">{format(selectedDate, "dd/MM/yyyy")}</p>
-                        <p className="text-[11px] font-bold" style={{ color: customColor }}>{selectedService?.name} às {selectedSlot}</p>
+                        <p className="text-sm font-black text-zinc-900">{format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}</p>
+                        <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">{selectedSlot} • {selectedService?.name}</p>
+                      </div>
+                    </div>
+                    
+                    <Divider />
+                    
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center shrink-0 overflow-hidden">
+                        {selectedProfessional?.photo ? <img src={selectedProfessional.photo} className="w-full h-full object-cover" /> : <User size={20} style={{ color: customColor }} />}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-black text-zinc-900">{selectedProfessional?.name}</p>
+                        <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">{selectedProfessional?.role}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="w-full space-y-3">
-                    <a href={`https://wa.me/?text=${encodeURIComponent(`Olá! Agendei um horário para *${selectedService?.name}* em *${format(selectedDate, "dd/MM/yyyy")}* às *${selectedSlot}*. Meu nome é ${clientData.name} e telefone ${phone}.`)}`}
-                      target="_blank" rel="noreferrer" className="block w-full">
-                      <button className="w-full py-4 text-sm font-bold bg-[#25D366] hover:bg-[#1DA851] text-white rounded-2xl flex items-center justify-center gap-2 transition-colors active:scale-[0.98]">
-                        <Phone size={16} /> Avisar no WhatsApp
-                      </button>
-                    </a>
-                    {showInstallBanner && (
-                      <button onClick={handleInstall}
-                        className="w-full py-3 text-sm font-bold rounded-2xl border-2 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                        style={{ borderColor: customColor + "40", color: customColor }}>
-                        <Download size={16} /> Instalar o app do {studioName}
-                      </button>
-                    )}
-                    <button onClick={() => setStep("home")}
-                      className="w-full py-3 text-xs font-bold text-zinc-400 hover:text-zinc-700 rounded-2xl hover:bg-zinc-50 transition-all">
+
+                  <div className="w-full space-y-4">
+                    <Button
+                      onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Olá! Confirmando meu agendamento no ${studioName} para ${format(selectedDate, "dd/MM/yyyy")} às ${selectedSlot}.`)}`, "_blank")}
+                      className="w-full h-14 rounded-2xl bg-[#25D366] hover:bg-[#1DA851] text-white font-black text-base shadow-xl border-transparent"
+                      iconLeft={<Phone size={20} />}
+                    >
+                      Avisar no WhatsApp
+                    </Button>
+                    
+                    <button 
+                      onClick={() => setStep("home")}
+                      className="w-full py-2 text-xs font-black text-zinc-400 hover:text-zinc-800 uppercase tracking-[0.2em] transition-colors"
+                    >
                       Voltar ao Início
                     </button>
                   </div>

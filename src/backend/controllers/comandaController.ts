@@ -229,5 +229,47 @@ export const comandaController = {
       console.error("[PUT /api/comandas/:id/items] Erro:", e?.message || e);
       res.status(500).json({ error: e?.message || "Erro ao atualizar itens." });
     }
-  }
+  },
+
+  async rankingServicos(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    const { from, to } = req.query;
+    try {
+      let where = `WHERE c.tenantId = ? AND c.status = 'paid'`;
+      const params: any[] = [tenantId];
+      if (from) { where += ` AND c.createdAt >= ?`; params.push(new Date(from as string)); }
+      if (to)   { where += ` AND c.createdAt <= ?`; params.push(new Date(to as string)); }
+
+      const rows: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT
+           s.id as serviceId,
+           s.name as serviceName,
+           s.category,
+           COUNT(ci.id) as vezes,
+           COALESCE(SUM(ci.total), 0) as receita,
+           COALESCE(AVG(ci.total), 0) as ticketMedio
+         FROM ComandaItem ci
+         JOIN Comanda c ON ci.comandaId = c.id
+         JOIN Service s ON ci.serviceId = s.id
+         ${where}
+         GROUP BY s.id, s.name, s.category
+         ORDER BY vezes DESC, receita DESC
+         LIMIT 50`,
+        ...params
+      );
+
+      res.json(rows.map(r => ({
+        serviceId: r.serviceId,
+        serviceName: r.serviceName,
+        category: r.category || null,
+        vezes: Number(r.vezes),
+        receita: Number(r.receita),
+        ticketMedio: Number(r.ticketMedio),
+      })));
+    } catch (e: any) {
+      console.error("[GET /api/comandas/ranking-servicos]", e?.message || e);
+      res.status(500).json({ error: e?.message || "Erro ao buscar ranking." });
+    }
+  },
 };

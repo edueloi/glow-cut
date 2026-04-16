@@ -362,7 +362,19 @@ export const agendaController = {
       const maxBookingDate = addDays(startOfDay(new Date()), settings.maxAdvanceDays);
       if (startOfDay(targetDate) > maxBookingDate) return res.json([]);
 
-      const wh = await (prisma as any).workingHours.findFirst({ where: { professionalId: professionalId as string, dayOfWeek } });
+      // Helper to get working hours for a professional with fallback to the first professional of the tenant
+      const getWorkingHoursForProfessional = async (profId: string, day: number) => {
+        let wh = await (prisma as any).workingHours.findFirst({ where: { professionalId: profId, dayOfWeek: day } });
+        if (!wh && tenantId) {
+          const firstProf = await (prisma as any).professional.findFirst({ where: { tenantId, isActive: true }, orderBy: { name: "asc" } });
+          if (firstProf && firstProf.id !== profId) {
+            wh = await (prisma as any).workingHours.findFirst({ where: { professionalId: firstProf.id, dayOfWeek: day } });
+          }
+        }
+        return wh;
+      };
+
+      const wh = await getWorkingHoursForProfessional(professionalId as string, dayOfWeek);
       const { start, end } = getDayRange(targetDate);
       const appts = await (prisma as any).appointment.findMany({
         where: { professionalId: professionalId as string, date: { gte: start, lt: end }, status: { not: "cancelled" } }
@@ -433,7 +445,18 @@ export const agendaController = {
       const end = endOfMonth(targetDate);
       const settings = await ensureAgendaSettingsRecord(tenantId);
 
-      const workingHours = await (prisma as any).workingHours.findMany({ where: { professionalId: professionalId as string } });
+      const getWorkingHoursForProfessional = async (profId: string) => {
+        let whs = await (prisma as any).workingHours.findMany({ where: { professionalId: profId } });
+        if (whs.length === 0 && tenantId) {
+          const firstProf = await (prisma as any).professional.findFirst({ where: { tenantId, isActive: true }, orderBy: { name: "asc" } });
+          if (firstProf && firstProf.id !== profId) {
+            whs = await (prisma as any).workingHours.findMany({ where: { professionalId: firstProf.id } });
+          }
+        }
+        return whs;
+      };
+
+      const workingHours = await getWorkingHoursForProfessional(professionalId as string);
       const closedDays = await (prisma as any).closedDay.findMany({ where: { tenantId, date: { gte: start, lte: end } } });
       const appts = await (prisma as any).appointment.findMany({ where: { professionalId: professionalId as string, date: { gte: start, lte: end }, status: { not: "cancelled" } } });
       

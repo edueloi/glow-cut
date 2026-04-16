@@ -38,12 +38,8 @@ export function NavItem({
     if (!permitted) return;
 
     if (hasSubItems && !collapsed) {
-      if (!active) {
-        onClick();
-        setExpanded(true);
-      } else {
-        setExpanded(!expanded);
-      }
+      // Só expande/colapsa — nunca navega ao clicar no item pai
+      setExpanded(!expanded);
     } else {
       onClick();
     }
@@ -78,7 +74,7 @@ export function NavItem({
         {!collapsed && <span className="text-xs font-bold truncate flex-1">{label}</span>}
         {!collapsed && hasSubItems && (
           <motion.span
-            animate={{ rotate: expanded && active ? 180 : 0 }}
+            animate={{ rotate: expanded ? 180 : 0 }}
             transition={{ duration: 0.2 }}
             className={cn("shrink-0", active ? "text-white/70" : "text-zinc-400")}
           >
@@ -90,7 +86,7 @@ export function NavItem({
       {/* Sub-items */}
       {!collapsed && hasSubItems && (
         <AnimatePresence>
-          {expanded && active && (
+          {expanded && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}

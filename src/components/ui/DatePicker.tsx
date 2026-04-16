@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { cn } from "@/src/lib/utils";
 import { isHoliday } from '@/src/lib/holidays';
 
 interface DatePickerProps {
@@ -14,6 +15,9 @@ interface DatePickerProps {
   variant?: 'default' | 'ghost';
   showIcon?: boolean;
   renderTrigger?: (value: string | null) => React.ReactNode;
+  label?: string;
+  error?: string;
+  hint?: string;
 }
 
 const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -78,6 +82,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   variant = 'default',
   showIcon = true,
   renderTrigger,
+  label,
+  error,
+  hint,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -272,7 +279,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     : "flex h-10 w-full items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 pr-10 text-xs font-bold text-zinc-800 shadow-sm transition-all placeholder:text-zinc-400 placeholder:font-normal hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400";
 
   return (
-    <div ref={containerRef} className={`relative ${variant !== 'ghost' ? className : ''}`}>
+    <div ref={containerRef} className={cn("flex flex-col gap-1.5", variant !== 'ghost' ? className : '')}>
+      {label && (
+        <label className="ds-label">
+          {label}
+        </label>
+      )}
+
       <div className="relative group" onClick={() => !disabled && setIsOpen(true)}>
         {renderTrigger ? (
           renderTrigger(value)
@@ -285,7 +298,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               value={inputValue}
               onChange={handleInputChange}
               onBlur={() => { if (inputValue.length > 0 && inputValue.length < 10) setInputValue(value ? formatDisplayDate(value) : ''); }}
-              className={`${inputStyles} ${variant === 'ghost' ? className : ''}`}
+              className={cn(inputStyles, variant === 'ghost' ? className : '')}
             />
             {showIcon && variant !== 'ghost' && (
               <CalendarDays size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none group-focus-within:text-amber-500 transition-colors" />
@@ -293,6 +306,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           </>
         )}
       </div>
+
+      {error && (
+        <p className="text-[11px] font-semibold text-red-500">{error}</p>
+      )}
+      {hint && !error && (
+        <p className="text-[11px] text-zinc-400">{hint}</p>
+      )}
+
       {dropdown}
     </div>
   );

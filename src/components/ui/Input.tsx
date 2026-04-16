@@ -12,6 +12,8 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   hint?: string;
   iconLeft?: React.ReactNode;
   iconRight?: React.ReactNode;
+  addonLeft?: React.ReactNode;
+  addonRight?: React.ReactNode;
   wrapperClassName?: string;
 }
 
@@ -23,6 +25,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       hint,
       iconLeft,
       iconRight,
+      addonLeft,
+      addonRight,
       wrapperClassName,
       className,
       id,
@@ -40,30 +44,54 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           </label>
         )}
 
-        <div className="relative flex items-center">
-          {iconLeft && (
-            <span className="pointer-events-none absolute left-3 text-zinc-400 shrink-0">
-              {iconLeft}
-            </span>
+        <div 
+          className={cn(
+            "group relative flex items-stretch overflow-hidden transition-all duration-200",
+            // Container styles that mimic ds-input but for the group
+            "rounded-[10px] bg-zinc-50 border border-zinc-200 shadow-sm",
+            "focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-500/10 focus-within:bg-white",
+            error && "border-red-400 focus-within:border-red-500 focus-within:ring-red-500/10 bg-red-50/30"
+          )}
+        >
+          {addonLeft && (
+            <div className="flex items-center justify-center bg-zinc-100 px-3.5 border-r border-zinc-200 text-xs font-black text-zinc-500 whitespace-nowrap select-none shrink-0 group-focus-within:bg-zinc-50/50 transition-colors">
+              {addonLeft}
+            </div>
           )}
 
-          <input
-            ref={ref}
-            id={inputId}
-            className={cn(
-              "ds-input",
-              iconLeft && "pl-9",
-              iconRight && "pr-9",
-              error && "border-red-400 focus:border-red-500 focus:ring-red-500/10 bg-red-50/30",
-              className
+          <div className="relative flex flex-1 items-center">
+            {iconLeft && (
+              <span className="pointer-events-none absolute left-3 text-zinc-400 shrink-0 z-10">
+                {iconLeft}
+              </span>
             )}
-            {...props}
-          />
 
-          {iconRight && (
-            <span className="pointer-events-none absolute right-3 text-zinc-400 shrink-0">
-              {iconRight}
-            </span>
+            <input
+              ref={ref}
+              id={inputId}
+              className={cn(
+                // Base reset for input inside a group
+                "w-full bg-transparent px-3 py-2.5 outline-none",
+                "text-sm text-zinc-800 placeholder:text-zinc-400 font-bold tracking-tight",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+                iconLeft && "pl-9",
+                iconRight && "pr-9",
+                className
+              )}
+              {...props}
+            />
+
+            {iconRight && (
+              <span className="pointer-events-none absolute right-3 text-zinc-400 shrink-0 z-10">
+                {iconRight}
+              </span>
+            )}
+          </div>
+
+          {addonRight && (
+            <div className="flex items-center justify-center bg-zinc-100 px-3.5 border-l border-zinc-200 text-xs font-black text-zinc-500 whitespace-nowrap select-none shrink-0 group-focus-within:bg-zinc-50/50 transition-colors">
+              {addonRight}
+            </div>
           )}
         </div>
 

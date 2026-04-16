@@ -151,44 +151,15 @@ export function AgendaTab(props: AgendaTabProps) {
   
   const subItems = agendaItem?.subItems || [];
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      const activeBtn = scrollRef.current.querySelector('[data-active="true"]');
-      if (activeBtn) {
-        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-      }
-    }
-  }, [activeSubModule]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#fbfbfb] pb-20 sm:pb-0">
       
-      {/* Mobile Submenu */}
-      <div className="flex sm:hidden overflow-x-auto no-scrollbar border-b border-zinc-100 bg-white sticky top-0 z-20" ref={scrollRef}>
-        <div className="flex px-4 min-w-max">
-          {subItems.map((sub: any) => (
-            <button
-              key={sub.key}
-              data-active={activeSubModule === sub.key}
-              onClick={() => setActiveSubModule(sub.key)}
-              className={cn(
-                "px-4 py-3.5 text-[11px] font-black uppercase tracking-widest whitespace-nowrap transition-colors relative",
-                activeSubModule === sub.key ? "text-amber-600" : "text-zinc-400 hover:text-zinc-600"
-              )}
-            >
-              {sub.label}
-              {activeSubModule === sub.key && (
-                <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-amber-500 rounded-t-full" />
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="w-full h-full">
-          {activeSubModule === 'feriados' && (
+          {activeSubModule === 'horario-semanal' && (
             <HorariosTab
               workingHours={props.workingHours}
               setWorkingHours={props.setWorkingHours}
@@ -198,6 +169,7 @@ export function AgendaTab(props: AgendaTabProps) {
               setHolidays={props.setHolidays}
               newHoliday={props.newHoliday}
               setNewHoliday={props.setNewHoliday}
+              professionals={props.professionals}
             />
           )}
 

@@ -54,7 +54,7 @@ app.use("/api/clients", requireAuth, clientRouter);
 app.use("/api/professionals", requireAuth, professionalRouter);
 app.use("/api/services", requireAuth, serviceRouter);
 app.use("/api/comandas", requireAuth, comandaRouter);
-app.use("/api", requireAuth, financeRouter);
+app.use("/api/finance", requireAuth, financeRouter);
 app.use("/api/products", requireAuth, productRouter);
 app.use("/api/sectors", requireAuth, sectorRouter);
 app.use("/api/reports", requireAuth, reportRouter);

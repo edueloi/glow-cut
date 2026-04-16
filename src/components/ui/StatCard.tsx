@@ -10,10 +10,10 @@ import { cn } from "@/src/lib/utils";
 //  • Mobile (2 colunas): valor grande, ícone menor, menos padding
 //  • Tablet+ (4 colunas): versão completa com hover animado
 //
-// Variantes de cor de ícone: default (amber) | success | info | danger | purple
+// Variantes de cor de ícone: default (amber) | success | info | danger | purple | warning
 // ─────────────────────────────────────────────────────────────────────────────
 
-type StatCardColor = "default" | "success" | "info" | "danger" | "purple";
+type StatCardColor = "default" | "success" | "info" | "danger" | "purple" | "warning";
 
 const colorMap: Record<StatCardColor, { wrap: string; icon: string; glow: string }> = {
   default: {
@@ -40,6 +40,11 @@ const colorMap: Record<StatCardColor, { wrap: string; icon: string; glow: string
     wrap: "bg-violet-50 border-violet-100 group-hover:bg-violet-500 group-hover:border-violet-500",
     icon: "text-violet-600 group-hover:text-white",
     glow: "bg-violet-500/5",
+  },
+  warning: {
+    wrap: "bg-yellow-50 border-yellow-100 group-hover:bg-yellow-500 group-hover:border-yellow-500",
+    icon: "text-yellow-600 group-hover:text-white",
+    glow: "bg-yellow-500/5",
   },
 };
 

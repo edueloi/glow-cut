@@ -169,6 +169,7 @@ export function AdminDashboardShell({
                     onSubItemClick={(key) => {
                       if (activeTab !== item.tab) handleTabChange(item.tab);
                       onSubModuleChange(key);
+                      setIsSidebarOpen(false);
                     }}
                     permitted={permitted}
                   />

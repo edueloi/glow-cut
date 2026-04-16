@@ -1,20 +1,17 @@
 import React, { useState, useEffect } from "react";
 import {
   Plus, Unlock, Lock, Clock, Trash2,
-  RefreshCw, Info,
+  RefreshCw, Info, CalendarOff, Search, Loader2, User
 } from "lucide-react";
 import { format, addDays, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
-import { Badge } from "@/src/components/ui/Badge";
-import { Button } from "@/src/components/ui/Button";
-import { DatePicker } from "@/src/components/ui/DatePicker";
-import { useToast } from "@/src/components/ui/Toast";
+import { Badge, Button, DatePicker, useToast, Input, Calendar } from "@/src/components/ui";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Liberações de Horários na Agenda
+// Bloqueios e Fechamentos da Agenda
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface LiberacoesHorariosProps {
@@ -35,6 +32,12 @@ interface Release {
   professionalId?: string;
 }
 
+interface ClosedDay {
+  id: string;
+  date: string;
+  name: string;
+}
+
 const HOURS_LIST = Array.from({ length: 32 }, (_, i) => {
   const total = (i + 12) * 30; // 06:00 → 21:30
   const h = Math.floor(total / 60).toString().padStart(2, "0");
@@ -51,14 +54,13 @@ export function LiberacoesHorarios({
   onRefresh,
 }: LiberacoesHorariosProps) {
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<"bloqueios" | "releases">("bloqueios");
+  const [activeTab, setActiveTab] = useState<"bloqueios" | "releases" | "fechamentos">("bloqueios");
 
   // ── Bloqueios ──────────────────────────────────────────────────────────────
   const bloqueios = appointments
     .filter((a) => a.type === "bloqueio" && !isBefore(new Date(a.date), startOfDay(new Date())))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  // ── Novo bloqueio form ─────────────────────────────────────────────────────
   const [newBlock, setNewBlock] = useState({
     date: format(new Date(), "yyyy-MM-dd"),
     startTime: "12:00",
@@ -70,7 +72,7 @@ export function LiberacoesHorarios({
 
   const handleCreateBlock = async () => {
     if (!newBlock.date || !newBlock.startTime || !newBlock.endTime) {
-      toast.warning("Preencha data, hora início e hora fim.");
+      toast.show("Preencha data, hora início e hora fim.", "warning");
       return;
     }
     setSavingBlock(true);
@@ -82,7 +84,7 @@ export function LiberacoesHorarios({
         endTime: newBlock.endTime,
         professionalId: newBlock.professionalId,
       });
-      toast.success("Bloqueio criado com sucesso.");
+      toast.show("Bloqueio criado com sucesso.", "success");
       setNewBlock((prev) => ({ ...prev, notes: "" }));
     } finally {
       setSavingBlock(false);
@@ -113,11 +115,9 @@ export function LiberacoesHorarios({
     setLoadingReleases(false);
   };
 
-  useEffect(() => { fetchReleases(); }, []);
-
   const handleSaveRelease = async () => {
     if (!newRelease.date || !newRelease.startTime || !newRelease.endTime) {
-      toast.warning("Preencha todos os campos.");
+      toast.show("Preencha todos os campos.", "warning");
       return;
     }
     setSavingRelease(true);
@@ -128,11 +128,11 @@ export function LiberacoesHorarios({
         body: JSON.stringify(newRelease),
       });
       if (res.ok) {
-        toast.success("Liberação salva com sucesso.");
+        toast.show("Liberação salva com sucesso.", "success");
         fetchReleases();
         setNewRelease((prev) => ({ ...prev, notes: "" }));
       } else {
-        toast.error("Erro ao salvar liberação.");
+        toast.show("Erro ao salvar liberação.", "error");
       }
     } finally {
       setSavingRelease(false);
@@ -141,228 +141,353 @@ export function LiberacoesHorarios({
 
   const handleDeleteRelease = async (id: string) => {
     await apiFetch(`/api/settings/agenda/releases/${id}`, { method: "DELETE" });
-    toast.success("Liberação removida.");
+    toast.show("Liberação removida.", "success");
     fetchReleases();
   };
 
-  return (
-    <div className="space-y-5 pb-20 sm:pb-6 relative">
+  // ── Fechamentos (Feriados) ────────────────────────────────────────────────
+  const [closedDays, setClosedDays] = useState<ClosedDay[]>([]);
+  const [loadingClosed, setLoadingClosed] = useState(false);
+  const [newClosed, setNewClosed] = useState({ date: format(new Date(), "yyyy-MM-dd"), name: "" });
+  const [savingClosed, setSavingClosed] = useState(false);
 
+  const fetchClosedDays = async () => {
+    setLoadingClosed(true);
+    try {
+      const res = await apiFetch("/api/settings/closed-days");
+      if (res.ok) {
+        const d = await res.json();
+        setClosedDays(d);
+      }
+    } catch {}
+    setLoadingClosed(false);
+  };
+
+  const handleCreateClosedDay = async () => {
+    if (!newClosed.date || !newClosed.name.trim()) {
+      toast.show("Preencha a data e o motivo do fechamento.", "warning");
+      return;
+    }
+    setSavingClosed(true);
+    try {
+      const res = await apiFetch("/api/settings/closed-days", {
+        method: "POST",
+        body: JSON.stringify(newClosed),
+      });
+      if (res.ok) {
+        toast.show("Dia fechado com sucesso.", "success");
+        fetchClosedDays();
+        setNewClosed({ date: format(new Date(), "yyyy-MM-dd"), name: "" });
+      }
+    } finally {
+      setSavingClosed(false);
+    }
+  };
+
+  const handleDeleteClosedDay = async (id: string) => {
+    await apiFetch(`/api/settings/closed-days/${id}`, { method: "DELETE" });
+    toast.show("Fechamento removido.", "success");
+    fetchClosedDays();
+  };
+
+  useEffect(() => {
+    fetchReleases();
+    fetchClosedDays();
+  }, []);
+
+  return (
+    <div className="space-y-6 pb-20 sm:pb-6 animate-in fade-in duration-700">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-zinc-100">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-50 border border-amber-100">
-            <Unlock size={18} className="text-amber-600" />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-6 bg-white rounded-[32px] border border-zinc-200 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 border border-rose-100 shadow-sm">
+            <CalendarOff size={22} className="text-rose-500" />
           </div>
           <div>
-            <h1 className="text-lg sm:text-xl font-black tracking-tight text-zinc-900">Liberações de Horários</h1>
-            <p className="text-xs text-zinc-400 mt-0.5">Gerencie bloqueios e liberações extras na agenda.</p>
+            <h1 className="text-xl font-black tracking-tight text-zinc-900">Bloqueios e Fechamentos</h1>
+            <p className="text-xs text-zinc-400 mt-1">Gerencie ausências, feriados e horários excepcionais.</p>
           </div>
         </div>
-        <button
-          onClick={onRefresh}
-          className="self-start sm:self-auto p-2 rounded-xl text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-all"
-          title="Atualizar"
-        >
-          <RefreshCw size={16} />
-        </button>
-      </div>
-
-      {/* Info */}
-      <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">
-        <Info size={15} className="text-amber-600 shrink-0 mt-0.5" />
-        <p className="text-xs text-amber-700 leading-relaxed">
-          <strong>Bloqueios</strong> impedem que clientes agendem naquele horário.{" "}
-          <strong>Liberações</strong> permitem atendimento fora do horário padrão da semana.
-        </p>
-      </div>
-
-      {/* Tab switcher */}
-      <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-xl w-full sm:w-auto self-start">
-        {(["bloqueios", "releases"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              "flex-1 sm:flex-none px-4 py-2 rounded-lg text-[11px] font-black transition-all uppercase tracking-wider",
-              activeTab === tab ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
-            )}
-          >
-            {tab === "bloqueios" ? "Bloqueios" : "Liberações Extras"}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Bloqueios ── */}
-      {activeTab === "bloqueios" && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr,340px] gap-5">
-          <div className="flex flex-col gap-3">
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Bloqueios Ativos ({bloqueios.length})</p>
-            {bloqueios.length === 0 ? (
-              <div className="py-14 border-2 border-dashed border-zinc-200 rounded-2xl text-center">
-                <Lock size={24} className="text-zinc-300 mx-auto mb-2" />
-                <p className="text-xs font-bold text-zinc-400">Nenhum bloqueio ativo</p>
-                <p className="text-[10px] text-zinc-400 mt-1">Crie um bloqueio para impedir agendamentos em um horário específico.</p>
-              </div>
-            ) : (
-              bloqueios.map((b, i) => (
-                <motion.div
-                  key={b.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="flex items-center gap-3 bg-white border border-red-200 bg-red-50/30 rounded-2xl p-4 shadow-sm"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 border border-red-200">
-                    <Lock size={16} className="text-red-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-zinc-800">
-                      {format(new Date(b.date), "dd/MM/yyyy (EEEE)", { locale: ptBR })}
-                    </p>
-                    <p className="text-xs text-zinc-500 flex items-center gap-1.5">
-                      <Clock size={10} />
-                      {b.startTime} – {b.endTime}
-                      {b.professional?.name && (
-                        <span className="text-zinc-400">· {b.professional.name}</span>
-                      )}
-                    </p>
-                    {b.notes && <p className="text-[10px] text-zinc-400 mt-0.5">{b.notes}</p>}
-                  </div>
-                  <button
-                    onClick={() => onDeleteAppointment(b.id)}
-                    className="p-2 rounded-xl text-red-400 hover:bg-red-100 hover:text-red-600 transition-all"
-                    title="Remover bloqueio"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </motion.div>
-              ))
-            )}
-          </div>
-
-          <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm h-fit">
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-4">Novo Bloqueio</p>
-            <div className="space-y-3">
-              <div>
-                <label className="ds-label">Data</label>
-                <DatePicker value={newBlock.date} onChange={(v) => setNewBlock((p) => ({ ...p, date: v ?? p.date }))} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="ds-label">Início</label>
-                  <select value={newBlock.startTime} onChange={(e) => setNewBlock((p) => ({ ...p, startTime: e.target.value }))} className="ds-input">
-                    {HOURS_LIST.map((h) => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="ds-label">Fim</label>
-                  <select value={newBlock.endTime} onChange={(e) => setNewBlock((p) => ({ ...p, endTime: e.target.value }))} className="ds-input">
-                    {HOURS_LIST.map((h) => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
-              </div>
-              {professionals.length > 1 && (
-                <div>
-                  <label className="ds-label">Profissional</label>
-                  <select value={newBlock.professionalId} onChange={(e) => setNewBlock((p) => ({ ...p, professionalId: e.target.value }))} className="ds-input">
-                    {professionals.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
+        <div className="flex items-center gap-2 bg-zinc-100 p-1 rounded-2xl">
+          {(["bloqueios", "fechamentos", "releases"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "px-4 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest",
+                activeTab === tab ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500 hover:text-zinc-800"
               )}
-              <Button variant="danger" size="md" fullWidth loading={savingBlock} onClick={handleCreateBlock} iconLeft={<Lock size={14} />}>
-                Criar Bloqueio
-              </Button>
-            </div>
-          </div>
+            >
+              {tab === "bloqueios" ? "Bloqueios" : tab === "fechamentos" ? "Feriados/Fechamentos" : "Intervalos Extras"}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* ── Liberações ── */}
-      {activeTab === "releases" && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr,340px] gap-5">
-          <div className="flex flex-col gap-3">
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Liberações Extras ({releases.length})</p>
-            {loadingReleases ? (
-              <div className="space-y-2">
-                {[1, 2].map((i) => (
-                  <div key={i} className="animate-pulse bg-white border border-zinc-200 rounded-2xl p-4 h-16" />
-                ))}
-              </div>
-            ) : releases.length === 0 ? (
-              <div className="py-14 border-2 border-dashed border-zinc-200 rounded-2xl text-center">
-                <Unlock size={24} className="text-zinc-300 mx-auto mb-2" />
-                <p className="text-xs font-bold text-zinc-400">Nenhuma liberação extra configurada</p>
-              </div>
-            ) : (
-              releases.map((r, i) => (
-                <motion.div
-                  key={r.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="flex items-center gap-3 bg-white border border-emerald-200 bg-emerald-50/20 rounded-2xl p-4 shadow-sm"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 border border-emerald-200">
-                    <Unlock size={16} className="text-emerald-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-zinc-800">
-                      {format(new Date(r.date), "dd/MM/yyyy (EEEE)", { locale: ptBR })}
-                    </p>
-                    <p className="text-xs text-zinc-500 flex items-center gap-1.5">
-                      <Clock size={10} /> {r.startTime} – {r.endTime}
-                    </p>
-                    {r.notes && <p className="text-[10px] text-zinc-400 mt-0.5">{r.notes}</p>}
-                  </div>
-                  <button
-                    onClick={() => handleDeleteRelease(r.id)}
-                    className="p-2 rounded-xl text-zinc-400 hover:bg-zinc-100 hover:text-red-500 transition-all"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </motion.div>
-              ))
-            )}
-          </div>
+      {/* Info Alert */}
+      <div className="flex items-start gap-4 p-5 rounded-[24px] bg-amber-50 border border-amber-200/60 shadow-sm">
+        <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+          <Info size={18} className="text-amber-600" />
+        </div>
+        <div className="space-y-1">
+           <p className="text-sm font-black text-amber-900">Como gerenciar sua agenda?</p>
+           <p className="text-xs text-amber-700 leading-relaxed max-w-2xl">
+             Use <strong>Bloqueios</strong> para fechar horários específicos de um profissional hoje. 
+             Use <strong>Feriados</strong> para fechar o dia inteiro do estúdio. 
+             Use <strong>Intervalos Extras</strong> para abrir horários fora da grade normal.
+           </p>
+        </div>
+      </div>
 
-          <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm h-fit">
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-4">Nova Liberação Extra</p>
-            <div className="space-y-3">
-              <div>
-                <label className="ds-label">Data</label>
-                <DatePicker value={newRelease.date} onChange={(v) => setNewRelease((p) => ({ ...p, date: v ?? p.date }))} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="ds-label">Início</label>
-                  <select value={newRelease.startTime} onChange={(e) => setNewRelease((p) => ({ ...p, startTime: e.target.value }))} className="ds-input">
-                    {HOURS_LIST.map((h) => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="ds-label">Fim</label>
-                  <select value={newRelease.endTime} onChange={(e) => setNewRelease((p) => ({ ...p, endTime: e.target.value }))} className="ds-input">
-                    {HOURS_LIST.map((h) => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="ds-label">Observações (opcional)</label>
-                <input
-                  value={newRelease.notes}
-                  onChange={(e) => setNewRelease((p) => ({ ...p, notes: e.target.value }))}
-                  placeholder="Ex: Atendimento especial sábado à tarde"
-                  className="ds-input"
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.3 }}
+        >
+          {/* ────── TAB: BLOQUEIOS ────── */}
+          {activeTab === "bloqueios" && (
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr,360px] gap-6">
+              <div className="space-y-6">
+                <Calendar 
+                  mode="select"
+                  selectedDate={newBlock.date}
+                  onDateSelect={(d) => setNewBlock(p => ({ ...p, date: d }))}
+                  blockedDates={bloqueios.map(b => b.date.split('T')[0])}
                 />
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Bloqueios Ativos ({bloqueios.length})</p>
+                    <Button variant="ghost" size="xs" onClick={onRefresh} className="h-7 text-zinc-400">
+                      <RefreshCw size={12} className="mr-1" /> Atualizar
+                    </Button>
+                  </div>
+                  {bloqueios.length === 0 ? (
+                    <div className="py-20 border-2 border-dashed border-zinc-200 rounded-[32px] text-center bg-white/50">
+                      <Lock size={32} className="text-zinc-200 mx-auto mb-3" />
+                      <p className="text-sm font-black text-zinc-400">Nenhum bloqueio para os próximos dias.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      {bloqueios.map((b) => (
+                        <div key={b.id} className="flex items-center gap-4 bg-white border border-zinc-200 rounded-[24px] p-5 shadow-sm hover:shadow-md transition-all group">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-50 border border-zinc-100 group-hover:bg-red-50 group-hover:border-red-100 transition-colors">
+                            <Clock size={20} className="text-zinc-400 group-hover:text-red-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-black text-zinc-900">
+                              {format(new Date(b.date), "dd 'de' MMMM", { locale: ptBR })} ({format(new Date(b.date), "EEEE", { locale: ptBR })})
+                            </p>
+                            <div className="flex items-center gap-3 mt-1.5">
+                               <Badge color="default" className="bg-zinc-100 text-zinc-600 font-black h-6 px-2.5">{b.startTime} – {b.endTime}</Badge>
+                               {b.professional?.name && (
+                                 <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1">
+                                    <User size={10} /> {b.professional.name}
+                                 </span>
+                               )}
+                            </div>
+                          </div>
+                          <button onClick={() => onDeleteAppointment(b.id)} className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-300 hover:bg-red-50 hover:text-red-500 transition-all">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <Button variant="success" size="md" fullWidth loading={savingRelease} onClick={handleSaveRelease} iconLeft={<Unlock size={14} />}>
-                Salvar Liberação
-              </Button>
+
+              <div className="bg-white border border-zinc-200 rounded-[32px] p-6 shadow-xl h-fit sticky top-24">
+                <h3 className="text-lg font-black text-zinc-900 mb-6 flex items-center gap-2">
+                   <Lock size={18} className="text-zinc-400" /> Novo Bloqueio
+                </h3>
+                <div className="space-y-5">
+                  <DatePicker label="Qual dia?" value={newBlock.date} onChange={(v) => setNewBlock((p) => ({ ...p, date: v ?? p.date }))} />
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="ds-label">Início</label>
+                      <select value={newBlock.startTime} onChange={(e) => setNewBlock((p) => ({ ...p, startTime: e.target.value }))} className="ds-input font-bold rounded-2xl h-11">
+                        {HOURS_LIST.map((h) => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="ds-label">Término</label>
+                      <select value={newBlock.endTime} onChange={(e) => setNewBlock((p) => ({ ...p, endTime: e.target.value }))} className="ds-input font-bold rounded-2xl h-11">
+                        {HOURS_LIST.map((h) => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  {professionals.length > 0 && (
+                    <div className="space-y-1.5">
+                      <label className="ds-label">Em qual profissional?</label>
+                      <select value={newBlock.professionalId} onChange={(e) => setNewBlock((p) => ({ ...p, professionalId: e.target.value }))} className="ds-input font-bold rounded-2xl h-11">
+                        {professionals.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+
+                  <Input label="Observações" placeholder="Motivo do bloqueio..." value={newBlock.notes} onChange={(e: any) => setNewBlock((p) => ({ ...p, notes: e.target.value }))} />
+
+                  <Button variant="danger" fullWidth loading={savingBlock} onClick={handleCreateBlock} className="h-12 rounded-2xl font-black shadow-lg shadow-red-500/20">
+                    Criar Bloqueio
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
+
+          {/* ────── TAB: FECHAMENTOS (FERIADOS) ────── */}
+          {activeTab === "fechamentos" && (
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr,360px] gap-6">
+              <div className="space-y-6">
+                <Calendar 
+                  mode="select"
+                  selectedDate={newClosed.date}
+                  onDateSelect={(d) => setNewClosed(p => ({ ...p, date: d }))}
+                  blockedDates={closedDays.map(d => d.date.split('T')[0])}
+                />
+
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Dias de Estúdio Fechado ({closedDays.length})</p>
+                  {loadingClosed ? (
+                    <div className="py-20 flex justify-center"><Loader2 className="animate-spin text-zinc-300" /></div>
+                  ) : closedDays.length === 0 ? (
+                    <div className="py-20 border-2 border-dashed border-zinc-200 rounded-[32px] text-center bg-white/50">
+                      <CalendarOff size={32} className="text-zinc-200 mx-auto mb-3" />
+                      <p className="text-sm font-black text-zinc-400">Nenhum feriado ou fechamento cadastrado.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      {closedDays.map((d) => (
+                        <div key={d.id} className="flex items-center gap-4 bg-white border border-zinc-200 rounded-[24px] p-5 shadow-sm group">
+                          <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border border-rose-100 bg-rose-50 group-hover:bg-rose-100 transition-colors">
+                            <span className="text-[9px] font-black uppercase text-rose-400 leading-none mb-1">
+                              {format(new Date(d.date), "MMM", { locale: ptBR })}
+                            </span>
+                            <span className="text-xl font-black text-rose-600 leading-none">
+                              {format(new Date(d.date), "dd")}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-black text-zinc-900 truncate">{d.name || "Sem descrição"}</p>
+                            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">
+                              {format(new Date(d.date), "EEEE", { locale: ptBR })} · {format(new Date(d.date), "yyyy")}
+                            </p>
+                          </div>
+                          <button onClick={() => handleDeleteClosedDay(d.id)} className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-300 hover:bg-red-50 hover:text-red-500 transition-all">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white border border-zinc-200 rounded-[32px] p-6 shadow-xl h-fit sticky top-24">
+                <h3 className="text-lg font-black text-zinc-900 mb-6 flex items-center gap-2">
+                   <CalendarOff size={18} className="text-rose-500" /> Novo Fechamento
+                </h3>
+                <div className="space-y-5">
+                  <DatePicker label="Dia do fechamento" value={newClosed.date} onChange={(v) => setNewClosed((p) => ({ ...p, date: v ?? p.date }))} />
+                  <Input 
+                    label="Motivo / Descrição" 
+                    placeholder="Ex: Feriado Nacional, Reforma..." 
+                    value={newClosed.name} 
+                    onChange={(e: any) => setNewClosed((p) => ({ ...p, name: e.target.value }))} 
+                  />
+                  <Button fullWidth loading={savingClosed} onClick={handleCreateClosedDay} className="h-12 rounded-2xl font-black bg-rose-500 hover:bg-rose-600 shadow-lg shadow-rose-500/20">
+                    Fechar Estúdio neste Dia
+                  </Button>
+                  <p className="text-[10px] text-zinc-400 text-center leading-relaxed px-4">
+                    Isso impedirá agendamentos em todos os profissionais durante este dia inteiro.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ────── TAB: RELEASES ────── */}
+          {activeTab === "releases" && (
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr,360px] gap-6">
+              <div className="space-y-6">
+                <Calendar 
+                  mode="select"
+                  selectedDate={newRelease.date}
+                  onDateSelect={(d) => setNewRelease(p => ({ ...p, date: d }))}
+                  blockedDates={releases.map(r => r.date.split('T')[0])}
+                />
+
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Liberações Extras ({releases.length})</p>
+                  {loadingReleases ? (
+                    <div className="py-20 flex justify-center"><Loader2 className="animate-spin text-zinc-300" /></div>
+                  ) : releases.length === 0 ? (
+                    <div className="py-20 border-2 border-dashed border-zinc-200 rounded-[32px] text-center bg-white/50">
+                      <Unlock size={32} className="text-zinc-200 mx-auto mb-3" />
+                      <p className="text-sm font-black text-zinc-400">Nenhum horário extra liberado.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      {releases.map((r) => (
+                        <div key={r.id} className="flex items-center gap-4 bg-white border border-zinc-200 rounded-[24px] p-5 shadow-sm group">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 border border-emerald-100">
+                             <Unlock size={20} className="text-emerald-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                             <p className="text-sm font-black text-zinc-900">
+                               {format(new Date(r.date), "dd 'de' MMMM", { locale: ptBR })}
+                             </p>
+                             <Badge color="default" className="bg-emerald-50 text-emerald-700 font-black h-6 px-2.5 mt-1">{r.startTime} – {r.endTime}</Badge>
+                          </div>
+                          <button onClick={() => handleDeleteRelease(r.id)} className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-300 hover:bg-emerald-50 hover:text-emerald-500 transition-all">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white border border-zinc-200 rounded-[32px] p-6 shadow-xl h-fit sticky top-24">
+                <h3 className="text-lg font-black text-zinc-900 mb-6 flex items-center gap-2">
+                   <Unlock size={18} className="text-emerald-500" /> Nova Liberação Extra
+                </h3>
+                <div className="space-y-5">
+                  <DatePicker label="Qual data?" value={newRelease.date} onChange={(v) => setNewRelease((p) => ({ ...p, date: v ?? p.date }))} />
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="ds-label">Início</label>
+                      <select value={newRelease.startTime} onChange={(e) => setNewRelease((p) => ({ ...p, startTime: e.target.value }))} className="ds-input font-bold rounded-2xl h-11">
+                        {HOURS_LIST.map((h) => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="ds-label">Término</label>
+                      <select value={newRelease.endTime} onChange={(e) => setNewRelease((p) => ({ ...p, endTime: e.target.value }))} className="ds-input font-bold rounded-2xl h-11">
+                        {HOURS_LIST.map((h) => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <Input label="Observações" placeholder="Ex: Sábado especial..." value={newRelease.notes} onChange={(e: any) => setNewRelease((p) => ({ ...p, notes: e.target.value }))} />
+
+                  <Button fullWidth loading={savingRelease} onClick={handleSaveRelease} className="h-12 rounded-2xl font-black bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/20">
+                    Salvar Liberação
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

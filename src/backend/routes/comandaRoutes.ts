@@ -3,6 +3,7 @@ import { comandaController } from "../controllers/comandaController";
 
 export const comandaRouter = Router();
 
+comandaRouter.get("/ranking-servicos", comandaController.rankingServicos);
 comandaRouter.get("/", comandaController.list);
 comandaRouter.post("/", comandaController.create);
 comandaRouter.put("/:id", comandaController.update);

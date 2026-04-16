@@ -1,33 +1,41 @@
-﻿import React, { useState } from "react";
-import { apiFetch } from "@/src/lib/api";
+import React, { useState } from "react";
+import { 
+  Clock, 
+  Save, 
+  Plus, 
+  Trash2, 
+  CalendarOff, 
+  Calendar as CalendarIcon, 
+  User, 
+  Info, 
+  CheckCircle2, 
+  AlertCircle,
+  Loader2,
+  Coffee
+} from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarOff, Clock3, Plus, Sparkles, Sun, X } from "lucide-react";
 import { cn } from "@/src/lib/utils";
-import { Button } from "@/src/components/ui/Button";
-import { DatePicker } from "@/src/components/ui/DatePicker";
-import { EmptyState } from "@/src/components/ui/EmptyState";
-import { PanelCard } from "@/src/components/ui/PanelCard";
-import { StatCard } from "@/src/components/ui/StatCard";
-import { Switch } from "@/src/components/ui/Switch";
+import { Button, PanelCard, Input, Badge, SectionTitle, FormRow, Divider, Switch, DatePicker } from "@/src/components/ui";
+import { apiFetch } from "@/src/lib/api";
 
-type SetState<T> = (value: T | ((prev: T) => T)) => void;
-
-interface WorkingHour {
+type WorkingHour = {
   id: string;
   dayOfWeek: number;
-  isOpen: boolean;
   startTime: string;
   endTime: string;
-  breakStart?: string | null;
-  breakEnd?: string | null;
-}
+  isOpen: boolean;
+  breakStart: string | null;
+  breakEnd: string | null;
+};
 
-interface Holiday {
+type Holiday = {
   id: string;
   date: string;
   name: string;
-}
+};
+
+type SetState<T> = React.Dispatch<React.SetStateAction<T>>;
 
 interface HorariosTabProps {
   workingHours: WorkingHour[];
@@ -38,46 +46,11 @@ interface HorariosTabProps {
   setHolidays: SetState<Holiday[]>;
   newHoliday: { date: string; name: string };
   setNewHoliday: SetState<{ date: string; name: string }>;
+  professionals?: any[];
 }
 
 const DAY_NAMES = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
-const DAY_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-
-function parseMinutes(time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-  return hours * 60 + minutes;
-}
-
-function getDurationInMinutes(startTime: string, endTime: string) {
-  const start = parseMinutes(startTime);
-  const end = parseMinutes(endTime);
-
-  if (start === null || end === null || end <= start) {
-    return 0;
-  }
-
-  return end - start;
-}
-
-function formatMinutesLabel(totalMinutes: number) {
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  if (hours === 0 && minutes === 0) return "0h";
-  if (minutes === 0) return `${hours}h`;
-  if (hours === 0) return `${minutes}min`;
-
-  return `${hours}h ${String(minutes).padStart(2, "0")}min`;
-}
-
-function formatHolidayDate(date: string, pattern: string) {
-  return format(new Date(`${date}T12:00:00`), pattern, { locale: ptBR });
-}
-
-function formatHolidayBadgeMonth(date: string) {
-  return formatHolidayDate(date, "MMM").replace(".", "").slice(0, 3).toUpperCase();
-}
+const DAY_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
 export function HorariosTab({
   workingHours,
@@ -87,91 +60,73 @@ export function HorariosTab({
   holidays,
   setHolidays,
   newHoliday,
-  setNewHoliday
+  setNewHoliday,
+  professionals = []
 }: HorariosTabProps) {
   const [isSavingHours, setIsSavingHours] = useState(false);
+  const [isLoadingHours, setIsLoadingHours] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
+  const [selectedProfId, setSelectedProfId] = useState<string>("");
+
+  // Initialize selectedProfId
+  React.useEffect(() => {
+    if (professionals.length > 0 && !selectedProfId) {
+      setSelectedProfId(professionals[0].id);
+    }
+  }, [professionals]);
+
+  // Fetch hours when professional changes
+  React.useEffect(() => {
+    if (selectedProfId) {
+      fetchProfessionalHours(selectedProfId);
+    }
+  }, [selectedProfId]);
+
+  const fetchProfessionalHours = async (id: string) => {
+    setIsLoadingHours(true);
+    try {
+      const res = await apiFetch(`/api/settings/working-hours?professionalId=${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setWorkingHours(data);
+        setLocalWorkingHours(data.map((h: any) => ({ ...h })));
+      }
+    } catch (e) {
+      console.error("Erro ao buscar horários:", e);
+    } finally {
+      setIsLoadingHours(false);
+    }
+  };
 
   const scheduleRows = localWorkingHours.length > 0 ? localWorkingHours : workingHours;
-  const sortedHolidays = [...holidays].sort((a, b) => a.date.localeCompare(b.date));
-  const openDays = scheduleRows.filter((row) => row.isOpen);
-  const openDaysCount = openDays.length;
-  const closedDaysCount = Math.max(scheduleRows.length - openDaysCount, 0);
-  const weeklyMinutes = openDays.reduce(
-    (total, row) => total + getDurationInMinutes(row.startTime, row.endTime),
-    0
-  );
-  const today = new Date().toISOString().slice(0, 10);
-  const nextHoliday = sortedHolidays.find((holiday) => holiday.date >= today);
-  const hasUnsavedChanges =
-    scheduleRows.length !== workingHours.length ||
-    scheduleRows.some((row) => {
-      const original = workingHours.find((hour) => hour.id === row.id);
-      if (!original) return true;
-      return (
-        original.isOpen !== row.isOpen ||
-        original.startTime !== row.startTime ||
-        original.endTime !== row.endTime
-      );
-    });
-
-  const hydrateHours = () => workingHours.map((hour) => ({ ...hour }));
-
-  const updateHours = (updater: (hours: WorkingHour[]) => WorkingHour[]) => {
-    setSaveStatus("idle");
-    setLocalWorkingHours((prev) => {
-      const source = prev.length > 0 ? prev : hydrateHours();
-      return updater(source);
-    });
-  };
-
-  const handleTimeChange = (
-    id: string,
-    field: "startTime" | "endTime",
-    value: string
-  ) => {
-    updateHours((hours) =>
-      hours.map((hour) => (hour.id === id ? { ...hour, [field]: value } : hour))
-    );
-  };
 
   const handleToggleDay = (id: string) => {
-    updateHours((hours) =>
-      hours.map((hour) =>
-        hour.id === id ? { ...hour, isOpen: !hour.isOpen } : hour
-      )
+    setLocalWorkingHours((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, isOpen: !row.isOpen } : row))
     );
+    setSaveStatus("idle");
+  };
+
+  const handleTimeChange = (id: string, field: keyof WorkingHour, value: string) => {
+    setLocalWorkingHours((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
+    );
+    setSaveStatus("idle");
   };
 
   const handleSaveHours = async () => {
-    const payload = scheduleRows.map((hour) => ({
-      id: hour.id,
-      dayOfWeek: hour.dayOfWeek,
-      isOpen: hour.isOpen,
-      startTime: hour.startTime,
-      endTime: hour.endTime,
-      breakStart: hour.breakStart ?? null,
-      breakEnd: hour.breakEnd ?? null,
-    }));
-
     setIsSavingHours(true);
-    setSaveStatus("idle");
-
     try {
-      const response = await apiFetch("/api/settings/working-hours", {
+      const res = await apiFetch("/api/settings/working-hours", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hours: payload }),
+        body: JSON.stringify({ hours: localWorkingHours, professionalId: selectedProfId }),
       });
-
-      if (!response.ok) {
-        throw new Error("save_failed");
+      if (res.ok) {
+        setWorkingHours([...localWorkingHours]);
+        setSaveStatus("success");
+      } else {
+        setSaveStatus("error");
       }
-
-      const nextHours = payload.map((hour) => ({ ...hour }));
-      setWorkingHours(nextHours);
-      setLocalWorkingHours(nextHours.map((hour) => ({ ...hour })));
-      setSaveStatus("success");
     } catch {
       setSaveStatus("error");
     } finally {
@@ -179,324 +134,168 @@ export function HorariosTab({
     }
   };
 
-  const handleAddHoliday = () => {
-    const name = newHoliday.name.trim();
-    if (!newHoliday.date || !name) return;
-
-    setHolidays((prev) => [
-      ...prev,
-      { id: Date.now().toString(), date: newHoliday.date, name },
-    ]);
-    setNewHoliday({ date: "", name: "" });
-  };
-
-  const saveMessage =
-    saveStatus === "success"
-      ? "Horários salvos com sucesso."
-      : saveStatus === "error"
-        ? "Não foi possível salvar agora."
-        : hasUnsavedChanges
-          ? "Você tem alterações pendentes."
-          : "Tudo sincronizado.";
+  const hasUnsavedChanges = JSON.stringify(localWorkingHours) !== JSON.stringify(workingHours);
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          title="Dias abertos"
-          value={openDaysCount}
-          icon={Clock3}
-          description={`${openDaysCount === 1 ? "1 dia ativo" : `${openDaysCount} dias ativos`} na semana`}
-        />
-        <StatCard
-          title="Dias fechados"
-          value={closedDaysCount}
-          icon={CalendarOff}
-          description="Períodos sem agendamento disponível"
-        />
-        <StatCard
-          title="Carga semanal"
-          value={formatMinutesLabel(weeklyMinutes)}
-          icon={Sun}
-          description="Soma das janelas abertas para atendimento"
-        />
-        <StatCard
-          title="Próximo fechamento"
-          value={nextHoliday ? formatHolidayDate(nextHoliday.date, "dd/MM") : "Livre"}
-          icon={Sparkles}
-          description={nextHoliday ? nextHoliday.name : "Nenhum bloqueio futuro cadastrado"}
-        />
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Seletor de Profissional */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-[32px] border border-zinc-200 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-5">
+           <User size={80} />
+        </div>
+        <div className="relative z-10">
+          <SectionTitle 
+            title="Horário de Atendimento" 
+            description="Configure a grade de horários padrão para recebimento de agendamentos."
+          />
+        </div>
+        
+        {professionals.length > 1 && (
+          <div className="flex gap-2 bg-zinc-100 p-1 rounded-2xl relative z-10 scale-90 sm:scale-100 origin-right">
+            {professionals.map((p: any) => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedProfId(p.id)}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-black transition-all",
+                  selectedProfId === p.id 
+                    ? "bg-white text-zinc-900 shadow-sm" 
+                    : "text-zinc-500 hover:text-zinc-800"
+                )}
+              >
+                {p.name.split(" ")[0]}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.95fr)]">
+      <div className="flex flex-col gap-6">
         <PanelCard
-          title="Horário de funcionamento"
-          description="Ajuste os dias e faixas de atendimento com uma visualização que funciona bem no desktop e no celular."
-          icon={Clock3}
+          title="Grade Semanal"
+          description="Defina os horários de início, término e intervalo para cada dia da semana."
+          icon={Clock}
+          iconWrapClassName="bg-amber-50 border-amber-100"
+          iconClassName="text-amber-600"
           action={
-            <div className="space-y-2">
-              <Button
-                type="button"
-                onClick={handleSaveHours}
-                disabled={isSavingHours || scheduleRows.length === 0 || !hasUnsavedChanges}
-                className="h-11 w-full rounded-2xl bg-amber-500 px-5 text-white shadow-lg shadow-amber-500/20 hover:bg-amber-600 lg:w-auto"
-              >
-                {isSavingHours ? "Salvando..." : "Salvar horários"}
-              </Button>
-              <p
-                className={cn(
-                  "text-right text-[11px] font-bold",
-                  saveStatus === "error"
-                    ? "text-red-500"
-                    : saveStatus === "success"
-                      ? "text-emerald-600"
-                      : "text-zinc-400"
-                )}
-              >
-                {saveMessage}
-              </p>
+            <div className="flex items-center gap-3">
+              {saveStatus === "success" && (
+                <Badge color="success" className="animate-in zoom-in h-8 px-3 rounded-lg font-black tracking-widest text-[10px]">
+                  <CheckCircle2 size={12} className="mr-1.5" /> Salvo
+                </Badge>
+              )}
+              {hasUnsavedChanges && (
+                <Button
+                  onClick={handleSaveHours}
+                  disabled={isSavingHours}
+                  className="bg-zinc-950 hover:bg-black text-white px-6 h-10 rounded-xl font-black shadow-lg"
+                  iconLeft={isSavingHours ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                >
+                  {isSavingHours ? "Salvando..." : "Salvar Grade"}
+                </Button>
+              )}
             </div>
           }
-          contentClassName="space-y-4"
         >
-          <div className="rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-3">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm font-black text-zinc-900">Grade principal da semana</p>
-                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                  Cada dia vira um bloco independente em telas menores para manter leitura e toque confortáveis.
-                </p>
-              </div>
-              <span
-                className={cn(
-                  "inline-flex w-fit items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest",
-                  hasUnsavedChanges
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-emerald-100 text-emerald-700"
-                )}
-              >
-                {hasUnsavedChanges ? "Alterações pendentes" : "Tudo salvo"}
-              </span>
+          {isLoadingHours ? (
+            <div className="py-20 flex flex-col items-center justify-center text-zinc-400 gap-4">
+               <Loader2 size={40} className="animate-spin text-amber-500" />
+               <p className="text-sm font-bold animate-pulse">Carregando horários...</p>
             </div>
-          </div>
-
-          {scheduleRows.length === 0 ? (
-            <EmptyState
-              icon={Clock3}
-              title="Nenhum horário disponível"
-              description="Assim que os horários forem carregados, eles aparecem aqui para edição."
-            />
           ) : (
-            <div className="grid gap-3">
-              {scheduleRows.map((hour) => (
-                <div
-                  key={hour.id}
-                  className={cn(
-                    "rounded-3xl border p-4 transition-all sm:p-5",
-                    hour.isOpen
-                      ? "border-zinc-200 bg-white"
-                      : "border-zinc-200 bg-zinc-50/80"
-                  )}
-                >
-                  <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-center">
-                    <div className="flex items-start gap-3 2xl:min-w-[240px]">
-                      <div
-                        className={cn(
-                          "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border text-[11px] font-black uppercase tracking-[0.22em]",
-                          hour.isOpen
-                            ? "border-amber-200 bg-amber-50 text-amber-700"
-                            : "border-zinc-200 bg-white text-zinc-400"
-                        )}
-                      >
-                        {DAY_SHORT[hour.dayOfWeek]}
+            <div className="space-y-4">
+               {scheduleRows.map((row) => (
+                 <div 
+                   key={row.id}
+                   className={cn(
+                     "group relative flex flex-col lg:flex-row lg:items-center gap-4 p-5 sm:p-6 rounded-[24px] border transition-all",
+                     row.isOpen 
+                       ? "bg-white border-zinc-200 hover:border-amber-200" 
+                       : "bg-zinc-50/50 border-zinc-100 opacity-60"
+                   )}
+                 >
+                   {/* Dia da Semana */}
+                   <div className="flex items-center gap-4 min-w-[160px]">
+                      <div className={cn(
+                        "w-12 h-12 rounded-2xl flex items-center justify-center text-xs font-black border transition-all",
+                        row.isOpen ? "bg-amber-50 border-amber-100 text-amber-600" : "bg-white border-zinc-200 text-zinc-400"
+                      )}>
+                        {DAY_SHORT[row.dayOfWeek]}
                       </div>
-
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="text-sm font-black text-zinc-900">
-                            {DAY_NAMES[hour.dayOfWeek]}
-                          </h4>
-                          <span
-                            className={cn(
-                              "inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest",
-                              hour.isOpen
-                                ? "bg-emerald-50 text-emerald-600"
-                                : "bg-zinc-200/70 text-zinc-500"
-                            )}
-                          >
-                            {hour.isOpen ? "Aberto" : "Fechado"}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                          {hour.isOpen
-                            ? `Atendimento entre ${hour.startTime} e ${hour.endTime}.`
-                            : "Dia bloqueado para agendamentos."}
+                      <div>
+                        <h4 className="font-black text-zinc-900 leading-none">{DAY_NAMES[row.dayOfWeek]}</h4>
+                        <p className={cn("text-[10px] font-bold mt-1.5 uppercase tracking-widest", row.isOpen ? "text-emerald-500" : "text-zinc-400")}>
+                          {row.isOpen ? "Aberto para Agenda" : "Loja Fechada"}
                         </p>
                       </div>
-                    </div>
+                   </div>
 
-                    <div
-                      className={cn(
-                        "grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] 2xl:flex-1",
-                        !hour.isOpen && "opacity-60"
-                      )}
-                    >
+                   {/* Horários */}
+                   <div className={cn("flex-1 grid grid-cols-2 lg:grid-cols-4 gap-4 transition-all", !row.isOpen && "pointer-events-none")}>
                       <div className="space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                          Abertura
-                        </span>
-                        <input
-                          type="time"
-                          value={hour.startTime}
-                          disabled={!hour.isOpen}
-                          onChange={(event) =>
-                            handleTimeChange(hour.id, "startTime", event.target.value)
-                          }
-                          className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold text-zinc-800 outline-none transition-all focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                        <label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">Abertura</label>
+                        <input 
+                          type="time" 
+                          value={row.startTime} 
+                          onChange={(e) => handleTimeChange(row.id, "startTime", e.target.value)}
+                          className="ds-input h-10 px-3 bg-zinc-50 border-zinc-100 focus:bg-white"
+                        />
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">Início Intervalo</label>
+                        <input 
+                          type="time" 
+                          value={row.breakStart || ""} 
+                          onChange={(e) => handleTimeChange(row.id, "breakStart", e.target.value)}
+                          className="ds-input h-10 px-3 bg-zinc-50 border-zinc-100 focus:bg-white"
                         />
                       </div>
 
-                      <div className="hidden items-end justify-center pb-3 text-[10px] font-black uppercase tracking-widest text-zinc-300 sm:flex">
-                        até
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">Fim Intervalo</label>
+                        <input 
+                          type="time" 
+                          value={row.breakEnd || ""} 
+                          onChange={(e) => handleTimeChange(row.id, "breakEnd", e.target.value)}
+                          className="ds-input h-10 px-3 bg-zinc-50 border-zinc-100 focus:bg-white"
+                        />
                       </div>
 
                       <div className="space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                          Encerramento
-                        </span>
-                        <input
-                          type="time"
-                          value={hour.endTime}
-                          disabled={!hour.isOpen}
-                          onChange={(event) =>
-                            handleTimeChange(hour.id, "endTime", event.target.value)
-                          }
-                          className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold text-zinc-800 outline-none transition-all focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                        <label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">Encerramento</label>
+                        <input 
+                          type="time" 
+                          value={row.endTime} 
+                          onChange={(e) => handleTimeChange(row.id, "endTime", e.target.value)}
+                          className="ds-input h-10 px-3 bg-zinc-50 border-zinc-100 focus:bg-white"
                         />
                       </div>
-                    </div>
+                   </div>
 
-                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 2xl:min-w-[170px] 2xl:justify-end">
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                          Agenda
-                        </p>
-                        <p className="text-xs font-bold text-zinc-700">
-                          {hour.isOpen ? "Recebendo clientes" : "Indisponível"}
-                        </p>
-                      </div>
-                      <Switch
-                        checked={hour.isOpen}
-                        onCheckedChange={() => handleToggleDay(hour.id)}
-                        aria-label={`Alternar disponibilidade de ${DAY_NAMES[hour.dayOfWeek]}`}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
+                   {/* Switch */}
+                   <div className="lg:pl-6 lg:border-l lg:border-zinc-100 flex items-center justify-between lg:justify-end gap-3 mt-2 lg:mt-0">
+                      <span className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter lg:hidden">Status do Dia</span>
+                      <Switch checked={row.isOpen} onCheckedChange={() => handleToggleDay(row.id)} />
+                   </div>
+                 </div>
+               ))}
             </div>
           )}
         </PanelCard>
 
-        <PanelCard
-          title="Feriados e fechamentos"
-          description="Bloqueie dias específicos para não oferecer horários nessas datas."
-          icon={CalendarOff}
-          iconWrapClassName="border-rose-100 bg-rose-50"
-          iconClassName="text-rose-500"
-          contentClassName="space-y-4"
-        >
-          <div className="rounded-3xl border border-rose-100 bg-rose-50/60 p-4">
-            <div className="grid gap-3">
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                  Data
-                </span>
-                <DatePicker
-                  value={newHoliday.date || null}
-                  onChange={(value) =>
-                    setNewHoliday((prev) => ({ ...prev, date: value ?? "" }))
-                  }
-                  placeholder="Selecionar data"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                  Descrição
-                </span>
-                <input
-                  type="text"
-                  placeholder="Ex: Natal, recesso, manutenção..."
-                  value={newHoliday.name}
-                  onChange={(event) =>
-                    setNewHoliday((prev) => ({ ...prev, name: event.target.value }))
-                  }
-                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-800 outline-none transition-all placeholder:font-medium placeholder:text-zinc-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20"
-                />
-              </div>
-
-              <Button
-                type="button"
-                onClick={handleAddHoliday}
-                disabled={!newHoliday.date || !newHoliday.name.trim()}
-                className="h-11 w-full rounded-2xl bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:bg-rose-600"
-              >
-                <Plus size={16} />
-                Adicionar fechamento
-              </Button>
-            </div>
-          </div>
-
-          {sortedHolidays.length === 0 ? (
-            <EmptyState
-              icon={Sun}
-              title="Nenhuma data bloqueada"
-              description="Cadastre feriados, folgas ou pausas especiais para a agenda refletir isso."
-              iconWrapClassName="border-zinc-200 bg-white"
-              iconClassName="text-zinc-400"
-            />
-          ) : (
-            <div className="space-y-3">
-              {sortedHolidays.map((holiday) => (
-                <div
-                  key={holiday.id}
-                  className="flex items-center gap-3 rounded-3xl border border-zinc-200 bg-white p-3.5"
-                >
-                  <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border border-rose-100 bg-rose-50">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-rose-400">
-                      {formatHolidayBadgeMonth(holiday.date)}
-                    </span>
-                    <span className="text-lg font-black leading-none text-rose-600">
-                      {formatHolidayDate(holiday.date, "dd")}
-                    </span>
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-zinc-900">{holiday.name}</p>
-                    <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-                      {formatHolidayDate(
-                        holiday.date,
-                        "EEEE, d 'de' MMMM 'de' yyyy"
-                      )}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setHolidays((prev) => prev.filter((item) => item.id !== holiday.id))
-                    }
-                    className="rounded-2xl p-2 text-zinc-300 transition-all hover:bg-red-50 hover:text-red-500"
-                    aria-label={`Remover ${holiday.name}`}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </PanelCard>
+        {/* Info Box */}
+        <div className="bg-amber-50 border border-amber-200 rounded-[24px] p-6 flex gap-4">
+           <Info className="text-amber-600 shrink-0" size={20} />
+           <div className="space-y-1">
+              <p className="text-sm font-black text-amber-900">Sobre a Grade de Horários</p>
+              <p className="text-xs text-amber-700 leading-relaxed">
+                Estes são os horários que aparecerão para o seu cliente na agenda online. 
+                Os intervalos (almoço/pausa) removem automaticamente esses horários da disponibilidade. 
+                Para fechar datas específicas ou feriados, utilize a aba de <strong>Liberações e Fechamentos</strong>.
+              </p>
+           </div>
+        </div>
       </div>
     </div>
   );
