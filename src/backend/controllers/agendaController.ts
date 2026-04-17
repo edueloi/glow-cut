@@ -1,4 +1,4 @@
-﻿import { Request, Response } from "express";
+import { Request, Response } from "express";
 import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
 import { addMinutes, format, parse, startOfDay, addDays, startOfMonth, endOfMonth, isSameDay } from "date-fns";
@@ -604,7 +604,7 @@ export const agendaController = {
       });
       const appt = await (prisma as any).appointment.findFirst({
         where: { id: req.params.id },
-        include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true } }, professional: { select: { id: true, name: true } } }
+        include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true } } }
       });
 
       if (oldAppt) {
@@ -625,7 +625,9 @@ export const agendaController = {
         }
       }
 
-      if (status === "confirmed" && appt?.client?.phone && appt.tenantId) fireWppConfirmation(appt.tenantId, appt).catch(() => {});
+      if (status === "confirmed" && oldAppt?.status !== "confirmed" && appt?.client?.phone && appt.tenantId) {
+        fireWppConfirmation(appt.tenantId, appt).catch(() => {});
+      }
       res.json(appt);
     } catch (e: any) {
       res.status(400).json({ error: e.message || "Erro." });
@@ -644,7 +646,7 @@ export const agendaController = {
       await (prisma as any).appointment.updateMany({ where: { id: req.params.id, tenantId: tenantId || undefined }, data });
       const appt = await (prisma as any).appointment.findFirst({
         where: { id: req.params.id },
-        include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true } }, professional: { select: { id: true, name: true } } }
+        include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true } } }
       });
 
       if (oldAppt) {
@@ -665,7 +667,9 @@ export const agendaController = {
         }
       }
 
-      if (req.body.status === "confirmed" && appt?.client?.phone && appt.tenantId) fireWppConfirmation(appt.tenantId, appt).catch(() => {});
+      if (req.body.status === "confirmed" && oldAppt?.status !== "confirmed" && appt?.client?.phone && appt.tenantId) {
+        fireWppConfirmation(appt.tenantId, appt).catch(() => {});
+      }
       res.json(appt);
     } catch (e: any) {
       res.status(400).json({ error: e.message || "Erro." });

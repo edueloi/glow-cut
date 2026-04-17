@@ -14,7 +14,7 @@ import {
 
 export const DEFAULT_TEMPLATES = [
   // Cliente
-  { type: "confirmation",    name: "Confirmação de Agendamento (Cliente)",  body: "{{saudacao}}, *{{nome_cliente}}*! Seu agendamento em *{{nome_estabelecimento}}* está confirmado para *{{data_agendamento}}* às *{{hora_agendamento}}* com *{{profissional}}* para *{{servico}}*." },
+  { type: "confirmation",    name: "Confirmação de Agendamento (Cliente)",  body: "{{saudacao}}, *{{nome_cliente}}*! Seu agendamento em *{{nome_estabelecimento}}* está confirmado para *{{data_agendamento}}* às *{{hora_agendamento}}* com *{{profissional}}* para *{{servico}}*. Valor: *{{valor_agendamento}}*. Local: *{{local}}*." },
   { type: "reminder_24h",    name: "Lembrete 24h Antes (Cliente)",          body: "{{saudacao}}, *{{nome_cliente}}*! Passando para lembrar do seu horário amanhã, *{{data_agendamento}}* às *{{hora_agendamento}}*, para *{{servico}}* com *{{profissional}}* em *{{nome_estabelecimento}}*." },
   { type: "reminder_60min",  name: "Lembrete 60min Antes (Cliente)",        body: "{{saudacao}}, *{{nome_cliente}}*! Seu atendimento em *{{nome_estabelecimento}}* começa em 1 hora — *{{hora_agendamento}}* com *{{profissional}}* para *{{servico}}*. Já estamos te esperando!" },
   { type: "birthday",        name: "Parabéns de Aniversário",               body: "{{saudacao}}, *{{nome_cliente}}*! Toda a equipe de *{{nome_estabelecimento}}* te deseja um feliz aniversário e um novo ciclo incrível. 🎉" },
@@ -138,7 +138,7 @@ export async function fireWppConfirmation(tenantId: string, appt: any): Promise<
   try {
     const [config, tenant] = await Promise.all([
       (prisma as any).wppBotConfig.findUnique({ where: { tenantId } }),
-      (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
+      (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true, address: true } }),
     ]);
     if (!config?.botEnabled || !config?.sendConfirmation) return;
     if (!appt?.client?.phone) return;
@@ -154,6 +154,8 @@ export async function fireWppConfirmation(tenantId: string, appt: any): Promise<
       nome_estabelecimento: tenant?.name || "",
       data_agendamento: new Date(appt.date).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }),
       hora_agendamento: appt.startTime || "",
+      valor_agendamento: appt.service?.price != null ? appt.service.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "",
+      local: tenant?.address || "",
     };
 
     await sendWppToPhone(tenantId, appt.client.phone, applyVars(tpl, vars));
