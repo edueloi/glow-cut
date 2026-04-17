@@ -478,7 +478,7 @@ export const agendaController = {
       if (!client) return res.json([]);
       const appointments = await (prisma as any).appointment.findMany({
         where: { clientId: client.id, tenantId },
-        include: { service: { select: { id: true, name: true } }, professional: { select: { id: true, name: true } } },
+        include: { service: { select: { id: true, name: true } }, professional: { select: { id: true, name: true, phone: true } } },
         orderBy: { date: "desc" }
       });
       res.json(appointments);
@@ -568,7 +568,7 @@ export const agendaController = {
             notes: isPublicRequest ? null : (notes || null),
             tenantId, sessionNumber: i + 1, totalSessions: count, repeatGroupId: groupId,
           },
-          include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true } }, professional: { select: { id: true, name: true } } }
+          include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true } }, professional: { select: { id: true, name: true, phone: true } } }
         });
         results.push(appt);
 
@@ -604,7 +604,7 @@ export const agendaController = {
       });
       const appt = await (prisma as any).appointment.findFirst({
         where: { id: req.params.id },
-        include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true } } }
+        include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true, phone: true } } }
       });
 
       if (oldAppt) {
@@ -646,7 +646,7 @@ export const agendaController = {
       await (prisma as any).appointment.updateMany({ where: { id: req.params.id, tenantId: tenantId || undefined }, data });
       const appt = await (prisma as any).appointment.findFirst({
         where: { id: req.params.id },
-        include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true } } }
+        include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true, phone: true } } }
       });
 
       if (oldAppt) {
