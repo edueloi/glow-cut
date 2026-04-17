@@ -356,8 +356,8 @@ export default function ClientBooking() {
             {customLogo && (
               <div className="inline-block relative mb-10 group">
                 <div className="absolute -inset-4 bg-white/20 rounded-[32px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative w-24 h-24 bg-white rounded-[28px] flex items-center justify-center p-4 shadow-2xl border border-white/20 overflow-hidden">
-                  <img src={customLogo} alt={studioName} className="w-full h-full object-contain" />
+                <div className="relative w-24 h-24 bg-white rounded-[32px] flex items-center justify-center shadow-2xl border border-white/20 overflow-hidden">
+                  <img src={customLogo} alt={studioName} className="w-full h-full object-cover" />
                 </div>
               </div>
             )}
@@ -436,7 +436,7 @@ export default function ClientBooking() {
           <div className="relative z-10 w-full flex items-center gap-4 animate-in fade-in slide-in-from-bottom-5 duration-700">
             {customLogo ? (
               <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl overflow-hidden border-2 border-white/20 shrink-0">
-                <img src={customLogo} alt="Logo" className="w-full h-full object-contain p-2" />
+                <img src={customLogo} alt="Logo" className="w-full h-full object-cover" />
               </div>
             ) : (
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-white/10 backdrop-blur-md border-2 border-white/20 shrink-0">
