@@ -221,6 +221,29 @@ export async function initSession(tenantId: string): Promise<void> {
   });
 
   sock.ev.on("creds.update", saveCreds);
+
+  sock.ev.on("messages.upsert", async (m: any) => {
+    if (m.type !== "notify") return;
+    for (const msg of m.messages) {
+      if (!msg.message || msg.key.fromMe) continue;
+      
+      const remoteJid = msg.key.remoteJid;
+      if (!remoteJid || remoteJid.includes("@g.us")) continue; // ignora grupos
+
+      const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+      if (!text) continue;
+
+      console.log(`[Baileys][${tenantId}] MENSAGEM RECEBIDA de ${remoteJid}: ${text}`);
+
+      try {
+        const resposta = `🤖 [BOT do Sistema Ativo] Recebi sua mensagem: "${text}"\n\nIsso é apenas um teste de conexão para confirmar que o bot está ligado e retornando as mensagens corretamente.`;
+        await sock.sendMessage(remoteJid, { text: resposta }, { quoted: msg });
+        console.log(`[Baileys][${tenantId}] Mensagem de teste RESPONDIDA para ${remoteJid} com sucesso!`);
+      } catch (e) {
+        console.error(`[Baileys][${tenantId}] Erro ao responder teste:`, e);
+      }
+    }
+  });
 }
 
 // ── API pública ───────────────────────────────────────────────────────────────
