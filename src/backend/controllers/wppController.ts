@@ -112,11 +112,20 @@ export async function fireWppProfNewBooking(tenantId: string, appt: any): Promis
       (prisma as any).wppBotConfig.findUnique({ where: { tenantId } }),
       (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
     ]);
-    if (!config?.botEnabled || !config?.sendProfNewBooking) return;
-    if (!appt?.professional?.phone) return;
+    if (!config?.botEnabled || !config?.sendProfNewBooking) {
+      console.log(`[WPP] IGNORANDO prof_new_booking: botEnabled=${config?.botEnabled}, sendProfNewBooking=${config?.sendProfNewBooking}`);
+      return;
+    }
+    if (!appt?.professional?.phone) {
+      console.log(`[WPP] IGNORANDO prof_new_booking: Telefone do profissional ausente no banco.`);
+      return;
+    }
 
     const tpl = await getTemplateBody(tenantId, "prof_new_booking");
-    if (!tpl) return;
+    if (!tpl) {
+      console.log(`[WPP] IGNORANDO prof_new_booking: Template não encontrado ou ativo no banco.`);
+      return;
+    }
 
     const vars: Record<string, string> = {
       saudacao: getSaudacao(),
@@ -140,11 +149,20 @@ export async function fireWppConfirmation(tenantId: string, appt: any): Promise<
       (prisma as any).wppBotConfig.findUnique({ where: { tenantId } }),
       (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true, address: true } }),
     ]);
-    if (!config?.botEnabled || !config?.sendConfirmation) return;
-    if (!appt?.client?.phone) return;
+    if (!config?.botEnabled || !config?.sendConfirmation) {
+      console.log(`[WPP] IGNORANDO confirmation: botEnabled=${config?.botEnabled}, sendConfirmation=${config?.sendConfirmation}`);
+      return;
+    }
+    if (!appt?.client?.phone) {
+      console.log(`[WPP] IGNORANDO confirmation: Telefone do cliente ausente no banco.`);
+      return;
+    }
 
     const tpl = await getTemplateBody(tenantId, "confirmation");
-    if (!tpl) return;
+    if (!tpl) {
+      console.log(`[WPP] IGNORANDO confirmation: Template não encontrado ou ativo no banco.`);
+      return;
+    }
 
     const vars: Record<string, string> = {
       saudacao: getSaudacao(),
