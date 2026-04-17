@@ -24,6 +24,8 @@ export { EmptyState } from './EmptyState';
 export { StatCard } from './StatCard';
 export { GridTable } from './GridTable';
 export type { Column, GridTableProps } from './GridTable';
+export { Pagination, usePagination } from './Pagination';
+export type { PaginationProps, UsePaginationReturn } from './Pagination';
 
 // ── Filtros / Toolbar ──────────────────────────────────────────────────────
 export {

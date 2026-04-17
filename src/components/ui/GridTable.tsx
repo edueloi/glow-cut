@@ -2,6 +2,7 @@ import React, { ReactNode, useState } from 'react';
 import { CheckSquare, Square, ChevronDown } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { Pagination } from './Pagination';
 
 export interface Column<T> {
   header: ReactNode | string;
@@ -38,6 +39,14 @@ export interface GridTableProps<T> {
   disableMobileCards?: boolean;
   // Feature: Remove the card wrapper (border/shadow/rounded) from the desktop table — use when the parent already provides the container styling
   noDesktopCard?: boolean;
+  // Pagination — when provided, GridTable renders a Pagination bar at the bottom
+  pagination?: {
+    total: number;
+    page: number;
+    pageSize: number;
+    onPageChange: (page: number) => void;
+    onPageSizeChange: (size: number) => void;
+  };
 }
 
 function SortIndicator({ active, order }: { active: boolean; order: 'asc' | 'desc' }) {
@@ -168,7 +177,7 @@ export function GridTable<T>({
   data, columns, keyExtractor, selectedIds, onToggleSelect, onToggleSelectAll,
   onRowClick, emptyMessage = 'Nenhum registro encontrado.', sortKey, sortOrder = 'asc', onSort, isLoading = false,
   renderMobileItem, renderMobileExpandedContent, renderMobileAvatar, getMobileBorderClass,
-  disableMobileCards = false, noDesktopCard = false,
+  disableMobileCards = false, noDesktopCard = false, pagination,
 }: GridTableProps<T>) {
   const isSelectable = !!selectedIds && !!onToggleSelect;
   const allSelected = isSelectable && data.length > 0 && data.every((row) => selectedIds.has(String(keyExtractor(row))));
@@ -298,7 +307,7 @@ export function GridTable<T>({
 
       {/* ─── MOBILE CARD VIEW ─── */}
       {!disableMobileCards && (
-        <div className="block sm:hidden space-y-2 pb-8">
+        <div className="block sm:hidden space-y-2 pb-2">
           {isLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="animate-pulse bg-white border border-zinc-200 rounded-2xl p-4 flex flex-col gap-3">
@@ -336,6 +345,17 @@ export function GridTable<T>({
             })
           )}
         </div>
+      )}
+
+      {/* ─── PAGINATION ─── */}
+      {pagination && !isLoading && (
+        <Pagination
+          total={pagination.total}
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          onPageChange={pagination.onPageChange}
+          onPageSizeChange={pagination.onPageSizeChange}
+        />
       )}
     </div>
   );

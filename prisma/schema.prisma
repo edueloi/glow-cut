@@ -178,8 +178,9 @@ model Comanda {
   description    String?       @db.VarChar(1000)
   paymentMethod  String?       @db.VarChar(30)
   paymentDetails String?       @db.Text
-  sessionCount   Int?          @default(1)
-  type           String?       @default("normal") @db.VarChar(20)
+  sessionCount       Int?          @default(1)
+  sessionsCompleted  Int?          @default(0)
+  type               String?       @default("normal") @db.VarChar(20)
   createdAt      DateTime      @default(now()) @db.DateTime(0)
   appointment    Appointment[]
   items          ComandaItem[]
@@ -319,6 +320,8 @@ model ComandaItem {
   comandaId   String   @db.VarChar(36)
   productId   String?  @db.VarChar(36)
   serviceId   String?  @db.VarChar(36)
+  packageId   String?  @db.VarChar(36)
+  packageName String?  @db.VarChar(255)
   name        String   @db.VarChar(255)
   price       Float    @default(0)
   quantity    Int      @default(1)
@@ -491,6 +494,18 @@ model WppBotConfig {
   menuOptions      String?  @db.Text
   createdAt        DateTime @default(now()) @db.DateTime(0)
   updatedAt        DateTime @updatedAt @db.DateTime(0)
+}
+
+model UserPreferences {
+  id          String   @id @db.VarChar(36)
+  userId      String   @db.VarChar(36)
+  userType    String   @default("admin") @db.VarChar(20)
+  tenantId    String   @db.VarChar(36)
+  preferences String   @db.Text
+  updatedAt   DateTime @updatedAt @db.DateTime(0)
+
+  @@unique([userId, userType], map: "uq_userprefs_user")
+  @@index([tenantId], map: "idx_userprefs_tenant")
 }
 
 model WppInstance {

@@ -23,6 +23,7 @@ import { inventoryRouter } from "./src/backend/routes/inventoryRoutes";
 import { wppRouter } from "./src/backend/routes/wppRoutes";
 import { sectorRouter } from "./src/backend/routes/sectorRoutes";
 import { publicBookingRouter } from "./src/backend/routes/publicBookingRoutes";
+import { preferencesRouter } from "./src/backend/routes/preferencesRoutes";
 
 // Import middleware
 import { requireAuth, requireSuperAdmin } from "./src/backend/middleware/auth";
@@ -66,6 +67,7 @@ app.use("/api/products", requireAuth, productRouter);
 app.use("/api/sectors", requireAuth, sectorRouter);
 app.use("/api/reports", requireAuth, reportRouter);
 app.use("/api/inventory", requireAuth, inventoryRouter);
+app.use("/api/preferences", requireAuth, preferencesRouter);
 app.use("/api/wpp", requireAuth, wppRouter);
 
 // ── Agenda: PAT e availability são públicos, o resto precisa de auth ─────────
@@ -79,6 +81,24 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 //  AUTO-MIGRATION / SEED
 // ─────────────────────────────────────────────────────────────
 async function initDb() {
+  try {
+    // Ensure UserPreferences table exists (idempotent)
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS UserPreferences (
+        id       VARCHAR(36)  NOT NULL PRIMARY KEY,
+        userId   VARCHAR(36)  NOT NULL,
+        userType VARCHAR(20)  NOT NULL DEFAULT 'admin',
+        tenantId VARCHAR(36)  NOT NULL,
+        preferences TEXT      NOT NULL DEFAULT '{}',
+        updatedAt DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_userprefs_user (userId, userType),
+        KEY idx_userprefs_tenant (tenantId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+  } catch (e: any) {
+    console.warn("[initDb] UserPreferences table:", e?.message);
+  }
+
   try {
     const sa = await (prisma as any).superAdmin.findFirst({ where: { username: "Admin" } });
     if (!sa) await (prisma as any).superAdmin.create({ data: { id: randomUUID(), username: "Admin", password: "super123" } });

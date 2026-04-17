@@ -9,45 +9,85 @@ export const comandaController = {
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     try {
       const rows: any[] = await (prisma as any).$queryRawUnsafe(
-        `SELECT c.*, cl.name as clientName, cl.phone as clientPhone
+        `SELECT c.*, cl.name as clientName, cl.phone as clientPhone,
+                pr.name as professionalName
          FROM Comanda c
          LEFT JOIN Client cl ON c.clientId = cl.id
+         LEFT JOIN Professional pr ON c.professionalId = pr.id
          WHERE c.tenantId = ?
          ORDER BY c.createdAt DESC`,
         tenantId
       );
+
       const itemRows: any[] = rows.length > 0
         ? await (prisma as any).$queryRawUnsafe(
-            `SELECT ci.*, p.name as productName, p.photo as productPhoto, p.metadata as productMetadata,
-                    p.sectorId as productSectorId, sec.name as productSectorName, sec.color as productSectorColor,
+            `SELECT ci.*, p.name as productName, p.photo as productPhoto,
                     sv.name as serviceName
              FROM ComandaItem ci
              LEFT JOIN Product p ON ci.productId = p.id
-             LEFT JOIN Sector sec ON p.sectorId = sec.id
              LEFT JOIN Service sv ON ci.serviceId = sv.id
              WHERE ci.comandaId IN (${rows.map(() => "?").join(",")})`,
             ...rows.map((r: any) => r.id)
           )
         : [];
+
+      // Load linked appointments
+      const apptRows: any[] = rows.length > 0
+        ? await (prisma as any).$queryRawUnsafe(
+            `SELECT a.id, a.comandaId, a.status, a.date, a.startTime, a.endTime,
+                    sv.name as serviceName
+             FROM Appointment a
+             LEFT JOIN Service sv ON a.serviceId = sv.id
+             WHERE a.comandaId IN (${rows.map(() => "?").join(",")})
+             ORDER BY a.date ASC, a.startTime ASC`,
+            ...rows.map((r: any) => r.id)
+          )
+        : [];
+
       const itemsByComanda: Record<string, any[]> = {};
       for (const item of itemRows) {
         if (!itemsByComanda[item.comandaId]) itemsByComanda[item.comandaId] = [];
         itemsByComanda[item.comandaId].push({
           ...item,
-          product: item.productId ? {
-            id: item.productId, name: item.productName, photo: item.productPhoto,
-            metadata: item.productMetadata,
-            sectorId: item.productSectorId,
-            sector: item.productSectorId ? { id: item.productSectorId, name: item.productSectorName, color: item.productSectorColor } : null,
-          } : null,
+          product: item.productId ? { id: item.productId, name: item.productName, photo: item.productPhoto } : null,
           service: item.serviceId ? { id: item.serviceId, name: item.serviceName } : null,
         });
       }
-      const comandas = rows.map((r: any) => ({
-        ...r,
-        client: r.clientName ? { id: r.clientId, name: r.clientName, phone: r.clientPhone } : null,
-        items: itemsByComanda[r.id] || [],
-      }));
+
+      const apptsByComanda: Record<string, any[]> = {};
+      for (const a of apptRows) {
+        if (!apptsByComanda[a.comandaId]) apptsByComanda[a.comandaId] = [];
+        apptsByComanda[a.comandaId].push(a);
+      }
+
+      const comandas = rows.map((r: any) => {
+        const items = itemsByComanda[r.id] || [];
+        const appointments = apptsByComanda[r.id] || [];
+
+        // Derive package summary: unique packageIds in items
+        const pkgMap = new Map<string, { packageId: string; packageName: string; count: number }>();
+        for (const it of items) {
+          if (it.packageId) {
+            if (!pkgMap.has(it.packageId)) pkgMap.set(it.packageId, { packageId: it.packageId, packageName: it.packageName || it.packageId, count: 0 });
+            pkgMap.get(it.packageId)!.count++;
+          }
+        }
+        const packages = Array.from(pkgMap.values());
+
+        // sessionsCompleted: count appointments with status=done linked to this comanda
+        const doneCount = appointments.filter((a: any) => a.status === "done").length;
+
+        return {
+          ...r,
+          sessionsCompleted: Number(r.sessionsCompleted ?? doneCount),
+          sessionCount: Number(r.sessionCount ?? 1),
+          client: r.clientName ? { id: r.clientId, name: r.clientName, phone: r.clientPhone } : null,
+          professional: r.professionalName ? { id: r.professionalId, name: r.professionalName } : null,
+          items,
+          appointments,
+          packages,
+        };
+      });
       res.json(comandas);
     } catch (e: any) {
       console.error("[GET /api/comandas] Erro:", e?.message || e);
@@ -71,9 +111,10 @@ export const comandaController = {
 
       for (const it of (items || [])) {
         await (prisma as any).$executeRawUnsafe(
-          `INSERT INTO ComandaItem (id, comandaId, productId, serviceId, name, price, quantity, total)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO ComandaItem (id, comandaId, productId, serviceId, packageId, packageName, name, price, quantity, total)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           randomUUID(), comandaId, it.productId || null, it.serviceId || null,
+          it.packageId || null, it.packageName || null,
           it.name, parseFloat(it.price) || 0, parseInt(it.quantity) || 1,
           (parseFloat(it.price) || 0) * (parseInt(it.quantity) || 1)
         );
@@ -233,9 +274,10 @@ export const comandaController = {
         const qty = parseInt(it.quantity) || 1;
         const price = parseFloat(it.price) || 0;
         await (prisma as any).$executeRawUnsafe(
-          `INSERT INTO ComandaItem (id, comandaId, productId, serviceId, name, price, quantity, total)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO ComandaItem (id, comandaId, productId, serviceId, packageId, packageName, name, price, quantity, total)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           randomUUID(), req.params.id, it.productId || null, it.serviceId || null,
+          it.packageId || null, it.packageName || null,
           it.name, price, qty, price * qty
         );
         if (it.productId) {
@@ -253,6 +295,35 @@ export const comandaController = {
     } catch (e: any) {
       console.error("[PUT /api/comandas/:id/items] Erro:", e?.message || e);
       res.status(500).json({ error: e?.message || "Erro ao atualizar itens." });
+    }
+  },
+
+  // PATCH /api/comandas/:id/sessions — increment/set sessionsCompleted
+  async patchSessions(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    const { sessionsCompleted } = req.body;
+    try {
+      const rows: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT sessionCount, sessionsCompleted FROM Comanda WHERE id = ?${tenantId ? " AND tenantId = ?" : ""}`,
+        ...(tenantId ? [req.params.id, tenantId] : [req.params.id])
+      );
+      if (!rows.length) return res.status(404).json({ error: "Comanda não encontrada." });
+      const current = rows[0];
+      const sessionCount = Number(current.sessionCount) || 1;
+      let newCompleted: number;
+      if (sessionsCompleted !== undefined) {
+        newCompleted = Math.min(sessionCount, Math.max(0, Number(sessionsCompleted)));
+      } else {
+        newCompleted = Math.min(sessionCount, Number(current.sessionsCompleted || 0) + 1);
+      }
+      await (prisma as any).$executeRawUnsafe(
+        `UPDATE Comanda SET sessionsCompleted = ? WHERE id = ?${tenantId ? " AND tenantId = ?" : ""}`,
+        ...(tenantId ? [newCompleted, req.params.id, tenantId] : [newCompleted, req.params.id])
+      );
+      return res.json({ sessionsCompleted: newCompleted, sessionCount });
+    } catch (e: any) {
+      console.error("[PATCH /api/comandas/:id/sessions]", e?.message);
+      res.status(500).json({ error: e?.message || "Erro ao atualizar sessões." });
     }
   },
 
