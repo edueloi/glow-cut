@@ -78,10 +78,24 @@ export const comandaController = {
           (parseFloat(it.price) || 0) * (parseInt(it.quantity) || 1)
         );
         if (it.productId) {
-          await (prisma as any).product.update({
-            where: { id: it.productId },
-            data: { stock: { decrement: parseInt(it.quantity) || 1 } }
-          }).catch(() => {});
+          try {
+            const prodRows: any[] = await (prisma as any).$queryRawUnsafe(
+              `SELECT stock FROM Product WHERE id = ? AND tenantId = ?`, it.productId, tenantId
+            );
+            if (prodRows.length) {
+              const previousQty = prodRows[0].stock;
+              const qty = parseInt(it.quantity) || 1;
+              const newQty = Math.max(0, previousQty - qty);
+              await (prisma as any).$executeRawUnsafe(`UPDATE Product SET stock = ? WHERE id = ?`, newQty, it.productId);
+              await (prisma as any).$executeRawUnsafe(
+                `INSERT INTO StockMovement (id, tenantId, productId, type, quantity, previousQty, newQty, reason, reference) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                randomUUID(), tenantId, it.productId, "saida", qty, previousQty, newQty,
+                `Comanda #${comandaId.slice(-6).toUpperCase()}`, comandaId
+              );
+            }
+          } catch (e2: any) {
+            console.warn("⚠️ Stock deduction on comanda create failed:", e2.message);
+          }
         }
       }
 
@@ -148,11 +162,22 @@ export const comandaController = {
           for (const item of svcItems) {
             if (!item.serviceId) continue;
             const serviceProds = await (prisma as any).serviceProduct.findMany({ where: { serviceId: item.serviceId } });
+            const svcNameRows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT name FROM Service WHERE id = ?`, item.serviceId);
+            const svcName = svcNameRows[0]?.name || item.serviceId;
             for (const sp of serviceProds) {
               const totalDeduct = sp.quantity * (Number(item.quantity) || 1);
+              const prodRows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT stock FROM Product WHERE id = ?`, sp.productId);
+              if (!prodRows.length) continue;
+              const previousQty = prodRows[0].stock;
+              const newQty = Math.max(0, previousQty - totalDeduct);
               await (prisma as any).$executeRawUnsafe(
-                `UPDATE Product SET stock = GREATEST(0, stock - ?), reservedStock = GREATEST(0, reservedStock - ?) WHERE id = ?`,
-                totalDeduct, totalDeduct, sp.productId
+                `UPDATE Product SET stock = ?, reservedStock = GREATEST(0, reservedStock - ?) WHERE id = ?`,
+                newQty, totalDeduct, sp.productId
+              );
+              await (prisma as any).$executeRawUnsafe(
+                `INSERT INTO StockMovement (id, tenantId, productId, type, quantity, previousQty, newQty, reason, reference) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                randomUUID(), tenantId, sp.productId, "consumo", totalDeduct, previousQty, newQty,
+                `Consumo via serviço: ${svcName}`, req.params.id
               );
             }
           }

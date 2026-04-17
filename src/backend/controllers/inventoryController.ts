@@ -200,7 +200,20 @@ export const inventoryController = {
       // Update stock
       await (prisma as any).$executeRawUnsafe(`UPDATE Product SET stock = ? WHERE id = ? AND tenantId = ?`, newQty, productId, tenantId);
 
-      res.json({ success: true, movementId: movId, newStock: newQty, total: qty * product.salePrice });
+      // Create CashEntry so it appears in financial dashboard
+      const saleTotal = qty * product.salePrice;
+      try {
+        await (prisma as any).$executeRawUnsafe(
+          `INSERT INTO CashEntry (id, tenantId, type, category, description, amount, date) VALUES (?, ?, 'income', 'Venda de Produto', ?, ?, NOW())`,
+          randomUUID(), tenantId,
+          `Venda avulsa: ${product.name}${clientName ? ` para ${clientName}` : ""}`,
+          saleTotal
+        );
+      } catch (e2: any) {
+        console.warn("⚠️ CashEntry creation for sell failed:", e2.message);
+      }
+
+      res.json({ success: true, movementId: movId, newStock: newQty, total: saleTotal });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   },
 
@@ -281,7 +294,25 @@ export const inventoryController = {
         tenantId
       );
 
-      res.json({ sales, consumed, autoExit });
+      res.json({
+        sales: sales.map((r: any) => ({
+          ...r,
+          salePrice: Number(r.salePrice),
+          costPrice: Number(r.costPrice),
+          totalSold: Number(r.totalSold),
+          salesCount: Number(r.salesCount),
+        })),
+        consumed: consumed.map((r: any) => ({
+          ...r,
+          totalConsumed: Number(r.totalConsumed),
+        })),
+        autoExit: autoExit.map((r: any) => ({
+          ...r,
+          stock: Number(r.stock),
+          minStock: Number(r.minStock),
+          qtyPerService: Number(r.qtyPerService),
+        })),
+      });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   },
 };

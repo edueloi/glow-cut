@@ -297,6 +297,34 @@ async function handleAppointmentStockReservation(serviceId: string | null, actio
   }
 }
 
+async function handleAppointmentDone(serviceId: string | null, tenantId: string | null, appointmentId: string) {
+  if (!serviceId || !tenantId) return;
+  try {
+    const prods = await (prisma as any).serviceProduct.findMany({ where: { serviceId } });
+    const svcNameRows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT name FROM Service WHERE id = ?`, serviceId);
+    const svcName = svcNameRows[0]?.name || serviceId;
+    for (const p of prods) {
+      const prodRows: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT stock, reservedStock FROM Product WHERE id = ? AND tenantId = ?`, p.productId, tenantId
+      );
+      if (!prodRows.length) continue;
+      const previousQty = prodRows[0].stock;
+      const newQty = Math.max(0, previousQty - p.quantity);
+      await (prisma as any).$executeRawUnsafe(
+        `UPDATE Product SET stock = ?, reservedStock = GREATEST(0, reservedStock - ?) WHERE id = ? AND tenantId = ?`,
+        newQty, p.quantity, p.productId, tenantId
+      );
+      await (prisma as any).$executeRawUnsafe(
+        `INSERT INTO StockMovement (id, tenantId, productId, type, quantity, previousQty, newQty, reason, reference) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        randomUUID(), tenantId, p.productId, "consumo", p.quantity, previousQty, newQty,
+        `Agendamento concluído: ${svcName}`, appointmentId
+      );
+    }
+  } catch (e: any) {
+    console.error("[Stock Deduction on Done Error]", e?.message);
+  }
+}
+
 async function findTenantClientByPhone(tenantId: string, phone: string) {
   const clients = await (prisma as any).client.findMany({ where: { tenantId } });
   return clients.find((client: any) => samePhone(client.phone, phone)) || null;
@@ -670,9 +698,13 @@ export const agendaController = {
         const oldSvc = oldAppt.serviceId;
         const newSvc = serviceId !== undefined ? serviceId : oldAppt.serviceId;
 
-        if (oldIsActive && !newIsActive) await handleAppointmentStockReservation(oldSvc, "release");
-        else if (!oldIsActive && newIsActive) await handleAppointmentStockReservation(newSvc, "reserve");
-        else if (oldIsActive && newIsActive && oldSvc !== newSvc) {
+        if (status === "done" && oldAppt.status !== "done") {
+          await handleAppointmentDone(oldSvc, tenantId, req.params.id);
+        } else if (oldIsActive && !newIsActive) {
+          await handleAppointmentStockReservation(oldSvc, "release");
+        } else if (!oldIsActive && newIsActive) {
+          await handleAppointmentStockReservation(newSvc, "reserve");
+        } else if (oldIsActive && newIsActive && oldSvc !== newSvc) {
           await handleAppointmentStockReservation(oldSvc, "release");
           await handleAppointmentStockReservation(newSvc, "reserve");
         }
@@ -705,10 +737,14 @@ export const agendaController = {
         const svcToUse = req.body.serviceId !== undefined ? req.body.serviceId : oldAppt.serviceId;
         const oldIsActive = oldAppt.status === "scheduled" || oldAppt.status === "confirmed";
         const newIsActive = statusToUse === "scheduled" || statusToUse === "confirmed";
-        
-        if (oldIsActive && !newIsActive) await handleAppointmentStockReservation(oldAppt.serviceId, "release");
-        else if (!oldIsActive && newIsActive) await handleAppointmentStockReservation(svcToUse, "reserve");
-        else if (oldIsActive && newIsActive && oldAppt.serviceId !== svcToUse) {
+
+        if (statusToUse === "done" && oldAppt.status !== "done") {
+          await handleAppointmentDone(oldAppt.serviceId, tenantId, req.params.id);
+        } else if (oldIsActive && !newIsActive) {
+          await handleAppointmentStockReservation(oldAppt.serviceId, "release");
+        } else if (!oldIsActive && newIsActive) {
+          await handleAppointmentStockReservation(svcToUse, "reserve");
+        } else if (oldIsActive && newIsActive && oldAppt.serviceId !== svcToUse) {
           await handleAppointmentStockReservation(oldAppt.serviceId, "release");
           await handleAppointmentStockReservation(svcToUse, "reserve");
         }
