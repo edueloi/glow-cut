@@ -346,6 +346,7 @@ model Plan {
   maxAdminUsers       Int      @default(1)
   canCreateAdminUsers Boolean  @default(false)
   canDeleteAccount    Boolean  @default(false)
+  wppEnabled          Boolean  @default(false)
   features            String?  @default("[]") @db.VarChar(2000)
   isActive            Boolean  @default(true)
   createdAt           DateTime @default(now()) @db.DateTime(0)
@@ -455,6 +456,7 @@ model Tenant {
   ownerPhone            String?     @db.VarChar(30)
   planId                String      @db.VarChar(36)
   isActive              Boolean     @default(true)
+  wppOverride           Boolean?
   notes                 String?     @db.Text
   createdAt             DateTime    @default(now()) @db.DateTime(0)
   expiresAt             DateTime?   @db.DateTime(0)
@@ -481,19 +483,24 @@ model SuperAdmin {
 }
 
 model WppBotConfig {
-  id               String   @id @default(uuid()) @db.VarChar(36)
-  tenantId         String   @unique @db.VarChar(36)
-  botEnabled       Boolean  @default(false)
-  sendConfirmation Boolean  @default(true)
-  sendReminder24h  Boolean  @default(true)
-  sendBirthday     Boolean  @default(true)
-  sendCobranca     Boolean  @default(false)
-  sendWelcome      Boolean  @default(true)
-  menuEnabled      Boolean  @default(false)
-  menuWelcomeMsg   String?  @db.Text
-  menuOptions      String?  @db.Text
-  createdAt        DateTime @default(now()) @db.DateTime(0)
-  updatedAt        DateTime @updatedAt @db.DateTime(0)
+  id                    String   @id @default(uuid()) @db.VarChar(36)
+  tenantId              String   @unique @db.VarChar(36)
+  botEnabled            Boolean  @default(false)
+  sendConfirmation      Boolean  @default(true)
+  sendReminder24h       Boolean  @default(true)
+  sendReminder60min     Boolean  @default(true)
+  sendBirthday          Boolean  @default(true)
+  sendCobranca          Boolean  @default(false)
+  sendWelcome           Boolean  @default(true)
+  // Profissional
+  sendProfNewBooking    Boolean  @default(true)
+  sendProfReminder24h   Boolean  @default(true)
+  sendProfReminder60min Boolean  @default(false)
+  menuEnabled           Boolean  @default(false)
+  menuWelcomeMsg        String?  @db.Text
+  menuOptions           String?  @db.Text
+  createdAt             DateTime @default(now()) @db.DateTime(0)
+  updatedAt             DateTime @updatedAt @db.DateTime(0)
 }
 
 model UserPreferences {
@@ -534,4 +541,16 @@ model WppMessageTemplate {
   updatedAt DateTime @updatedAt @db.DateTime(0)
 
   @@unique([tenantId, type])
+}
+
+model WppMessageSent {
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  appointmentId String   @db.VarChar(36)
+  type          String   @db.VarChar(50)
+  tenantId      String   @db.VarChar(36)
+  sentAt        DateTime @default(now()) @db.DateTime(0)
+
+  @@unique([appointmentId, type])
+  @@index([tenantId], map: "idx_wpp_sent_tenant")
+  @@index([sentAt], map: "idx_wpp_sent_at")
 }

@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
+import {
+  connectSession,
+  disconnectSession,
+  getSessionInfo,
+} from "../wpp/baileys-manager";
 
 export const superAdminRouter = Router();
 
@@ -74,7 +79,12 @@ superAdminRouter.delete("/staff/:id", async (req, res) => {
 // ═════════════════════════════════════════════════════════════
 superAdminRouter.get("/plans", async (req, res) => {
   try {
-    const plans = await (prisma as any).plan.findMany({ where: { isActive: true }, orderBy: { price: "asc" } });
+    // all=true retorna inclusive inativos (para WppTab e edições)
+    const all = req.query.all === "true";
+    const plans = await (prisma as any).plan.findMany({
+      where: all ? {} : { isActive: true },
+      orderBy: { price: "asc" },
+    });
     res.json(plans);
   } catch (e) {
     res.status(500).json({ error: "Erro ao buscar planos." });
@@ -82,7 +92,7 @@ superAdminRouter.get("/plans", async (req, res) => {
 });
 
 superAdminRouter.post("/plans", async (req, res) => {
-  const { name, price, maxProfessionals, maxAdminUsers, canCreateAdminUsers, canDeleteAccount, features } = req.body;
+  const { name, price, maxProfessionals, maxAdminUsers, canCreateAdminUsers, canDeleteAccount, wppEnabled, features } = req.body;
   if (!name) return res.status(400).json({ error: "Nome do plano obrigatório." });
   try {
     const plan = await (prisma as any).plan.create({
@@ -94,6 +104,7 @@ superAdminRouter.post("/plans", async (req, res) => {
         maxAdminUsers: maxAdminUsers || 1,
         canCreateAdminUsers: canCreateAdminUsers || false,
         canDeleteAccount: canDeleteAccount || false,
+        wppEnabled: wppEnabled || false,
         features: Array.isArray(features) ? JSON.stringify(features) : (features || "[]"),
       },
     });
@@ -104,7 +115,7 @@ superAdminRouter.post("/plans", async (req, res) => {
 });
 
 superAdminRouter.put("/plans/:id", async (req, res) => {
-  const { name, price, maxProfessionals, maxAdminUsers, canCreateAdminUsers, canDeleteAccount, features, isActive } = req.body;
+  const { name, price, maxProfessionals, maxAdminUsers, canCreateAdminUsers, canDeleteAccount, wppEnabled, features, isActive } = req.body;
   try {
     const plan = await (prisma as any).plan.update({
       where: { id: req.params.id },
@@ -115,6 +126,7 @@ superAdminRouter.put("/plans/:id", async (req, res) => {
         ...(maxAdminUsers !== undefined && { maxAdminUsers }),
         ...(canCreateAdminUsers !== undefined && { canCreateAdminUsers }),
         ...(canDeleteAccount !== undefined && { canDeleteAccount }),
+        ...(wppEnabled !== undefined && { wppEnabled: !!wppEnabled }),
         ...(isActive !== undefined && { isActive }),
         ...(features !== undefined && { features: Array.isArray(features) ? JSON.stringify(features) : features }),
       },
@@ -313,19 +325,22 @@ superAdminRouter.delete("/tenants/:id", async (req, res) => {
 // ═════════════════════════════════════════════════════════════
 superAdminRouter.get("/stats", async (req, res) => {
   try {
-    const [totalTenants, activeTenants, totalAdminUsers, plans] = await Promise.all([
+    const [totalTenants, activeTenants, totalAdmins, activeAdmins, rawPlans] = await Promise.all([
       (prisma as any).tenant.count(),
       (prisma as any).tenant.count({ where: { isActive: true } }),
+      (prisma as any).adminUser.count(),
       (prisma as any).adminUser.count({ where: { isActive: true } }),
-      (prisma as any).plan.findMany({ select: { id: true, name: true }, where: { isActive: true } }),
+      (prisma as any).plan.findMany({ select: { id: true, name: true, price: true, isActive: true, wppEnabled: true } }),
     ]);
-    const tenantsByPlan = await Promise.all(
-      plans.map(async (p: any) => ({
-        planName: p.name,
-        count: await (prisma as any).tenant.count({ where: { planId: p.id } }),
+
+    const plans = await Promise.all(
+      rawPlans.map(async (p: any) => ({
+        ...p,
+        _count: { tenants: await (prisma as any).tenant.count({ where: { planId: p.id } }) },
       }))
     );
-    res.json({ totalTenants, activeTenants, totalAdminUsers, tenantsByPlan });
+
+    res.json({ totalTenants, activeTenants, totalAdmins, activeAdmins, plans });
   } catch (e) {
     res.status(500).json({ error: "Erro ao buscar stats." });
   }
@@ -413,5 +428,212 @@ superAdminRouter.delete("/admin-users/:id", async (req, res) => {
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Erro ao excluir usuário." });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════
+//  SUPER-ADMIN — WhatsApp / WPP
+// ═════════════════════════════════════════════════════════════
+
+// Lista todas as instâncias WPP de todos os parceiros com status
+superAdminRouter.get("/wpp/instances", async (req, res) => {
+  try {
+    const [instances, tenants, plans] = await Promise.all([
+      (prisma as any).wppInstance.findMany(),
+      (prisma as any).tenant.findMany({ select: { id: true, name: true, slug: true, wppOverride: true, planId: true } }),
+      (prisma as any).plan.findMany({ select: { id: true, name: true, wppEnabled: true } }),
+    ]);
+
+    const result = tenants.map((t: any) => {
+      const plan = plans.find((p: any) => p.id === t.planId);
+      const instance = instances.find((i: any) => i.tenantId === t.id);
+      const wppByPlan = !!plan?.wppEnabled;
+      const wppEffective = t.wppOverride !== null && t.wppOverride !== undefined ? !!t.wppOverride : wppByPlan;
+      return {
+        tenantId: t.id,
+        tenantName: t.name,
+        tenantSlug: t.slug,
+        planName: plan?.name || "—",
+        wppByPlan,
+        wppOverride: t.wppOverride,
+        wppEnabled: wppEffective,
+        instance: instance ? {
+          instanceName: instance.instanceName,
+          status: instance.status,
+          phone: instance.phone,
+          isActive: instance.isActive,
+          qrCode: instance.qrCode || null,
+          apiUrl: instance.apiUrl || null,
+        } : null,
+      };
+    });
+
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Atualiza wppOverride de um parceiro (null = herda do plano, true = forçar on, false = forçar off)
+superAdminRouter.patch("/wpp/tenant/:id", async (req, res) => {
+  const { wppOverride } = req.body;
+  try {
+    const tenant = await (prisma as any).tenant.update({
+      where: { id: req.params.id },
+      data: { wppOverride: wppOverride === null ? null : !!wppOverride },
+    });
+    res.json({ tenantId: tenant.id, wppOverride: tenant.wppOverride });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Atualiza wppEnabled de um plano
+superAdminRouter.patch("/wpp/plan/:id", async (req, res) => {
+  const { wppEnabled } = req.body;
+  try {
+    const plan = await (prisma as any).plan.update({
+      where: { id: req.params.id },
+      data: { wppEnabled: !!wppEnabled },
+    });
+    res.json({ planId: plan.id, wppEnabled: plan.wppEnabled });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// ── Bot do Sistema (tenantId = "system") ─────────────────────────────────────
+
+// Retorna status do bot global
+superAdminRouter.get("/wpp/system/status", async (_req, res) => {
+  try {
+    const info = getSessionInfo("system");
+    // Complementa com dados do BD se existir
+    const inst = await (prisma as any).wppInstance.findUnique({ where: { tenantId: "system" } }).catch(() => null);
+    res.json({ status: info.status, phone: info.phone, qrCode: info.qrDataUrl, instanceName: inst?.instanceName || "system-bot" });
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message });
+  }
+});
+
+// Conecta bot global
+superAdminRouter.post("/wpp/system/connect", async (_req, res) => {
+  try {
+    // Garante registro no BD
+    await (prisma as any).wppInstance.upsert({
+      where: { tenantId: "system" },
+      create: { id: randomUUID(), tenantId: "system", instanceName: "system-bot", apiUrl: "", apiKey: null, status: "disconnected", isActive: false },
+      update: {},
+    });
+    const info = await connectSession("system");
+    res.json({ status: info.status, phone: info.phone, qrCode: info.qrDataUrl });
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message || "Erro ao conectar bot do sistema." });
+  }
+});
+
+// Status polling bot global
+superAdminRouter.get("/wpp/system/poll", async (_req, res) => {
+  try {
+    const info = getSessionInfo("system");
+    res.json({ status: info.status, phone: info.phone, qrCode: info.qrDataUrl });
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message });
+  }
+});
+
+// Desconecta bot global
+superAdminRouter.post("/wpp/system/disconnect", async (_req, res) => {
+  try {
+    await disconnectSession("system");
+    await (prisma as any).wppInstance.updateMany({ where: { tenantId: "system" }, data: { status: "disconnected", isActive: false, phone: null } });
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message });
+  }
+});
+
+// Cria instância para o parceiro (se não existir) e já inicia conexão
+superAdminRouter.post("/wpp/tenant/:tenantId/setup", async (req, res) => {
+  const { tenantId } = req.params;
+  try {
+    const tenant = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { slug: true } });
+    if (!tenant) return res.status(404).json({ error: "Parceiro não encontrado." });
+
+    // Cria instância se não existir
+    await (prisma as any).wppInstance.upsert({
+      where: { tenantId },
+      create: {
+        id: randomUUID(),
+        tenantId,
+        instanceName: tenant.slug,
+        apiUrl: "",
+        apiKey: null,
+        status: "disconnected",
+        isActive: false,
+      },
+      update: {},
+    });
+
+    // Conecta via Baileys
+    const info = await connectSession(tenantId);
+    res.json({ status: info.status, phone: info.phone, qrCode: info.qrDataUrl });
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message || "Erro ao configurar." });
+  }
+});
+
+// Pegar QR / iniciar conexão de um parceiro pelo super-admin (via Baileys)
+superAdminRouter.post("/wpp/tenant/:tenantId/connect", async (req, res) => {
+  const { tenantId } = req.params;
+  try {
+    const instance = await (prisma as any).wppInstance.findUnique({ where: { tenantId } });
+    if (!instance) return res.status(404).json({ error: "Instância não configurada para este parceiro." });
+
+    const info = await connectSession(tenantId);
+    res.json({ status: info.status, phone: info.phone, qrCode: info.qrDataUrl });
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message || "Erro ao conectar." });
+  }
+});
+
+// Verificar status de uma instância (via Baileys em memória)
+superAdminRouter.get("/wpp/tenant/:tenantId/status", async (req, res) => {
+  const { tenantId } = req.params;
+  try {
+    const info = getSessionInfo(tenantId);
+    res.json({ status: info.status, phone: info.phone, qrCode: info.qrDataUrl });
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message || "Erro ao verificar status." });
+  }
+});
+
+// Desconectar instância de um parceiro (via Baileys)
+superAdminRouter.post("/wpp/tenant/:tenantId/disconnect", async (req, res) => {
+  const { tenantId } = req.params;
+  try {
+    await disconnectSession(tenantId);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message || "Erro ao desconectar." });
+  }
+});
+
+// Status do scheduler (quantas mensagens enviadas hoje)
+superAdminRouter.get("/wpp/stats", async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [total24h, total60min, totalToday] = await Promise.all([
+      (prisma as any).wppMessageSent.count({ where: { type: { contains: "24h" } } }),
+      (prisma as any).wppMessageSent.count({ where: { type: { contains: "60min" } } }),
+      (prisma as any).wppMessageSent.count({ where: { sentAt: { gte: today } } }),
+    ]);
+
+    res.json({ total24h, total60min, totalToday });
+  } catch (e: any) {
+    // Se tabela não existir ainda, retorna zeros
+    res.json({ total24h: 0, total60min: 0, totalToday: 0 });
   }
 });

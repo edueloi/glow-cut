@@ -7,13 +7,14 @@ import {
   LogOut, Plus, Edit2, Trash2, X, Check, ChevronDown,
   Shield, Eye, EyeOff, ToggleLeft, ToggleRight,
   TrendingUp, Crown, Search, Mail, Globe, User, Lock,
+  MessageCircle, Wifi, WifiOff, RefreshCw, ToggleLeft as ToggleOff,
 } from "lucide-react";
 import logoFavicon from "../images/system/logo-favicon.png";
 
 /* ═══════════════════════════════════════════
    TIPOS
 ═══════════════════════════════════════════ */
-type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile";
+type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
@@ -177,7 +178,7 @@ function PlansTab() {
   const [plans, setPlans] = useState<any[]>([]);
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const emptyForm = { name: "", price: "", maxProfessionals: "3", maxAdminUsers: "1", canCreateAdminUsers: false, canDeleteAccount: false, features: "" };
+  const emptyForm = { name: "", price: "", maxProfessionals: "3", maxAdminUsers: "1", canCreateAdminUsers: false, canDeleteAccount: false, wppEnabled: false, features: "" };
   const [form, setForm] = useState<any>(emptyForm);
 
   const load = useCallback(async () => {
@@ -264,6 +265,7 @@ function PlansTab() {
               <div className="flex gap-2 flex-wrap">
                 {p.canCreateAdminUsers && <Badge color="violet">Criar usuários</Badge>}
                 {p.canDeleteAccount && <Badge color="red">Excluir conta</Badge>}
+                {p.wppEnabled && <Badge color="emerald">WhatsApp</Badge>}
               </div>
               {features.length > 0 && (
                 <ul className="space-y-1">
@@ -292,6 +294,7 @@ function PlansTab() {
               {[
                 { key: "canCreateAdminUsers", label: "Pode criar usuários admin" },
                 { key: "canDeleteAccount", label: "Pode excluir a conta" },
+                { key: "wppEnabled", label: "WhatsApp Bot incluso no plano" },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2.5 cursor-pointer select-none">
                   <Toggle checked={!!form[key]} onChange={() => setForm((p: any) => ({ ...p, [key]: !p[key] }))} />
@@ -1160,6 +1163,611 @@ function ProfileTab({ username }: { username: string }) {
 }
 
 /* ═══════════════════════════════════════════
+   ABA: WHATSAPP
+═══════════════════════════════════════════ */
+
+// Modal de QR Code
+function QrModal({ row, onClose, onConnected }: { row: any; onClose: () => void; onConnected: (tenantId: string) => void }) {
+  const [qrCode, setQrCode] = useState<string | null>(row.instance?.qrCode || null);
+  const [status, setStatus] = useState<string>(row.instance?.status || "not_configured");
+  const [phone, setPhone] = useState<string | null>(row.instance?.phone || null);
+  const [connecting, setConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pollRef = React.useRef<any>(null);
+
+  // Para polling ao desmontar
+  React.useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
+
+  // Quando status vira connected, para polling e avisa o pai
+  React.useEffect(() => {
+    if (status === "connected") {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      onConnected(row.tenantId);
+    }
+  }, [status, row.tenantId, onConnected]);
+
+  const startPolling = () => {
+    if (pollRef.current) return;
+    pollRef.current = setInterval(async () => {
+      try {
+        const r = await apiFetch(`/api/super-admin/wpp/tenant/${row.tenantId}/status`);
+        const data = await r.json();
+        setStatus(data.status);
+        setPhone(data.phone || null);
+        if (data.qrCode) setQrCode(data.qrCode);
+        if (data.status === "connected") {
+          setQrCode(null);
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+      } catch {}
+    }, 4000);
+  };
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    setError(null);
+    try {
+      // Se não tem instância ainda, usa /setup que cria + conecta
+      const endpoint = row.instance
+        ? `/api/super-admin/wpp/tenant/${row.tenantId}/connect`
+        : `/api/super-admin/wpp/tenant/${row.tenantId}/setup`;
+      const r = await apiFetch(endpoint, { method: "POST" });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "Erro ao conectar");
+      setQrCode(data.qrCode || null);
+      setStatus(data.status || "qr_pending");
+      startPolling();
+    } catch (e: any) {
+      setError(e?.message || "Erro ao gerar QR Code");
+    }
+    setConnecting(false);
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await apiFetch(`/api/super-admin/wpp/tenant/${row.tenantId}/disconnect`, { method: "POST" });
+      setStatus("disconnected");
+      setQrCode(null);
+      setPhone(null);
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    } catch {}
+  };
+
+  const statusColors: Record<string, string> = {
+    connected: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    qr_pending: "bg-amber-50 border-amber-200 text-amber-700",
+    disconnected: "bg-red-50 border-red-200 text-red-600",
+    not_configured: "bg-zinc-100 border-zinc-200 text-zinc-500",
+  };
+  const statusLabels: Record<string, string> = {
+    connected: "Conectado",
+    qr_pending: "Aguardando leitura do QR",
+    disconnected: "Desconectado",
+    not_configured: "Não configurado",
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-sm flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <MessageCircle size={15} className="text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-xs font-black text-zinc-900">{row.tenantName}</p>
+              <p className="text-[10px] text-zinc-400 font-mono">{row.instance?.instanceName || "sem instância"}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors">
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4">
+          {/* Status badge */}
+          <div className={cn("flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold", statusColors[status] || statusColors.not_configured)}>
+            <div className={cn("w-2 h-2 rounded-full shrink-0", status === "connected" ? "bg-emerald-500 animate-pulse" : status === "qr_pending" ? "bg-amber-500 animate-pulse" : "bg-zinc-300")} />
+            {statusLabels[status] || status}
+            {phone && status === "connected" && <span className="ml-auto text-[10px] font-mono text-emerald-600">+{phone}</span>}
+          </div>
+
+          {/* QR Code */}
+          {status === "connected" ? (
+            <div className="flex flex-col items-center gap-3 py-6">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center">
+                <Check size={28} className="text-emerald-600" />
+              </div>
+              <p className="text-sm font-black text-zinc-900">WhatsApp conectado!</p>
+              {phone && <p className="text-xs text-zinc-500 font-mono">Número: +{phone}</p>}
+            </div>
+          ) : qrCode ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="p-3 bg-white border-2 border-zinc-200 rounded-2xl">
+                <img
+                  src={qrCode.startsWith("data:") ? qrCode : `data:image/png;base64,${qrCode}`}
+                  alt="QR Code WhatsApp"
+                  className="w-56 h-56 object-contain"
+                />
+              </div>
+              <p className="text-[11px] text-zinc-500 text-center">
+                Abra o WhatsApp no celular → <strong>Dispositivos conectados</strong> → <strong>Conectar dispositivo</strong> → aponte para o QR
+              </p>
+              <p className="text-[10px] text-amber-600 font-bold text-center animate-pulse">
+                Aguardando leitura... (atualiza automaticamente)
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center">
+                <MessageCircle size={22} className="text-zinc-400" />
+              </div>
+              <p className="text-xs text-zinc-500 text-center">
+                Clique em <strong>Conectar</strong> para gerar o QR Code e vincular o WhatsApp.
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <div className="px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-semibold">{error}</div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 pb-5 flex gap-2">
+          {status === "connected" ? (
+            <button
+              onClick={handleDisconnect}
+              className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition-colors"
+            >
+              Desconectar
+            </button>
+          ) : (
+            <button
+              onClick={handleConnect}
+              disabled={connecting}
+              className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-colors"
+            >
+              {connecting ? "Configurando..." : qrCode ? "Novo QR Code" : "Conectar"}
+            </button>
+          )}
+          <button onClick={onClose} className="px-4 py-2.5 text-xs font-bold text-zinc-500 hover:text-zinc-800 transition-colors">
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Painel do Bot do Sistema ──────────────────────────────────────────────────
+function SystemBotPanel() {
+  const [status, setStatus] = React.useState<string>("not_configured");
+  const [phone, setPhone] = React.useState<string | null>(null);
+  const [qrCode, setQrCode] = React.useState<string | null>(null);
+  const [connecting, setConnecting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const pollRef = React.useRef<any>(null);
+
+  // Carrega status atual ao montar
+  React.useEffect(() => {
+    apiFetch("/api/super-admin/wpp/system/status")
+      .then(r => r.json())
+      .then(d => { setStatus(d.status); setPhone(d.phone || null); if (d.qrCode) setQrCode(d.qrCode); })
+      .catch(() => {});
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
+
+  React.useEffect(() => {
+    if (status === "connected") {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      setQrCode(null);
+    }
+  }, [status]);
+
+  const startPolling = () => {
+    if (pollRef.current) return;
+    pollRef.current = setInterval(async () => {
+      try {
+        const r = await apiFetch("/api/super-admin/wpp/system/poll");
+        const d = await r.json();
+        setStatus(d.status); setPhone(d.phone || null);
+        if (d.qrCode) setQrCode(d.qrCode);
+        if (d.status === "connected") { clearInterval(pollRef.current); pollRef.current = null; setQrCode(null); }
+      } catch {}
+    }, 4000);
+  };
+
+  const handleConnect = async () => {
+    setConnecting(true); setError(null);
+    try {
+      const r = await apiFetch("/api/super-admin/wpp/system/connect", { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Erro ao conectar");
+      setQrCode(d.qrCode || null);
+      setStatus(d.status || "qr_pending");
+      startPolling();
+    } catch (e: any) { setError(e?.message || "Erro ao gerar QR"); }
+    setConnecting(false);
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await apiFetch("/api/super-admin/wpp/system/disconnect", { method: "POST" });
+      setStatus("disconnected"); setPhone(null); setQrCode(null);
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    } catch {}
+  };
+
+  const statusColor = status === "connected" ? "text-emerald-600 bg-emerald-50 border-emerald-200"
+    : status === "qr_pending" ? "text-amber-600 bg-amber-50 border-amber-200"
+    : "text-zinc-500 bg-zinc-50 border-zinc-200";
+  const statusLabel = status === "connected" ? "Conectado" : status === "qr_pending" ? "Aguardando QR" : status === "disconnected" ? "Desconectado" : "Não configurado";
+
+  return (
+    <div className="bg-white rounded-2xl border-2 border-emerald-200 shadow-sm overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-emerald-100 flex items-center gap-3 bg-emerald-50/40">
+        <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+          <MessageCircle size={15} className="text-emerald-600" />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-xs font-black text-zinc-900">Bot do Sistema</h3>
+          <p className="text-[10px] text-zinc-400">Número único que envia para todos os parceiros sem bot próprio</p>
+        </div>
+        <span className={cn("text-[9px] font-black px-2 py-1 rounded-lg border uppercase tracking-wider", statusColor)}>
+          {statusLabel}
+        </span>
+      </div>
+
+      <div className="p-5 flex gap-5 items-start">
+        {/* QR Code ou status */}
+        <div className="flex-1">
+          {status === "connected" ? (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                <Check size={18} className="text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xs font-black text-zinc-900">WhatsApp do sistema conectado</p>
+                {phone && <p className="text-[11px] text-zinc-400 font-mono">+{phone}</p>}
+              </div>
+            </div>
+          ) : qrCode ? (
+            <div className="flex items-start gap-4">
+              <div className="p-2 bg-white border-2 border-zinc-200 rounded-xl">
+                <img
+                  src={qrCode.startsWith("data:") ? qrCode : `data:image/png;base64,${qrCode}`}
+                  alt="QR Code Bot do Sistema"
+                  className="w-36 h-36 object-contain"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs font-black text-zinc-900">Escaneie o QR Code</p>
+                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                  Abra o WhatsApp → <strong>Dispositivos conectados</strong> → <strong>Conectar dispositivo</strong>
+                </p>
+                <p className="text-[10px] text-amber-600 font-bold animate-pulse">Aguardando leitura... (atualiza sozinho)</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-zinc-400">
+              {status === "disconnected"
+                ? "Bot desconectado. Clique em Conectar para gerar o QR Code."
+                : "Configure o bot do sistema para enviar mensagens de todos os parceiros através de um único número."}
+            </p>
+          )}
+          {error && <p className="mt-2 text-[11px] text-red-500 font-semibold">{error}</p>}
+        </div>
+
+        {/* Botões */}
+        <div className="flex flex-col gap-2 shrink-0">
+          {status === "connected" ? (
+            <button
+              onClick={handleDisconnect}
+              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black transition-colors"
+            >
+              Desconectar
+            </button>
+          ) : (
+            <button
+              onClick={handleConnect}
+              disabled={connecting}
+              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-colors"
+            >
+              {connecting ? "Gerando QR..." : qrCode ? "Novo QR" : "Conectar Bot"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WppTab({ plans }: { plans: any[] }) {
+  const [instances, setInstances] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [qrRow, setQrRow] = useState<any | null>(null); // row aberto no QR modal
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [insR, statsR] = await Promise.all([
+        apiFetch("/api/super-admin/wpp/instances"),
+        apiFetch("/api/super-admin/wpp/stats"),
+      ]);
+      const insData = await insR.json();
+      setInstances(Array.isArray(insData) ? insData : []);
+      setStats(await statsR.json());
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const setTenantWpp = async (tenantId: string, wppOverride: boolean | null) => {
+    setSaving(tenantId);
+    try {
+      await apiFetch(`/api/super-admin/wpp/tenant/${tenantId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wppOverride }),
+      });
+      setInstances(prev => prev.map(i =>
+        i.tenantId === tenantId ? { ...i, wppOverride, wppEnabled: wppOverride !== null ? wppOverride : i.wppByPlan } : i
+      ));
+    } catch {}
+    setSaving(null);
+  };
+
+  const setPlanWpp = async (planId: string, wppEnabled: boolean) => {
+    setSaving(`plan_${planId}`);
+    try {
+      await apiFetch(`/api/super-admin/wpp/plan/${planId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wppEnabled }),
+      });
+      await load();
+    } catch {}
+    setSaving(null);
+  };
+
+  // Chamado quando QrModal detecta conexão bem sucedida
+  const handleConnected = useCallback((tenantId: string) => {
+    setInstances(prev => prev.map(i =>
+      i.tenantId === tenantId
+        ? { ...i, instance: { ...i.instance, status: "connected", isActive: true, qrCode: null } }
+        : i
+    ));
+    setQrRow((r: any) => r?.tenantId === tenantId ? { ...r, instance: { ...r.instance, status: "connected", isActive: true, qrCode: null } } : r);
+  }, []);
+
+  const filtered = instances.filter(i =>
+    !search || i.tenantName?.toLowerCase().includes(search.toLowerCase()) || i.tenantSlug?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const statusColor = (status?: string) => {
+    if (status === "connected") return "bg-emerald-100 text-emerald-700 border-emerald-200";
+    if (status === "qr_pending") return "bg-amber-100 text-amber-700 border-amber-200";
+    if (status === "disconnected") return "bg-red-100 text-red-700 border-red-200";
+    return "bg-zinc-100 text-zinc-500 border-zinc-200";
+  };
+
+  const statusLabel = (status?: string) => {
+    if (status === "connected") return "Conectado";
+    if (status === "qr_pending") return "Aguardando QR";
+    if (status === "disconnected") return "Desconectado";
+    return "Não configurado";
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* QR Modal */}
+      {qrRow && (
+        <QrModal
+          row={qrRow}
+          onClose={() => setQrRow(null)}
+          onConnected={handleConnected}
+        />
+      )}
+
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-base font-black text-zinc-900">WhatsApp Bot</h2>
+          <p className="text-[11px] text-zinc-400 mt-0.5">Gerencie conexões e permissões de todos os parceiros</p>
+        </div>
+        <button onClick={load} className="p-2 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-zinc-400 hover:text-zinc-600 transition-colors">
+          <RefreshCw size={14} />
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <StatCard icon={<MessageCircle size={16} />} label="Enviadas Hoje" value={stats?.totalToday ?? "—"} color="emerald" />
+        <StatCard icon={<MessageCircle size={16} />} label="Lembretes 24h" value={stats?.total24h ?? "—"} color="blue" />
+        <StatCard icon={<MessageCircle size={16} />} label="Lembretes 60min" value={stats?.total60min ?? "—"} color="violet" />
+      </div>
+
+      {/* Bot do Sistema */}
+      <SystemBotPanel />
+
+      {/* Planos: toggle wppEnabled */}
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-zinc-100">
+          <h3 className="text-xs font-black text-zinc-800 uppercase tracking-widest">WhatsApp por Plano</h3>
+          <p className="text-[10px] text-zinc-400 mt-0.5">Parceiros herdam esta configuração, salvo override individual abaixo</p>
+        </div>
+        <div className="divide-y divide-zinc-100">
+          {plans.map(plan => (
+            <div key={plan.id} className="flex items-center justify-between px-5 py-3">
+              <div>
+                <p className="text-xs font-black text-zinc-800">{plan.name}</p>
+                <p className="text-[10px] text-zinc-400">R$ {Number(plan.price).toFixed(2)}/mês</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={cn("text-[9px] font-black uppercase tracking-wider", plan.wppEnabled ? "text-emerald-600" : "text-zinc-400")}>
+                  {plan.wppEnabled ? "WPP Incluso" : "Sem WPP"}
+                </span>
+                <div
+                  onClick={() => saving !== `plan_${plan.id}` && setPlanWpp(plan.id, !plan.wppEnabled)}
+                  className={cn("w-9 h-5 rounded-full border flex items-center cursor-pointer transition-colors shrink-0",
+                    plan.wppEnabled ? "bg-emerald-500 border-emerald-500" : "bg-zinc-200 border-zinc-300",
+                    saving === `plan_${plan.id}` ? "opacity-50 cursor-not-allowed" : ""
+                  )}
+                >
+                  <div className={cn("w-4 h-4 bg-white rounded-full shadow transition-transform mx-0.5", plan.wppEnabled ? "translate-x-4" : "translate-x-0")} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Instâncias por parceiro */}
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-zinc-100 flex items-center gap-3">
+          <h3 className="text-xs font-black text-zinc-800 uppercase tracking-widest flex-1">Conexões dos Parceiros</h3>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar parceiro..."
+            className="text-xs p-2 bg-zinc-50 border border-zinc-200 rounded-xl w-44 focus:outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400"
+          />
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center h-32 text-zinc-400 text-xs font-bold">Carregando...</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-zinc-100">
+                  {["Parceiro", "Plano", "WPP", "Status / Número", "Ações"].map(h => (
+                    <th key={h} className="px-4 py-2.5 text-left text-[9px] font-black text-zinc-400 uppercase tracking-widest">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {filtered.map(row => (
+                  <tr key={row.tenantId} className="hover:bg-zinc-50 transition-colors">
+                    {/* Parceiro */}
+                    <td className="px-4 py-3">
+                      <p className="text-xs font-black text-zinc-900 truncate max-w-[140px]">{row.tenantName}</p>
+                      <p className="text-[10px] text-zinc-400 font-mono">{row.tenantSlug}</p>
+                    </td>
+                    {/* Plano */}
+                    <td className="px-4 py-3 text-xs text-zinc-600 font-semibold whitespace-nowrap">{row.planName}</td>
+                    {/* WPP on/off toggle */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          onClick={() => saving !== row.tenantId && setTenantWpp(row.tenantId, !row.wppEnabled)}
+                          title={row.wppEnabled ? "Desativar WPP" : "Ativar WPP"}
+                          className={cn("w-9 h-5 rounded-full border flex items-center cursor-pointer transition-colors shrink-0",
+                            row.wppEnabled ? "bg-emerald-500 border-emerald-500" : "bg-zinc-200 border-zinc-300",
+                            saving === row.tenantId ? "opacity-50 cursor-not-allowed" : ""
+                          )}
+                        >
+                          <div className={cn("w-4 h-4 bg-white rounded-full shadow transition-transform mx-0.5", row.wppEnabled ? "translate-x-4" : "translate-x-0")} />
+                        </div>
+                        {row.wppOverride !== null && row.wppOverride !== undefined && (
+                          <button
+                            onClick={() => saving !== row.tenantId && setTenantWpp(row.tenantId, null)}
+                            disabled={saving === row.tenantId}
+                            title="Remover override — herdar do plano"
+                            className="text-[8px] font-black text-violet-500 hover:text-violet-700 uppercase tracking-wider"
+                          >
+                            override
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    {/* Status + número */}
+                    <td className="px-4 py-3">
+                      {row.instance ? (
+                        <div className="space-y-0.5">
+                          <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded-md border uppercase tracking-wider", statusColor(row.instance.status))}>
+                            {statusLabel(row.instance.status)}
+                          </span>
+                          {row.instance.phone && (
+                            <p className="text-[10px] text-zinc-500 font-mono">+{row.instance.phone}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-zinc-300">Sem instância</span>
+                      )}
+                    </td>
+                    {/* Ações */}
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => setQrRow(row)}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black transition-colors border",
+                          row.instance?.status === "connected"
+                            ? "bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600"
+                            : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                        )}
+                      >
+                        <MessageCircle size={11} />
+                        {row.instance?.status === "connected" ? "Gerenciar" : "Conectar"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-xs text-zinc-400 font-semibold">
+                      {search ? "Nenhum parceiro encontrado" : "Nenhum parceiro cadastrado"}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Info PM2 */}
+      <div className="bg-zinc-950 rounded-2xl p-5 space-y-3">
+        <div className="flex items-center gap-2.5 mb-3">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+            <MessageCircle size={15} className="text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-xs font-black text-white">Processo de Lembretes (PM2)</p>
+            <p className="text-[10px] text-zinc-400">Roda isolado — não cai com rebuild do app</p>
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          {[
+            { label: "Iniciar bot", cmd: "pm2 start ecosystem.config.cjs --only agendelle-wpp" },
+            { label: "Reiniciar bot", cmd: "pm2 restart agendelle-wpp" },
+            { label: "Ver logs", cmd: "pm2 logs agendelle-wpp --lines 50" },
+          ].map(({ label, cmd }) => (
+            <div key={label} className="flex items-center gap-3">
+              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-wider w-24 shrink-0">{label}</span>
+              <code className="text-[10px] text-emerald-400 bg-zinc-900 px-2 py-1 rounded-lg flex-1 overflow-x-auto whitespace-nowrap font-mono">{cmd}</code>
+            </div>
+          ))}
+        </div>
+        <p className="text-[9px] text-zinc-600 pt-1">
+          ⚡ Scheduler roda a cada 60s. 24h: janela 23h–25h. 60min: janela 55–65min. Deduplicação automática.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
    SIDEBAR
 ═══════════════════════════════════════════ */
 const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: string }[] = [
@@ -1168,6 +1776,7 @@ const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: stri
   { key: "tenants",     icon: <Building2 size={17} />,       label: "Parceiros",      path: "/super-admin/parceiros" },
   { key: "users",       icon: <Users size={17} />,           label: "Usuários Admin", path: "/super-admin/usuarios" },
   { key: "permissions", icon: <Lock size={17} />,            label: "Permissões",     path: "/super-admin/permissoes" },
+  { key: "wpp",         icon: <MessageCircle size={17} />,   label: "WhatsApp",       path: "/super-admin/whatsapp" },
   { key: "staff",       icon: <Shield size={17} />,          label: "Minha Equipe",   path: "/super-admin/equipe" },
   { key: "profile",     icon: <User size={17} />,            label: "Meu Perfil",     path: "/super-admin/perfil" },
 ];
@@ -1178,6 +1787,7 @@ function pathToTab(pathname: string): TabKey {
   if (pathname.includes("/parceiros"))   return "tenants";
   if (pathname.includes("/usuarios"))    return "users";
   if (pathname.includes("/permissoes"))  return "permissions";
+  if (pathname.includes("/whatsapp"))    return "wpp";
   if (pathname.includes("/equipe"))      return "staff";
   if (pathname.includes("/perfil"))      return "profile";
   return "dash";
@@ -1316,6 +1926,7 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
           {tab === "tenants"     && <TenantsTab plans={plans} />}
           {tab === "users"       && <UsersTab tenants={tenants} />}
           {tab === "permissions" && <PermissionsTab tenants={tenants} />}
+          {tab === "wpp"         && <WppTab plans={plans} />}
           {tab === "staff"       && <StaffTab username={username} />}
           {tab === "profile"     && <ProfileTab username={username} />}
         </div>

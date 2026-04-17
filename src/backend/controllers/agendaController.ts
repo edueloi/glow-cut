@@ -3,6 +3,7 @@ import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
 import { addMinutes, format, parse, startOfDay, addDays, startOfMonth, endOfMonth, isSameDay } from "date-fns";
 import { getTenantId, asBool, asNumber, toDateOnly, getDayRange, formatDateOnly, getSaudacao, applyTemplateVars, samePhone, normalizePhone } from "../utils/helpers";
+import { fireWppProfNewBooking, fireWppConfirmation as fireWppConfirmationCentral } from "./wppController";
 
 const DEFAULT_AGENDA_SETTINGS = {
   onlineBookingEnabled: true,
@@ -189,97 +190,13 @@ function mapSpecialScheduleDay(row: any) {
 }
 
 
-async function sendWppMessage(tenantId: string, phone: string, message: string) {
-  const instance = await (prisma as any).wppInstance.findUnique({ where: { tenantId } });
-  if (!instance?.apiUrl || !instance?.instanceName) {
-    console.log(`[WPP Mock] Para: ${phone}, Mensagem: ${message}`);
-    return;
-  }
-
-  const normalizedPhone = normalizePhone(phone);
-  if (!normalizedPhone || !String(message || "").trim()) return;
-
-  try {
-    const response = await fetch(
-      `${sanitizeApiUrl(instance.apiUrl)}/message/sendText/${encodeURIComponent(instance.instanceName)}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(instance.apiKey ? { apikey: instance.apiKey } : {}),
-        },
-        body: JSON.stringify({
-          number: normalizedPhone,
-          text: String(message),
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(text || `Evolution API retornou ${response.status}.`);
-    }
-  } catch (err) {
-    console.warn("[WPP] Falha ao enviar mensagem:", err);
-  }
-}
-
+// Usa o wppController central (Baileys) para enviar confirmação
 async function fireWppConfirmationBalcao(tenantId: string, appt: any) {
-  try {
-    const botConfig = await (prisma as any).wppBotConfig.findUnique({ where: { tenantId } });
-    if (!botConfig?.botEnabled || !botConfig?.sendConfirmation) return;
-    if (!appt?.client?.phone) return;
-
-    const tenant = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true, address: true } });
-    const apptDate = new Date(appt.date);
-    const dataFormatada = apptDate.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
-
-    const template = await (prisma as any).wppMessageTemplate.findUnique({ where: { tenantId_type: { tenantId, type: "confirmation" } } });
-
-    let message: string;
-    if (template?.isActive && template?.body) {
-      const vars: Record<string, string> = {
-        saudacao: getSaudacao(),
-        nome_cliente: appt.client?.name || "",
-        data_agendamento: dataFormatada,
-        hora_agendamento: appt.startTime || "",
-        servico: appt.service?.name || "",
-        profissional: appt.professional?.name || "",
-        nome_estabelecimento: tenant?.name || "",
-        endereco: tenant?.address || "",
-      };
-      message = applyTemplateVars(template.body, vars);
-    } else {
-      const endereco = tenant?.address ? `\nÂ­Æ’Ã´Ã¬ *Endereâ”œÂºo:* ${tenant.address}` : "";
-      const profissional = appt.professional?.name ? `\nÂ­Æ’Ã†Ã§ *Profissional:* ${appt.professional.name}` : "";
-      const servico = appt.service?.name ? `\nÃ”Â£Ã©Â´Â©Ã… *Serviâ”œÂºo:* ${appt.service.name}` : "";
-      message = `${getSaudacao()}, *${appt.client?.name || ""}*! Â­Æ’Ã¦Ã¯\n\nSeu agendamento foi confirmado com sucesso no *${tenant?.name || "salâ”œÃºo"}*.\n\nÂ­Æ’Ã´Ã  *Data:* ${dataFormatada}\nÃ”Ã…â–‘ *Horâ”œÃ­rio:* ${appt.startTime}${servico}${profissional}${endereco}\n\nÃ”ÃœÃ¡Â´Â©Ã… *Importante:* Chegue com 5 minutos de antecedâ”œÂ¬ncia.\n\nTe esperamos! Â­Æ’Ã†Ã¸`;
-    }
-    await sendWppMessage(tenantId, appt.client.phone, message);
-  } catch (err) {
-    console.warn("[WPP Balcâ”œÃºo] Erro:", err);
-  }
+  return fireWppConfirmationCentral(tenantId, appt);
 }
 
 async function fireWppConfirmation(tenantId: string, appt: any) {
-  const botConfig = await (prisma as any).wppBotConfig.findUnique({ where: { tenantId } });
-  if (!botConfig?.botEnabled || !botConfig?.sendConfirmation) return;
-  const template = await (prisma as any).wppMessageTemplate.findUnique({ where: { tenantId_type: { tenantId, type: "confirmation" } } });
-  if (!template?.isActive || !appt?.client?.phone) return;
-  
-  const tenant = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
-  const apptDate = new Date(appt.date);
-  const vars: Record<string, string> = {
-    saudacao: getSaudacao(),
-    nome_cliente: appt.client?.name || "",
-    data_agendamento: apptDate.toLocaleDateString("pt-BR"),
-    hora_agendamento: appt.startTime || "",
-    servico: appt.service?.name || "",
-    profissional: appt.professional?.name || "",
-    nome_estabelecimento: tenant?.name || "",
-  };
-  const message = applyTemplateVars(template.body, vars);
-  await sendWppMessage(tenantId, appt.client.phone, message);
+  return fireWppConfirmationCentral(tenantId, appt);
 }
 
 async function handleAppointmentStockReservation(serviceId: string | null, action: 'reserve' | 'release') {
@@ -330,9 +247,6 @@ async function findTenantClientByPhone(tenantId: string, phone: string) {
   return clients.find((client: any) => samePhone(client.phone, phone)) || null;
 }
 
-function sanitizeApiUrl(apiUrl: string) {
-  return apiUrl.replace(/\/+$/, "");
-}
 
 function resolveEndTime(targetDate: Date, startTime: string, providedEndTime: string | null | undefined, duration: number) {
   if (providedEndTime) return providedEndTime;
@@ -665,6 +579,7 @@ export const agendaController = {
 
       const firstAppt = results[0];
       if (tenantId && firstAppt?.client?.phone) fireWppConfirmationBalcao(tenantId, firstAppt).catch(() => {});
+      if (tenantId) fireWppProfNewBooking(tenantId, firstAppt).catch(() => {});
 
       res.json(results[0]);
     } catch (e: any) {

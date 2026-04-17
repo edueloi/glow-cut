@@ -13,3 +13,4 @@ wppRouter.put("/templates/:type", wppController.updateTemplate);
 wppRouter.get("/bot-config", wppController.getBotConfig);
 wppRouter.put("/bot-config", wppController.updateBotConfig);
 wppRouter.post("/send-test", wppController.sendTest);
+wppRouter.get("/qr", wppController.getQr);

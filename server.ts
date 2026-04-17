@@ -32,6 +32,9 @@ import { requireAuth, requireSuperAdmin } from "./src/backend/middleware/auth";
 import { adminController } from "./src/backend/controllers/adminController";
 import { agendaController } from "./src/backend/controllers/agendaController";
 
+// Import Baileys session manager
+import { restoreAllSessions } from "./src/backend/wpp/baileys-manager";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -81,8 +84,8 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 //  AUTO-MIGRATION / SEED
 // ─────────────────────────────────────────────────────────────
 async function initDb() {
+  // ── UserPreferences ───────────────────────────────────────────────────────
   try {
-    // Ensure UserPreferences table exists (idempotent)
     await (prisma as any).$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS UserPreferences (
         id       VARCHAR(36)  NOT NULL PRIMARY KEY,
@@ -96,7 +99,67 @@ async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
   } catch (e: any) {
-    console.warn("[initDb] UserPreferences table:", e?.message);
+    console.warn("[initDb] UserPreferences:", e?.message);
+  }
+
+  // ── WppMessageSent (deduplicação de lembretes) ────────────────────────────
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS WppMessageSent (
+        id            VARCHAR(36)  NOT NULL DEFAULT (UUID()),
+        appointmentId VARCHAR(36)  NOT NULL,
+        type          VARCHAR(50)  NOT NULL,
+        tenantId      VARCHAR(36)  NOT NULL,
+        sentAt        DATETIME(0)  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_wpp_sent (appointmentId, type),
+        KEY idx_wpp_sent_tenant (tenantId),
+        KEY idx_wpp_sent_at (sentAt)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+  } catch (e: any) {
+    console.warn("[initDb] WppMessageSent:", e?.message);
+  }
+
+  // ── Plan.wppEnabled ───────────────────────────────────────────────────────
+  try {
+    const colPlan: any[] = await (prisma as any).$queryRawUnsafe(`SHOW COLUMNS FROM \`Plan\` LIKE 'wppEnabled'`);
+    if (!colPlan.length) {
+      await (prisma as any).$executeRawUnsafe(`ALTER TABLE \`Plan\` ADD COLUMN \`wppEnabled\` TINYINT(1) NOT NULL DEFAULT 0`);
+      console.log("[initDb] Plan.wppEnabled added");
+    }
+  } catch (e: any) {
+    console.warn("[initDb] Plan.wppEnabled:", e?.message);
+  }
+
+  // ── Tenant.wppOverride ────────────────────────────────────────────────────
+  try {
+    const colTenant: any[] = await (prisma as any).$queryRawUnsafe(`SHOW COLUMNS FROM \`Tenant\` LIKE 'wppOverride'`);
+    if (!colTenant.length) {
+      await (prisma as any).$executeRawUnsafe(`ALTER TABLE \`Tenant\` ADD COLUMN \`wppOverride\` TINYINT(1) NULL DEFAULT NULL`);
+      console.log("[initDb] Tenant.wppOverride added");
+    }
+  } catch (e: any) {
+    console.warn("[initDb] Tenant.wppOverride:", e?.message);
+  }
+
+  // ── WppBotConfig novos campos ─────────────────────────────────────────────
+  const wppNewCols = [
+    { name: "sendReminder60min",     def: "TINYINT(1) NOT NULL DEFAULT 1" },
+    { name: "sendProfNewBooking",    def: "TINYINT(1) NOT NULL DEFAULT 1" },
+    { name: "sendProfReminder24h",   def: "TINYINT(1) NOT NULL DEFAULT 1" },
+    { name: "sendProfReminder60min", def: "TINYINT(1) NOT NULL DEFAULT 0" },
+  ];
+  for (const col of wppNewCols) {
+    try {
+      const rows: any[] = await (prisma as any).$queryRawUnsafe(`SHOW COLUMNS FROM \`WppBotConfig\` LIKE '${col.name}'`);
+      if (!rows.length) {
+        await (prisma as any).$executeRawUnsafe(`ALTER TABLE \`WppBotConfig\` ADD COLUMN \`${col.name}\` ${col.def}`);
+        console.log(`[initDb] WppBotConfig.${col.name} added`);
+      }
+    } catch (e: any) {
+      console.warn(`[initDb] WppBotConfig.${col.name}:`, e?.message);
+    }
   }
 
   try {
@@ -117,7 +180,9 @@ async function initDb() {
     console.error("Erro no initDb:", e);
   }
 }
-initDb();
+initDb().then(() => {
+  restoreAllSessions().catch((e) => console.warn("[Server] restoreAllSessions error:", e));
+});
 
 // ─────────────────────────────────────────────────────────────
 //  START SERVER
