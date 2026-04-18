@@ -1,5 +1,5 @@
 import React from "react";
-import { Globe, Copy, ExternalLink, Image as ImageIcon, Link as LinkIcon, X, MapPin, CheckCircle2, Loader2, Sparkles, Layout, MonitorSmartphone } from "lucide-react";
+import { Globe, Copy, ExternalLink, Image as ImageIcon, Link as LinkIcon, X, MapPin, CheckCircle2, Loader2, Sparkles, Layout, MonitorSmartphone, Hash } from "lucide-react";
 import { Button, PanelCard, Input, Textarea, Badge, SectionTitle, FormRow, Divider, PageWrapper } from "@/src/components/ui";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
@@ -112,6 +112,7 @@ export function MinhaAgendaTab({
   const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
   const [coverPreview, setCoverPreview] = React.useState<string | null>(null);
   const [localColor, setLocalColor] = React.useState<string>("#09090b");
+  const [localCEP, setLocalCEP] = React.useState<string>("");
   const [localAddress, setLocalAddress] = React.useState<string>("");
   const [localInstagram, setLocalInstagram] = React.useState<string>("");
   const [localTitle, setLocalTitle] = React.useState<string>("");
@@ -144,6 +145,27 @@ export function MinhaAgendaTab({
     };
     fetchBranding();
   }, []);
+
+  const handleCEPChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const cep = e.target.value.replace(/\D/g, "").slice(0, 8);
+    setLocalCEP(cep);
+    
+    if (cep.length === 8) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          const fullAddress = `${data.logradouro}, ${data.bairro}, ${data.localidade}/${data.uf}`;
+          setLocalAddress(fullAddress);
+          show("Endereço preenchido! Agora basta adicionar o número.", "success");
+        } else {
+          show("CEP não encontrado.", "error");
+        }
+      } catch (err) {
+        show("Erro ao buscar CEP.", "error");
+      }
+    }
+  };
 
   const handleSave = async () => {
     setIsLoading(true);
@@ -399,6 +421,14 @@ export function MinhaAgendaTab({
                   />
                 </FormRow>
 
+                <Input
+                  label="CEP"
+                  value={localCEP}
+                  onChange={handleCEPChange}
+                  placeholder="00000-000"
+                  iconLeft={<Hash size={16} />}
+                  wrapperClassName="max-w-[200px]"
+                />
                 <Input
                   label="Endereço Comercial"
                   value={localAddress}

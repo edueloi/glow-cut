@@ -12,7 +12,9 @@ import {
   CheckCircle,
   AlertCircle,
   Phone,
-  FileText
+  FileText,
+  Hash,
+  MapPin
 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/src/components/ui/Button";
@@ -27,6 +29,7 @@ export function SiteTab() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [cep, setCep] = useState("");
 
   const [formData, setFormData] = useState({
     title: "",
@@ -109,6 +112,27 @@ export function SiteTab() {
       toast.error("Erro de conexão com o servidor.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCEPChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, "").slice(0, 8);
+    setCep(val);
+    
+    if (val.length === 8) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${val}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          const fullAddress = `${data.logradouro}, ${data.bairro}, ${data.localidade}/${data.uf}`;
+          setFormData({ ...formData, address: fullAddress });
+          toast.success("Endereço preenchido! Agora basta adicionar o número.");
+        } else {
+          toast.error("CEP não encontrado.");
+        }
+      } catch (err) {
+        toast.error("Erro ao buscar CEP.");
+      }
     }
   };
 
@@ -352,10 +376,19 @@ export function SiteTab() {
                 placeholder="(00) 00000-0000"
               />
               <Input
+                label="CEP"
+                value={cep}
+                onChange={handleCEPChange}
+                placeholder="00000-000"
+                iconLeft={<Hash size={16} />}
+                wrapperClassName="max-w-[200px]"
+              />
+              <Input
                 label="Endereço Exibido"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 placeholder="Rua Exemplo, 123..."
+                iconLeft={<MapPin size={16} />}
               />
             </div>
           </PanelCard>
