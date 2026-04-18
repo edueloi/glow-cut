@@ -281,7 +281,7 @@ export const agendaController = {
     if (!date || !serviceId || !professionalId) return res.status(400).json({ error: "date, serviceId and professionalId required." });
 
     try {
-      const targetDate = new Date(date as string);
+      const targetDate = toDateOnly(date as string);
       const dayOfWeek = targetDate.getDay();
       const settings = await ensureAgendaSettingsRecord(tenantId);
       const service = await (prisma as any).service.findFirst({ where: { id: serviceId as string, tenantId } });
@@ -319,7 +319,7 @@ export const agendaController = {
       const wh = await getWorkingHoursForProfessional(professionalId as string, dayOfWeek);
       const { start, end } = getDayRange(targetDate);
       const appts = await (prisma as any).appointment.findMany({
-        where: { professionalId: professionalId as string, date: { gte: start, lt: end }, status: { not: "cancelled" } }
+        where: { professionalId: professionalId as string, date: { gte: start, lt: end }, status: { notIn: ["cancelled", "canceled", "cancelado"] } }
       });
 
       let closedByDay = !wh || !wh.isOpen;
@@ -400,7 +400,7 @@ export const agendaController = {
 
       const workingHours = await getWorkingHoursForProfessional(professionalId as string);
       const closedDays = await (prisma as any).closedDay.findMany({ where: { tenantId, date: { gte: start, lte: end } } });
-      const appts = await (prisma as any).appointment.findMany({ where: { professionalId: professionalId as string, date: { gte: start, lte: end }, status: { not: "cancelled" } } });
+      const appts = await (prisma as any).appointment.findMany({ where: { professionalId: professionalId as string, date: { gte: start, lte: end }, status: { notIn: ["cancelled", "canceled", "cancelado"] } } });
       
       const specialDays: any[] = tenantId
         ? await (prisma as any).$queryRawUnsafe(`SELECT * FROM SpecialScheduleDay WHERE tenantId = ? AND date >= ? AND date <= ? AND (professionalId = ? OR professionalId IS NULL) ORDER BY professionalId IS NULL ASC, createdAt DESC`, tenantId, start, end, professionalId as string)
@@ -410,6 +410,9 @@ export const agendaController = {
         : [];
 
       const statusMap: Record<string, string> = {};
+      const now = new Date();
+      const todayStr = format(now, "yyyy-MM-dd");
+      const minAllowedStart = addMinutes(now, settings.minAdvanceMinutes);
       let cursor = start;
       while (cursor <= end) {
         const dateStr = format(cursor, "yyyy-MM-dd");
@@ -418,14 +421,27 @@ export const agendaController = {
         const isClosed = closedDays.find((cd: any) => format(cd.date, "yyyy-MM-dd") === dateStr);
         const special = specialDays.find((item: any) => format(item.date, "yyyy-MM-dd") === dateStr);
         const dayReleases = releases.filter((item: any) => format(item.date, "yyyy-MM-dd") === dateStr);
-        const outsideWindow = startOfDay(cursor) > addDays(startOfDay(new Date()), settings.maxAdvanceDays);
+        const outsideWindow = startOfDay(cursor) > addDays(startOfDay(now), settings.maxAdvanceDays);
         const disabledOnline = tenantId && (!settings.onlineBookingEnabled || !settings.enableSelfService);
         const closedByHoliday = settings.blockNationalHolidays && isNationalHoliday(cursor);
+        // Dias passados nunca podem ser agendados
+        const isPastDay = startOfDay(cursor) < startOfDay(now);
 
-        if (outsideWindow || disabledOnline) statusMap[dateStr] = "closed";
+        if (isPastDay || outsideWindow || disabledOnline) statusMap[dateStr] = "closed";
         else if ((special && asBool(special.isClosed, true) && dayReleases.length === 0) || closedByHoliday) statusMap[dateStr] = "closed";
         else if ((!wh || !wh.isOpen || isClosed) && dayReleases.length === 0 && !special) statusMap[dateStr] = "closed";
         else {
+          // Para o dia atual, verificar se ainda restam slots no futuro
+          if (dateStr === todayStr) {
+            const effectiveEndTime = (special && !asBool(special.isClosed, true) ? special.endTime : null) || wh?.endTime || "23:59";
+            const endOfWorkday = parse(`${dateStr} ${effectiveEndTime}`, "yyyy-MM-dd HH:mm", new Date());
+            // Se o horário de encerramento já passou considerando o avanço mínimo, o dia está fechado
+            if (minAllowedStart >= endOfWorkday) {
+              statusMap[dateStr] = "closed";
+              cursor = addDays(cursor, 1);
+              continue;
+            }
+          }
           const dayAppts = appts.filter((a: any) => format(a.date, "yyyy-MM-dd") === dateStr);
           if (dayAppts.length >= 8) statusMap[dateStr] = "full";
           else if (dayAppts.length >= 4) statusMap[dateStr] = "busy";
