@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import {
   MonitorSmartphone, RefreshCw, Info, CheckCircle, Clock,
-  Link2, Globe, EyeOff, Eye, Shield, MessageSquare,
+  Globe, EyeOff, Eye, Shield, MessageSquare, ExternalLink, Copy,
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
 import { Button } from "@/src/components/ui/Button";
 import { Switch } from "@/src/components/ui/Switch";
 import { useToast } from "@/src/components/ui/Toast";
+import { useAuth } from "@/src/App";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Autoatendimento — Portal de agendamento self-service para clientes
@@ -17,6 +18,7 @@ interface AutoatendimentoProps {
   professionals: any[];
   services: any[];
   onRefresh: () => void;
+  onGoToMinhaAgenda?: () => void;
 }
 
 interface SelfServiceSettings {
@@ -55,12 +57,16 @@ const HOURS_OPTIONS = [
   { value: 2880, label: "48h" },
 ];
 
-export function Autoatendimento({ professionals, services, onRefresh }: AutoatendimentoProps) {
+export function Autoatendimento({ professionals, services, onRefresh, onGoToMinhaAgenda }: AutoatendimentoProps) {
   const toast = useToast();
+  const { user } = useAuth();
+  const tenantSlug = user?.tenantSlug || "";
+  const portalUrl = tenantSlug ? `/agendar/${tenantSlug}` : null;
+  const portalFullUrl = tenantSlug ? `${window.location.origin}/agendar/${tenantSlug}` : null;
+
   const [settings, setSettings] = useState<SelfServiceSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [previewTab, setPreviewTab] = useState<"services" | "professionals">("services");
 
   useEffect(() => {
     const load = async () => {
@@ -269,93 +275,75 @@ export function Autoatendimento({ professionals, services, onRefresh }: Autoaten
           </Button>
         </div>
 
-        {/* Preview */}
+        {/* Painel lateral: portal + link para Minha Agenda */}
         <div className="space-y-3">
-          {settings.enableSelfService && (
-            <div className="flex items-center gap-2 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
-              <Link2 size={14} className="text-emerald-600 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider mb-0.5">Link do portal</p>
-                <p className="text-xs text-emerald-800 font-medium truncate">/booking</p>
-              </div>
-            </div>
-          )}
 
+          {/* Status do portal */}
           <div className={cn(
-            "bg-white border border-zinc-200 rounded-3xl overflow-hidden shadow-sm",
-            !settings.enableSelfService && "opacity-50"
+            "rounded-2xl border p-4 space-y-3 shadow-sm",
+            settings.enableSelfService ? "bg-white border-zinc-200" : "bg-zinc-50 border-zinc-100"
           )}>
-            <div className="bg-amber-500 px-5 py-4 text-white">
-              <p className="text-base font-black">Agendelle</p>
-              {settings.selfServiceWelcomeMessage ? (
-                <p className="text-[11px] text-amber-100 mt-1 leading-relaxed line-clamp-2">{settings.selfServiceWelcomeMessage}</p>
-              ) : (
-                <p className="text-[11px] text-amber-200 mt-1">Agende seu horário online</p>
-              )}
+            <div className="flex items-center gap-2">
+              <div className={cn(
+                "w-2 h-2 rounded-full",
+                settings.enableSelfService ? "bg-emerald-500 animate-pulse" : "bg-zinc-300"
+              )} />
+              <p className="text-xs font-black text-zinc-700">
+                {settings.enableSelfService ? "Portal ativo" : "Portal desativado"}
+              </p>
             </div>
-
-            <div className="flex border-b border-zinc-100">
-              {(["services", "professionals"] as const).filter(
-                (t) => t !== "professionals" || settings.selfServiceShowProfessional
-              ).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setPreviewTab(t)}
-                  className={cn(
-                    "flex-1 py-2.5 text-[10px] font-black uppercase tracking-wider transition-colors",
-                    previewTab === t ? "text-amber-600 border-b-2 border-amber-500" : "text-zinc-400"
-                  )}
+            <p className="text-[11px] text-zinc-400 leading-relaxed">
+              {settings.enableSelfService
+                ? "Seus clientes podem agendar online pelo link público."
+                : "O portal está desativado. Ative a chave acima para liberar o agendamento online."}
+            </p>
+            {settings.enableSelfService && portalUrl && (
+              <div className="flex gap-2 pt-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  fullWidth
+                  iconLeft={<Copy size={13} />}
+                  onClick={() => {
+                    navigator.clipboard.writeText(portalFullUrl!);
+                    toast.success("Link copiado!");
+                  }}
                 >
-                  {t === "services" ? "Serviços" : "Profissionais"}
-                </button>
-              ))}
-            </div>
-
-            <div className="p-3 space-y-2 max-h-[260px] overflow-y-auto">
-              {previewTab === "services" ? (
-                services.slice(0, 5).map((s, i) => (
-                  <div key={s.id ?? i} className="flex items-center gap-3 p-2.5 rounded-xl border border-zinc-100 hover:border-amber-200 cursor-pointer transition-all">
-                    <div className="h-8 w-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
-                      <span className="text-xs">✂</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-zinc-900 truncate">{s.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {s.durationMinutes && (
-                          <p className="text-[10px] text-zinc-400 flex items-center gap-1">
-                            <Clock size={8} />{s.durationMinutes}min
-                          </p>
-                        )}
-                        {settings.selfServiceShowPrices && s.price != null && (
-                          <p className="text-[10px] font-bold text-emerald-600">R$ {Number(s.price).toFixed(2)}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                professionals.slice(0, 4).map((p, i) => (
-                  <div key={p.id ?? i} className="flex items-center gap-3 p-2.5 rounded-xl border border-zinc-100 cursor-pointer hover:border-amber-200 transition-all">
-                    <div className="h-8 w-8 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center shrink-0 text-xs font-black text-zinc-500">
-                      {p.name?.[0]?.toUpperCase() ?? "?"}
-                    </div>
-                    <p className="text-xs font-bold text-zinc-900 truncate">{p.name}</p>
-                  </div>
-                ))
-              )}
-              {(previewTab === "services" ? services : professionals).length === 0 && (
-                <p className="text-xs text-center text-zinc-400 py-6">Nenhum item cadastrado</p>
-              )}
-            </div>
-
-            <div className="px-4 pb-4 pt-2">
-              <button className="w-full h-10 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-[10px] transition-colors">
-                Escolher horário →
-              </button>
-            </div>
+                  Copiar link
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  fullWidth
+                  iconLeft={<ExternalLink size={13} />}
+                  onClick={() => window.open(portalUrl, "_blank")}
+                >
+                  Abrir
+                </Button>
+              </div>
+            )}
           </div>
 
-          <p className="text-[10px] text-zinc-400 text-center">Prévia do portal de agendamento</p>
+          {/* Card: visual do portal → Minha Agenda Online */}
+          <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm p-4 space-y-3">
+            <div>
+              <p className="text-xs font-black text-zinc-800">Visual do portal</p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                Logo, cores, nome e endereço são configurados em <strong>Minha Agenda Online</strong>.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              fullWidth
+              iconLeft={<Globe size={13} />}
+              iconRight={<ExternalLink size={12} />}
+              onClick={() => onGoToMinhaAgenda?.()}
+            >
+              Ir para Minha Agenda Online
+            </Button>
+          </div>
+
         </div>
       </div>
     </div>

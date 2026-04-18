@@ -316,7 +316,8 @@ export function PackagesTab({
       type: item.type, discount: (item.discount || 0).toString(),
       discountType: item.discountType || "value",
       includedServices: item.packageServices?.map((ps: any) => ({
-        id: ps.serviceId, name: ps.service.name, quantity: ps.quantity,
+        id: ps.serviceId, name: ps.service?.name || ps.serviceName || "", quantity: ps.quantity,
+        price: Number(ps.service?.price ?? ps.servicePrice ?? 0),
       })) || [],
       professionalIds: item.professionalIds
         ? (typeof item.professionalIds === "string" ? JSON.parse(item.professionalIds) : item.professionalIds)

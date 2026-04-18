@@ -237,6 +237,7 @@ export function AdminTabContent(props: any) {
             }}
             onNewBlockAppointment={handleCreateBlockAppointment}
             onRefresh={fetchAppointments}
+            onGoToMinhaAgenda={() => handleTabChange("minha-agenda")}
           />
         ))}
 

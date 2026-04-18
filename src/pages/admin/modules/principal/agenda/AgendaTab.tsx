@@ -54,6 +54,7 @@ interface AgendaTabProps {
   onDeleteAppointment?: (id: string) => void;
   onUpdateStatus?: (id: string, status: string) => void;
   onRefresh?: () => void;
+  onGoToMinhaAgenda?: () => void;
 }
 
 /* ─── legend dots ─────────────────────────────────── */
@@ -230,6 +231,7 @@ export function AgendaTab(props: AgendaTabProps) {
               professionals={props.professionals}
               services={props.services ?? []}
               onRefresh={props.onRefresh ?? (() => {})}
+              onGoToMinhaAgenda={props.onGoToMinhaAgenda}
             />
           )}
         </div>
