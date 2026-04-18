@@ -286,7 +286,7 @@ export function Autoatendimento({ professionals, services, onRefresh }: Autoaten
             !settings.enableSelfService && "opacity-50"
           )}>
             <div className="bg-amber-500 px-5 py-4 text-white">
-              <p className="text-base font-black">Glow &amp; Cut Studio</p>
+              <p className="text-base font-black">Agendelle</p>
               {settings.selfServiceWelcomeMessage ? (
                 <p className="text-[11px] text-amber-100 mt-1 leading-relaxed line-clamp-2">{settings.selfServiceWelcomeMessage}</p>
               ) : (

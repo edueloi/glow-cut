@@ -300,7 +300,7 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
 
             <div className="px-5 py-3 border-t border-zinc-800 text-center">
               <p className="text-[9px] text-zinc-600 uppercase tracking-wider font-bold">
-                Terminal PAT · Glow &amp; Cut Studio
+                Terminal PAT · Agendelle
               </p>
             </div>
           </div>
