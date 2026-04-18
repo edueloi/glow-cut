@@ -167,6 +167,7 @@ export const adminController = {
       if (b.feature2Description !== undefined) data.feature2Description = b.feature2Description;
       if (b.feature3Title !== undefined) data.feature3Title = b.feature3Title;
       if (b.feature3Description !== undefined) data.feature3Description = b.feature3Description;
+      if (b.experienceYears !== undefined) data.experienceYears = b.experienceYears;
 
       const tenant = await (prisma as any).tenant.update({
         where: { id: tenantId },
@@ -233,7 +234,16 @@ export const adminController = {
   async getTenantBySlug(req: Request, res: Response) {
     const tenant = await (prisma as any).tenant.findFirst({
       where: { slug: req.params.slug, isActive: true },
-      select: { id: true, name: true, themeColor: true, logoUrl: true, coverUrl: true, address: true, instagram: true, welcomeMessage: true, description: true, mission: true, vision: true, values: true, phone: true, showProducts: true, showServices: true, showTeam: true }
+      select: { 
+        id: true, name: true, slug: true, themeColor: true, logoUrl: true, coverUrl: true, 
+        address: true, instagram: true, welcomeMessage: true, description: true, 
+        mission: true, vision: true, values: true, phone: true, 
+        showProducts: true, showServices: true, showTeam: true,
+        aboutTitle: true, experienceYears: true,
+        feature1Title: true, feature1Description: true,
+        feature2Title: true, feature2Description: true,
+        feature3Title: true, feature3Description: true
+      }
     });
     if (!tenant) return res.status(404).json({ error: "Estúdio não encontrado." });
     let agendaSettings: any = { onlineBookingEnabled: true, enableSelfService: true, enableAppointmentSearch: true, enableClientAgendaView: true, selfServiceShowProfessional: true, selfServiceShowPrices: true, selfServiceWelcomeMessage: "", allowClientCancellation: true, allowClientReschedule: false, minAdvanceMinutes: 30, maxAdvanceDays: 60, slotIntervalMinutes: 30 };

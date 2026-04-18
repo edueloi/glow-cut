@@ -40,6 +40,7 @@ interface Tenant {
   feature2Description: string | null;
   feature3Title: string | null;
   feature3Description: string | null;
+  experienceYears: string | null;
   showProducts: boolean;
   showServices: boolean;
   showTeam: boolean;
@@ -270,10 +271,12 @@ export default function ProfessionalSite() {
                   className="w-full h-full object-cover" 
                 />
               </div>
-              <div className="absolute -bottom-8 -right-8 w-48 h-48 bg-zinc-900 rounded-[32px] p-8 text-white hidden md:flex flex-col justify-end" style={primaryBtnStyle}>
-                <span className="text-4xl font-black mb-1">10+</span>
-                <span className="text-xs font-bold uppercase tracking-widest opacity-80">Anos de experiência</span>
-              </div>
+              {tenant.experienceYears && (
+                <div className="absolute -bottom-8 -right-8 w-48 h-48 bg-zinc-900 rounded-[32px] p-8 text-white hidden md:flex flex-col justify-end" style={primaryBtnStyle}>
+                  <span className="text-4xl font-black mb-1">{tenant.experienceYears}</span>
+                  <span className="text-xs font-bold uppercase tracking-widest opacity-80">Anos de experiência</span>
+                </div>
+              )}
             </div>
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-100 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">

@@ -14,7 +14,8 @@ import {
   Phone,
   FileText,
   Hash,
-  MapPin
+  MapPin,
+  Star
 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/src/components/ui/Button";
@@ -52,7 +53,8 @@ export function SiteTab() {
     feature2Title: "",
     feature2Description: "",
     feature3Title: "",
-    feature3Description: ""
+    feature3Description: "",
+    experienceYears: "10+"
   });
 
   useEffect(() => {
@@ -82,7 +84,8 @@ export function SiteTab() {
             feature2Title: data.feature2Title || "",
             feature2Description: data.feature2Description || "",
             feature3Title: data.feature3Title || "",
-            feature3Description: data.feature3Description || ""
+            feature3Description: data.feature3Description || "",
+            experienceYears: data.experienceYears || "10+"
           });
         }
       } catch (err) {
@@ -214,6 +217,14 @@ export function SiteTab() {
             iconClassName="text-amber-600"
           >
             <div className="space-y-6">
+              <Input
+                label="Tempo de Experiência (Selo)"
+                value={formData.experienceYears}
+                onChange={(e) => setFormData({ ...formData, experienceYears: e.target.value })}
+                placeholder="Ex: 10+"
+                hint="Aparece no selo preto ao lado da imagem 'Sobre Nós'."
+                iconLeft={<Star size={16} />}
+              />
               <Input
                 label="Título da Seção (ex: Nossa História)"
                 value={formData.aboutTitle}
