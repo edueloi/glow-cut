@@ -189,10 +189,23 @@ export const adminController = {
       select: { id: true, name: true, themeColor: true, logoUrl: true, coverUrl: true, address: true, instagram: true, welcomeMessage: true }
     });
     if (!tenant) return res.status(404).json({ error: "Estúdio não encontrado." });
-    let agendaSettings: any = { onlineBookingEnabled: true, enableSelfService: true, enableAppointmentSearch: true, enableClientAgendaView: true };
+    let agendaSettings: any = { onlineBookingEnabled: true, enableSelfService: true, enableAppointmentSearch: true, enableClientAgendaView: true, selfServiceShowProfessional: true, selfServiceShowPrices: true, selfServiceWelcomeMessage: "", allowClientCancellation: true, allowClientReschedule: false, minAdvanceMinutes: 30, maxAdvanceDays: 60, slotIntervalMinutes: 30 };
     try {
       const settings = await ensureAgendaSettingsRecord(tenant.id);
-      agendaSettings = { onlineBookingEnabled: settings.onlineBookingEnabled, enableSelfService: settings.enableSelfService, enableAppointmentSearch: settings.enableAppointmentSearch, enableClientAgendaView: settings.enableClientAgendaView };
+      agendaSettings = {
+        onlineBookingEnabled: settings.onlineBookingEnabled,
+        enableSelfService: settings.enableSelfService,
+        enableAppointmentSearch: settings.enableAppointmentSearch,
+        enableClientAgendaView: settings.enableClientAgendaView,
+        selfServiceShowProfessional: settings.selfServiceShowProfessional,
+        selfServiceShowPrices: settings.selfServiceShowPrices,
+        selfServiceWelcomeMessage: settings.selfServiceWelcomeMessage || "",
+        allowClientCancellation: settings.allowClientCancellation,
+        allowClientReschedule: settings.allowClientReschedule,
+        minAdvanceMinutes: settings.minAdvanceMinutes,
+        maxAdvanceDays: settings.maxAdvanceDays,
+        slotIntervalMinutes: settings.slotIntervalMinutes,
+      };
     } catch (e) {
       console.warn("[tenant-by-slug] AgendaSettings fallback used.");
     }

@@ -257,7 +257,7 @@ export function Autoatendimento({ professionals, services, onRefresh }: Autoaten
               <textarea
                 value={settings.selfServiceWelcomeMessage}
                 onChange={(e) => set("selfServiceWelcomeMessage", e.target.value)}
-                placeholder="Ex: Bem-vindo ao Glow & Cut! Selecione o serviço e escolha o horário que preferir."
+                placeholder="Ex: Bem-vindo ao Agendelle! Selecione o serviço e escolha o horário que preferir."
                 rows={3}
                 className="ds-input resize-none min-h-[80px]"
               />
