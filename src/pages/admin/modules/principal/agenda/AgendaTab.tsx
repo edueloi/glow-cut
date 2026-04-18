@@ -186,7 +186,8 @@ export function AgendaTab(props: AgendaTabProps) {
               professionals={props.professionals}
               services={props.services ?? []}
               onNewAppointment={(client) => {
-                props.setNewAppointment?.((prev: any) => ({ ...prev, clientId: client.id }));
+                const empty = { id: undefined, date: new Date(), startTime: "09:00", duration: 60, clientId: client.id, clientPhone: "", clientName: "", serviceId: "", packageId: "", serviceIds: [], professionalId: "", status: "agendado", notes: "", recurrence: { type: "none", count: 1, interval: 7 }, comandaId: "", type: "atendimento" };
+                props.setNewAppointment(empty);
                 props.setIsAppointmentModalOpen(true);
               }}
               onAppointmentClick={props.onAppointmentClick}
@@ -201,7 +202,11 @@ export function AgendaTab(props: AgendaTabProps) {
               clients={props.clients ?? []}
               onAppointmentClick={props.onAppointmentClick}
               onUpdateStatus={props.onUpdateStatus}
-              onNewAppointment={() => props.setIsAppointmentModalOpen(true)}
+              onNewAppointment={() => {
+                const empty = { id: undefined, date: new Date(), startTime: "09:00", duration: 60, clientId: "", clientPhone: "", clientName: "", serviceId: "", packageId: "", serviceIds: [], professionalId: "", status: "agendado", notes: "", recurrence: { type: "none", count: 1, interval: 7 }, comandaId: "", type: "atendimento" };
+                props.setNewAppointment(empty);
+                props.setIsAppointmentModalOpen(true);
+              }}
               onRefresh={props.onRefresh}
             />
           )}
@@ -353,7 +358,11 @@ function MinhaAgendaView({
           </div>
 
           <Button
-            onClick={() => setIsAppointmentModalOpen(true)}
+            onClick={() => {
+              const empty = { id: undefined, date: new Date(), startTime: "09:00", duration: 60, clientId: "", clientPhone: "", clientName: "", serviceId: "", packageId: "", serviceIds: [], professionalId: "", status: "agendado", notes: "", recurrence: { type: "none", count: 1, interval: 7 }, comandaId: "", type: "atendimento" };
+              setIsAppointmentModalOpen(true);
+              setNewAppointment(empty);
+            }}
             className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-3 sm:px-5 font-bold shadow-sm flex items-center gap-1.5 text-xs h-9"
           >
             <Plus size={14} />
@@ -473,7 +482,8 @@ function MinhaAgendaView({
                       {dayApps.length === 0 ? (
                         <button
                           onClick={() => {
-                            setNewAppointment((prev: any) => ({ ...prev, date: currentMonth, startTime: hourStr }));
+                            const empty = { id: undefined, date: currentMonth, startTime: hourStr, duration: 60, clientId: "", clientPhone: "", clientName: "", serviceId: "", packageId: "", serviceIds: [], professionalId: "", status: "agendado", notes: "", recurrence: { type: "none", count: 1, interval: 7 }, comandaId: "", type: "atendimento" };
+                            setNewAppointment(empty);
                             setIsAppointmentModalOpen(true);
                             setSlotHover(null);
                           }}
@@ -653,7 +663,8 @@ function MinhaAgendaView({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setNewAppointment((p: any) => ({ ...p, date: day }));
+                              const empty = { id: undefined, date: day, startTime: "09:00", duration: 60, clientId: "", clientPhone: "", clientName: "", serviceId: "", packageId: "", serviceIds: [], professionalId: "", status: "agendado", notes: "", recurrence: { type: "none", count: 1, interval: 7 }, comandaId: "", type: "atendimento" };
+                              setNewAppointment(empty);
                               setIsAppointmentModalOpen(true);
                             }}
                             className="absolute bottom-1 right-1 p-0.5 bg-zinc-100 rounded-lg text-zinc-400 opacity-0 group-hover:opacity-100 transition-all hover:text-zinc-700 border border-zinc-200"
@@ -771,7 +782,8 @@ function MinhaAgendaView({
                               !hasApps && !isBlockedWeekDay
                                 ? () => {
                                     setSlotHover(null);
-                                    setNewAppointment((p: any) => ({ ...p, date: day, startTime: hourStr }));
+                                    const empty = { id: undefined, date: day, startTime: hourStr, duration: 60, clientId: "", clientPhone: "", clientName: "", serviceId: "", packageId: "", serviceIds: [], professionalId: "", status: "agendado", notes: "", recurrence: { type: "none", count: 1, interval: 7 }, comandaId: "", type: "atendimento" };
+                                    setNewAppointment(empty);
                                     setIsAppointmentModalOpen(true);
                                   }
                                 : undefined

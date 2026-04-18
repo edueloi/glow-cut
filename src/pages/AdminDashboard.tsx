@@ -449,9 +449,8 @@ export default function AdminDashboard() {
   const [hoveredAppointment, setHoveredAppointment] = useState<any>(null);
   const [clientComandaStatus, setClientComandaStatus] = useState<"open" | "paid" | "none" | null>(null);
 
-  // New Appointment State
-  const [newAppointment, setNewAppointment] = useState({
-    id: "" as string | undefined,
+  const emptyAppointment = {
+    id: undefined,
     date: new Date(),
     startTime: "09:00",
     duration: 60,
@@ -460,14 +459,17 @@ export default function AdminDashboard() {
     clientName: "",
     serviceId: "",
     packageId: "",
-    serviceIds: [] as string[],   // multi-select unificado (serviços + pacotes)
+    serviceIds: [] as string[],
     professionalId: "",
     status: "agendado" as "agendado" | "confirmado" | "realizado" | "cancelado" | "faltou" | "reagendado",
     notes: "",
-    recurrence: { type: "none", count: 1, interval: 7 },
+    recurrence: { type: "none" as "none" | "weekly" | "custom", count: 1, interval: 7 },
     comandaId: "" as string | null,
     type: "atendimento" as "atendimento" | "bloqueio" | "pessoal"
-  });
+  };
+
+  // New Appointment State
+  const [newAppointment, setNewAppointment] = useState(emptyAppointment);
   useEffect(() => {
     localStorage.setItem("adminClientView", clientView);
   }, [clientView]);
@@ -650,15 +652,7 @@ export default function AdminDashboard() {
       })
     });
     setIsAppointmentModalOpen(false);
-    setNewAppointment({
-      id: undefined,
-      date: new Date(), startTime: "09:00", duration: 60,
-      clientId: "", clientPhone: "", clientName: "",
-      serviceId: "", packageId: "", serviceIds: [], professionalId: "",
-      status: "agendado", notes: "",
-      recurrence: { type: "none", count: 1, interval: 7 },
-      comandaId: null, type: "atendimento"
-    });
+    setNewAppointment(emptyAppointment);
     setRepeatLabel("Não Repete");
     setClientComandaStatus(null);
     fetchAppointments();
@@ -1431,7 +1425,13 @@ export default function AdminDashboard() {
 
       {/* ═══ MODAL AGENDAMENTO ═══════════════════════════════════ */}
       {isAppointmentModalOpen && (() => {
-        const closeAppt = () => { setIsAppointmentModalOpen(false); setClientComandaStatus(null); setClientSearchResults([]); };
+        const closeAppt = () => { 
+          setIsAppointmentModalOpen(false); 
+          setClientComandaStatus(null); 
+          setClientSearchResults([]); 
+          setNewAppointment(emptyAppointment);
+          setRepeatLabel("Não Repete");
+        };
         const [h, m] = newAppointment.startTime.split(':').map(Number);
         const totalMins = h * 60 + m + newAppointment.duration;
         const endH = Math.floor(totalMins / 60) % 24;
