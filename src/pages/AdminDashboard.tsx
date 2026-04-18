@@ -180,6 +180,8 @@ export default function AdminDashboard() {
     } else if (tab === 'financeiro') {
       setActiveSubModule('controle');
       window.history.pushState(null, '', '/admin/financeiro/controle');
+    } else if (tab === 'site') {
+      window.history.pushState(null, '', '/admin/meu-site');
     } else {
       const slug = ADMIN_TAB_SLUGS[tab] || ADMIN_TAB_SLUGS[ADMIN_DEFAULT_TAB];
       window.history.pushState(null, '', `/admin/${slug}`);

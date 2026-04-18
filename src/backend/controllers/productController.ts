@@ -20,6 +20,21 @@ export const productController = {
     }
   },
 
+  async publicList(req: Request, res: Response) {
+    const tenantId = req.headers["x-tenant-id"] as string;
+    if (!tenantId) return res.status(400).json({ error: "x-tenant-id obrigatório." });
+    try {
+      const products: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT p.*, s.name as sectorName, s.color as sectorColor FROM Product p LEFT JOIN Sector s ON p.sectorId = s.id WHERE p.tenantId = ? AND p.isForSale = 1 ORDER BY p.name ASC`,
+        tenantId
+      );
+      const result = products.map((p: any) => ({ ...p, sector: p.sectorId ? { id: p.sectorId, name: p.sectorName, color: p.sectorColor } : null }));
+      res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  },
+
   async create(req: Request, res: Response) {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });

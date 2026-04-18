@@ -32,7 +32,8 @@ export type AdminTabId =
   | "wpp"
   | "products"
   | "financeiro"
-  | "permissoes";   // ← nova aba de permissões
+  | "permissoes"
+  | "site";
 
 export interface AdminSubNavItem {
   key: string;
@@ -75,6 +76,7 @@ export const ADMIN_TAB_SLUGS: Record<AdminTabId, string> = {
   products: "produtos",
   financeiro: "financeiro",
   permissoes: "permissoes",
+  site: "meu-site",
 };
 
 export const ADMIN_SLUG_TO_TAB = Object.fromEntries(
@@ -98,6 +100,7 @@ export const ADMIN_TAB_TITLES: Record<AdminTabId, string> = {
   products: "Produtos & Estoque",
   financeiro: "Financeiro",
   permissoes: "Perfis de Permissão",
+  site: "Configurar Site Profissional",
 };
 
 export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
@@ -122,6 +125,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
         ],
       },
       { tab: "minha-agenda", label: "Minha Agenda Online", icon: Globe, permModule: "minha_agenda" },
+      { tab: "site",         label: "Configurar Meu Site",  icon: Globe, permModule: "configuracoes" },
     ],
   },
   {

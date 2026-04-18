@@ -1,0 +1,265 @@
+import React, { useState, useEffect } from "react";
+import { 
+  Globe, 
+  Save, 
+  Target, 
+  Eye, 
+  Heart, 
+  Layout, 
+  Image as ImageIcon,
+  Palette,
+  ExternalLink,
+  CheckCircle,
+  AlertCircle
+} from "lucide-react";
+import { motion } from "motion/react";
+import { Button } from "@/src/components/ui/Button";
+import { Input, Textarea } from "@/src/components/ui/Input";
+import { PageWrapper, SectionTitle, FormRow } from "@/src/components/ui/PageWrapper";
+import { PanelCard } from "@/src/components/ui/PanelCard";
+import { useToast } from "@/src/components/ui/Toast";
+import { apiFetch } from "@/src/lib/api";
+
+export function SiteTab() {
+  const toast = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [formData, setFormData] = useState({
+    title: "",
+    slug: "",
+    welcomeMessage: "",
+    description: "",
+    mission: "",
+    vision: "",
+    values: "",
+    themeColor: "#c9a96e",
+    instagram: "",
+    address: ""
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await apiFetch("/api/admin/tenant");
+        if (res.ok) {
+          const data = await res.json();
+          setFormData({
+            title: data.name || "",
+            slug: data.slug || "",
+            welcomeMessage: data.welcomeMessage || "",
+            description: data.description || "",
+            mission: data.mission || "",
+            vision: data.vision || "",
+            values: data.values || "",
+            themeColor: data.themeColor || "#c9a96e",
+            instagram: data.instagram || "",
+            address: data.address || ""
+          });
+        }
+      } catch (err) {
+        console.error("Erro ao carregar dados do site:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await apiFetch("/api/admin/branding", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      });
+      if (res.ok) {
+        toast.success("Configurações do site salvas com sucesso!");
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Erro ao salvar configurações.");
+      }
+    } catch (err) {
+      toast.error("Erro de conexão com o servidor.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-8 h-8 border-4 border-zinc-200 border-t-amber-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <PageWrapper className="space-y-6">
+      <SectionTitle
+        title="Configurar Meu Site"
+        description="Personalize como o mundo vê o seu negócio na sua página exclusiva."
+        icon={Globe}
+        action={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              iconLeft={<ExternalLink size={14} />}
+              onClick={() => window.open(`/${formData.slug}`, "_blank")}
+            >
+              Visualizar Site
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              loading={saving}
+              iconLeft={<Save size={14} />}
+              onClick={handleSave}
+            >
+              Salvar Alterações
+            </Button>
+          </div>
+        }
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <PanelCard
+            title="Identidade & Boas-vindas"
+            description="Informações principais e primeira impressão do seu site."
+            icon={Globe}
+          >
+            <div className="space-y-6">
+              <FormRow>
+                <Input
+                  label="Título do Site"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="Nome do seu negócio"
+                />
+                <Input
+                  label="Link do Site (Slug)"
+                  value={formData.slug}
+                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                  placeholder="ex: barber-premium"
+                  addonLeft="agendelle.com/"
+                />
+              </FormRow>
+
+              <Input
+                label="Frase de Destaque"
+                value={formData.welcomeMessage}
+                onChange={(e) => setFormData({ ...formData, welcomeMessage: e.target.value })}
+                placeholder="Ex: O melhor corte da cidade está aqui."
+              />
+
+              <Textarea
+                label="Sobre Nós (Descrição Principal)"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={4}
+                placeholder="Conte um pouco sobre a história do seu negócio..."
+              />
+            </div>
+          </PanelCard>
+
+          <PanelCard
+            title="Cultura Organizacional"
+            description="Missão, Visão e Valores que guiam o seu negócio."
+            icon={Target}
+          >
+            <div className="space-y-6">
+              <Textarea
+                label="Missão"
+                value={formData.mission}
+                onChange={(e) => setFormData({ ...formData, mission: e.target.value })}
+                placeholder="Qual o propósito fundamental do seu negócio?"
+                rows={2}
+              />
+              <Textarea
+                label="Visão"
+                value={formData.vision}
+                onChange={(e) => setFormData({ ...formData, vision: e.target.value })}
+                placeholder="Onde você quer chegar nos próximos anos?"
+                rows={2}
+              />
+              <Textarea
+                label="Valores"
+                value={formData.values}
+                onChange={(e) => setFormData({ ...formData, values: e.target.value })}
+                placeholder="Quais princípios guiam o seu atendimento?"
+                rows={2}
+              />
+            </div>
+          </PanelCard>
+        </div>
+
+        <div className="space-y-6">
+          <PanelCard
+            title="Estilo & Cores"
+            icon={Palette}
+            iconWrapClassName="bg-rose-50 border-rose-100"
+            iconClassName="text-rose-600"
+          >
+            <div className="space-y-4">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                Cor Principal do Site
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={formData.themeColor}
+                  onChange={(e) => setFormData({ ...formData, themeColor: e.target.value })}
+                  className="w-11 h-11 rounded-xl border-none cursor-pointer shadow-sm"
+                />
+                <Input
+                  value={formData.themeColor}
+                  onChange={(e) => setFormData({ ...formData, themeColor: e.target.value })}
+                  placeholder="#HEX"
+                  wrapperClassName="flex-1"
+                />
+              </div>
+              <p className="text-[10px] text-zinc-400 font-medium leading-relaxed">
+                Esta cor será usada nos botões e detalhes visuais da sua página.
+              </p>
+            </div>
+          </PanelCard>
+
+          <PanelCard
+            title="Links e Contato"
+            icon={Layout}
+            iconWrapClassName="bg-indigo-50 border-indigo-100"
+            iconClassName="text-indigo-600"
+          >
+            <div className="space-y-4">
+              <Input
+                label="Instagram"
+                value={formData.instagram}
+                onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
+                placeholder="https://instagram.com/..."
+              />
+              <Input
+                label="Endereço Exibido"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="Rua Exemplo, 123..."
+              />
+            </div>
+          </PanelCard>
+
+          <div className="rounded-3xl bg-zinc-900 p-6 text-white shadow-xl">
+            <h4 className="flex items-center gap-2 text-sm font-black mb-2">
+              <AlertCircle size={16} className="text-amber-400" />
+              Dica de SEO
+            </h4>
+            <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">
+              Use palavras-chave no campo "Sobre Nós" (ex: barbearia, corte, design) para melhorar seu ranking no Google.
+            </p>
+          </div>
+        </div>
+      </div>
+    </PageWrapper>
+  );
+}

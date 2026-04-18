@@ -13,6 +13,7 @@ import {
   UserCog,
   Users,
   X,
+  ExternalLink,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -229,6 +230,16 @@ export function AdminDashboardShell({
             >
               <Menu size={20} />
             </button>
+
+            <a
+              href={`/${adminUser.tenantSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[11px] font-black uppercase tracking-widest text-zinc-600 shadow-sm transition-all hover:bg-zinc-50 hover:text-zinc-900 md:flex"
+            >
+              <ExternalLink size={14} />
+              Ver Site
+            </a>
 
             <div className="relative">
               <button

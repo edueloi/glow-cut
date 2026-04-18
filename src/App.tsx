@@ -12,6 +12,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import ProfessionalDashboard from "./pages/ProfessionalDashboard";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import LandingPage from "./pages/LandingPage";
+import ProfessionalSite from "./pages/ProfessionalSite";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 
 import logoFavicon from "./images/system/logo-favicon.png";
@@ -454,7 +455,8 @@ function App() {
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/pat/:professionalId" element={<PATQueue />} />
           <Route path="/pat/general/:slug" element={<PATQueue />} />
-          <Route path="/:slug" element={<ClientBooking />} />
+          <Route path="/:slug" element={<ProfessionalSite />} />
+          <Route path="/:slug/agendar" element={<ClientBooking />} />
           <Route path="/agendar/:slug" element={<ClientBooking />} />
         </Routes>
       </BrowserRouter>

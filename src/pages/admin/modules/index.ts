@@ -14,5 +14,6 @@ export { ProfessionalsTab } from "./operacional/profissionais/ProfessionalsTab";
 export { HorariosTab } from "./sistema/horarios/HorariosTab";
 export { WppTab } from "./sistema/whatsapp/WppTab";
 export { SettingsTab } from "./sistema/configuracoes/SettingsTab";
+export { SiteTab } from "./site/SiteTab";
 export { AdminProfileTab } from "./sistema/perfil/AdminProfileTab";
 export { PermissoesTab } from "./sistema/permissoes/PermissoesTab";

@@ -16,6 +16,7 @@ import {
   ProductsTab,
   ProfessionalsTab,
   ServicesTab,
+  SiteTab,
   WppTab,
 } from "@/src/pages/admin/modules";
 import { PermissoesTab } from "@/src/pages/admin/modules/sistema/permissoes/PermissoesTab";
@@ -377,6 +378,9 @@ export function AdminTabContent(props: any) {
 
         {activeTab === "permissoes" && (!guard("permissoes") ? <AccessDenied tabLabel="Permissões" /> : (
           <PermissoesTab currentTheme={props.currentTheme} />
+        ))}
+        {activeTab === "site" && (!guard("configuracoes") ? <AccessDenied tabLabel="Configurar Site" /> : (
+          <SiteTab />
         ))}
       </motion.div>
     </AnimatePresence>

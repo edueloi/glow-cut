@@ -3,6 +3,7 @@ import { serviceController } from "../controllers/serviceController";
 import { professionalController } from "../controllers/professionalController";
 import { clientController } from "../controllers/clientController";
 import { agendaController } from "../controllers/agendaController";
+import { productController } from "../controllers/productController";
 
 export const publicBookingRouter = Router();
 
@@ -13,3 +14,4 @@ publicBookingRouter.post("/clients", clientController.create);
 publicBookingRouter.get("/appointments/client", agendaController.clientAppointments);
 publicBookingRouter.post("/appointments", agendaController.create);
 publicBookingRouter.get("/calendar-status", agendaController.getCalendarStatus);
+publicBookingRouter.get("/products", productController.publicList);
