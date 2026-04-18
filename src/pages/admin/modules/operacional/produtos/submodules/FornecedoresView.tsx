@@ -7,7 +7,7 @@ import {
   ContentCard, SectionTitle, EmptyState,
   Button, IconButton,
   Modal, ModalFooter,
-  Input,
+  Input, Textarea, FormRow,
   Badge,
   GridTable, Column,
   useToast,
@@ -72,22 +72,18 @@ function SupplierModal({ isOpen, onClose, editingItem, onSaved }: {
         </ModalFooter>
       }
     >
-      <div className="space-y-4 p-1">
+      <div className="space-y-4">
         <Input label="Nome do fornecedor *" value={form.name} onChange={f("name")} placeholder="Ex: Distribuidora Alfa" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormRow cols={2}>
           <Input label="CNPJ / Documento" value={form.cnpj} onChange={f("cnpj")} placeholder="00.000.000/0001-00" />
           <Input label="Telefone" value={form.phone} onChange={f("phone")} placeholder="(11) 9 9999-9999" iconLeft={<Phone size={14} />} />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        </FormRow>
+        <FormRow cols={2}>
           <Input label="E-mail" value={form.email} onChange={f("email")} placeholder="contato@fornecedor.com.br" iconLeft={<Mail size={14} />} />
           <Input label="Contato / Responsável" value={form.contact} onChange={f("contact")} placeholder="Nome do contato" iconLeft={<User size={14} />} />
-        </div>
+        </FormRow>
         <Input label="Endereço" value={form.address} onChange={f("address")} placeholder="Rua, número, cidade" iconLeft={<MapPin size={14} />} />
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Observações</label>
-          <textarea value={form.notes} onChange={f("notes")} rows={3} placeholder="Informações adicionais..."
-            className="w-full px-3 py-2.5 text-sm font-bold text-zinc-800 placeholder:text-zinc-400 bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10 resize-none transition-all" />
-        </div>
+        <Textarea label="Observações" value={form.notes} onChange={f("notes")} rows={3} placeholder="Informações adicionais..." />
       </div>
     </Modal>
   );

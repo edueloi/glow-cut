@@ -9,7 +9,7 @@ import {
   ContentCard, SectionTitle, EmptyState,
   Button, IconButton,
   Modal, ModalFooter,
-  Input,
+  Input, Select,
   Badge,
   useToast,
 } from "@/src/components/ui";
@@ -90,26 +90,30 @@ function VendaModal({ isOpen, onClose, products, onSaved }: {
         </ModalFooter>
       }
     >
-      <div className="space-y-5 p-1">
+      <div className="space-y-5">
+        {/* Adicionar produto */}
         <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-3">
           <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Adicionar produto</p>
+          <Select
+            value={productId}
+            onChange={e => setProductId(e.target.value)}
+            placeholder="Selecione um produto..."
+            options={forSaleProducts.map(p => ({
+              value: p.id,
+              label: `${p.name} — ${formatBRL(p.salePrice)} (Estoque: ${p.stock})`,
+              disabled: p.stock <= 0,
+            }))}
+          />
           <div className="flex gap-2">
-            <div className="flex-1">
-              <select value={productId} onChange={e => setProductId(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded-xl outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10 transition-all">
-                <option value="">Selecione um produto...</option>
-                {forSaleProducts.map(p => (
-                  <option key={p.id} value={p.id} disabled={p.stock <= 0}>
-                    {p.name} — {formatBRL(p.salePrice)} (Estoque: {p.stock})
-                  </option>
-                ))}
-              </select>
+            <Input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)}
+              className="w-24 text-center" placeholder="Qtd" label="Quantidade" />
+            <div className="flex items-end">
+              <Button onClick={addItem} iconLeft={<Plus size={14} />}>Adicionar</Button>
             </div>
-            <Input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} className="w-20 text-center" placeholder="Qtd" />
-            <Button onClick={addItem} iconLeft={<Plus size={14} />} size="sm"><span className="hidden sm:inline">Add</span></Button>
           </div>
         </div>
 
+        {/* Itens */}
         {items.length > 0 ? (
           <div className="space-y-2">
             <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Itens</p>
@@ -130,13 +134,19 @@ function VendaModal({ isOpen, onClose, products, onSaved }: {
             </div>
           </div>
         ) : (
-          <div className="py-8 flex flex-col items-center gap-2 text-zinc-300"><ShoppingBag size={28} /><p className="text-xs font-bold">Nenhum item adicionado</p></div>
+          <div className="py-8 flex flex-col items-center gap-2 text-zinc-300">
+            <ShoppingBag size={28} />
+            <p className="text-xs font-bold">Nenhum item adicionado</p>
+          </div>
         )}
 
+        {/* Cliente + Pagamento */}
         <div className="space-y-3">
-          <Input label="Cliente (opcional)" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Nome do cliente" iconLeft={<User size={14} />} />
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Forma de pagamento</label>
+          <Input label="Cliente (opcional)" value={clientName} onChange={e => setClientName(e.target.value)}
+            placeholder="Nome do cliente" iconLeft={<User size={14} />} />
+
+          <div className="space-y-1.5">
+            <label className="ds-label">Forma de pagamento</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {(Object.keys(PAY_LABELS) as PayMethod[]).map(method => {
                 const cfg = PAY_LABELS[method];
@@ -144,7 +154,9 @@ function VendaModal({ isOpen, onClose, products, onSaved }: {
                 return (
                   <button key={method} type="button" onClick={() => setPayMethod(method)}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-xs font-black transition-all ${
-                      payMethod === method ? "border-amber-400 bg-amber-50 text-amber-700" : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
+                      payMethod === method
+                        ? "border-amber-400 bg-amber-50 text-amber-700"
+                        : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
                     }`}>
                     <Icon size={14} />{cfg.label}
                   </button>
@@ -206,7 +218,9 @@ export function VendaView() {
 
       <FilterLine className="mb-4">
         <FilterLineSection grow>
-          <FilterLineItem grow><FilterLineSearch value={search} onChange={setSearch} placeholder="Buscar venda por produto..." /></FilterLineItem>
+          <FilterLineItem grow>
+            <FilterLineSearch value={search} onChange={setSearch} placeholder="Buscar venda por produto..." />
+          </FilterLineItem>
         </FilterLineSection>
         <FilterLineSection align="right">
           <Button iconLeft={<Plus size={14} />} onClick={() => setModalOpen(true)}>
@@ -217,7 +231,9 @@ export function VendaView() {
 
       <ContentCard padding="none">
         {loading ? (
-          <div className="py-16 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" /></div>
+          <div className="py-16 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+          </div>
         ) : filteredMovements.length === 0 ? (
           <EmptyState icon={ShoppingBag} title="Nenhuma venda registrada"
             description="Clique em Nova Venda para registrar a venda de um produto."
@@ -236,6 +252,7 @@ export function VendaView() {
               const total = prod ? Math.abs(m.quantity) * prod.salePrice : 0;
               return (
                 <div key={m.id}>
+                  {/* Desktop */}
                   <div className="hidden sm:grid grid-cols-[1fr_80px_120px_100px_130px] gap-4 items-center px-4 py-3.5">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center shrink-0">
@@ -252,6 +269,7 @@ export function VendaView() {
                     <p className="text-[10px] font-bold text-zinc-500 capitalize">{m.reference || "—"}</p>
                   </div>
 
+                  {/* Mobile */}
                   <div className="sm:hidden flex items-start gap-3 px-4 py-3.5">
                     <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center shrink-0">
                       <ShoppingBag size={16} className="text-violet-500" />

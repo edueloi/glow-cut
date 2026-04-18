@@ -9,7 +9,7 @@ import {
   ContentCard, SectionTitle, EmptyState,
   Button,
   Modal, ModalFooter,
-  Input,
+  Input, Select, FormRow,
   Badge,
   GridTable, Column,
   useToast,
@@ -44,10 +44,6 @@ function MovimentacaoModal({ isOpen, onClose, products, onSaved }: {
 
   useEffect(() => { if (!isOpen) setForm(EMPTY_FORM); }, [isOpen]);
 
-  const f = (k: keyof typeof EMPTY_FORM) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm(p => ({ ...p, [k]: e.target.value }));
-
   const handleSave = async () => {
     if (!form.productId) { toast.warning("Selecione um produto."); return; }
     if (parseInt(form.quantity) <= 0) { toast.warning("Quantidade deve ser maior que zero."); return; }
@@ -67,19 +63,26 @@ function MovimentacaoModal({ isOpen, onClose, products, onSaved }: {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Registrar Movimentação" size="md"
-      footer={<ModalFooter><Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button><Button onClick={handleSave} loading={saving}>Registrar</Button></ModalFooter>}
+      footer={
+        <ModalFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button onClick={handleSave} loading={saving}>Registrar</Button>
+        </ModalFooter>
+      }
     >
-      <div className="space-y-4 p-1">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tipo *</label>
+      <div className="space-y-4">
+        {/* Tipo */}
+        <div className="space-y-1.5">
+          <label className="ds-label">Tipo *</label>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {(Object.keys(TYPE_CONFIG) as MovType[]).map(t => {
               const cfg = TYPE_CONFIG[t];
               const Icon = cfg.icon;
+              const active = form.type === t;
               return (
                 <button key={t} type="button" onClick={() => setForm(p => ({ ...p, type: t }))}
                   className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all text-center ${
-                    form.type === t ? "border-amber-400 bg-amber-50 text-amber-700" : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
+                    active ? "border-amber-400 bg-amber-50 text-amber-700" : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
                   }`}>
                   <Icon size={16} />
                   <span className="text-[9px] font-black uppercase tracking-widest leading-tight">{cfg.label}</span>
@@ -89,31 +92,31 @@ function MovimentacaoModal({ isOpen, onClose, products, onSaved }: {
           </div>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Produto *</label>
-          <select value={form.productId} onChange={f("productId")}
-            className="w-full px-3 py-2.5 text-sm font-bold text-zinc-800 bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10 transition-all">
-            <option value="">Selecione um produto...</option>
-            {products.map(p => (
-              <option key={p.id} value={p.id}>{p.name} (Estoque: {p.stock} {p.unit || "un"})</option>
-            ))}
-          </select>
-        </div>
+        <Select
+          label="Produto *"
+          value={form.productId}
+          onChange={e => setForm(p => ({ ...p, productId: e.target.value }))}
+          placeholder="Selecione um produto..."
+          options={products.map(p => ({ value: p.id, label: `${p.name} (Estoque: ${p.stock} ${p.unit || "un"})` }))}
+        />
 
-        <div className="grid grid-cols-2 gap-4">
-          <Input label="Quantidade *" type="number" min="1" value={form.quantity} onChange={f("quantity")} placeholder="0" />
-          {selectedProduct && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Estoque atual</label>
+        <FormRow cols={2}>
+          <Input label="Quantidade *" type="number" min="1" value={form.quantity}
+            onChange={e => setForm(p => ({ ...p, quantity: e.target.value }))} placeholder="0" />
+          {selectedProduct ? (
+            <div className="space-y-1.5">
+              <label className="ds-label">Estoque atual</label>
               <div className="flex items-center h-10 sm:h-11 px-3 bg-zinc-50 border border-zinc-200 rounded-xl">
                 <span className="text-sm font-black text-zinc-700">{selectedProduct.stock} {selectedProduct.unit || "un"}</span>
               </div>
             </div>
-          )}
-        </div>
+          ) : <div />}
+        </FormRow>
 
-        <Input label="Motivo / Observação" value={form.reason} onChange={f("reason")} placeholder="Ex: Compra de reposição..." />
-        <Input label="Referência (NF, Pedido)" value={form.reference} onChange={f("reference")} placeholder="Ex: NF-001234" />
+        <Input label="Motivo / Observação" value={form.reason}
+          onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} placeholder="Ex: Compra de reposição..." />
+        <Input label="Referência (NF, Pedido)" value={form.reference}
+          onChange={e => setForm(p => ({ ...p, reference: e.target.value }))} placeholder="Ex: NF-001234" />
       </div>
     </Modal>
   );
