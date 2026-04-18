@@ -242,6 +242,7 @@ export default function AdminDashboard() {
   const [newHoliday, setNewHoliday] = useState({ date: '', name: '' });
   const [localWorkingHours, setLocalWorkingHours] = useState<any[]>([]);
   const [settingsOpenCard, setSettingsOpenCard] = useState<string | null>('agenda');
+  const [blockNationalHolidays, setBlockNationalHolidays] = useState(false);
 
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -551,6 +552,7 @@ export default function AdminDashboard() {
     apiFetch("/api/services").then(res => res.json()).then(d => setServices(Array.isArray(d) ? d : []));
     fetchProfessionals();
     apiFetch("/api/settings/working-hours").then(res => res.json()).then(setWorkingHours);
+    apiFetch("/api/settings/agenda").then(res => res.json()).then(d => { if (d?.blockNationalHolidays !== undefined) setBlockNationalHolidays(!!d.blockNationalHolidays); });
     apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
     apiFetch("/api/clients").then(res => res.json()).then(d => setClients(Array.isArray(d) ? d : []));
   }, [fetchProfessionals]);
@@ -1358,6 +1360,7 @@ export default function AdminDashboard() {
           handleDeleteAppointment={handleDeleteAppointment}
           handleCreateBlockAppointment={handleCreateBlockAppointment}
           fetchAppointments={fetchAppointments}
+          blockNationalHolidays={blockNationalHolidays}
         />
       </AdminDashboardShell>
 

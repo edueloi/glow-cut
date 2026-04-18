@@ -133,6 +133,7 @@ export function AdminTabContent(props: any) {
     handleDeleteAppointment,
     handleCreateBlockAppointment,
     fetchAppointments,
+    blockNationalHolidays,
   } = props;
 
   const renderDashboardTab = () => {
@@ -238,6 +239,7 @@ export function AdminTabContent(props: any) {
             onNewBlockAppointment={handleCreateBlockAppointment}
             onRefresh={fetchAppointments}
             onGoToMinhaAgenda={() => handleTabChange("minha-agenda")}
+            blockNationalHolidays={blockNationalHolidays}
           />
         ))}
 

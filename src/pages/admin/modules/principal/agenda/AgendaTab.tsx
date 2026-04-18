@@ -55,6 +55,7 @@ interface AgendaTabProps {
   onUpdateStatus?: (id: string, status: string) => void;
   onRefresh?: () => void;
   onGoToMinhaAgenda?: () => void;
+  blockNationalHolidays?: boolean;
 }
 
 /* ─── legend dots ─────────────────────────────────── */
@@ -267,6 +268,7 @@ function MinhaAgendaView({
   setHolidays,
   newHoliday,
   setNewHoliday,
+  blockNationalHolidays,
 }: AgendaTabProps) {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
@@ -396,14 +398,19 @@ function MinhaAgendaView({
         </div>
 
         {/* ── VIEW: DAY ── */}
-        {view === "day" && (
+        {view === "day" && (() => {
+          const dayHoliday = isHoliday(currentMonth);
+          const isDayBlocked = !!(blockNationalHolidays && dayHoliday);
+          return (
           <div className="flex flex-col flex-1 min-h-0">
             {/* Day header */}
-            <div className="px-4 sm:px-6 py-3 border-b border-zinc-100 bg-zinc-50/50 flex items-center gap-3 shrink-0">
+            <div className={cn("px-4 sm:px-6 py-3 border-b border-zinc-100 flex items-center gap-3 shrink-0", isDayBlocked ? "bg-red-50/60" : "bg-zinc-50/50")}>
               <div
                 className={cn(
                   "w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-black text-base sm:text-lg shrink-0",
-                  isToday(currentMonth)
+                  isDayBlocked
+                    ? "bg-red-200 text-red-700"
+                    : isToday(currentMonth)
                     ? "bg-amber-500 text-white"
                     : "bg-white border border-zinc-200 text-zinc-800"
                 )}
@@ -415,10 +422,10 @@ function MinhaAgendaView({
                   <p className="text-xs sm:text-sm font-black text-zinc-900 capitalize truncate">
                     {format(currentMonth, "EEEE", { locale: ptBR })}
                   </p>
-                  {isHoliday(currentMonth) && (
-                    <span className="bg-red-50 text-red-600 text-[9px] font-black px-2 py-0.5 rounded-full border border-red-100 uppercase tracking-widest flex items-center gap-1 shrink-0">
+                  {dayHoliday && (
+                    <span className={cn("text-[9px] font-black px-2 py-0.5 rounded-full border uppercase tracking-widest flex items-center gap-1 shrink-0", isDayBlocked ? "bg-red-100 text-red-700 border-red-200" : "bg-red-50 text-red-600 border-red-100")}>
                       <div className="w-1 h-1 rounded-full bg-red-400" />
-                      {isHoliday(currentMonth)?.name}
+                      {dayHoliday.name}{isDayBlocked && " — Fechado"}
                     </span>
                   )}
                 </div>
@@ -431,7 +438,16 @@ function MinhaAgendaView({
               </div>
             </div>
 
-            {/* Hourly slots — 30-min intervals */}
+            {/* Blocked day overlay */}
+            {isDayBlocked ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-red-300">
+                <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center">
+                  <span className="text-2xl">🚫</span>
+                </div>
+                <p className="text-sm font-black text-red-400">Feriado Nacional — Agenda Fechada</p>
+                <p className="text-xs text-red-300 font-bold">{dayHoliday?.name}</p>
+              </div>
+            ) : (
             <div className="flex-1 overflow-y-auto scrollbar-hide divide-y divide-zinc-50">
               {Array.from({ length: 28 }).map((_, i) => {
                 const totalMinutes = (i + 16) * 30; // starts at 08:00
@@ -528,8 +544,10 @@ function MinhaAgendaView({
                 );
               })}
             </div>
+            )}
           </div>
-        )}
+          );
+        })()}
 
         {/* ── VIEW: MONTH ── */}
         {view === "month" && (
@@ -562,19 +580,20 @@ function MinhaAgendaView({
                   const dayApps = appointments.filter((a) => isSameDay(new Date(a.date), day));
                   const holiday = isHoliday(day);
                   const isCurrentDay = isToday(day);
+                  const isBlocked = !!(blockNationalHolidays && holiday);
 
                   return (
                     <div
                       key={idx}
                       onClick={() => {
-                        setCurrentMonth(day);
-                        setView("day");
+                        if (!isBlocked) { setCurrentMonth(day); setView("day"); }
                       }}
                       title={holiday?.name}
                       className={cn(
-                        "min-h-[60px] sm:min-h-[90px] lg:min-h-[110px] border-b border-r border-zinc-100 transition-colors hover:bg-zinc-50 relative group cursor-pointer p-1 sm:p-2",
+                        "min-h-[60px] sm:min-h-[90px] lg:min-h-[110px] border-b border-r border-zinc-100 transition-colors relative group p-1 sm:p-2",
                         !isSameMonth(day, currentMonth) && "opacity-30",
-                        isCurrentDay && "bg-amber-50/40"
+                        isBlocked ? "bg-red-50/60 cursor-not-allowed" : "hover:bg-zinc-50 cursor-pointer",
+                        isCurrentDay && !isBlocked && "bg-amber-50/40"
                       )}
                     >
                       {/* Day number */}
@@ -582,7 +601,7 @@ function MinhaAgendaView({
                         <div
                           className={cn(
                             "w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-black",
-                            isCurrentDay ? "bg-amber-500 text-white" : "text-zinc-500"
+                            isCurrentDay && !isBlocked ? "bg-amber-500 text-white" : isBlocked ? "bg-red-200 text-red-700" : "text-zinc-500"
                           )}
                         >
                           {format(day, "d")}
@@ -592,48 +611,57 @@ function MinhaAgendaView({
                         )}
                       </div>
 
+                      {/* Holiday label when blocked */}
+                      {isBlocked && (
+                        <p className="text-[8px] text-red-400 font-bold truncate leading-tight hidden sm:block">{holiday?.name}</p>
+                      )}
+
                       {/* Events — desktop: text pills, mobile: dots */}
-                      <div className="space-y-0.5 hidden sm:block">
-                        {dayApps.slice(0, 2).map((app) => (
-                          <AppPill
-                            key={app.id}
-                            app={app}
-                            hovered={hoveredAppointment === app.id}
-                            setHovered={setHoveredAppointment}
-                            onClick={() => onAppointmentClick?.(app)}
-                          />
-                        ))}
-                        {dayApps.length > 2 && (
-                          <div className="text-[8px] text-zinc-400 font-bold text-center uppercase tracking-tighter">
-                            +{dayApps.length - 2}
+                      {!isBlocked && (
+                        <>
+                          <div className="space-y-0.5 hidden sm:block">
+                            {dayApps.slice(0, 2).map((app) => (
+                              <AppPill
+                                key={app.id}
+                                app={app}
+                                hovered={hoveredAppointment === app.id}
+                                setHovered={setHoveredAppointment}
+                                onClick={() => onAppointmentClick?.(app)}
+                              />
+                            ))}
+                            {dayApps.length > 2 && (
+                              <div className="text-[8px] text-zinc-400 font-bold text-center uppercase tracking-tighter">
+                                +{dayApps.length - 2}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
 
-                      {/* Mobile: just colored dots */}
-                      <div className="flex flex-wrap gap-0.5 sm:hidden">
-                        {dayApps.slice(0, 4).map((app) => (
-                          <div
-                            key={app.id}
-                            className={cn("w-1.5 h-1.5 rounded-full", appColor(app.type))}
-                          />
-                        ))}
-                        {dayApps.length > 4 && (
-                          <span className="text-[7px] text-zinc-400 font-black">+{dayApps.length - 4}</span>
-                        )}
-                      </div>
+                          {/* Mobile: just colored dots */}
+                          <div className="flex flex-wrap gap-0.5 sm:hidden">
+                            {dayApps.slice(0, 4).map((app) => (
+                              <div
+                                key={app.id}
+                                className={cn("w-1.5 h-1.5 rounded-full", appColor(app.type))}
+                              />
+                            ))}
+                            {dayApps.length > 4 && (
+                              <span className="text-[7px] text-zinc-400 font-black">+{dayApps.length - 4}</span>
+                            )}
+                          </div>
 
-                      {/* Hover add button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setNewAppointment((p: any) => ({ ...p, date: day }));
-                          setIsAppointmentModalOpen(true);
-                        }}
-                        className="absolute bottom-1 right-1 p-0.5 bg-zinc-100 rounded-lg text-zinc-400 opacity-0 group-hover:opacity-100 transition-all hover:text-zinc-700 border border-zinc-200"
-                      >
-                        <Plus size={10} />
-                      </button>
+                          {/* Hover add button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setNewAppointment((p: any) => ({ ...p, date: day }));
+                              setIsAppointmentModalOpen(true);
+                            }}
+                            className="absolute bottom-1 right-1 p-0.5 bg-zinc-100 rounded-lg text-zinc-400 opacity-0 group-hover:opacity-100 transition-all hover:text-zinc-700 border border-zinc-200"
+                          >
+                            <Plus size={10} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -657,27 +685,33 @@ function MinhaAgendaView({
                   {eachDayOfInterval({
                     start: startOfWeek(currentMonth),
                     end: endOfWeek(currentMonth),
-                  }).map((day) => (
-                    <div
-                      key={day.toString()}
-                      onClick={() => { setCurrentMonth(day); setView("day"); }}
-                      title={isHoliday(day)?.name}
-                      className={cn(
-                        "py-2 px-1 text-center border-r border-zinc-100 last:border-r-0 relative cursor-pointer hover:bg-zinc-50 transition-colors",
-                        isToday(day) && "bg-amber-50/50"
-                      )}
-                    >
-                      <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-0.5">
-                        {format(day, "EEE", { locale: ptBR })}
-                      </p>
-                      <div className="flex items-center justify-center gap-1">
-                        <p className={cn("text-sm font-black", isToday(day) ? "text-amber-600" : "text-zinc-800")}>
-                          {format(day, "d")}
+                  }).map((day) => {
+                    const hol = isHoliday(day);
+                    const isBlockedDay = !!(blockNationalHolidays && hol);
+                    return (
+                      <div
+                        key={day.toString()}
+                        onClick={() => { if (!isBlockedDay) { setCurrentMonth(day); setView("day"); } }}
+                        title={hol?.name}
+                        className={cn(
+                          "py-2 px-1 text-center border-r border-zinc-100 last:border-r-0 relative transition-colors",
+                          isBlockedDay ? "bg-red-50/60 cursor-not-allowed" : "cursor-pointer hover:bg-zinc-50",
+                          !isBlockedDay && isToday(day) && "bg-amber-50/50"
+                        )}
+                      >
+                        <p className={cn("text-[8px] font-bold uppercase tracking-widest mb-0.5", isBlockedDay ? "text-red-400" : "text-zinc-400")}>
+                          {format(day, "EEE", { locale: ptBR })}
                         </p>
-                        {isHoliday(day) && <div className="w-1 h-1 rounded-full bg-red-400" />}
+                        <div className="flex items-center justify-center gap-1">
+                          <p className={cn("text-sm font-black", isBlockedDay ? "text-red-500" : isToday(day) ? "text-amber-600" : "text-zinc-800")}>
+                            {format(day, "d")}
+                          </p>
+                          {hol && <div className="w-1 h-1 rounded-full bg-red-400" />}
+                        </div>
+                        {isBlockedDay && <p className="text-[7px] text-red-400 font-bold truncate px-0.5 leading-tight">{hol?.name}</p>}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Hour rows — 30-min intervals */}
@@ -708,16 +742,17 @@ function MinhaAgendaView({
                           (a) => isSameDay(new Date(a.date), day) && a.startTime === hourStr
                         );
                         const hasApps = dayApps.length > 0;
+                        const isBlockedWeekDay = !!(blockNationalHolidays && isHoliday(day));
                         return (
                           <div
                             key={j}
                             className={cn(
                               "relative border-r border-zinc-100 last:border-r-0 p-0.5 transition-colors",
                               isFullHour ? "min-h-[44px]" : "min-h-[28px]",
-                              isToday(day) && "bg-amber-50/20"
+                              isBlockedWeekDay ? "bg-red-50/40 cursor-not-allowed" : isToday(day) && "bg-amber-50/20"
                             )}
                             onMouseEnter={
-                              !hasApps
+                              !hasApps && !isBlockedWeekDay
                                 ? (e) =>
                                     setSlotHover({
                                       x: e.clientX,
@@ -727,13 +762,13 @@ function MinhaAgendaView({
                                 : undefined
                             }
                             onMouseMove={
-                              !hasApps
+                              !hasApps && !isBlockedWeekDay
                                 ? (e) => setSlotHover((p: any) => (p ? { ...p, x: e.clientX, y: e.clientY } : null))
                                 : undefined
                             }
-                            onMouseLeave={!hasApps ? () => setSlotHover(null) : undefined}
+                            onMouseLeave={!hasApps && !isBlockedWeekDay ? () => setSlotHover(null) : undefined}
                             onClick={
-                              !hasApps
+                              !hasApps && !isBlockedWeekDay
                                 ? () => {
                                     setSlotHover(null);
                                     setNewAppointment((p: any) => ({ ...p, date: day, startTime: hourStr }));
@@ -743,7 +778,7 @@ function MinhaAgendaView({
                             }
                           >
                             {/* Empty slot hover effect */}
-                            {!hasApps && (
+                            {!hasApps && !isBlockedWeekDay && (
                               <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-all duration-150 cursor-crosshair">
                                 <div className="inset-0 absolute bg-amber-50/60 border border-dashed border-amber-300 rounded-lg m-0.5" />
                                 <div className="relative z-10 w-5 h-5 rounded-full bg-amber-400/90 flex items-center justify-center shadow-sm">

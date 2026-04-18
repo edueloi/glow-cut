@@ -70,7 +70,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -206,19 +206,24 @@ export const Combobox: React.FC<ComboboxProps> = ({
 
   return (
     <div className={cn("relative", className)}>
-      <button
+      <div
         ref={triggerRef}
-        type="button"
-        disabled={disabled}
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        tabIndex={disabled ? -1 : 0}
         onClick={() => { if (!disabled) setOpen(v => !v); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (!disabled) setOpen(v => !v); }
+          handleKeyDown(e);
+        }}
         className={cn(
-          "w-full flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 text-left transition-all",
+          "w-full flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 text-left transition-all cursor-pointer select-none",
           "focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400",
-          "disabled:opacity-50 disabled:cursor-not-allowed",
+          disabled && "opacity-50 cursor-not-allowed",
           sizeClasses[size],
           open && "ring-2 ring-amber-400/40 border-amber-400"
         )}
-        onKeyDown={handleKeyDown}
       >
         <div className="flex-1 flex flex-wrap gap-1 min-w-0">
           {selectedLabels.length === 0 ? (
@@ -261,7 +266,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
             )}
           />
         </div>
-      </button>
+      </div>
 
       {open && createPortal(
         <div
