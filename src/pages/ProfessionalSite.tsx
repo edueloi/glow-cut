@@ -26,9 +26,16 @@ interface Tenant {
   welcomeMessage: string | null;
   address: string | null;
   instagram: string | null;
+  phone: string | null;
   themeColor: string | null;
   logoUrl: string | null;
   coverUrl: string | null;
+  mission: string | null;
+  vision: string | null;
+  values: string | null;
+  showProducts: boolean;
+  showServices: boolean;
+  showTeam: boolean;
 }
 
 export default function ProfessionalSite() {
@@ -100,14 +107,17 @@ export default function ProfessionalSite() {
 
   if (!tenant) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
-        <h1 className="text-4xl font-black text-zinc-900 mb-4">404</h1>
-        <p className="text-zinc-500 mb-8">Estabelecimento não encontrado.</p>
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-zinc-50">
+        <div className="w-20 h-20 bg-zinc-200 rounded-3xl flex items-center justify-center text-zinc-400 mb-6">
+          <X size={40} />
+        </div>
+        <h1 className="text-4xl font-black text-zinc-900 mb-2">Ops!</h1>
+        <p className="text-zinc-500 mb-8 max-w-xs">Este estabelecimento não foi encontrado ou está temporariamente indisponível.</p>
         <button 
           onClick={() => navigate("/")}
-          className="px-6 py-3 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all"
+          className="px-8 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-xl shadow-zinc-900/10"
         >
-          Voltar para Início
+          Explorar Agendelle
         </button>
       </div>
     );
@@ -136,9 +146,9 @@ export default function ProfessionalSite() {
           {/* Desktop Links */}
           <div className="hidden md:flex items-center gap-8">
             <a href="#sobre" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Quem Somos</a>
-            <a href="#servicos" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Serviços</a>
-            <a href="#produtos" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Produtos</a>
-            <a href="#equipe" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Equipe</a>
+            {tenant.showServices && <a href="#servicos" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Serviços</a>}
+            {tenant.showProducts && products.length > 0 && <a href="#produtos" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Produtos</a>}
+            {tenant.showTeam && <a href="#equipe" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Equipe</a>}
             <Link 
               to={`/${slug}/agendar`}
               className="px-6 py-2.5 text-white text-sm font-bold rounded-full shadow-lg shadow-zinc-900/10 hover:scale-105 active:scale-95 transition-all"
@@ -174,9 +184,9 @@ export default function ProfessionalSite() {
             </div>
             <div className="flex flex-col gap-8 text-center">
               <a href="#sobre" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Quem Somos</a>
-              <a href="#servicos" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Serviços</a>
-              <a href="#produtos" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Produtos</a>
-              <a href="#equipe" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Equipe</a>
+              {tenant.showServices && <a href="#servicos" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Serviços</a>}
+              {tenant.showProducts && products.length > 0 && <a href="#produtos" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Produtos</a>}
+              {tenant.showTeam && <a href="#equipe" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Equipe</a>}
               <Link 
                 to={`/${slug}/agendar`}
                 onClick={() => setMobileMenuOpen(false)}
@@ -262,33 +272,64 @@ export default function ProfessionalSite() {
                 <span className="w-1.5 h-1.5 rounded-full" style={primaryBtnStyle} /> Quem Somos
               </div>
               <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight mb-8">Nossa História</h2>
-              <p className="text-zinc-600 text-lg leading-relaxed mb-12">
+              <p className="text-zinc-600 text-lg leading-relaxed mb-12 whitespace-pre-line">
                 {tenant.description || `O ${tenant.name} nasceu da paixão pela beleza e pelo bem-estar. Localizado no coração de ${tenant.address || "nossa cidade"}, buscamos oferecer não apenas um serviço, mas um momento de renovação para cada cliente que passa por nossas portas.`}
               </p>
               
               {/* Mission, Vision, Values */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 pt-8 border-t border-zinc-100">
-                <div className="space-y-3">
-                  <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
-                    <Target size={20} />
+                {tenant.mission && (
+                  <div className="space-y-3">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
+                      <Target size={20} />
+                    </div>
+                    <h4 className="font-black text-zinc-900">Missão</h4>
+                    <p className="text-sm text-zinc-500 leading-relaxed">{tenant.mission}</p>
                   </div>
-                  <h4 className="font-black text-zinc-900">Missão</h4>
-                  <p className="text-sm text-zinc-500 leading-relaxed">Proporcionar excelência em beleza, elevando a autoestima dos nossos clientes.</p>
-                </div>
-                <div className="space-y-3">
-                  <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
-                    <Eye size={20} />
+                )}
+                {tenant.vision && (
+                  <div className="space-y-3">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
+                      <Eye size={20} />
+                    </div>
+                    <h4 className="font-black text-zinc-900">Visão</h4>
+                    <p className="text-sm text-zinc-500 leading-relaxed">{tenant.vision}</p>
                   </div>
-                  <h4 className="font-black text-zinc-900">Visão</h4>
-                  <p className="text-sm text-zinc-500 leading-relaxed">Ser referência em atendimento premium e inovação no setor de beleza.</p>
-                </div>
-                <div className="space-y-3">
-                  <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
-                    <Heart size={20} />
+                )}
+                {tenant.values && (
+                  <div className="space-y-3">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
+                      <Heart size={20} />
+                    </div>
+                    <h4 className="font-black text-zinc-900">Valores</h4>
+                    <p className="text-sm text-zinc-500 leading-relaxed">{tenant.values}</p>
                   </div>
-                  <h4 className="font-black text-zinc-900">Valores</h4>
-                  <p className="text-sm text-zinc-500 leading-relaxed">Ética, profissionalismo, higiene e cuidado com o bem-estar do cliente.</p>
-                </div>
+                )}
+                {!tenant.mission && !tenant.vision && !tenant.values && (
+                  <>
+                    <div className="space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
+                        <Target size={20} />
+                      </div>
+                      <h4 className="font-black text-zinc-900">Qualidade</h4>
+                      <p className="text-sm text-zinc-500 leading-relaxed">Excelência em cada detalhe do atendimento.</p>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
+                        <User size={20} />
+                      </div>
+                      <h4 className="font-black text-zinc-900">Equipe</h4>
+                      <p className="text-sm text-zinc-500 leading-relaxed">Profissionais altamente qualificados.</p>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
+                        <Heart size={20} />
+                      </div>
+                      <h4 className="font-black text-zinc-900">Cuidado</h4>
+                      <p className="text-sm text-zinc-500 leading-relaxed">Seu bem-estar é nossa maior prioridade.</p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -296,113 +337,114 @@ export default function ProfessionalSite() {
       </section>
 
       {/* ── SERVIÇOS ─────────────────────────────── */}
-      <section id="servicos" className="py-24 bg-zinc-50">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">
-                <span className="w-1.5 h-1.5 rounded-full" style={primaryBtnStyle} /> Especialidades
+      {tenant.showServices && (
+        <section id="servicos" className="py-24 bg-zinc-50">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">
+                  <span className="w-1.5 h-1.5 rounded-full" style={primaryBtnStyle} /> Especialidades
+                </div>
+                <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight">O que fazemos</h2>
               </div>
-              <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight">O que fazemos</h2>
+              <Link 
+                to={`/${slug}/agendar`}
+                className="text-sm font-bold flex items-center gap-2 group hover:gap-3 transition-all"
+                style={{ color: themeColor }}
+              >
+                Ver todos os serviços <ArrowRight size={16} />
+              </Link>
             </div>
-            <Link 
-              to={`/${slug}/agendar`}
-              className="text-sm font-bold flex items-center gap-2 group hover:gap-3 transition-all"
-              style={{ color: themeColor }}
-            >
-              Ver todos os serviços <ArrowRight size={16} />
-            </Link>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {services.slice(0, 6).map((service) => (
-              <div key={service.id} className="bg-white p-8 rounded-[32px] border border-zinc-100 hover:shadow-xl hover:-translate-y-1 transition-all group">
-                <div className="w-14 h-14 rounded-2xl bg-zinc-50 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <Scissors size={24} className="text-zinc-900" />
-                </div>
-                <h3 className="text-xl font-black text-zinc-900 mb-2">{service.name}</h3>
-                <p className="text-zinc-500 text-sm leading-relaxed mb-6 line-clamp-2">
-                  {service.description || "Tratamento personalizado realizado por especialistas para garantir o melhor resultado para você."}
-                </p>
-                <div className="flex items-center justify-between pt-6 border-t border-zinc-50">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 text-[11px] font-bold text-zinc-400 uppercase">
-                      <Clock size={12} /> {service.duration} min
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {services.length > 0 ? services.slice(0, 6).map((service) => (
+                <div key={service.id} className="bg-white p-8 rounded-[32px] border border-zinc-100 hover:shadow-xl hover:-translate-y-1 transition-all group">
+                  <div className="w-14 h-14 rounded-2xl bg-zinc-50 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <Scissors size={24} className="text-zinc-900" />
                   </div>
-                  <span className="text-lg font-black text-zinc-900">R$ {parseFloat(service.price).toFixed(2).replace(".", ",")}</span>
+                  <h3 className="text-xl font-black text-zinc-900 mb-2">{service.name}</h3>
+                  <p className="text-zinc-500 text-sm leading-relaxed mb-6 line-clamp-2">
+                    {service.description || "Tratamento personalizado realizado por especialistas para garantir o melhor resultado para você."}
+                  </p>
+                  <div className="flex items-center justify-between pt-6 border-t border-zinc-50">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1 text-[11px] font-bold text-zinc-400 uppercase">
+                        <Clock size={12} /> {service.duration} min
+                      </div>
+                    </div>
+                    <span className="text-lg font-black text-zinc-900">R$ {parseFloat(service.price).toFixed(2).replace(".", ",")}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )) : (
+                <div className="col-span-full py-20 text-center">
+                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 text-zinc-200">
+                    <Scissors size={32} />
+                  </div>
+                  <p className="text-zinc-400 font-bold uppercase tracking-widest">Nossos serviços estarão disponíveis em breve.</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── PRODUTOS ─────────────────────────────── */}
-      <section id="produtos" className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-50 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">
-              <span className="w-1.5 h-1.5 rounded-full" style={primaryBtnStyle} /> Shop
-            </div>
-            <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight">Nossos Produtos</h2>
-            <p className="text-zinc-500 mt-4 max-w-xl mx-auto">Leve a experiência do nosso studio para sua casa com produtos profissionais selecionados.</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {products.length > 0 ? products.slice(0, 4).map((product) => (
-              <div key={product.id} className="group cursor-pointer">
-                <div className="aspect-[3/4] rounded-[32px] overflow-hidden bg-zinc-100 mb-6 relative">
-                  {product.photo ? (
-                    <img src={product.photo} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-zinc-300">
-                      <ShoppingBag size={48} />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                </div>
-                <h3 className="font-black text-zinc-900 mb-1 group-hover:text-zinc-700 transition-colors">{product.name}</h3>
-                <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-2">{product.sector?.name || "Premium"}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-black text-zinc-900">R$ {parseFloat(product.salePrice).toFixed(2).replace(".", ",")}</span>
-                  <div className="p-2 bg-zinc-900 text-white rounded-xl opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all" style={primaryBtnStyle}>
-                    <ShoppingBag size={16} />
-                  </div>
-                </div>
+      {tenant.showProducts && products.length > 0 && (
+        <section id="produtos" className="py-24 bg-white">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-50 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">
+                <span className="w-1.5 h-1.5 rounded-full" style={primaryBtnStyle} /> Shop
               </div>
-            )) : (
-              // Mock products if empty
-              [1, 2, 3, 4].map((i) => (
-                <div key={i} className="group cursor-pointer opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
-                  <div className="aspect-[3/4] rounded-[32px] overflow-hidden bg-zinc-100 mb-6 flex items-center justify-center">
-                    <ShoppingBag size={48} className="text-zinc-200" />
-                  </div>
-                  <h3 className="font-black text-zinc-900 mb-1 italic">Em breve...</h3>
-                  <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-2">Novidades</p>
-                </div>
-              ))
-            )}
-          </div>
-          
-          <div className="mt-16 p-10 bg-zinc-900 rounded-[40px] text-white flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden" style={primaryBtnStyle}>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-32 -mt-32" />
-            <div className="relative z-10 max-w-xl">
-              <h3 className="text-3xl font-black mb-4 tracking-tight">Precisa de reposição?</h3>
-              <p className="text-white/70 leading-relaxed font-medium">Todos os nossos produtos estão disponíveis para compra direta em nosso PDV. Consulte disponibilidade e garanta o melhor para o seu cuidado diário.</p>
+              <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight">Nossos Produtos</h2>
+              <p className="text-zinc-500 mt-4 max-w-xl mx-auto">Leve a experiência do nosso studio para sua casa com produtos profissionais selecionados.</p>
             </div>
-            <Link 
-              to={`/${slug}/agendar`}
-              className="relative z-10 px-8 py-4 bg-white text-zinc-900 font-bold rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-black/20"
-            >
-              Falar com Equipe
-            </Link>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {products.slice(0, 4).map((product) => (
+                <div key={product.id} className="group cursor-pointer">
+                  <div className="aspect-[3/4] rounded-[32px] overflow-hidden bg-zinc-100 mb-6 relative">
+                    {product.photo ? (
+                      <img src={product.photo} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-300">
+                        <ShoppingBag size={48} />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                  </div>
+                  <h3 className="font-black text-zinc-900 mb-1 group-hover:text-zinc-700 transition-colors">{product.name}</h3>
+                  <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-2">{product.sector?.name || "Premium"}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-black text-zinc-900">R$ {parseFloat(product.salePrice).toFixed(2).replace(".", ",")}</span>
+                    <div className="p-2 bg-zinc-900 text-white rounded-xl opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all" style={primaryBtnStyle}>
+                      <ShoppingBag size={16} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="mt-16 p-10 bg-zinc-900 rounded-[40px] text-white flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden" style={primaryBtnStyle}>
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-32 -mt-32" />
+              <div className="relative z-10 max-w-xl">
+                <h3 className="text-3xl font-black mb-4 tracking-tight">Precisa de reposição?</h3>
+                <p className="text-white/70 leading-relaxed font-medium">Todos os nossos produtos estão disponíveis para compra direta em nosso PDV. Consulte disponibilidade e garanta o melhor para o seu cuidado diário.</p>
+              </div>
+              <Link 
+                to={`/${slug}/agendar`}
+                className="relative z-10 px-8 py-4 bg-white text-zinc-900 font-bold rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-black/20"
+              >
+                Falar com Equipe
+              </Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── EQUIPE ───────────────────────────────── */}
-      <section id="equipe" className="py-24 bg-zinc-50">
+      {tenant.showTeam && (
+        <section id="equipe" className="py-24 bg-zinc-50">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
             <div>
@@ -444,6 +486,7 @@ export default function ProfessionalSite() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── FOOTER ───────────────────────────────── */}
       <footer className="bg-zinc-950 text-white pt-24 pb-12">
@@ -465,13 +508,15 @@ export default function ProfessionalSite() {
               </p>
               <div className="flex gap-4">
                 {tenant.instagram && (
-                  <a href={tenant.instagram} className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center hover:bg-zinc-800 transition-colors">
+                  <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center hover:bg-zinc-800 transition-colors">
                     <Instagram size={18} />
                   </a>
                 )}
-                <a href="#" className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center hover:bg-zinc-800 transition-colors">
-                  <Phone size={18} />
-                </a>
+                {tenant.phone && (
+                  <a href={`tel:${tenant.phone}`} className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center hover:bg-zinc-800 transition-colors">
+                    <Phone size={18} />
+                  </a>
+                )}
               </div>
             </div>
 
@@ -479,9 +524,9 @@ export default function ProfessionalSite() {
               <h4 className="text-lg font-black mb-8">Navegação</h4>
               <ul className="space-y-4 text-zinc-500 font-medium">
                 <li><a href="#sobre" className="hover:text-white transition-colors">Quem Somos</a></li>
-                <li><a href="#servicos" className="hover:text-white transition-colors">Serviços</a></li>
-                <li><a href="#produtos" className="hover:text-white transition-colors">Produtos</a></li>
-                <li><a href="#equipe" className="hover:text-white transition-colors">Equipe</a></li>
+                {tenant.showServices && <li><a href="#servicos" className="hover:text-white transition-colors">Serviços</a></li>}
+                {tenant.showProducts && products.length > 0 && <li><a href="#produtos" className="hover:text-white transition-colors">Produtos</a></li>}
+                {tenant.showTeam && <li><a href="#equipe" className="hover:text-white transition-colors">Equipe</a></li>}
               </ul>
             </div>
 
@@ -492,10 +537,12 @@ export default function ProfessionalSite() {
                   <MapPin size={18} className="shrink-0 text-white mt-1" />
                   <span>{tenant.address || "Rua Exemplo, 123 - Centro, Cidade"}</span>
                 </li>
-                <li className="flex items-center gap-3">
-                  <Phone size={18} className="shrink-0 text-white" />
-                  <span>(00) 00000-0000</span>
-                </li>
+                {tenant.phone && (
+                  <li className="flex items-center gap-3">
+                    <Phone size={18} className="shrink-0 text-white" />
+                    <span>{tenant.phone}</span>
+                  </li>
+                )}
                 <li className="flex items-center gap-3">
                   <Clock size={18} className="shrink-0 text-white" />
                   <span>Seg - Sáb: 09h às 20h</span>

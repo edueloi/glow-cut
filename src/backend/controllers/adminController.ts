@@ -123,6 +123,10 @@ export const adminController = {
       if (mission !== undefined) data.mission = mission;
       if (vision !== undefined) data.vision = vision;
       if (values !== undefined) data.values = values;
+      if (req.body.phone !== undefined) data.phone = req.body.phone;
+      if (req.body.showProducts !== undefined) data.showProducts = !!req.body.showProducts;
+      if (req.body.showServices !== undefined) data.showServices = !!req.body.showServices;
+      if (req.body.showTeam !== undefined) data.showTeam = !!req.body.showTeam;
 
       const tenant = await (prisma as any).tenant.update({
         where: { id: tenantId },
@@ -189,7 +193,7 @@ export const adminController = {
   async getTenantBySlug(req: Request, res: Response) {
     const tenant = await (prisma as any).tenant.findFirst({
       where: { slug: req.params.slug, isActive: true },
-      select: { id: true, name: true, themeColor: true, logoUrl: true, coverUrl: true, address: true, instagram: true, welcomeMessage: true, description: true, mission: true, vision: true, values: true }
+      select: { id: true, name: true, themeColor: true, logoUrl: true, coverUrl: true, address: true, instagram: true, welcomeMessage: true, description: true, mission: true, vision: true, values: true, phone: true, showProducts: true, showServices: true, showTeam: true }
     });
     if (!tenant) return res.status(404).json({ error: "Estúdio não encontrado." });
     let agendaSettings: any = { onlineBookingEnabled: true, enableSelfService: true, enableAppointmentSearch: true, enableClientAgendaView: true, selfServiceShowProfessional: true, selfServiceShowPrices: true, selfServiceWelcomeMessage: "", allowClientCancellation: true, allowClientReschedule: false, minAdvanceMinutes: 30, maxAdvanceDays: 60, slotIntervalMinutes: 30 };

@@ -10,13 +10,15 @@ import {
   Palette,
   ExternalLink,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Phone
 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/src/components/ui/Button";
 import { Input, Textarea } from "@/src/components/ui/Input";
 import { PageWrapper, SectionTitle, FormRow } from "@/src/components/ui/PageWrapper";
 import { PanelCard } from "@/src/components/ui/PanelCard";
+import { Switch } from "@/src/components/ui/Switch";
 import { useToast } from "@/src/components/ui/Toast";
 import { apiFetch } from "@/src/lib/api";
 
@@ -35,7 +37,11 @@ export function SiteTab() {
     values: "",
     themeColor: "#c9a96e",
     instagram: "",
-    address: ""
+    address: "",
+    phone: "",
+    showProducts: true,
+    showServices: true,
+    showTeam: true
   });
 
   useEffect(() => {
@@ -54,7 +60,11 @@ export function SiteTab() {
             values: data.values || "",
             themeColor: data.themeColor || "#c9a96e",
             instagram: data.instagram || "",
-            address: data.address || ""
+            address: data.address || "",
+            phone: data.phone || "",
+            showProducts: data.showProducts !== false,
+            showServices: data.showServices !== false,
+            showTeam: data.showTeam !== false
           });
         }
       } catch (err) {
@@ -69,8 +79,8 @@ export function SiteTab() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await apiFetch("/api/admin/branding", {
-        method: "PUT",
+      const res = await apiFetch("/api/admin/tenant/branding", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
       });
@@ -229,7 +239,7 @@ export function SiteTab() {
 
           <PanelCard
             title="Links e Contato"
-            icon={Layout}
+            icon={Phone}
             iconWrapClassName="bg-indigo-50 border-indigo-100"
             iconClassName="text-indigo-600"
           >
@@ -241,11 +251,60 @@ export function SiteTab() {
                 placeholder="https://instagram.com/..."
               />
               <Input
+                label="Telefone de Contato"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="(00) 00000-0000"
+              />
+              <Input
                 label="Endereço Exibido"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 placeholder="Rua Exemplo, 123..."
               />
+            </div>
+          </PanelCard>
+
+          <PanelCard
+            title="Exibição de Seções"
+            description="Escolha quais seções você deseja mostrar no seu site."
+            icon={Layout}
+            iconWrapClassName="bg-amber-50 border-amber-100"
+            iconClassName="text-amber-600"
+          >
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-50 border border-zinc-100">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-bold text-zinc-800">Mostrar Serviços</p>
+                  <p className="text-[10px] text-zinc-500">Exibir a lista de serviços e preços.</p>
+                </div>
+                <Switch
+                  checked={formData.showServices}
+                  onCheckedChange={(val) => setFormData({ ...formData, showServices: val })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-50 border border-zinc-100">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-bold text-zinc-800">Mostrar Equipe</p>
+                  <p className="text-[10px] text-zinc-500">Exibir os profissionais do estúdio.</p>
+                </div>
+                <Switch
+                  checked={formData.showTeam}
+                  onCheckedChange={(val) => setFormData({ ...formData, showTeam: val })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-50 border border-zinc-100">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-bold text-zinc-800">Mostrar Produtos (Loja)</p>
+                  <p className="text-[10px] text-zinc-500">Exibir vitrine de produtos do PDV.</p>
+                </div>
+                <Switch
+                  checked={formData.showProducts}
+                  onCheckedChange={(val) => setFormData({ ...formData, showProducts: val })}
+                />
+              </div>
             </div>
           </PanelCard>
 

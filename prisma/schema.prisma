@@ -472,6 +472,10 @@ model Tenant {
   mission               String?     @db.Text
   vision                String?     @db.Text
   values                String?     @db.Text
+  phone                 String?     @db.VarChar(30)
+  showProducts          Boolean     @default(true)
+  showServices          Boolean     @default(true)
+  showTeam              Boolean     @default(true)
   adminuser             AdminUser[]
   plan                  Plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
 
