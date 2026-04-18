@@ -184,7 +184,7 @@ export function AgendaTab(props: AgendaTabProps) {
               professionals={props.professionals}
               services={props.services ?? []}
               onNewAppointment={(client) => {
-                props.setNewAppointment?.({ clientId: client.id });
+                props.setNewAppointment?.((prev: any) => ({ ...prev, clientId: client.id }));
                 props.setIsAppointmentModalOpen(true);
               }}
               onAppointmentClick={props.onAppointmentClick}

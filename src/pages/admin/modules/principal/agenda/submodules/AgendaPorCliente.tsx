@@ -1,13 +1,23 @@
 import React, { useState } from "react";
-import { Search, Calendar, Clock, User, Scissors, ChevronRight, Phone, X, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
-import { format, isFuture, isPast } from "date-fns";
+import { Calendar, Clock, User, Scissors, ChevronRight, Phone, X, Plus, History, CalendarClock } from "lucide-react";
+import { format, isFuture, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { cn } from "@/src/lib/utils";
-import { Badge } from "@/src/components/ui/Badge";
+import {
+  Badge,
+  Button,
+  IconButton,
+  Input,
+  SectionTitle,
+  ContentCard,
+  StatGrid,
+  StatCard,
+  EmptyState,
+} from "@/src/components/ui";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Agenda por Cliente — busca agendamentos vinculados a um cliente
+// Agenda por Cliente
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface AgendaPorClienteProps {
@@ -20,86 +30,83 @@ interface AgendaPorClienteProps {
 }
 
 const STATUS_MAP: Record<string, { label: string; color: "success" | "primary" | "danger" | "default" | "warning" }> = {
-  scheduled:  { label: "Agendado",       color: "primary" },
-  confirmed:  { label: "Confirmado",     color: "success" },
-  noshow:     { label: "Não compareceu", color: "danger" },
-  cancelled:  { label: "Cancelado",      color: "default" },
-  realizado:  { label: "Realizado",      color: "success" },
+  scheduled: { label: "Agendado",       color: "primary" },
+  confirmed: { label: "Confirmado",     color: "success" },
+  noshow:    { label: "Falta",          color: "danger" },
+  cancelled: { label: "Cancelado",      color: "default" },
+  realizado: { label: "Realizado",      color: "success" },
 };
+
+type FilterTab = "all" | "future" | "past";
 
 export function AgendaPorCliente({
   clients,
   appointments,
-  professionals,
-  services,
+  professionals: _professionals,
+  services: _services,
   onNewAppointment,
   onAppointmentClick,
 }: AgendaPorClienteProps) {
   const [search, setSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState<any>(null);
-  const [filter, setFilter] = useState<"all" | "future" | "past">("all");
+  const [filter, setFilter] = useState<FilterTab>("all");
 
   const filteredClients = search.trim().length < 1
-    ? clients.slice(0, 20)
+    ? clients.slice(0, 30)
     : clients.filter((c) =>
         c.name?.toLowerCase().includes(search.toLowerCase()) ||
         c.phone?.includes(search) ||
         c.cpf?.includes(search)
       ).slice(0, 30);
 
-  const clientAppointments = selectedClient
-    ? appointments
-        .filter((a) => a.clientId === selectedClient.id || a.client?.id === selectedClient.id)
-        .filter((a) => {
-          const d = new Date(a.date);
-          if (filter === "future") return !isPast(d) || isFuture(d);
-          if (filter === "past") return isPast(d);
-          return true;
-        })
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  const allClientAppts = selectedClient
+    ? appointments.filter((a) => a.clientId === selectedClient.id || a.client?.id === selectedClient.id)
     : [];
 
-  const future = appointments.filter(
-    (a) => a.clientId === selectedClient?.id && isFuture(new Date(a.date))
-  ).length;
-  const past = appointments.filter(
-    (a) => a.clientId === selectedClient?.id && isPast(new Date(a.date))
-  ).length;
+  const clientAppointments = allClientAppts
+    .filter((a) => {
+      const d = new Date(a.date);
+      if (filter === "future") return isFuture(d) || isToday(d);
+      if (filter === "past")   return isPast(d) && !isToday(d);
+      return true;
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const futureCount   = allClientAppts.filter((a) => isFuture(new Date(a.date)) || isToday(new Date(a.date))).length;
+  const pastCount     = allClientAppts.filter((a) => isPast(new Date(a.date)) && !isToday(new Date(a.date))).length;
+  const noShowCount   = allClientAppts.filter((a) => a.status === "noshow").length;
+
+  const selectClient = (client: any) => {
+    setSelectedClient((prev: any) => prev?.id === client.id ? null : client);
+    setFilter("all");
+  };
 
   return (
-    <div className="space-y-4 sm:space-y-5 pb-20 sm:pb-6 relative">
+    <div className="space-y-4 sm:space-y-5 pb-20 sm:pb-6 px-4 sm:px-5 lg:px-6 xl:px-8 pt-3 sm:pt-4 lg:pt-5">
 
-      {/* Header */}
-      <div className="flex items-center gap-3 pb-4 border-b border-zinc-100">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-50 border border-amber-100">
-          <User size={18} className="text-amber-600" />
-        </div>
-        <div>
-          <h1 className="text-lg sm:text-xl font-black tracking-tight text-zinc-900">Agenda por Cliente</h1>
-          <p className="text-xs text-zinc-400 mt-0.5">Pesquise um cliente para ver todos os agendamentos.</p>
-        </div>
-      </div>
+      <SectionTitle
+        title="Agenda por Cliente"
+        description="Pesquise um cliente para ver o histórico completo de agendamentos."
+        icon={User}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[340px,1fr] gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[320px,1fr] gap-4">
 
-        {/* Busca de clientes */}
+        {/* ── Coluna esquerda: lista de clientes ── */}
         <div className="flex flex-col gap-3">
-          <div className="relative flex items-center h-10 sm:h-11 rounded-[10px] border border-zinc-200 bg-zinc-50 px-3 gap-2 focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-500/10 focus-within:bg-white transition-all">
-            <Search size={15} className="shrink-0 text-zinc-400" />
-            <input
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setSelectedClient(null); }}
-              placeholder="Nome, telefone ou CPF..."
-              className="w-full bg-transparent text-sm font-medium text-zinc-800 outline-none placeholder:text-zinc-400"
-            />
-            {search && (
+          <Input
+            placeholder="Nome, telefone ou CPF..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setSelectedClient(null); }}
+            iconLeft={<User size={14} />}
+            iconRight={search ? (
               <button onClick={() => { setSearch(""); setSelectedClient(null); }} className="text-zinc-400 hover:text-zinc-600">
-                <X size={14} />
+                <X size={13} />
               </button>
-            )}
-          </div>
+            ) : undefined}
+          />
 
-          <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm">
+          <ContentCard padding="none">
             {filteredClients.length === 0 ? (
               <div className="py-10 text-center">
                 <p className="text-xs font-bold text-zinc-400">Nenhum cliente encontrado</p>
@@ -110,168 +117,214 @@ export function AgendaPorCliente({
                   const total = appointments.filter(
                     (a) => a.clientId === client.id || a.client?.id === client.id
                   ).length;
+                  const upcoming = appointments.filter(
+                    (a) => (a.clientId === client.id || a.client?.id === client.id) && isFuture(new Date(a.date))
+                  ).length;
                   const isActive = selectedClient?.id === client.id;
                   return (
                     <button
                       key={client.id}
-                      onClick={() => setSelectedClient(isActive ? null : client)}
+                      onClick={() => selectClient(client)}
                       className={cn(
-                        "w-full flex items-center gap-3 px-4 py-3 text-left transition-all",
+                        "w-full flex items-center gap-3 px-4 py-3 text-left transition-all border-l-2",
                         isActive
-                          ? "bg-amber-50 border-l-[3px] border-l-amber-500"
-                          : "hover:bg-zinc-50 border-l-[3px] border-l-transparent"
+                          ? "bg-amber-50 border-l-amber-500"
+                          : "hover:bg-zinc-50 border-l-transparent"
                       )}
                     >
+                      {/* Avatar */}
                       <div className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black",
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black transition-all",
                         isActive ? "bg-amber-500 text-white" : "bg-zinc-100 text-zinc-500"
                       )}>
                         {client.name?.[0]?.toUpperCase() ?? "?"}
                       </div>
+
+                      {/* Info */}
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-zinc-900 truncate">{client.name}</p>
-                        <p className="text-[10px] text-zinc-400 font-medium truncate">
-                          {client.phone ?? "Sem telefone"}
+                        <p className="text-[10px] text-zinc-400 truncate flex items-center gap-1 mt-0.5">
+                          <Phone size={9} />{client.phone ?? "Sem telefone"}
                         </p>
                       </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-[10px] font-black text-zinc-500">{total}</p>
-                        <p className="text-[9px] text-zinc-400">agend.</p>
+
+                      {/* Contadores */}
+                      <div className="shrink-0 text-right space-y-0.5">
+                        <p className="text-xs font-black text-zinc-600">{total} <span className="text-[9px] font-medium text-zinc-400">total</span></p>
+                        {upcoming > 0 && (
+                          <p className="text-[9px] font-bold text-amber-600">{upcoming} próx.</p>
+                        )}
                       </div>
                     </button>
                   );
                 })}
               </div>
             )}
-          </div>
+          </ContentCard>
         </div>
 
-        {/* Agendamentos do cliente */}
-        <div className="flex flex-col gap-3">
+        {/* ── Coluna direita: histórico do cliente ── */}
+        <div className="flex flex-col gap-4 min-w-0">
           {!selectedClient ? (
-            <div className="flex flex-col items-center justify-center py-16 sm:py-20 bg-white border border-zinc-200 border-dashed rounded-2xl text-center px-6">
-              <User size={32} className="text-zinc-300 mb-3" />
-              <p className="text-sm font-black text-zinc-500 mb-1">Selecione um cliente</p>
-              <p className="text-xs text-zinc-400">Escolha um cliente na lista para ver o histórico de agendamentos.</p>
-            </div>
+            <EmptyState
+              icon={User}
+              title="Selecione um cliente"
+              description="Escolha um cliente na lista para ver o histórico de agendamentos."
+              className="py-20"
+            />
           ) : (
             <>
-              {/* Client header */}
-              <div className="bg-white border border-zinc-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 shadow-sm">
-                <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-white text-lg sm:text-xl font-black">
-                  {selectedClient.name?.[0]?.toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-base font-black text-zinc-900">{selectedClient.name}</p>
-                  <div className="flex flex-wrap gap-3 mt-1">
-                    {selectedClient.phone && (
-                      <span className="flex items-center gap-1 text-xs text-zinc-500">
-                        <Phone size={11} />
-                        {selectedClient.phone}
-                      </span>
-                    )}
+              {/* Card do cliente */}
+              <ContentCard padding="sm">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  {/* Avatar grande */}
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-white text-xl font-black shadow-md shadow-amber-500/20">
+                    {selectedClient.name?.[0]?.toUpperCase()}
                   </div>
-                  <div className="flex gap-4 mt-2">
-                    <span className="text-[10px] font-bold text-zinc-400">{future} <span className="text-amber-600">próximos</span></span>
-                    <span className="text-[10px] font-bold text-zinc-400">{past} <span className="text-zinc-500">realizados</span></span>
-                  </div>
-                </div>
-                {onNewAppointment && (
-                  <button
-                    onClick={() => onNewAppointment(selectedClient)}
-                    className="flex items-center gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-[10px] bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shrink-0"
-                  >
-                    <Calendar size={14} />
-                    Novo Agendamento
-                  </button>
-                )}
-              </div>
 
-              {/* Filter tabs */}
-              <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-xl w-full sm:w-auto self-start">
+                  {/* Dados */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-black text-zinc-900">{selectedClient.name}</p>
+                    <div className="flex flex-wrap gap-3 mt-1">
+                      {selectedClient.phone && (
+                        <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                          <Phone size={11} />{selectedClient.phone}
+                        </span>
+                      )}
+                      {selectedClient.email && (
+                        <span className="text-xs text-zinc-400 truncate">{selectedClient.email}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Botão novo agendamento */}
+                  {onNewAppointment && (
+                    <Button
+                      size="sm"
+                      iconLeft={<Calendar size={13} />}
+                      onClick={() => onNewAppointment(selectedClient)}
+                      className="shrink-0"
+                    >
+                      Novo Agendamento
+                    </Button>
+                  )}
+                </div>
+              </ContentCard>
+
+              {/* Stats rápidos */}
+              <StatGrid cols={3}>
+                <StatCard icon={CalendarClock} title="Próximos"  value={futureCount} color="warning" delay={0}    />
+                <StatCard icon={History}       title="Histórico" value={pastCount}   color="default" delay={0.05} />
+                <StatCard icon={User}          title="Faltas"    value={noShowCount} color="danger"  delay={0.1}  />
+              </StatGrid>
+
+              {/* Filtro tabs */}
+              <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-xl self-start">
                 {([
-                  { key: "all", label: "Todos" },
-                  { key: "future", label: "Próximos" },
-                  { key: "past", label: "Histórico" },
-                ] as const).map(({ key, label }) => (
+                  { key: "all",    label: "Todos",    count: allClientAppts.length },
+                  { key: "future", label: "Próximos", count: futureCount },
+                  { key: "past",   label: "Histórico", count: pastCount },
+                ] as const).map(({ key, label, count }) => (
                   <button
                     key={key}
                     onClick={() => setFilter(key)}
                     className={cn(
-                      "flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-wider",
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all",
                       filter === key ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
                     )}
                   >
                     {label}
+                    <span className={cn(
+                      "text-[9px] font-black px-1.5 py-0.5 rounded-full",
+                      filter === key ? "bg-amber-100 text-amber-700" : "bg-zinc-200 text-zinc-500"
+                    )}>
+                      {count}
+                    </span>
                   </button>
                 ))}
               </div>
 
-              {/* Appointments list */}
+              {/* Lista de agendamentos */}
               {clientAppointments.length === 0 ? (
-                <div className="py-14 bg-white border border-zinc-200 border-dashed rounded-2xl text-center">
-                  <Calendar size={24} className="text-zinc-300 mx-auto mb-2" />
-                  <p className="text-xs font-bold text-zinc-400">Nenhum agendamento encontrado</p>
-                </div>
+                <EmptyState
+                  icon={Calendar}
+                  title="Nenhum agendamento"
+                  description={
+                    filter === "future" ? "Sem próximos agendamentos."
+                    : filter === "past" ? "Sem histórico de atendimentos."
+                    : "Este cliente ainda não tem agendamentos."
+                  }
+                />
               ) : (
                 <div className="space-y-2">
                   {clientAppointments.map((appt, i) => {
                     const statusCfg = STATUS_MAP[appt.status] ?? STATUS_MAP.scheduled;
                     const date = new Date(appt.date);
-                    const isPastAppt = isPast(date);
+                    const isPastAppt = isPast(date) && !isToday(date);
+                    const isTodayAppt = isToday(date);
                     return (
                       <motion.div
                         key={appt.id}
-                        initial={{ opacity: 0, y: 8 }}
+                        initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.03 }}
                         onClick={() => onAppointmentClick?.(appt)}
                         className={cn(
-                          "flex items-center gap-3 sm:gap-4 bg-white border rounded-2xl p-3 sm:p-4 shadow-sm transition-all",
-                          onAppointmentClick && "cursor-pointer hover:border-zinc-300",
-                          isPastAppt ? "opacity-75" : "border-zinc-200"
+                          "flex items-center gap-3 sm:gap-4 bg-white border rounded-2xl p-3 sm:p-4 transition-all",
+                          onAppointmentClick && "cursor-pointer hover:shadow-sm hover:border-zinc-300",
+                          isPastAppt ? "border-zinc-100 opacity-80" : "border-zinc-200",
+                          isTodayAppt && "border-amber-200 bg-amber-50/30"
                         )}
                       >
+                        {/* Data mini */}
                         <div className={cn(
-                          "flex flex-col items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl border shrink-0",
-                          isPastAppt ? "bg-zinc-50 border-zinc-200" : "bg-amber-50 border-amber-200"
+                          "flex flex-col items-center justify-center w-11 h-11 rounded-xl border shrink-0",
+                          isTodayAppt ? "bg-amber-500 border-amber-500 text-white"
+                          : isPastAppt ? "bg-zinc-50 border-zinc-200"
+                          : "bg-amber-50 border-amber-200"
                         )}>
-                          <p className={cn("text-base sm:text-lg font-black leading-none", isPastAppt ? "text-zinc-500" : "text-amber-600")}>
+                          <p className={cn(
+                            "text-base font-black leading-none",
+                            isTodayAppt ? "text-white" : isPastAppt ? "text-zinc-500" : "text-amber-600"
+                          )}>
                             {format(date, "d")}
                           </p>
-                          <p className={cn("text-[9px] font-bold uppercase", isPastAppt ? "text-zinc-400" : "text-amber-500")}>
-                            {format(date, "MMM", { locale: ptBR })}
+                          <p className={cn(
+                            "text-[9px] font-bold uppercase",
+                            isTodayAppt ? "text-white/80" : isPastAppt ? "text-zinc-400" : "text-amber-500"
+                          )}>
+                            {isTodayAppt ? "hoje" : format(date, "MMM", { locale: ptBR })}
                           </p>
                         </div>
 
+                        {/* Dados */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-sm font-bold text-zinc-900 truncate">
                               {appt.service?.name ?? "Serviço"}
                             </p>
                             <Badge color={statusCfg.color} size="sm" dot>{statusCfg.label}</Badge>
+                            {isTodayAppt && <Badge color="warning" size="sm">Hoje</Badge>}
                           </div>
-                          <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-400 font-medium">
-                            <span className="flex items-center gap-1">
-                              <Clock size={10} />
-                              {appt.startTime} – {appt.endTime}
+                          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                            <span className="flex items-center gap-1 text-xs text-zinc-400">
+                              <Clock size={10} />{appt.startTime} – {appt.endTime}
                             </span>
                             {appt.professional?.name && (
-                              <span className="flex items-center gap-1 truncate">
-                                <Scissors size={10} />
-                                {appt.professional.name}
+                              <span className="flex items-center gap-1 text-xs text-zinc-400 truncate">
+                                <Scissors size={10} />{appt.professional.name}
+                              </span>
+                            )}
+                            {appt.totalSessions > 1 && (
+                              <span className="text-[10px] font-black text-amber-500">
+                                Sessão {appt.sessionNumber}/{appt.totalSessions}
                               </span>
                             )}
                           </div>
-                          {appt.totalSessions > 1 && (
-                            <p className="text-[9px] font-black text-amber-500 uppercase mt-0.5">
-                              Pacote: sessão {appt.sessionNumber}/{appt.totalSessions}
-                            </p>
-                          )}
                         </div>
 
                         {onAppointmentClick && (
-                          <ChevronRight size={16} className="text-zinc-300 shrink-0" />
+                          <ChevronRight size={15} className="text-zinc-300 shrink-0" />
                         )}
                       </motion.div>
                     );

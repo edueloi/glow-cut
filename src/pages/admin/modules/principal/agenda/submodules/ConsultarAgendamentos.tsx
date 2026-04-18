@@ -4,13 +4,20 @@ import {
   Clock, Scissors, UserX, CheckCircle, MoreVertical,
   RefreshCw,
 } from "lucide-react";
-import { format, isToday, isTomorrow, isYesterday, startOfDay, endOfDay, parseISO } from "date-fns";
+import { format, isToday, isTomorrow, isYesterday, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { cn } from "@/src/lib/utils";
-import { Badge } from "@/src/components/ui/Badge";
-import { FilterLine, FilterLineSection, FilterLineItem, FilterLineSearch, FilterLineSegmented } from "@/src/components/ui/FilterLine";
-import { GridTable } from "@/src/components/ui/GridTable";
-import type { Column } from "@/src/components/ui/GridTable";
+import {
+  Badge,
+  Button,
+  IconButton,
+  StatCard,
+  StatGrid,
+  SectionTitle,
+  FilterLineSearch,
+  GridTable,
+  Combobox,
+} from "@/src/components/ui";
+import type { Column } from "@/src/components/ui";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Consultar Agendamentos — listagem completa com filtros avançados
@@ -28,11 +35,9 @@ interface ConsultarAgendamentosProps {
   onRefresh?: () => void;
 }
 
-type StatusFilter = "all" | "scheduled" | "confirmed" | "noshow" | "cancelled" | "realizado";
 type PeriodFilter = "today" | "tomorrow" | "week" | "month" | "all";
 
 const STATUS_OPTIONS = [
-  { value: "all",       label: "Todos" },
   { value: "scheduled", label: "Agendados" },
   { value: "confirmed", label: "Confirmados" },
   { value: "realizado", label: "Realizados" },
@@ -59,8 +64,8 @@ const STATUS_BADGE: Record<string, { label: string; color: "primary" | "success"
 export function ConsultarAgendamentos({
   appointments,
   professionals,
-  services,
-  clients,
+  services: _services,
+  clients: _clients,
   isLoading = false,
   onAppointmentClick,
   onUpdateStatus,
@@ -68,7 +73,7 @@ export function ConsultarAgendamentos({
   onRefresh,
 }: ConsultarAgendamentosProps) {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);   // vazio = todos
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("today");
   const [profFilter, setProfFilter] = useState("all");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -95,8 +100,8 @@ export function ConsultarAgendamentos({
       list = list.filter((a) => { const d = new Date(a.date); return d >= s && d <= e; });
     }
 
-    if (statusFilter !== "all") {
-      list = list.filter((a) => a.status === statusFilter);
+    if (statusFilter.length > 0) {
+      list = list.filter((a) => statusFilter.includes(a.status));
     }
     if (profFilter !== "all") {
       list = list.filter((a) => a.professionalId === profFilter || a.professional?.id === profFilter);
@@ -138,7 +143,7 @@ export function ConsultarAgendamentos({
         return (
           <div>
             <p className="text-xs font-bold text-zinc-800">{label}</p>
-            <p className="text-[10px] text-zinc-400 font-medium flex items-center gap-1">
+            <p className="text-[10px] text-zinc-400 font-medium flex items-center gap-1 mt-0.5">
               <Clock size={9} />{a.startTime} – {a.endTime}
             </p>
           </div>
@@ -153,7 +158,7 @@ export function ConsultarAgendamentos({
             {a.type === "bloqueio" ? "— Bloqueio —" : a.type === "pessoal" ? "— Pessoal —" : a.client?.name ?? "Sem cliente"}
           </p>
           {a.client?.phone && (
-            <p className="text-[10px] text-zinc-400">{a.client.phone}</p>
+            <p className="text-[10px] text-zinc-400 mt-0.5">{a.client.phone}</p>
           )}
         </div>
       ),
@@ -184,12 +189,13 @@ export function ConsultarAgendamentos({
       className: "w-10",
       render: (a) => (
         <div className="relative" onClick={(e) => e.stopPropagation()}>
-          <button
+          <IconButton
+            size="sm"
+            variant="ghost"
             onClick={() => setOpenMenu(openMenu === a.id ? null : a.id)}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all"
           >
             <MoreVertical size={14} />
-          </button>
+          </IconButton>
           {openMenu === a.id && (
             <>
               <div className="fixed inset-0 z-[50]" onClick={() => setOpenMenu(null)} />
@@ -213,92 +219,88 @@ export function ConsultarAgendamentos({
   ];
 
   return (
-    <div className="space-y-4 sm:space-y-5 pb-20 sm:pb-6 relative">
+    <div className="space-y-4 sm:space-y-5 pb-20 sm:pb-6 px-4 sm:px-5 lg:px-6 xl:px-8 pt-3 sm:pt-4 lg:pt-5">
 
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-zinc-100">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-50 border border-amber-100">
-            <Calendar size={18} className="text-amber-600" />
+      <SectionTitle
+        title="Consultar Agendamentos"
+        description="Visualize, filtre e gerencie todos os agendamentos."
+        icon={Calendar}
+        action={
+          <div className="flex items-center gap-2">
+            {onRefresh && (
+              <IconButton variant="ghost" onClick={onRefresh} title="Atualizar">
+                <RefreshCw size={16} />
+              </IconButton>
+            )}
+            {onNewAppointment && (
+              <Button
+                size="sm"
+                iconLeft={<Calendar size={14} />}
+                onClick={onNewAppointment}
+              >
+                <span className="hidden sm:inline">Novo Agendamento</span>
+                <span className="sm:hidden">Novo</span>
+              </Button>
+            )}
           </div>
-          <div>
-            <h1 className="text-lg sm:text-xl font-black tracking-tight text-zinc-900">Consultar Agendamentos</h1>
-            <p className="text-xs text-zinc-400 mt-0.5">Visualize, filtre e gerencie todos os agendamentos.</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          {onRefresh && (
-            <button onClick={onRefresh} className="p-2 rounded-xl text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-all" title="Atualizar">
-              <RefreshCw size={16} />
-            </button>
-          )}
-          {onNewAppointment && (
-            <button onClick={onNewAppointment} className="flex items-center gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-[10px] bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all">
-              <Calendar size={14} /> Novo
-            </button>
-          )}
-        </div>
-      </div>
+        }
+      />
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Total hoje",  value: todayCounts.total,     color: "text-zinc-900" },
-          { label: "Confirmados", value: todayCounts.confirmed, color: "text-emerald-600" },
-          { label: "Restantes",   value: todayCounts.remaining, color: "text-amber-600" },
-          { label: "Faltas",      value: todayCounts.noshow,    color: "text-red-500" },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="bg-white border border-zinc-200 rounded-2xl p-3 sm:p-4 shadow-sm">
-            <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">{label}</p>
-            <p className={cn("text-2xl font-black", color)}>{value}</p>
-          </div>
-        ))}
+      <StatGrid cols={4}>
+        <StatCard icon={Calendar} title="Total hoje"  value={todayCounts.total}     color="default"  delay={0}    />
+        <StatCard icon={Check}    title="Confirmados" value={todayCounts.confirmed} color="success"  delay={0.05} />
+        <StatCard icon={Clock}    title="Restantes"   value={todayCounts.remaining} color="warning"  delay={0.1}  />
+        <StatCard icon={UserX}    title="Faltas"      value={todayCounts.noshow}    color="danger"   delay={0.15} />
+      </StatGrid>
+
+      {/* Filtros — tudo em uma linha no desktop, empilha só no mobile */}
+      <div className="rounded-2xl border border-zinc-200 bg-white px-3 py-2.5 shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <FilterLineSearch
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar..."
+            className="flex-1 min-w-0"
+          />
+          <Combobox
+            placeholder="Período"
+            options={PERIOD_OPTIONS}
+            value={periodFilter}
+            onChange={(v) => setPeriodFilter(((v as string) || "today") as PeriodFilter)}
+            className="sm:w-48 shrink-0"
+            size="sm"
+          />
+          <Combobox
+            placeholder="Profissional"
+            options={[
+              { value: "all", label: "Todos" },
+              ...professionals.map((p) => ({ value: p.id, label: p.name })),
+            ]}
+            value={profFilter}
+            onChange={(v) => setProfFilter((v as string) || "all")}
+            className="sm:w-52 shrink-0"
+            size="sm"
+          />
+          <Combobox
+            placeholder="Status"
+            options={STATUS_OPTIONS}
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as string[])}
+            multiple
+            className="sm:w-48 shrink-0"
+            size="sm"
+          />
+        </div>
       </div>
 
-      {/* Filtros */}
-      <FilterLine>
-        <FilterLineSection grow>
-          <FilterLineItem grow>
-            <FilterLineSearch value={search} onChange={setSearch} placeholder="Buscar cliente, serviço..." />
-          </FilterLineItem>
-        </FilterLineSection>
-        <FilterLineSection wrap>
-          <FilterLineItem fullOnMobile={false}>
-            <FilterLineSegmented
-              value={periodFilter}
-              onChange={(v) => setPeriodFilter(v as PeriodFilter)}
-              options={PERIOD_OPTIONS}
-              size="sm"
-            />
-          </FilterLineItem>
-          <FilterLineItem fullOnMobile={false}>
-            <select
-              value={profFilter}
-              onChange={(e) => setProfFilter(e.target.value)}
-              className="h-9 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-[11px] font-bold text-zinc-700 outline-none focus:border-amber-400 transition-all"
-            >
-              <option value="all">Todos os profissionais</option>
-              {professionals.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </FilterLineItem>
-          <FilterLineItem fullOnMobile={false}>
-            <FilterLineSegmented
-              value={statusFilter}
-              onChange={(v) => setStatusFilter(v as StatusFilter)}
-              options={STATUS_OPTIONS}
-              size="sm"
-            />
-          </FilterLineItem>
-        </FilterLineSection>
-      </FilterLine>
-
       {/* Contador */}
-      <p className="text-[11px] font-bold text-zinc-400">
+      <p className="text-xs font-bold text-zinc-400">
         {filtered.length} agendamento{filtered.length !== 1 ? "s" : ""} encontrado{filtered.length !== 1 ? "s" : ""}
       </p>
 
+      {/* Tabela */}
       <GridTable
         data={filtered}
         columns={columns}
@@ -317,7 +319,7 @@ export function ConsultarAgendamentos({
                   <p className="text-sm font-bold text-zinc-900 truncate">
                     {a.type === "bloqueio" ? "Bloqueio" : a.client?.name ?? "Sem cliente"}
                   </p>
-                  <p className="text-xs text-zinc-500">{a.service?.name ?? a.type}</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">{a.service?.name ?? a.type}</p>
                 </div>
                 <Badge color={cfg.color} size="sm" dot>{cfg.label}</Badge>
               </div>
