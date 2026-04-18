@@ -42,7 +42,7 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (identifier: string, password: string) => Promise<{ error?: string }>;
+  login: (identifier: string, password: string) => Promise<{ error?: string; user?: AuthUser }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -91,7 +91,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { loadUser(); }, [loadUser]);
 
-  const login = async (identifier: string, password: string): Promise<{ error?: string }> => {
+  const login = async (identifier: string, password: string): Promise<{ error?: string; user?: AuthUser }> => {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -105,7 +105,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
       const { token, user: userData } = await res.json();
       saveToken(token);
       setUser(userData);
-      return {};
+      return { user: userData };
     } catch {
       return { error: "Erro de conexão. Verifique sua internet." };
     }
@@ -176,16 +176,17 @@ function LoginPage() {
     if (remember) localStorage.setItem("savedLoginUser", identifier);
     else localStorage.removeItem("savedLoginUser");
 
-    const { error: err } = await login(identifier, pass);
+    const { error: err, user: loggedUser } = await login(identifier, pass);
     if (err) {
       setError(err);
       setSubmitting(false);
       return;
     }
 
-    // Redireciona via navigate após login (user já está no contexto)
-    // useEffect vai detectar a mudança e redirecionar
     setSubmitting(false);
+    if (loggedUser?.type === "superadmin") navigate("/super-admin", { replace: true });
+    else if (loggedUser?.type === "professional") navigate("/pro", { replace: true });
+    else navigate("/admin", { replace: true });
   };
 
   return (

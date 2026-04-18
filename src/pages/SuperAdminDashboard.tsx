@@ -1823,14 +1823,14 @@ function Sidebar({ tab, setTab, username, onLogout, onClose }: {
             key={item.key}
             onClick={() => { setTab(item.key); navigate(item.path); onClose?.(); }}
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all",
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all overflow-hidden",
               tab === item.key
                 ? "bg-amber-500 text-white shadow-sm shadow-amber-500/30"
                 : "text-zinc-400 hover:bg-white/5 hover:text-white"
             )}
           >
-            {item.icon}
-            <span>{item.label}</span>
+            <span className="shrink-0">{item.icon}</span>
+            <span className="truncate">{item.label}</span>
           </button>
         ))}
       </nav>
