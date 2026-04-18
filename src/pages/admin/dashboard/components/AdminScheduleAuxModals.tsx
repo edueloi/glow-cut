@@ -200,8 +200,8 @@ export function AdminScheduleAuxModals(props: any) {
       <AnimatePresence>
         {isRepeatModalOpen && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsRepeatModalOpen(false)} className="fixed inset-0 z-[60] bg-black/30" />
-            <div className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsRepeatModalOpen(false)} className="fixed inset-0 z-[110] bg-black/30" />
+            <div className="pointer-events-none fixed inset-0 z-[110] flex items-center justify-center p-4">
               <motion.div initial={{ opacity: 0, scale: 0.97, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 8 }} transition={{ duration: 0.15 }} className="pointer-events-auto w-full max-w-sm rounded-2xl border border-zinc-200 bg-white shadow-2xl">
                 <div className="flex items-start justify-between px-5 pb-2 pt-5">
                   <div>
@@ -269,8 +269,8 @@ export function AdminScheduleAuxModals(props: any) {
       <AnimatePresence>
         {isCustomRepeatModalOpen && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsCustomRepeatModalOpen(false)} className="fixed inset-0 z-[70] bg-black/30" />
-            <div className="pointer-events-none fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsCustomRepeatModalOpen(false)} className="fixed inset-0 z-[120] bg-black/30" />
+            <div className="pointer-events-none fixed inset-0 z-[120] flex items-center justify-center p-4">
               <motion.div initial={{ opacity: 0, scale: 0.97, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 8 }} transition={{ duration: 0.15 }} className="pointer-events-auto w-full max-w-sm rounded-2xl border border-zinc-200 bg-white shadow-2xl">
                 <div className="flex items-start justify-between px-5 pb-4 pt-5">
                   <div>

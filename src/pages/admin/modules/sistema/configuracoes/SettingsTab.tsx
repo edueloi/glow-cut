@@ -1,44 +1,28 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Banknote,
   CalendarDays,
   CalendarOff,
-  FileText,
   Globe,
   Loader2,
-  Megaphone,
-  MessageCircle,
-  Package,
   Plus,
-  Scissors,
   Search,
   Settings,
-  Store,
   Trash2,
-  UserCog,
-  Users,
 } from "lucide-react";
 
 import { apiFetch } from "@/src/lib/api";
 import { cn } from "@/src/lib/utils";
-import { Button } from "@/src/components/ui/Button";
+import { Button, IconButton } from "@/src/components/ui/Button";
 import { DatePicker } from "@/src/components/ui/DatePicker";
 import { EmptyState } from "@/src/components/ui/EmptyState";
 import { PanelCard } from "@/src/components/ui/PanelCard";
 import { StatCard } from "@/src/components/ui/StatCard";
 import { Switch } from "@/src/components/ui/Switch";
+import { Input, Textarea, Select } from "@/src/components/ui/Input";
+import { FormRow } from "@/src/components/ui/PageWrapper";
 import { useToast } from "@/src/components/ui/Toast";
-import type { AdminTabId } from "@/src/pages/admin/config/navigation";
 
-type SectionId =
-  | "agenda"
-  | "estabelecimento"
-  | "financeiro"
-  | "relatorios"
-  | "marketing"
-  | "configuracoes";
-
-type ServicesSection = "services" | "packages";
+type SectionId = "agenda" | "configuracoes";
 
 interface AgendaSettingsData {
   onlineBookingEnabled: boolean;
@@ -86,8 +70,8 @@ interface SettingsTabProps {
   settingsOpenCard: string | null;
   setSettingsOpenCard: (val: string | null) => void;
   professionals: Array<{ id: string; name: string }>;
-  onOpenTab: (tab: AdminTabId) => void;
-  onOpenServicesSection: (section: ServicesSection) => void;
+  onOpenTab: (tab: any) => void;
+  onOpenServicesSection: (section: any) => void;
 }
 
 const DEFAULT_AGENDA_SETTINGS: AgendaSettingsData = {
@@ -113,35 +97,6 @@ function sortByDate<T extends { date: string; startTime?: string }>(items: T[]) 
 
 function formatDateLabel(date: string) {
   return new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR");
-}
-
-function Shortcut({
-  title,
-  desc,
-  onClick,
-  disabled,
-}: {
-  title: string;
-  desc: string;
-  onClick?: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "w-full rounded-3xl border p-4 text-left transition-all",
-        disabled
-          ? "border-zinc-200 bg-zinc-50 text-zinc-400"
-          : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm"
-      )}
-    >
-      <p className="text-sm font-black text-zinc-900">{title}</p>
-      <p className="mt-1 text-xs leading-relaxed text-zinc-500">{desc}</p>
-    </button>
-  );
 }
 
 function ToggleItem({
@@ -174,16 +129,11 @@ export function SettingsTab({
   settingsOpenCard,
   setSettingsOpenCard,
   professionals,
-  onOpenTab,
-  onOpenServicesSection,
 }: SettingsTabProps) {
   const { show } = useToast();
+
   const sections = [
-    { id: "agenda", label: "Agenda", icon: CalendarDays },
-    { id: "estabelecimento", label: "Meu Estabelecimento", icon: Store },
-    { id: "financeiro", label: "Financeiro", icon: Banknote },
-    { id: "relatorios", label: "Relatórios", icon: FileText },
-    { id: "marketing", label: "Marketing", icon: Megaphone },
+    { id: "agenda",       label: "Agenda",        icon: CalendarDays },
     { id: "configuracoes", label: "Configurações", icon: Settings },
   ] as const;
 
@@ -197,20 +147,12 @@ export function SettingsTab({
   const [releases, setReleases] = useState<ScheduleRelease[]>([]);
   const [specialDays, setSpecialDays] = useState<SpecialScheduleDay[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+
   const [releaseForm, setReleaseForm] = useState({
-    date: "",
-    professionalId: "",
-    startTime: "08:00",
-    endTime: "09:00",
-    description: "",
+    date: "", professionalId: "", startTime: "08:00", endTime: "09:00", description: "",
   });
   const [specialForm, setSpecialForm] = useState({
-    date: "",
-    professionalId: "",
-    isClosed: true,
-    startTime: "09:00",
-    endTime: "18:00",
-    description: "",
+    date: "", professionalId: "", isClosed: true, startTime: "09:00", endTime: "18:00", description: "",
   });
 
   useEffect(() => {
@@ -236,9 +178,7 @@ export function SettingsTab({
       }
     }
     load();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [show]);
 
   const nextSpecial = specialDays.find((item) => item.date >= new Date().toISOString().slice(0, 10)) || null;
@@ -253,9 +193,9 @@ export function SettingsTab({
       if (!response.ok) throw new Error();
       const data = await response.json();
       setAgendaSettings({ ...DEFAULT_AGENDA_SETTINGS, ...data });
-      show("Configurações da agenda salvas com sucesso.", "success");
+      show("Configurações da agenda salvas.", "success");
     } catch {
-      show("Não foi possível salvar as configurações da agenda.", "error");
+      show("Não foi possível salvar as configurações.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -283,8 +223,7 @@ export function SettingsTab({
   const deleteRelease = async (id: string) => {
     setBusyId(`release:${id}`);
     try {
-      const response = await apiFetch(`/api/settings/agenda/releases/${id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error();
+      await apiFetch(`/api/settings/agenda/releases/${id}`, { method: "DELETE" });
       setReleases((prev) => prev.filter((item) => item.id !== id));
       show("Liberação removida.", "success");
     } catch {
@@ -316,8 +255,7 @@ export function SettingsTab({
   const deleteSpecialDay = async (id: string) => {
     setBusyId(`special:${id}`);
     try {
-      const response = await apiFetch(`/api/settings/agenda/special-days/${id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error();
+      await apiFetch(`/api/settings/agenda/special-days/${id}`, { method: "DELETE" });
       setSpecialDays((prev) => prev.filter((item) => item.id !== id));
       show("Data especial removida.", "success");
     } catch {
@@ -327,123 +265,194 @@ export function SettingsTab({
     }
   };
 
-  const openServices = (section: ServicesSection) => {
-    onOpenServicesSection(section);
-    onOpenTab("services");
-  };
+  const professionalOptions = [
+    { value: "", label: "Toda a agenda" },
+    ...professionals.map(p => ({ value: p.id, label: p.name })),
+  ];
 
+  /* ── Agenda ─────────────────────────────────────────────────────────────── */
   const renderAgenda = () => (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="Autoatendimento" value={agendaSettings.enableSelfService ? "Ativo" : "Pausado"} icon={Globe} description="Agenda online do cliente" />
-        <StatCard title="Intervalo" value={`${agendaSettings.slotIntervalMinutes} min`} icon={CalendarDays} description="Espaçamento entre slots" />
-        <StatCard title="Liberações" value={releases.length} icon={Search} description="Ajustes manuais cadastrados" />
+      {/* KPIs */}
+      <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
+        <StatCard title="Autoatendimento" value={agendaSettings.enableSelfService ? "Ativo" : "Pausado"} icon={Globe} description="Agendamento online" />
+        <StatCard title="Intervalo de slots" value={`${agendaSettings.slotIntervalMinutes} min`} icon={CalendarDays} description="Espaçamento na grade" />
+        <StatCard title="Liberações" value={releases.length} icon={Search} description="Ajustes manuais" />
         <StatCard title="Próxima exceção" value={nextSpecial ? formatDateLabel(nextSpecial.date) : "Livre"} icon={CalendarOff} description={nextSpecial ? "Data especial cadastrada" : "Sem datas futuras"} />
       </div>
 
+      {/* Regras gerais */}
       <PanelCard
-        title="Minha agenda"
-        description="Regras principais do autoatendimento e da agenda pública."
+        title="Regras da agenda"
+        description="Intervalos, antecedência e comportamento do autoatendimento."
         icon={CalendarDays}
         action={
-          <Button type="button" onClick={saveAgendaSettings} disabled={isSaving} className="h-11 rounded-2xl bg-amber-500 px-5 text-white hover:bg-amber-600">
-            {isSaving ? "Salvando..." : "Salvar"}
+          <Button onClick={saveAgendaSettings} loading={isSaving} size="sm">
+            Salvar
           </Button>
         }
         contentClassName="space-y-5"
       >
-        <div className="grid gap-4 md:grid-cols-3">
-          <input type="number" min={5} step={5} value={agendaSettings.slotIntervalMinutes} onChange={(e) => setAgendaSettings((prev) => ({ ...prev, slotIntervalMinutes: Number(e.target.value) || 0 }))} className="h-12 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold outline-none focus:border-amber-400" />
-          <input type="number" min={0} step={5} value={agendaSettings.minAdvanceMinutes} onChange={(e) => setAgendaSettings((prev) => ({ ...prev, minAdvanceMinutes: Number(e.target.value) || 0 }))} className="h-12 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold outline-none focus:border-amber-400" />
-          <input type="number" min={1} step={1} value={agendaSettings.maxAdvanceDays} onChange={(e) => setAgendaSettings((prev) => ({ ...prev, maxAdvanceDays: Number(e.target.value) || 1 }))} className="h-12 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold outline-none focus:border-amber-400" />
+        <FormRow cols={3}>
+          <Input
+            label="Intervalo entre slots (min)"
+            type="number"
+            min={5}
+            step={5}
+            value={String(agendaSettings.slotIntervalMinutes)}
+            onChange={e => setAgendaSettings(p => ({ ...p, slotIntervalMinutes: Number(e.target.value) || 0 }))}
+          />
+          <Input
+            label="Antecedência mínima (min)"
+            type="number"
+            min={0}
+            step={5}
+            value={String(agendaSettings.minAdvanceMinutes)}
+            onChange={e => setAgendaSettings(p => ({ ...p, minAdvanceMinutes: Number(e.target.value) || 0 }))}
+          />
+          <Input
+            label="Limite futuro (dias)"
+            type="number"
+            min={1}
+            step={1}
+            value={String(agendaSettings.maxAdvanceDays)}
+            onChange={e => setAgendaSettings(p => ({ ...p, maxAdvanceDays: Number(e.target.value) || 1 }))}
+          />
+        </FormRow>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ToggleItem label="Autoatendimento" desc="Ativa o agendamento online do cliente." checked={agendaSettings.enableSelfService} onChange={v => setAgendaSettings(p => ({ ...p, enableSelfService: v }))} />
+          <ToggleItem label="Agenda online" desc="Mantém o link público disponível." checked={agendaSettings.onlineBookingEnabled} onChange={v => setAgendaSettings(p => ({ ...p, onlineBookingEnabled: v }))} />
+          <ToggleItem label="Agenda por cliente" desc="Consulta de agendamentos por telefone." checked={agendaSettings.enableClientAgendaView} onChange={v => setAgendaSettings(p => ({ ...p, enableClientAgendaView: v }))} />
+          <ToggleItem label="Pesquisa pública" desc="Libera a tela pública de pesquisa." checked={agendaSettings.enableAppointmentSearch} onChange={v => setAgendaSettings(p => ({ ...p, enableAppointmentSearch: v }))} />
+          <ToggleItem label="Confirmação automática" desc="Novo agendamento entra confirmado." checked={agendaSettings.autoConfirmAppointments} onChange={v => setAgendaSettings(p => ({ ...p, autoConfirmAppointments: v }))} />
+          <ToggleItem label="Lembretes WhatsApp" desc="Base pronta para lembretes e confirmações." checked={agendaSettings.enableWhatsAppReminders} onChange={v => setAgendaSettings(p => ({ ...p, enableWhatsAppReminders: v }))} />
+          <ToggleItem label="Terminal profissional (PAT)" desc="Habilita a base do terminal profissional." checked={agendaSettings.enablePatTerminal} onChange={v => setAgendaSettings(p => ({ ...p, enablePatTerminal: v }))} />
+          <ToggleItem label="Bloquear feriados nacionais" desc="Fecha a agenda nas datas nacionais do Brasil." checked={agendaSettings.blockNationalHolidays} onChange={v => setAgendaSettings(p => ({ ...p, blockNationalHolidays: v }))} />
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <ToggleItem label="Autoatendimento" desc="Ativa o agendamento online do cliente." checked={agendaSettings.enableSelfService} onChange={(value) => setAgendaSettings((prev) => ({ ...prev, enableSelfService: value }))} />
-          <ToggleItem label="Agenda online" desc="Mantém o link público disponível." checked={agendaSettings.onlineBookingEnabled} onChange={(value) => setAgendaSettings((prev) => ({ ...prev, onlineBookingEnabled: value }))} />
-          <ToggleItem label="Agenda por cliente" desc="Mantém a consulta por telefone disponível." checked={agendaSettings.enableClientAgendaView} onChange={(value) => setAgendaSettings((prev) => ({ ...prev, enableClientAgendaView: value }))} />
-          <ToggleItem label="Consultar agendamentos" desc="Libera a tela pública de pesquisa." checked={agendaSettings.enableAppointmentSearch} onChange={(value) => setAgendaSettings((prev) => ({ ...prev, enableAppointmentSearch: value }))} />
-          <ToggleItem label="Confirmação automática" desc="Novo agendamento entra confirmado." checked={agendaSettings.autoConfirmAppointments} onChange={(value) => setAgendaSettings((prev) => ({ ...prev, autoConfirmAppointments: value }))} />
-          <ToggleItem label="WhatsApp preparado" desc="Base pronta para lembretes e confirmações." checked={agendaSettings.enableWhatsAppReminders} onChange={(value) => setAgendaSettings((prev) => ({ ...prev, enableWhatsAppReminders: value }))} />
-          <ToggleItem label="PAT profissional" desc="Habilita a base do terminal profissional." checked={agendaSettings.enablePatTerminal} onChange={(value) => setAgendaSettings((prev) => ({ ...prev, enablePatTerminal: value }))} />
-          <ToggleItem label="Bloquear feriados nacionais" desc="Fecha a agenda nas datas nacionais do Brasil." checked={agendaSettings.blockNationalHolidays} onChange={(value) => setAgendaSettings((prev) => ({ ...prev, blockNationalHolidays: value }))} />
-        </div>
-
-        <textarea
-          rows={4}
+        <Textarea
+          label="Observações operacionais"
+          rows={3}
           value={agendaSettings.notes}
-          onChange={(e) => setAgendaSettings((prev) => ({ ...prev, notes: e.target.value }))}
-          placeholder="Observações operacionais da agenda..."
-          className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm outline-none focus:border-amber-400"
+          onChange={e => setAgendaSettings(p => ({ ...p, notes: e.target.value }))}
+          placeholder="Observações internas sobre o funcionamento da agenda..."
         />
-
-        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
-          A grade semanal principal continua na aba <button type="button" onClick={() => onOpenTab("horarios")} className="font-black text-amber-600">Horários</button>.
-        </div>
       </PanelCard>
 
+      {/* Liberações + Feriados */}
       <div className="grid gap-6 xl:grid-cols-2">
-        <PanelCard title="Liberações de horários" description="Abra janelas extras na agenda." icon={Search} contentClassName="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <DatePicker value={releaseForm.date || null} onChange={(value) => setReleaseForm((prev) => ({ ...prev, date: value || "" }))} placeholder="Selecionar data" />
-            <select value={releaseForm.professionalId} onChange={(e) => setReleaseForm((prev) => ({ ...prev, professionalId: e.target.value }))} className="h-12 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold outline-none">
-              <option value="">Toda a agenda</option>
-              {professionals.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
-            <input type="time" value={releaseForm.startTime} onChange={(e) => setReleaseForm((prev) => ({ ...prev, startTime: e.target.value }))} className="h-12 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold outline-none" />
-            <input type="time" value={releaseForm.endTime} onChange={(e) => setReleaseForm((prev) => ({ ...prev, endTime: e.target.value }))} className="h-12 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold outline-none" />
-          </div>
-          <input type="text" value={releaseForm.description} onChange={(e) => setReleaseForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="Descrição da liberação" className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm outline-none" />
-          <Button type="button" onClick={createRelease} disabled={!releaseForm.date || busyId === "release:create"} className="h-11 rounded-2xl bg-zinc-900 px-5 text-white">
-            {busyId === "release:create" ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Criar
+
+        {/* Liberações */}
+        <PanelCard title="Liberações de horários" description="Abra janelas extras na agenda para encaixes pontuais." icon={Search} contentClassName="space-y-4">
+          <FormRow cols={2}>
+            <DatePicker
+              value={releaseForm.date || null}
+              onChange={v => setReleaseForm(p => ({ ...p, date: v || "" }))}
+              placeholder="Selecionar data"
+            />
+            <Select
+              value={releaseForm.professionalId}
+              onChange={e => setReleaseForm(p => ({ ...p, professionalId: e.target.value }))}
+              options={professionalOptions}
+            />
+          </FormRow>
+          <FormRow cols={2}>
+            <Input label="Início" type="time" value={releaseForm.startTime} onChange={e => setReleaseForm(p => ({ ...p, startTime: e.target.value }))} />
+            <Input label="Fim" type="time" value={releaseForm.endTime} onChange={e => setReleaseForm(p => ({ ...p, endTime: e.target.value }))} />
+          </FormRow>
+          <Input
+            label="Descrição"
+            value={releaseForm.description}
+            onChange={e => setReleaseForm(p => ({ ...p, description: e.target.value }))}
+            placeholder="Ex: Encaixe para cliente VIP"
+          />
+          <Button
+            iconLeft={busyId === "release:create" ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+            onClick={createRelease}
+            disabled={!releaseForm.date || busyId === "release:create"}
+            size="sm"
+          >
+            Cadastrar liberação
           </Button>
-          {releases.length === 0 ? <EmptyState icon={Search} title="Nenhuma liberação cadastrada" description="Use para encaixes e aberturas pontuais." /> : (
-            <div className="space-y-3">
-              {releases.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 rounded-3xl border border-zinc-200 bg-white p-3.5">
+
+          {releases.length === 0 ? (
+            <EmptyState icon={Search} title="Nenhuma liberação cadastrada" description="Use para encaixes e aberturas pontuais." />
+          ) : (
+            <div className="space-y-2">
+              {releases.map(item => (
+                <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-3.5">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-black text-zinc-900">{formatDateLabel(item.date)} · {item.startTime} às {item.endTime}</p>
-                    <p className="mt-1 text-[11px] text-zinc-500">{item.professionalName ? `${item.professionalName}. ` : "Toda a agenda. "}{item.description || "Sem descrição."}</p>
+                    <p className="mt-0.5 text-[11px] text-zinc-500">{item.professionalName ? `${item.professionalName}. ` : "Toda a agenda. "}{item.description || "Sem descrição."}</p>
                   </div>
-                  <button type="button" onClick={() => deleteRelease(item.id)} className="rounded-2xl p-2 text-zinc-300 hover:bg-red-50 hover:text-red-500">
-                    {busyId === `release:${item.id}` ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                  </button>
+                  <IconButton variant="ghost" size="sm" onClick={() => deleteRelease(item.id)}>
+                    {busyId === `release:${item.id}` ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                  </IconButton>
                 </div>
               ))}
             </div>
           )}
         </PanelCard>
 
-        <PanelCard title="Feriados e horários especiais" description="Fechamentos totais ou horários personalizados." icon={CalendarOff} contentClassName="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <DatePicker value={specialForm.date || null} onChange={(value) => setSpecialForm((prev) => ({ ...prev, date: value || "" }))} placeholder="Selecionar data" />
-            <select value={specialForm.professionalId} onChange={(e) => setSpecialForm((prev) => ({ ...prev, professionalId: e.target.value }))} className="h-12 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold outline-none">
-              <option value="">Toda a agenda</option>
-              {professionals.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
-          </div>
-          <ToggleItem label="Fechar agenda nessa data" desc="Quando desligado, usa o horário especial abaixo." checked={specialForm.isClosed} onChange={(value) => setSpecialForm((prev) => ({ ...prev, isClosed: value }))} />
+        {/* Feriados / Datas especiais */}
+        <PanelCard title="Feriados e horários especiais" description="Fechamentos totais ou horários personalizados por data." icon={CalendarOff} contentClassName="space-y-4">
+          <FormRow cols={2}>
+            <DatePicker
+              value={specialForm.date || null}
+              onChange={v => setSpecialForm(p => ({ ...p, date: v || "" }))}
+              placeholder="Selecionar data"
+            />
+            <Select
+              value={specialForm.professionalId}
+              onChange={e => setSpecialForm(p => ({ ...p, professionalId: e.target.value }))}
+              options={professionalOptions}
+            />
+          </FormRow>
+
+          <ToggleItem
+            label="Fechar agenda nessa data"
+            desc="Desative para definir um horário especial em vez de fechar."
+            checked={specialForm.isClosed}
+            onChange={v => setSpecialForm(p => ({ ...p, isClosed: v }))}
+          />
+
           {!specialForm.isClosed && (
-            <div className="grid gap-3 md:grid-cols-2">
-              <input type="time" value={specialForm.startTime} onChange={(e) => setSpecialForm((prev) => ({ ...prev, startTime: e.target.value }))} className="h-12 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold outline-none" />
-              <input type="time" value={specialForm.endTime} onChange={(e) => setSpecialForm((prev) => ({ ...prev, endTime: e.target.value }))} className="h-12 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold outline-none" />
-            </div>
+            <FormRow cols={2}>
+              <Input label="Início" type="time" value={specialForm.startTime} onChange={e => setSpecialForm(p => ({ ...p, startTime: e.target.value }))} />
+              <Input label="Fim" type="time" value={specialForm.endTime} onChange={e => setSpecialForm(p => ({ ...p, endTime: e.target.value }))} />
+            </FormRow>
           )}
-          <input type="text" value={specialForm.description} onChange={(e) => setSpecialForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="Descrição da data especial" className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm outline-none" />
-          <Button type="button" onClick={saveSpecialDay} disabled={!specialForm.date || busyId === "special:create"} className="h-11 rounded-2xl bg-rose-500 px-5 text-white hover:bg-rose-600">
-            {busyId === "special:create" ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Salvar
+
+          <Input
+            label="Descrição"
+            value={specialForm.description}
+            onChange={e => setSpecialForm(p => ({ ...p, description: e.target.value }))}
+            placeholder="Ex: Feriado municipal, Recesso de fim de ano..."
+          />
+          <Button
+            iconLeft={busyId === "special:create" ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+            onClick={saveSpecialDay}
+            disabled={!specialForm.date || busyId === "special:create"}
+            size="sm"
+            variant="danger"
+          >
+            Salvar data especial
           </Button>
-          {specialDays.length === 0 ? <EmptyState icon={CalendarOff} title="Nenhuma exceção cadastrada" description="Cadastre feriados e horários especiais." /> : (
-            <div className="space-y-3">
-              {specialDays.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 rounded-3xl border border-zinc-200 bg-white p-3.5">
+
+          {specialDays.length === 0 ? (
+            <EmptyState icon={CalendarOff} title="Nenhuma exceção cadastrada" description="Cadastre feriados e horários especiais." />
+          ) : (
+            <div className="space-y-2">
+              {specialDays.map(item => (
+                <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-3.5">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-black text-zinc-900">{formatDateLabel(item.date)} · {item.isClosed ? "Agenda fechada" : `${item.startTime} às ${item.endTime}`}</p>
-                    <p className="mt-1 text-[11px] text-zinc-500">{item.professionalName ? `${item.professionalName}. ` : "Toda a agenda. "}{item.description || "Sem descrição."}</p>
+                    <p className="mt-0.5 text-[11px] text-zinc-500">{item.professionalName ? `${item.professionalName}. ` : "Toda a agenda. "}{item.description || "Sem descrição."}</p>
                   </div>
-                  <button type="button" onClick={() => deleteSpecialDay(item.id)} className="rounded-2xl p-2 text-zinc-300 hover:bg-red-50 hover:text-red-500">
-                    {busyId === `special:${item.id}` ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                  </button>
+                  <IconButton variant="ghost" size="sm" onClick={() => deleteSpecialDay(item.id)}>
+                    {busyId === `special:${item.id}` ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                  </IconButton>
                 </div>
               ))}
             </div>
@@ -453,112 +462,72 @@ export function SettingsTab({
     </div>
   );
 
-  const renderShortcuts = () => {
-    if (activeSection === "estabelecimento") {
-      return (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Shortcut title="Clientes" desc="Cadastro e gestão de clientes." onClick={() => onOpenTab("clients")} />
-          <Shortcut title="Profissionais" desc="Equipe e permissões." onClick={() => onOpenTab("professionals")} />
-          <Shortcut title="Produtos" desc="Estoque e cadastro comercial." onClick={() => onOpenTab("products")} />
-          <Shortcut title="Serviços" desc="Tabela e duração dos serviços." onClick={() => openServices("services")} />
-          <Shortcut title="Pacotes" desc="Combos e sessões vendidas em bloco." onClick={() => openServices("packages")} />
-          <Shortcut title="Importação" desc="Estrutura reservada para entrada de base externa." disabled />
-        </div>
-      );
-    }
-
-    if (activeSection === "financeiro") {
-      return (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Shortcut title="Controle de entrada e saída" desc="Acesse o fluxo financeiro." onClick={() => onOpenTab("fluxo")} />
-          <Shortcut title="Caixa e comandas" desc="Recebimento e fechamento operacional." onClick={() => onOpenTab("comandas")} />
-          <Shortcut title="Pagamento de profissionais" desc="Base reservada para evolução futura." disabled />
-        </div>
-      );
-    }
-
-    if (activeSection === "relatorios") {
-      return (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Shortcut title="Dashboard" desc="Volte ao painel principal." onClick={() => onOpenTab("dash")} />
-          <Shortcut title="Relatórios principais" desc="Estrutura reservada para análises futuras." disabled />
-          <Shortcut title="Pesquisa e rankings" desc="Espaço preparado para evolução." disabled />
-        </div>
-      );
-    }
-
-    if (activeSection === "marketing") {
-      return (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Shortcut title="WhatsApp" desc="Bot, templates e automações." onClick={() => onOpenTab("wpp")} />
-          <Shortcut title="Minha agenda online" desc="Branding e link público." onClick={() => onOpenTab("minha-agenda")} />
-          <Shortcut title="Campanhas" desc="Espaço reservado para ações promocionais." disabled />
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-6">
-        <PanelCard title="Tema do painel" description="Personalização visual do sistema." icon={Settings}>
-          <div className="flex flex-wrap gap-3">
-            {themeColors.map((color) => (
-              <button key={color.value} type="button" onClick={() => handleThemeChange(color.value)} className="flex flex-col items-center gap-2">
-                <div className={cn("h-10 w-10 rounded-full border-2", themeColor === color.value ? "border-zinc-900 scale-110" : "border-white")} style={{ background: color.hex }} />
-                <span className={cn("text-[10px] font-black uppercase", themeColor === color.value ? "text-zinc-900" : "text-zinc-400")}>{color.label}</span>
-              </button>
-            ))}
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-            <button className="rounded-xl px-4 py-2 text-xs font-bold text-white" style={{ background: currentTheme.hex }}>Botão principal</button>
-            <button className="rounded-xl border px-4 py-2 text-xs font-bold" style={{ background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }}>Secundário</button>
-          </div>
-        </PanelCard>
-      </div>
-    );
-  };
-
-  return (
+  /* ── Configurações ──────────────────────────────────────────────────────── */
+  const renderConfiguracoes = () => (
     <div className="space-y-6">
-      <div className="rounded-[32px] border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
-        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-500">Central do Sistema</p>
-        <h3 className="mt-2 text-2xl font-black tracking-tight text-zinc-900">Configurações mais completas da agenda</h3>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-          A agenda agora tem base de banco, backend multi-tenant e central própria para regras, liberações e horários especiais.
-        </p>
-      </div>
+      <PanelCard title="Tema do painel" description="Personalização visual do sistema." icon={Settings}>
+        <div className="flex flex-wrap gap-4">
+          {themeColors.map(color => (
+            <button key={color.value} type="button" onClick={() => handleThemeChange(color.value)} className="flex flex-col items-center gap-2">
+              <div
+                className={cn("h-10 w-10 rounded-full border-2 transition-transform", themeColor === color.value ? "border-zinc-900 scale-110" : "border-white")}
+                style={{ background: color.hex }}
+              />
+              <span className={cn("text-[10px] font-black uppercase", themeColor === color.value ? "text-zinc-900" : "text-zinc-400")}>{color.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <button className="rounded-xl px-4 py-2 text-xs font-bold text-white" style={{ background: currentTheme.hex }}>Botão principal</button>
+          <button className="rounded-xl border px-4 py-2 text-xs font-bold" style={{ background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }}>Secundário</button>
+        </div>
+      </PanelCard>
+    </div>
+  );
 
-      <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="space-y-3">
-          {sections.map((item) => (
+  /* ── Layout ─────────────────────────────────────────────────────────────── */
+  return (
+    <div className="space-y-6 pb-20 sm:pb-0">
+      {/* Sidebar + content */}
+      <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
+
+        {/* Sidebar */}
+        <aside className="flex xl:flex-col gap-2 overflow-x-auto pb-1 xl:pb-0 -mx-4 px-4 xl:mx-0 xl:px-0">
+          {sections.map(item => (
             <button
               key={item.id}
               type="button"
               onClick={() => setSettingsOpenCard(item.id)}
               className={cn(
-                "flex w-full items-center gap-3 rounded-3xl border p-4 text-left transition-all",
-                activeSection === item.id ? "border-amber-200 bg-amber-50" : "border-zinc-200 bg-white hover:border-zinc-300"
+                "flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all whitespace-nowrap shrink-0 xl:w-full",
+                activeSection === item.id
+                  ? "border-amber-200 bg-amber-50"
+                  : "border-zinc-200 bg-white hover:border-zinc-300"
               )}
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-600">
-                <item.icon size={18} />
+              <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
+                activeSection === item.id ? "bg-amber-100 border-amber-200 text-amber-600" : "bg-white border-zinc-200 text-zinc-500"
+              )}>
+                <item.icon size={16} />
               </div>
-              <span className="text-sm font-black text-zinc-900">{item.label}</span>
+              <span className={cn("text-sm font-black", activeSection === item.id ? "text-amber-700" : "text-zinc-700")}>{item.label}</span>
             </button>
           ))}
         </aside>
 
+        {/* Content */}
         <div>
           {isLoading ? (
-            <div className="flex min-h-[320px] items-center justify-center rounded-[32px] border border-zinc-200 bg-white">
+            <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-zinc-200 bg-white">
               <div className="flex items-center gap-3 text-sm font-bold text-zinc-500">
                 <Loader2 size={18} className="animate-spin" />
-                Carregando central...
+                Carregando...
               </div>
             </div>
           ) : activeSection === "agenda" ? (
             renderAgenda()
           ) : (
-            renderShortcuts()
+            renderConfiguracoes()
           )}
         </div>
       </div>
