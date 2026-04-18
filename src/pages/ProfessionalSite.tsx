@@ -515,7 +515,7 @@ export default function ProfessionalSite() {
                     <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-xl">
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-1">{prof.role || "Especialista"}</p>
                       <Link 
-                        to={`/${slug}/agendar`} 
+                        to={`/${slug}/agendar?profId=${prof.id}`} 
                         className="text-xs font-bold flex items-center justify-between"
                         style={{ color: themeColor }}
                       >

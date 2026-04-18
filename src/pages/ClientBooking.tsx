@@ -215,9 +215,29 @@ export default function ClientBooking() {
       }
       const headers: Record<string, string> = {};
       if (tid) headers["x-tenant-id"] = tid;
-      fetch("/api/public/services", { headers }).then(r => r.ok ? r.json() : []).then(d => setServices(Array.isArray(d) ? d.filter((s: any) => s.type === "service") : []));
-      fetch("/api/public/professionals", { headers }).then(r => r.ok ? r.json() : []).then(d => setProfessionals(Array.isArray(d) ? d.filter((p: any) => p.isActive !== false) : []));
-      setTimeout(() => setStep("home"), 1600);
+      const servicesReq = fetch("/api/public/services", { headers }).then(r => r.ok ? r.json() : []).then(d => setServices(Array.isArray(d) ? d.filter((s: any) => s.type === "service") : []));
+      const profsReq = fetch("/api/public/professionals", { headers }).then(r => r.ok ? r.json() : []).then(d => {
+        const profs = Array.isArray(d) ? d.filter((p: any) => p.isActive !== false) : [];
+        setProfessionals(profs);
+        return profs;
+      });
+
+      Promise.all([servicesReq, profsReq]).then(([_, activeProfs]) => {
+        // Handle profId from query params
+        const params = new URLSearchParams(window.location.search);
+        const urlProfId = params.get("profId");
+        
+        if (urlProfId && activeProfs) {
+          const prof = (activeProfs as any[]).find((p: any) => p.id === urlProfId);
+          if (prof) {
+            setSelectedProfessional(prof);
+            setTimeout(() => setStep("pick-service"), 1600);
+            return;
+          }
+        }
+        
+        setTimeout(() => setStep("home"), 1600);
+      });
     };
     loadData();
   }, [slug]);
