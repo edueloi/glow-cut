@@ -338,7 +338,24 @@ export function ProductsTab({
 
   const openEdit = (p: any) => {
     setEditingProduct(p);
-    setNewProduct({ ...p, costPrice: p.costPrice.toString(), salePrice: p.salePrice.toString(), stock: p.stock.toString(), minStock: p.minStock.toString(), validUntil: p.validUntil ? format(new Date(p.validUntil), "yyyy-MM-dd") : "", sectorId: p.sectorId || "", metadata: {} });
+    
+    let parsedMetadata = {};
+    if (typeof p.metadata === "string" && p.metadata.trim().startsWith("{")) {
+      try { parsedMetadata = JSON.parse(p.metadata); } catch(e) {}
+    } else if (typeof p.metadata === "object" && p.metadata !== null) {
+      parsedMetadata = p.metadata;
+    }
+
+    setNewProduct({ 
+      ...p, 
+      costPrice: p.costPrice.toString(), 
+      salePrice: p.salePrice.toString(), 
+      stock: p.stock.toString(), 
+      minStock: p.minStock.toString(), 
+      validUntil: p.validUntil ? format(new Date(p.validUntil), "yyyy-MM-dd") : "", 
+      sectorId: p.sectorId || "", 
+      metadata: parsedMetadata 
+    });
     fetchSectors();
     setIsProductModalOpen(true);
   };

@@ -173,7 +173,7 @@ export function ProductModal({
         {/* ── Precificação ── */}
         <SectionHeader icon={DollarSign} label="Precificação" />
 
-        <FormRow cols={2}>
+        <FormRow cols={newProduct.isForSale ? 2 : 1}>
           <Input
             label="Preço de Custo (R$)"
             type="number"
@@ -183,19 +183,21 @@ export function ProductModal({
             value={newProduct.costPrice}
             onChange={e => setNewProduct({ ...newProduct, costPrice: e.target.value })}
           />
-          <Input
-            label={
-              margin !== null
-                ? `Preço de Venda — Margem: ${margin}%`
-                : "Preço de Venda (R$)"
-            }
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="0,00"
-            value={newProduct.salePrice}
-            onChange={e => setNewProduct({ ...newProduct, salePrice: e.target.value })}
-          />
+          {newProduct.isForSale && (
+            <Input
+              label={
+                margin !== null
+                  ? `Preço de Venda — Margem: ${margin}%`
+                  : "Preço de Venda (R$)"
+              }
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0,00"
+              value={newProduct.salePrice}
+              onChange={e => setNewProduct({ ...newProduct, salePrice: e.target.value })}
+            />
+          )}
         </FormRow>
 
         <Divider />
@@ -219,17 +221,18 @@ export function ProductModal({
             onChange={e => setNewProduct({ ...newProduct, minStock: e.target.value })}
           />
           <Select
-            label="Unidade de medida"
+            label="Como você armazena?"
             value={newProduct.unit || "un"}
             onChange={e => setNewProduct({ ...newProduct, unit: e.target.value })}
             options={[
               { value: "un", label: "Unidade (un)" },
+              { value: "cx", label: "Caixa (cx)" },
+              { value: "frasco", label: "Frasco" },
+              { value: "pacote", label: "Pacote" },
               { value: "ml", label: "Mililitro (ml)" },
               { value: "L",  label: "Litro (L)" },
               { value: "g",  label: "Grama (g)" },
               { value: "kg", label: "Kilo (kg)" },
-              { value: "cm", label: "Centímetro (cm)" },
-              { value: "m",  label: "Metro (m)" },
             ]}
           />
           <Input
@@ -237,6 +240,31 @@ export function ProductModal({
             type="date"
             value={newProduct.validUntil || ""}
             onChange={e => setNewProduct({ ...newProduct, validUntil: e.target.value })}
+          />
+        </FormRow>
+
+        <FormRow cols={2}>
+          <Input
+            label="Capacidade / Rendimento"
+            type="number"
+            placeholder="Ex: 500"
+            value={newProduct.metadata?.capacity || ""}
+            onChange={e => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, capacity: e.target.value } })}
+          />
+          <Select
+            label="Unidade do Rendimento"
+            value={newProduct.metadata?.capacityUnit || "ml"}
+            onChange={e => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, capacityUnit: e.target.value } })}
+            options={[
+              { value: "ml", label: "Mililitro (ml)" },
+              { value: "L",  label: "Litro (L)" },
+              { value: "g",  label: "Grama (g)" },
+              { value: "kg", label: "Kilo (kg)" },
+              { value: "cm", label: "Centímetro (cm)" },
+              { value: "m",  label: "Metro (m)" },
+              { value: "un", label: "Unidades" },
+              { value: "aplicacoes", label: "Aplicações" },
+            ]}
           />
         </FormRow>
 
@@ -266,7 +294,11 @@ export function ProductModal({
         <Button
           variant="primary"
           onClick={handleCreateProduct}
-          disabled={!newProduct.name || !newProduct.costPrice || !newProduct.salePrice}
+          disabled={
+            !newProduct.name || 
+            !newProduct.costPrice || 
+            (newProduct.isForSale && !newProduct.salePrice)
+          }
         >
           {editingProduct ? "Salvar Alterações" : "Cadastrar Produto"}
         </Button>
