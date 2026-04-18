@@ -77,6 +77,7 @@ import { apiFetch } from "@/src/lib/api";
 import { Button, IconButton } from "@/src/components/ui/Button";
 import { Modal, ModalFooter } from "@/src/components/ui/Modal";
 import { Input, Textarea, Select } from "@/src/components/ui/Input";
+import { Switch } from "@/src/components/ui/Switch";
 import { StatCard } from "@/src/components/ui/StatCard";
 import { NavItem } from "@/src/pages/admin/components/NavItem";
 import {
@@ -465,7 +466,8 @@ export default function AdminDashboard() {
     notes: "",
     recurrence: { type: "none" as "none" | "weekly" | "custom", count: 1, interval: 7 },
     comandaId: "" as string | null,
-    type: "atendimento" as "atendimento" | "bloqueio" | "pessoal"
+    type: "atendimento" as "atendimento" | "bloqueio" | "pessoal",
+    isFullDay: false
   };
 
   // New Appointment State
@@ -639,18 +641,41 @@ export default function AdminDashboard() {
       }
     }
 
+    const calcEndTime = (start: string, dur: number) => {
+      const [h, m] = start.split(':').map(Number);
+      const total = h * 60 + m + dur;
+      const eh = Math.floor(total / 60) % 24;
+      const em = total % 60;
+      return `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
+    };
+
+    const finalEndTime = calcEndTime(newAppointment.startTime, newAppointment.duration);
     const urlAs = newAppointment.id ? `/api/appointments/${newAppointment.id}` : "/api/appointments";
     const methodAs = newAppointment.id ? "PUT" : "POST";
 
-    await apiFetch(urlAs, {
-      method: methodAs,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...newAppointment,
-        clientId: clientId || undefined,
-        serviceId: newAppointment.serviceId || newAppointment.packageId || undefined,
-      })
-    });
+    const commonBody = {
+      ...newAppointment,
+      clientId: clientId || undefined,
+      serviceId: newAppointment.serviceId || newAppointment.packageId || undefined,
+      endTime: finalEndTime
+    };
+
+    if ((newAppointment.type === 'bloqueio' || newAppointment.type === 'pessoal') && newAppointment.professionalId === 'all') {
+      const activeProfs = professionals.filter((p: any) => p.isActive);
+      for (const prof of activeProfs) {
+        await apiFetch("/api/appointments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...commonBody, professionalId: prof.id })
+        });
+      }
+    } else {
+      await apiFetch(urlAs, {
+        method: methodAs,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(commonBody)
+      });
+    }
     setIsAppointmentModalOpen(false);
     setNewAppointment(emptyAppointment);
     setRepeatLabel("Não Repete");
@@ -1782,45 +1807,91 @@ export default function AdminDashboard() {
               )}
 
               {(newAppointment.type === 'pessoal' || newAppointment.type === 'bloqueio') && (
-                <div className="space-y-3 py-1">
-                  <div className={cn("p-3 sm:p-4 rounded-xl border text-xs font-bold",
-                    newAppointment.type === 'bloqueio' ? "bg-red-50 border-red-200 text-red-600" : "bg-blue-50 border-blue-200 text-blue-600"
+                <div className="space-y-4 py-1">
+                  <div className={cn("p-4 rounded-xl border text-xs font-bold shadow-sm",
+                    newAppointment.type === 'bloqueio' ? "bg-red-50 border-red-100 text-red-600" : "bg-blue-50 border-blue-100 text-blue-600"
                   )}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertTriangle size={14} />
+                      <span className="uppercase tracking-widest text-[10px]">Aviso de Disponibilidade</span>
+                    </div>
                     {newAppointment.type === 'bloqueio'
-                      ? "Este horário ficará bloqueado e indisponível para clientes."
-                      : "Compromisso pessoal — não aparece para clientes."}
+                      ? "Este horário ficará bloqueado e indisponível para clientes no agendamento online."
+                      : "Compromisso pessoal — o profissional ficará indisponível neste período."}
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+
+                  {/* Dia Inteiro Switch */}
+                  <div className="flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:border-zinc-300 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-white border border-zinc-200 flex items-center justify-center shadow-sm">
+                        <CalendarIcon size={18} className="text-zinc-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-zinc-900">Bloquear Dia Inteiro</p>
+                        <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">Disponibilidade Total</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={newAppointment.isFullDay}
+                      onCheckedChange={(val) => {
+                        setNewAppointment(p => ({
+                          ...p,
+                          isFullDay: val,
+                          startTime: val ? "00:00" : p.startTime,
+                          duration: val ? 1439 : p.duration
+                        }))
+                      }}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <Input
-                      label="Data"
+                      label="Data do Evento"
                       type="date"
                       value={format(newAppointment.date, "yyyy-MM-dd")}
                       onChange={e => setNewAppointment((p: any) => ({...p, date: new Date(e.target.value+'T12:00:00')}))}
                     />
-                    <Input
-                      label="Hora"
-                      type="time"
-                      value={newAppointment.startTime}
-                      onChange={e => setNewAppointment((p: any) => ({...p, startTime: e.target.value}))}
-                    />
-                    <div className="col-span-2 sm:col-span-1">
-                      <Input
-                        label="Duração (min)"
-                        type="number"
-                        className="text-center"
-                        value={newAppointment.duration}
-                        onChange={e => setNewAppointment((p: any) => ({...p, duration: parseInt(e.target.value)||60}))}
-                      />
-                    </div>
+
+                    {!newAppointment.isFullDay && (
+                      <>
+                        <Input
+                          label="Início"
+                          type="time"
+                          value={newAppointment.startTime}
+                          onChange={e => setNewAppointment((p: any) => ({...p, startTime: e.target.value}))}
+                        />
+                        <Input
+                          label="Término"
+                          type="time"
+                          value={endTime}
+                          onChange={e => {
+                            const [hS, mS] = newAppointment.startTime.split(':').map(Number);
+                            const [hE, mE] = e.target.value.split(':').map(Number);
+                            const startMins = hS * 60 + mS;
+                            const endMins = hE * 60 + mE;
+                            const diff = endMins - startMins;
+                            if (diff > 0) {
+                              setNewAppointment(p => ({...p, duration: diff}));
+                            }
+                          }}
+                        />
+                      </>
+                    )}
                   </div>
-                  <Select
-                    label="Profissional"
-                    value={newAppointment.professionalId}
-                    onChange={e => setNewAppointment((p: any) => ({...p, professionalId: e.target.value}))}
-                    placeholder="Selecionar..."
-                  >
-                    {professionals.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </Select>
+
+                  <div className="space-y-1.5 pt-1">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Quem será afetado?</label>
+                    <Select
+                      value={newAppointment.professionalId}
+                      onChange={e => setNewAppointment((p: any) => ({...p, professionalId: e.target.value}))}
+                      className="h-12 rounded-xl"
+                    >
+                      <option value="all">🌐 TODOS OS PROFISSIONAIS (Geral)</option>
+                      {professionals.filter(p => p.isActive).map((p: any) => (
+                        <option key={p.id} value={p.id}>👤 {p.name} ({p.role || 'Equipe'})</option>
+                      ))}
+                    </Select>
+                  </div>
                 </div>
               )}
 
