@@ -11,7 +11,8 @@ import {
   ExternalLink,
   CheckCircle,
   AlertCircle,
-  Phone
+  Phone,
+  FileText
 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/src/components/ui/Button";
@@ -41,7 +42,14 @@ export function SiteTab() {
     phone: "",
     showProducts: true,
     showServices: true,
-    showTeam: true
+    showTeam: true,
+    aboutTitle: "",
+    feature1Title: "",
+    feature1Description: "",
+    feature2Title: "",
+    feature2Description: "",
+    feature3Title: "",
+    feature3Description: ""
   });
 
   useEffect(() => {
@@ -64,7 +72,14 @@ export function SiteTab() {
             phone: data.phone || "",
             showProducts: data.showProducts !== false,
             showServices: data.showServices !== false,
-            showTeam: data.showTeam !== false
+            showTeam: data.showTeam !== false,
+            aboutTitle: data.aboutTitle || "",
+            feature1Title: data.feature1Title || "",
+            feature1Description: data.feature1Description || "",
+            feature2Title: data.feature2Title || "",
+            feature2Description: data.feature2Description || "",
+            feature3Title: data.feature3Title || "",
+            feature3Description: data.feature3Description || ""
           });
         }
       } catch (err) {
@@ -164,14 +179,94 @@ export function SiteTab() {
                 onChange={(e) => setFormData({ ...formData, welcomeMessage: e.target.value })}
                 placeholder="Ex: O melhor corte da cidade está aqui."
               />
+            </div>
+          </PanelCard>
 
+          <PanelCard
+            title="Seção 'Sobre Nós' & História"
+            description="Personalize o título e o conteúdo da seção Quem Somos."
+            icon={FileText}
+            iconWrapClassName="bg-amber-50 border-amber-100"
+            iconClassName="text-amber-600"
+          >
+            <div className="space-y-6">
+              <Input
+                label="Título da Seção (ex: Nossa História)"
+                value={formData.aboutTitle}
+                onChange={(e) => setFormData({ ...formData, aboutTitle: e.target.value })}
+                placeholder="Nossa História"
+              />
               <Textarea
-                label="Sobre Nós (Descrição Principal)"
+                label="Conteúdo da História"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={4}
-                placeholder="Conte um pouco sobre a história do seu negócio..."
+                rows={5}
+                placeholder="Conte a trajetória do seu negócio..."
               />
+            </div>
+          </PanelCard>
+
+          <PanelCard
+            title="Diferenciais & Qualidades"
+            description="Destaque 3 pontos fortes do seu negócio com ícones."
+            icon={CheckCircle}
+            iconWrapClassName="bg-emerald-50 border-emerald-100"
+            iconClassName="text-emerald-600"
+          >
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <p className="text-xs font-black text-zinc-400 uppercase tracking-widest">Diferencial 1</p>
+                <FormRow>
+                  <Input
+                    label="Título"
+                    value={formData.feature1Title}
+                    onChange={(e) => setFormData({ ...formData, feature1Title: e.target.value })}
+                    placeholder="Ex: Qualidade"
+                  />
+                  <Input
+                    label="Descrição Curta"
+                    value={formData.feature1Description}
+                    onChange={(e) => setFormData({ ...formData, feature1Description: e.target.value })}
+                    placeholder="Ex: Excelência em cada detalhe."
+                  />
+                </FormRow>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-zinc-100">
+                <p className="text-xs font-black text-zinc-400 uppercase tracking-widest">Diferencial 2</p>
+                <FormRow>
+                  <Input
+                    label="Título"
+                    value={formData.feature2Title}
+                    onChange={(e) => setFormData({ ...formData, feature2Title: e.target.value })}
+                    placeholder="Ex: Equipe"
+                  />
+                  <Input
+                    label="Descrição Curta"
+                    value={formData.feature2Description}
+                    onChange={(e) => setFormData({ ...formData, feature2Description: e.target.value })}
+                    placeholder="Ex: Profissionais qualificados."
+                  />
+                </FormRow>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-zinc-100">
+                <p className="text-xs font-black text-zinc-400 uppercase tracking-widest">Diferencial 3</p>
+                <FormRow>
+                  <Input
+                    label="Título"
+                    value={formData.feature3Title}
+                    onChange={(e) => setFormData({ ...formData, feature3Title: e.target.value })}
+                    placeholder="Ex: Cuidado"
+                  />
+                  <Input
+                    label="Descrição Curta"
+                    value={formData.feature3Description}
+                    onChange={(e) => setFormData({ ...formData, feature3Description: e.target.value })}
+                    placeholder="Ex: Seu bem-estar em primeiro lugar."
+                  />
+                </FormRow>
+              </div>
             </div>
           </PanelCard>
 

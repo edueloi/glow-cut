@@ -20,6 +20,9 @@ const DEFAULT_AGENDA_SETTINGS = {
   allowClientCancellation: true,
   allowClientReschedule: true,
   blockNationalHolidays: false,
+  selfServiceShowProfessional: true,
+  selfServiceShowPrices: true,
+  selfServiceWelcomeMessage: "",
   slotIntervalMinutes: 30,
   minAdvanceMinutes: 30,
   maxAdvanceDays: 60,
@@ -40,6 +43,12 @@ function normalizeAgendaSettings(row: any, tenantId: string) {
     allowClientCancellation: asBool(row?.allowClientCancellation, DEFAULT_AGENDA_SETTINGS.allowClientCancellation),
     allowClientReschedule: asBool(row?.allowClientReschedule, DEFAULT_AGENDA_SETTINGS.allowClientReschedule),
     blockNationalHolidays: asBool(row?.blockNationalHolidays, DEFAULT_AGENDA_SETTINGS.blockNationalHolidays),
+    selfServiceShowProfessional: asBool(row?.selfServiceShowProfessional, DEFAULT_AGENDA_SETTINGS.selfServiceShowProfessional),
+    selfServiceShowPrices: asBool(row?.selfServiceShowPrices, DEFAULT_AGENDA_SETTINGS.selfServiceShowPrices),
+    selfServiceWelcomeMessage: row?.selfServiceWelcomeMessage || DEFAULT_AGENDA_SETTINGS.selfServiceWelcomeMessage,
+    minAdvanceMinutes: Number(row?.minAdvanceMinutes) || DEFAULT_AGENDA_SETTINGS.minAdvanceMinutes,
+    maxAdvanceDays: Number(row?.maxAdvanceDays) || DEFAULT_AGENDA_SETTINGS.maxAdvanceDays,
+    slotIntervalMinutes: Number(row?.slotIntervalMinutes) || DEFAULT_AGENDA_SETTINGS.slotIntervalMinutes,
     notes: row?.notes || "",
   };
 }
@@ -69,6 +78,28 @@ export const adminController = {
           ...(photo !== undefined && { photo }),
         },
       });
+
+      // Sincronizar com a tabela de Profissionais (Nossa Equipe)
+      try {
+        await (prisma as any).professional.updateMany({
+          where: { 
+            OR: [
+              { email: user.email, tenantId: user.tenantId },
+              { name: user.name, tenantId: user.tenantId }
+            ]
+          },
+          data: {
+            ...(name !== undefined && { name }),
+            ...(jobTitle !== undefined && { role: jobTitle }),
+            ...(bio !== undefined && { bio }),
+            ...(phone !== undefined && { phone }),
+            ...(photo !== undefined && { photo }),
+          }
+        });
+      } catch (syncErr) {
+        console.error("[ProfileSync] Erro ao sincronizar com profissional:", syncErr);
+      }
+
       res.json(user);
     } catch (e: any) {
       console.error("[Profile] Erro ao atualizar:", e.message);
@@ -127,6 +158,15 @@ export const adminController = {
       if (req.body.showProducts !== undefined) data.showProducts = !!req.body.showProducts;
       if (req.body.showServices !== undefined) data.showServices = !!req.body.showServices;
       if (req.body.showTeam !== undefined) data.showTeam = !!req.body.showTeam;
+
+      const b = req.body;
+      if (b.aboutTitle !== undefined) data.aboutTitle = b.aboutTitle;
+      if (b.feature1Title !== undefined) data.feature1Title = b.feature1Title;
+      if (b.feature1Description !== undefined) data.feature1Description = b.feature1Description;
+      if (b.feature2Title !== undefined) data.feature2Title = b.feature2Title;
+      if (b.feature2Description !== undefined) data.feature2Description = b.feature2Description;
+      if (b.feature3Title !== undefined) data.feature3Title = b.feature3Title;
+      if (b.feature3Description !== undefined) data.feature3Description = b.feature3Description;
 
       const tenant = await (prisma as any).tenant.update({
         where: { id: tenantId },

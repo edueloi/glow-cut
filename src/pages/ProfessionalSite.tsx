@@ -33,6 +33,13 @@ interface Tenant {
   mission: string | null;
   vision: string | null;
   values: string | null;
+  aboutTitle: string | null;
+  feature1Title: string | null;
+  feature1Description: string | null;
+  feature2Title: string | null;
+  feature2Description: string | null;
+  feature3Title: string | null;
+  feature3Description: string | null;
   showProducts: boolean;
   showServices: boolean;
   showTeam: boolean;
@@ -59,6 +66,7 @@ export default function ProfessionalSite() {
           return;
         }
         const tenantData = await tenantRes.json();
+        console.log("[SiteDebug] Tenant Data:", tenantData);
         setTenant(tenantData);
 
         const headers = { "x-tenant-id": tenantData.id };
@@ -146,9 +154,9 @@ export default function ProfessionalSite() {
           {/* Desktop Links */}
           <div className="hidden md:flex items-center gap-8">
             <a href="#sobre" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Quem Somos</a>
-            {tenant.showServices && <a href="#servicos" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Serviços</a>}
-            {tenant.showProducts && products.length > 0 && <a href="#produtos" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Produtos</a>}
-            {tenant.showTeam && <a href="#equipe" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Equipe</a>}
+            {tenant.showServices !== false && <a href="#servicos" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Serviços</a>}
+            {(tenant.showProducts !== false && products.length > 0) && <a href="#produtos" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Produtos</a>}
+            {tenant.showTeam !== false && <a href="#equipe" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Equipe</a>}
             <Link 
               to={`/${slug}/agendar`}
               className="px-6 py-2.5 text-white text-sm font-bold rounded-full shadow-lg shadow-zinc-900/10 hover:scale-105 active:scale-95 transition-all"
@@ -184,9 +192,9 @@ export default function ProfessionalSite() {
             </div>
             <div className="flex flex-col gap-8 text-center">
               <a href="#sobre" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Quem Somos</a>
-              {tenant.showServices && <a href="#servicos" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Serviços</a>}
-              {tenant.showProducts && products.length > 0 && <a href="#produtos" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Produtos</a>}
-              {tenant.showTeam && <a href="#equipe" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Equipe</a>}
+              {tenant.showServices !== false && <a href="#servicos" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Serviços</a>}
+              {(tenant.showProducts !== false && products.length > 0) && <a href="#produtos" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Produtos</a>}
+              {tenant.showTeam !== false && <a href="#equipe" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Equipe</a>}
               <Link 
                 to={`/${slug}/agendar`}
                 onClick={() => setMobileMenuOpen(false)}
@@ -271,7 +279,9 @@ export default function ProfessionalSite() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-100 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">
                 <span className="w-1.5 h-1.5 rounded-full" style={primaryBtnStyle} /> Quem Somos
               </div>
-              <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight mb-8">Nossa História</h2>
+              <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight mb-8">
+                {tenant.aboutTitle || "Nossa História"}
+              </h2>
               <p className="text-zinc-600 text-lg leading-relaxed mb-12 whitespace-pre-line">
                 {tenant.description || `O ${tenant.name} nasceu da paixão pela beleza e pelo bem-estar. Localizado no coração de ${tenant.address || "nossa cidade"}, buscamos oferecer não apenas um serviço, mas um momento de renovação para cada cliente que passa por nossas portas.`}
               </p>
@@ -307,6 +317,39 @@ export default function ProfessionalSite() {
                 )}
                 {!tenant.mission && !tenant.vision && !tenant.values && (
                   <>
+                {/* Features (Diferenciais) */}
+                {(tenant.feature1Title || tenant.feature2Title || tenant.feature3Title) ? (
+                  <>
+                    {tenant.feature1Title && (
+                      <div className="space-y-3">
+                        <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
+                          <Target size={20} />
+                        </div>
+                        <h4 className="font-black text-zinc-900">{tenant.feature1Title}</h4>
+                        <p className="text-sm text-zinc-500 leading-relaxed">{tenant.feature1Description}</p>
+                      </div>
+                    )}
+                    {tenant.feature2Title && (
+                      <div className="space-y-3">
+                        <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
+                          <User size={20} />
+                        </div>
+                        <h4 className="font-black text-zinc-900">{tenant.feature2Title}</h4>
+                        <p className="text-sm text-zinc-500 leading-relaxed">{tenant.feature2Description}</p>
+                      </div>
+                    )}
+                    {tenant.feature3Title && (
+                      <div className="space-y-3">
+                        <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
+                          <Heart size={20} />
+                        </div>
+                        <h4 className="font-black text-zinc-900">{tenant.feature3Title}</h4>
+                        <p className="text-sm text-zinc-500 leading-relaxed">{tenant.feature3Description}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
                     <div className="space-y-3">
                       <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
                         <Target size={20} />
@@ -330,6 +373,8 @@ export default function ProfessionalSite() {
                     </div>
                   </>
                 )}
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -337,7 +382,7 @@ export default function ProfessionalSite() {
       </section>
 
       {/* ── SERVIÇOS ─────────────────────────────── */}
-      {tenant.showServices && (
+      {tenant.showServices !== false && (
         <section id="servicos" className="py-24 bg-zinc-50">
           <div className="max-w-7xl mx-auto px-6">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
@@ -389,7 +434,7 @@ export default function ProfessionalSite() {
       )}
 
       {/* ── PRODUTOS ─────────────────────────────── */}
-      {tenant.showProducts && products.length > 0 && (
+      {(tenant.showProducts !== false && products.length > 0) && (
         <section id="produtos" className="py-24 bg-white">
           <div className="max-w-7xl mx-auto px-6">
             <div className="text-center mb-16">
@@ -443,7 +488,7 @@ export default function ProfessionalSite() {
       )}
 
       {/* ── EQUIPE ───────────────────────────────── */}
-      {tenant.showTeam && (
+      {tenant.showTeam !== false && (
         <section id="equipe" className="py-24 bg-zinc-50">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
@@ -524,9 +569,9 @@ export default function ProfessionalSite() {
               <h4 className="text-lg font-black mb-8">Navegação</h4>
               <ul className="space-y-4 text-zinc-500 font-medium">
                 <li><a href="#sobre" className="hover:text-white transition-colors">Quem Somos</a></li>
-                {tenant.showServices && <li><a href="#servicos" className="hover:text-white transition-colors">Serviços</a></li>}
-                {tenant.showProducts && products.length > 0 && <li><a href="#produtos" className="hover:text-white transition-colors">Produtos</a></li>}
-                {tenant.showTeam && <li><a href="#equipe" className="hover:text-white transition-colors">Equipe</a></li>}
+                {tenant.showServices !== false && <li><a href="#servicos" className="hover:text-white transition-colors">Serviços</a></li>}
+                {(tenant.showProducts !== false && products.length > 0) && <li><a href="#produtos" className="hover:text-white transition-colors">Produtos</a></li>}
+                {tenant.showTeam !== false && <li><a href="#equipe" className="hover:text-white transition-colors">Equipe</a></li>}
               </ul>
             </div>
 

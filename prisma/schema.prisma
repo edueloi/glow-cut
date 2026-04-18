@@ -473,6 +473,13 @@ model Tenant {
   vision                String?     @db.Text
   values                String?     @db.Text
   phone                 String?     @db.VarChar(30)
+  aboutTitle            String?     @db.Text
+  feature1Title         String?     @db.VarChar(100)
+  feature1Description   String?     @db.Text
+  feature2Title         String?     @db.VarChar(100)
+  feature2Description   String?     @db.Text
+  feature3Title         String?     @db.VarChar(100)
+  feature3Description   String?     @db.Text
   showProducts          Boolean     @default(true)
   showServices          Boolean     @default(true)
   showTeam              Boolean     @default(true)

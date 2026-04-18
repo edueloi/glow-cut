@@ -8,8 +8,12 @@ import {
   LogOut, Plus, Trash2, X, ChevronDown, Shield,
   LayoutDashboard, Calendar, Globe, Scissors,
   Users, CheckCircle, Banknote, Settings, Clock,
-  UserCog, Search, Camera, Upload,
+  UserCog, Search, Camera, Upload, Trash
 } from "lucide-react";
+import { Button } from "@/src/components/ui/Button";
+import { Input, Textarea } from "@/src/components/ui/Input";
+import { PageWrapper, SectionTitle, FormRow } from "@/src/components/ui/PageWrapper";
+import { PanelCard } from "@/src/components/ui/PanelCard";
 
 /* ═══════════════════════════════════════════════════════
    PERMISSÕES — mapa completo por módulo
@@ -173,28 +177,7 @@ const MODULE_COLORS: Record<string, { bg: string; text: string; border: string; 
 /* ═══════════════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════════════ */
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function Inp(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      className={cn(
-        "w-full text-xs p-3 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-semibold",
-        "focus:ring-2 focus:ring-amber-400/25 focus:border-amber-400 outline-none transition-all",
-        "placeholder:text-zinc-300 disabled:opacity-50 disabled:bg-zinc-50",
-        props.className
-      )}
-    />
-  );
-}
+// Legacy Inp and Field removed in favor of UI components
 
 /* ═══════════════════════════════════════════════════════
    PAINEL DE PERMISSÕES
@@ -401,46 +384,30 @@ function UserModal({
 
         <div className="overflow-y-auto flex-1 p-5">
           {activeSection === "info" && (
-            <div className="space-y-3.5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label="Nome Completo">
-                  <Inp placeholder="João Silva" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
-                </Field>
-                <Field label="E-mail">
-                  <Inp type="email" placeholder="joao@email.com" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
-                </Field>
-              </div>
-              <Field label={editing ? "Nova Senha (deixe em branco para manter)" : "Senha de Acesso"}>
-                <div className="relative">
-                  <Inp
-                    type={showPass ? "text" : "password"}
-                    placeholder={editing ? "••••••••" : "Crie uma senha"}
-                    value={form.password}
-                    onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                    className="pr-10"
-                  />
-                  <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors">
-                    {showPass ? <EyeOff size={13} /> : <Eye size={13} />}
-                  </button>
-                </div>
-              </Field>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label="Cargo / Função">
-                  <Inp placeholder="Ex: Recepcionista" value={form.jobTitle} onChange={e => setForm(p => ({ ...p, jobTitle: e.target.value }))} />
-                </Field>
-                <Field label="Telefone">
-                  <Inp placeholder="(11) 99999-9999" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
-                </Field>
-              </div>
-              <Field label="Bio / Descrição">
-                <textarea
-                  value={form.bio}
-                  onChange={e => setForm(p => ({ ...p, bio: e.target.value }))}
-                  rows={2}
-                  placeholder="Descreva a função desta pessoa..."
-                  className="w-full text-xs p-3 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-400/25 focus:border-amber-400 outline-none resize-none transition-all placeholder:text-zinc-300"
-                />
-              </Field>
+            <div className="space-y-4">
+              <FormRow>
+                <Input label="Nome Completo" placeholder="João Silva" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+                <Input label="E-mail" type="email" placeholder="joao@email.com" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
+              </FormRow>
+              <Input 
+                label={editing ? "Nova Senha (deixe em branco para manter)" : "Senha de Acesso"}
+                type={showPass ? "text" : "password"}
+                placeholder={editing ? "••••••••" : "Crie uma senha"}
+                value={form.password}
+                onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                iconRight={<button type="button" onClick={() => setShowPass(v => !v)}>{showPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>}
+              />
+              <FormRow>
+                <Input label="Cargo / Função" placeholder="Ex: Recepcionista" value={form.jobTitle} onChange={e => setForm(p => ({ ...p, jobTitle: e.target.value }))} />
+                <Input label="Telefone" placeholder="(11) 99999-9999" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
+              </FormRow>
+              <Textarea
+                label="Bio / Descrição"
+                value={form.bio}
+                onChange={e => setForm(p => ({ ...p, bio: e.target.value }))}
+                rows={2}
+                placeholder="Descreva a função desta pessoa..."
+              />
             </div>
           )}
 
@@ -476,18 +443,20 @@ function UserModal({
         </div>
 
         <div className="flex gap-2 p-4 border-t border-zinc-100 shrink-0 bg-zinc-50/50">
-          <button
+          <Button
+            variant="ghost"
+            fullWidth
             onClick={onClose}
-            className="flex-1 py-2.5 text-xs font-bold text-zinc-500 hover:text-zinc-800 rounded-xl hover:bg-zinc-100 transition-all"
           >
             Cancelar
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
+            fullWidth
             onClick={() => onSave(form)}
-            className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black shadow-sm shadow-amber-500/20 transition-all"
           >
             {editing ? "Salvar Alterações" : "Criar Usuário"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -709,42 +678,45 @@ export function AdminProfileTab() {
     : PRESETS[adminUser?.role ?? "admin"] ?? [];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 pb-8">
-
-      {/* ── CARD PERFIL ──────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-        {/* Hero banner */}
-        <div className="h-20 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 relative">
-          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
-        </div>
-
-        {/* Avatar + Actions */}
-        <div className="px-5 pb-5">
-          <div className="flex items-end justify-between -mt-10 mb-4">
-            <div className="ring-4 ring-white rounded-2xl">
-              <AvatarUpload photo={photo} initials={initials} onPhotoChange={setPhoto} />
-            </div>
-            <div className="flex items-center gap-2 pb-1">
-              <button
-                onClick={() => { setEditingProfile(v => !v); setProfileError(""); }}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all border",
-                  editingProfile
-                    ? "bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200"
-                    : "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                )}
-              >
-                {editingProfile ? <X size={12} /> : <Edit2 size={12} />}
-                {editingProfile ? "Cancelar" : "Editar Perfil"}
-              </button>
-              <button
-                onClick={logout}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold text-red-500 hover:bg-red-50 border border-red-100 hover:border-red-200 transition-all"
-              >
-                <LogOut size={12} /> Sair
-              </button>
-            </div>
+    <PageWrapper>
+      <SectionTitle 
+        title="Meu Perfil"
+        description="Gerencie suas informações e sua equipe"
+        className="mb-6"
+      />
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* ── CARD PERFIL ──────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+          {/* Hero banner */}
+          <div className="h-24 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 relative">
+            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
           </div>
+
+          {/* Avatar + Actions */}
+          <div className="px-6 pb-6">
+            <div className="flex items-end justify-between -mt-12 mb-6">
+              <div className="ring-4 ring-white rounded-2xl shadow-xl shadow-black/5">
+                <AvatarUpload photo={photo} initials={initials} onPhotoChange={setPhoto} />
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant={editingProfile ? "ghost" : "outline"}
+                  size="sm"
+                  onClick={() => { setEditingProfile(v => !v); setProfileError(""); }}
+                  iconLeft={editingProfile ? <X size={14} /> : <Edit2 size={14} />}
+                >
+                  {editingProfile ? "Cancelar" : "Editar Perfil"}
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={logout}
+                  iconLeft={<LogOut size={14} />}
+                >
+                  Sair
+                </Button>
+              </div>
+            </div>
 
           {/* Name + badges */}
           <div className="mb-4">
@@ -760,11 +732,6 @@ export function AdminProfileTab() {
               {adminUser?.planName && (
                 <span className="text-[9px] font-bold text-zinc-400 bg-zinc-50 px-2 py-0.5 rounded-lg border border-zinc-100">
                   Plano {adminUser.planName}
-                </span>
-              )}
-              {saved && (
-                <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 flex items-center gap-1">
-                  <Check size={9} /> Salvo!
                 </span>
               )}
             </div>
@@ -792,60 +759,54 @@ export function AdminProfileTab() {
 
           {/* Edit mode */}
           {editingProfile && (
-            <div className="space-y-3.5 pt-1">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label="Nome Completo">
-                  <Inp placeholder="Seu nome" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
-                </Field>
-                <Field label="Cargo / Função">
-                  <Inp placeholder="Ex: Proprietário" value={form.jobTitle} onChange={e => setForm(p => ({ ...p, jobTitle: e.target.value }))} />
-                </Field>
-              </div>
-              <Field label="Telefone de Contato">
-                <Inp placeholder="(11) 99999-9999" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
-              </Field>
-              <Field label="Sobre você / O que faz no sistema">
-                <textarea
-                  value={form.bio}
-                  onChange={e => setForm(p => ({ ...p, bio: e.target.value }))}
-                  rows={2}
-                  placeholder="Descreva sua função..."
-                  className="w-full text-xs p-3 bg-white border border-zinc-200 rounded-xl text-zinc-800 font-semibold focus:ring-2 focus:ring-amber-400/25 focus:border-amber-400 outline-none resize-none transition-all placeholder:text-zinc-300"
-                />
-              </Field>
-
-              {/* Alterar senha */}
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Lock size={12} className="text-zinc-400" />
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Alterar Senha</p>
-                  <span className="text-[9px] text-zinc-300">(em branco = manter atual)</span>
+            <div className="space-y-6 pt-1">
+              <PanelCard
+                title="Informações Pessoais"
+                icon={User}
+              >
+                <div className="space-y-4">
+                  <FormRow>
+                    <Input label="Nome Completo" placeholder="Seu nome" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+                    <Input label="Cargo / Função" placeholder="Ex: Proprietário" value={form.jobTitle} onChange={e => setForm(p => ({ ...p, jobTitle: e.target.value }))} />
+                  </FormRow>
+                  <Input label="Telefone de Contato" placeholder="(11) 99999-9999" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
+                  <Textarea
+                    label="Sobre você / O que faz no sistema"
+                    value={form.bio}
+                    onChange={e => setForm(p => ({ ...p, bio: e.target.value }))}
+                    rows={3}
+                    placeholder="Descreva sua função..."
+                  />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Field label="Nova Senha">
-                    <div className="relative">
-                      <Inp
-                        type={showPass ? "text" : "password"}
-                        value={form.password}
-                        onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                        placeholder="Nova senha"
-                        className="pr-10"
-                      />
-                      <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors">
-                        {showPass ? <EyeOff size={13} /> : <Eye size={13} />}
-                      </button>
-                    </div>
-                  </Field>
-                  <Field label="Confirmar Senha">
-                    <Inp
+              </PanelCard>
+
+              <PanelCard
+                title="Segurança"
+                icon={Lock}
+                iconWrapClassName="bg-amber-50 border-amber-100"
+                iconClassName="text-amber-600"
+              >
+                <div className="space-y-4">
+                  <p className="text-[10px] text-zinc-400 font-medium">Deixe em branco para manter a senha atual.</p>
+                  <FormRow>
+                    <Input 
+                      label="Nova Senha" 
+                      type={showPass ? "text" : "password"}
+                      value={form.password}
+                      onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                      placeholder="Nova senha"
+                      iconRight={<button type="button" onClick={() => setShowPass(v => !v)}>{showPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>}
+                    />
+                    <Input 
+                      label="Confirmar Senha" 
                       type={showPass ? "text" : "password"}
                       value={form.confirmPassword}
                       onChange={e => setForm(p => ({ ...p, confirmPassword: e.target.value }))}
                       placeholder="Confirme"
                     />
-                  </Field>
+                  </FormRow>
                 </div>
-              </div>
+              </PanelCard>
 
               {profileError && (
                 <div className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5">
@@ -853,179 +814,176 @@ export function AdminProfileTab() {
                 </div>
               )}
 
-              <div className="flex gap-2">
-                <button
+              <div className="flex gap-3">
+                <Button
+                  variant="ghost"
+                  fullWidth
                   onClick={() => { setEditingProfile(false); setProfileError(""); }}
-                  className="flex-1 py-2.5 text-xs font-bold text-zinc-500 hover:text-zinc-800 rounded-xl hover:bg-zinc-100 transition-all"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  fullWidth
                   onClick={handleSaveProfile}
-                  disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black shadow-sm shadow-amber-500/20 disabled:opacity-50 transition-all"
+                  loading={saving}
+                  iconLeft={<Save size={16} />}
                 >
-                  <Save size={13} />
-                  {saving ? "Salvando..." : "Salvar Perfil"}
-                </button>
+                  Salvar Alterações
+                </Button>
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── MINHAS PERMISSÕES (não-admin) ──────────────── */}
-      {!isOwner && (
-        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-zinc-100">
-            <p className="text-xs font-black text-zinc-800">Minhas Permissões de Acesso</p>
-            <p className="text-[10px] text-zinc-400 mt-0.5">{myPerms.length} permissões ativas</p>
-          </div>
-          <div className="p-4">
+        {/* ── MINHAS PERMISSÕES (não-admin) ──────────────── */}
+        {!isOwner && (
+          <PanelCard
+            title="Minhas Permissões"
+            description={`${myPerms.length} permissões ativas`}
+            icon={Shield}
+          >
             <PermissionMatrix permissions={myPerms} readOnly />
-          </div>
-        </div>
-      )}
+          </PanelCard>
+        )}
 
-      {/* ── GESTÃO DE EQUIPE (admin/owner) ─────────────── */}
-      {isOwner && (
-        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-          {/* Header */}
-          <div className="px-5 py-4 border-b border-zinc-100">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <p className="text-xs font-black text-zinc-800">Equipe & Permissões</p>
-                <p className="text-[10px] text-zinc-400 mt-0.5">
-                  {teamUsers.length} {teamUsers.length === 1 ? "membro" : "membros"} na equipe
+        {/* ── GESTÃO DE EQUIPE (admin/owner) ─────────────── */}
+        {isOwner && (
+          <PanelCard
+            title="Equipe & Permissões"
+            description={`${teamUsers.length} ${teamUsers.length === 1 ? "membro" : "membros"} na equipe`}
+            icon={Users}
+            action={
+              <div className="flex items-center gap-2">
+                <Input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Buscar..."
+                  className="w-32 sm:w-48"
+                  iconLeft={<Search size={14} />}
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => { setEditingUser(null); setUserModal(true); }}
+                  iconLeft={<Plus size={14} />}
+                >
+                  Novo
+                </Button>
+              </div>
+            }
+          >
+            {/* List content moved from inside the old div */}
+            {filtered.length === 0 ? (
+              <div className="py-12 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-50 flex items-center justify-center mx-auto mb-3 border border-zinc-100">
+                  <Users size={20} className="text-zinc-300" />
+                </div>
+                <p className="text-sm font-bold text-zinc-500">
+                  {search ? "Nenhum resultado" : "Nenhum usuário na equipe"}
+                </p>
+                <p className="text-xs text-zinc-400 mt-1">
+                  {search ? "Tente outro termo" : "Adicione membros para colaborar"}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search size={11} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                  <input
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Buscar..."
-                    className="text-xs pl-8 pr-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 w-32 font-medium placeholder:text-zinc-300 transition-all"
-                  />
-                </div>
-                <button
-                  onClick={() => { setEditingUser(null); setUserModal(true); }}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[11px] font-black shadow-sm shadow-amber-500/20 transition-all"
-                >
-                  <Plus size={12} /> Novo
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* List */}
-          {filtered.length === 0 ? (
-            <div className="py-12 text-center px-5">
-              <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center mx-auto mb-3">
-                <Users size={20} className="text-zinc-400" />
-              </div>
-              <p className="text-xs font-bold text-zinc-500">
-                {search ? "Nenhum resultado" : "Nenhum usuário na equipe"}
-              </p>
-              <p className="text-[10px] text-zinc-400 mt-1">
-                {search ? "Tente outro termo" : "Adicione membros para colaborar"}
-              </p>
-            </div>
-          ) : (
-            <div>
-              {filtered.map((u, idx) => {
-                const perms: string[] = (() => { try { return JSON.parse(u.permissions ?? "[]"); } catch { return PRESETS[u.role] ?? []; } })();
-                const isViewing = viewPermsUser?.id === u.id;
-                return (
-                  <div key={u.id} className={cn("border-b border-zinc-100 last:border-0", isViewing && "bg-amber-50/30")}>
-                    <div className="px-5 py-3.5 flex items-center gap-3">
-                      {/* Avatar */}
-                      <div className="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center font-black text-sm shadow-sm"
-                        style={{
-                          background: `hsl(${(u.name.charCodeAt(0) * 37) % 360}, 60%, 90%)`,
-                          color: `hsl(${(u.name.charCodeAt(0) * 37) % 360}, 60%, 35%)`,
-                        }}
-                      >
-                        {u.name.charAt(0).toUpperCase()}
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-xs font-black text-zinc-900">{u.name}</p>
-                          <RoleBadge role={u.role} />
-                          {!u.isActive && (
-                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 border border-red-200">
-                              Inativo
-                            </span>
-                          )}
+            ) : (
+              <div className="-mx-6 -mb-6 border-t border-zinc-100">
+                {filtered.map((u, idx) => {
+                  const perms: string[] = (() => { try { return JSON.parse(u.permissions ?? "[]"); } catch { return PRESETS[u.role] ?? []; } })();
+                  const isViewing = viewPermsUser?.id === u.id;
+                  return (
+                    <div key={u.id} className={cn("border-b border-zinc-100 last:border-0", isViewing && "bg-amber-50/30")}>
+                      <div className="px-6 py-4 flex items-center gap-4">
+                        {/* Avatar */}
+                        <div className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center font-black text-sm shadow-sm"
+                          style={{
+                            background: `hsl(${(u.name.charCodeAt(0) * 37) % 360}, 60%, 90%)`,
+                            color: `hsl(${(u.name.charCodeAt(0) * 37) % 360}, 60%, 35%)`,
+                          }}
+                        >
+                          {u.name.charAt(0).toUpperCase()}
                         </div>
-                        <p className="text-[10px] text-zinc-400 truncate mt-0.5">
-                          {u.email}
-                          {u.jobTitle ? ` · ${u.jobTitle}` : ""}
-                        </p>
-                      </div>
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className="text-[9px] font-bold text-zinc-300 hidden sm:block mr-1">{perms.length}p</span>
-                        <button
-                          onClick={() => setViewPermsUser(isViewing ? null : u)}
-                          className={cn(
-                            "p-1.5 rounded-lg transition-all",
-                            isViewing ? "bg-amber-100 text-amber-700" : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
-                          )}
-                          title="Ver permissões"
-                        >
-                          <Shield size={13} />
-                        </button>
-                        <button
-                          onClick={() => { setEditingUser(u); setUserModal(true); }}
-                          className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition-all"
-                        >
-                          <Edit2 size={13} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(u.id)}
-                          className="p-1.5 rounded-lg text-zinc-400 hover:bg-red-50 hover:text-red-500 transition-all"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Expanded permissions */}
-                    {isViewing && (
-                      <div className="mx-5 mb-4 rounded-xl border border-amber-200 bg-amber-50/50 overflow-hidden">
-                        <div className="flex items-center justify-between px-4 py-2.5 border-b border-amber-200/60">
-                          <p className="text-[10px] font-black text-amber-700 uppercase tracking-wider">
-                            Permissões de {u.name}
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-black text-zinc-900">{u.name}</p>
+                            <RoleBadge role={u.role} />
+                            {!u.isActive && (
+                              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 border border-red-200 uppercase tracking-wider">
+                                Inativo
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-zinc-400 truncate mt-0.5">
+                            {u.email}
+                            {u.jobTitle ? ` · ${u.jobTitle}` : ""}
                           </p>
-                          <button onClick={() => setViewPermsUser(null)} className="p-1 rounded-lg hover:bg-amber-100 text-amber-600 transition-colors">
-                            <X size={12} />
-                          </button>
                         </div>
-                        <div className="p-3">
-                          <PermissionMatrix permissions={perms} readOnly />
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn("px-2 min-w-0", isViewing && "bg-amber-100 text-amber-700")}
+                            onClick={() => setViewPermsUser(isViewing ? null : u)}
+                            title="Ver permissões"
+                          >
+                            <Shield size={16} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="px-2 min-w-0"
+                            onClick={() => { setEditingUser(u); setUserModal(true); }}
+                          >
+                            <Edit2 size={16} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="px-2 min-w-0 hover:text-red-500 hover:bg-red-50"
+                            onClick={() => handleDeleteUser(u.id)}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* Modal criar/editar usuário */}
-      <UserModal
-        open={userModal}
-        onClose={() => { setUserModal(false); setEditingUser(null); }}
-        onSave={handleSaveUser}
-        editing={editingUser}
-      />
-    </div>
+                      {/* Expanded permissions */}
+                      {isViewing && (
+                        <div className="mx-6 mb-6 rounded-xl border border-amber-200 bg-amber-50/50 overflow-hidden">
+                          <div className="flex items-center justify-between px-4 py-3 border-b border-amber-200/60">
+                            <p className="text-xs font-black text-amber-700 uppercase tracking-wider">
+                              Permissões de {u.name}
+                            </p>
+                            <Button variant="ghost" size="xs" onClick={() => setViewPermsUser(null)} className="min-w-0 px-1">
+                              <X size={14} />
+                            </Button>
+                          </div>
+                          <div className="p-4">
+                            <PermissionMatrix permissions={perms} readOnly />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </PanelCard>
+        )}
+
+        {/* Modal criar/editar usuário */}
+        <UserModal
+          open={userModal}
+          onClose={() => { setUserModal(false); setEditingUser(null); }}
+          onSave={handleSaveUser}
+          editing={editingUser}
+        />
+      </div>
+    </PageWrapper>
   );
 }
