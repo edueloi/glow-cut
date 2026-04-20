@@ -7,6 +7,7 @@ import {
   Badge,
   StatCard,
   Modal,
+  ConfirmModal,
   Switch,
   Button,
   IconButton,
@@ -19,6 +20,7 @@ import {
   PanelCard,
   FormRow,
   EmptyState,
+  useToast,
 } from "@/src/components/ui";
 import { RichTextEditor } from "@/src/components/ui/RichTextEditor";
 import {
@@ -1940,6 +1942,7 @@ function BlogDashView({ onNav }: { onNav: (v: BlogView) => void }) {
 
 // ── Blog Posts List ──────────────────────────────────────────────────────────
 function BlogPostsView({ onNav, onEdit }: { onNav: (v: BlogView) => void; onEdit: (post: any) => void }) {
+  const toast = useToast();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -1947,6 +1950,7 @@ function BlogPostsView({ onNav, onEdit }: { onNav: (v: BlogView) => void; onEdit
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
 
   const fetch_ = async () => {
     setLoading(true);
@@ -1963,16 +1967,23 @@ function BlogPostsView({ onNav, onEdit }: { onNav: (v: BlogView) => void; onEdit
   const handleSearch = () => { setPage(1); fetch_(); };
 
   const handlePublish = async (id: string) => {
-    await apiFetch(`/api/super-admin/blog/posts/${id}/publish`, { method: "PATCH" });
-    fetch_();
+    try {
+      await apiFetch(`/api/super-admin/blog/posts/${id}/publish`, { method: "PATCH" });
+      toast.success("Post publicado com sucesso!");
+      fetch_();
+    } catch { toast.error("Erro ao publicar post"); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Excluir este post? Esta ação não pode ser desfeita.")) return;
-    setDeleting(id);
-    await apiFetch(`/api/super-admin/blog/posts/${id}`, { method: "DELETE" });
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    setDeleting(confirmDelete.id);
+    try {
+      await apiFetch(`/api/super-admin/blog/posts/${confirmDelete.id}`, { method: "DELETE" });
+      toast.success("Post excluído com sucesso!");
+      fetch_();
+    } catch { toast.error("Erro ao excluir post"); }
     setDeleting(null);
-    fetch_();
+    setConfirmDelete(null);
   };
 
   const statusColor = (s: string) => s === "published" ? "bg-green-100 text-green-700" : s === "draft" ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-500";
@@ -2035,7 +2046,7 @@ function BlogPostsView({ onNav, onEdit }: { onNav: (v: BlogView) => void; onEdit
                   <button onClick={() => onEdit(post)} className="p-1.5 text-zinc-400 hover:bg-zinc-100 rounded-lg transition-colors" title="Editar">
                     <Edit2 size={14} />
                   </button>
-                  <button onClick={() => handleDelete(post.id)} disabled={deleting === post.id} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50" title="Excluir">
+                  <button onClick={() => setConfirmDelete({ id: post.id, title: post.title })} disabled={deleting === post.id} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50" title="Excluir">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -2051,6 +2062,16 @@ function BlogPostsView({ onNav, onEdit }: { onNav: (v: BlogView) => void; onEdit
           </div>
         )}
       </ContentCard>
+
+      <ConfirmModal
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={handleDelete}
+        title="Excluir post"
+        message={<>Tem certeza que deseja excluir o post <strong>"{confirmDelete?.title}"</strong>? Esta ação não pode ser desfeita.</>}
+        confirmLabel="Excluir"
+        loading={!!deleting}
+      />
     </div>
   );
 }
@@ -2058,6 +2079,7 @@ function BlogPostsView({ onNav, onEdit }: { onNav: (v: BlogView) => void; onEdit
 // ── Blog Post Editor (criar / editar) ────────────────────────────────────────
 function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => void; onSaved: () => void }) {
   const { user } = useAuth();
+  const toast = useToast();
   const [categories, setCategories] = useState<any[]>([]);
   const [authors, setAuthors] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
@@ -2119,7 +2141,7 @@ function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => vo
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = async (publishNow = false) => {
-    if (!form.title || !form.content) { alert("Título e conteúdo são obrigatórios"); return; }
+    if (!form.title || !form.content) { toast.error("Título e conteúdo são obrigatórios"); return; }
     setSaving(true);
     try {
       const tagsArr = form.tags.split(",").map(t => t.trim()).filter(Boolean);
@@ -2133,9 +2155,14 @@ function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => vo
       const url = post ? `/api/super-admin/blog/posts/${post.id}` : "/api/super-admin/blog/posts";
       const method = post ? "PUT" : "POST";
       const r = await apiFetch(url, { method, body: JSON.stringify(body) });
-      if (!r.ok) { const err = await r.json(); alert(err.error || "Erro ao salvar"); }
-      else onSaved();
-    } catch (e: any) { alert(e.message || "Erro ao salvar"); }
+      if (!r.ok) {
+        const err = await r.json();
+        toast.error(err.error || "Erro ao salvar post");
+      } else {
+        toast.success(publishNow ? "Post publicado!" : post ? "Post atualizado!" : "Post salvo como rascunho!");
+        onSaved();
+      }
+    } catch (e: any) { toast.error(e.message || "Erro ao salvar"); }
     setSaving(false);
   };
 
