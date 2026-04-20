@@ -403,6 +403,7 @@ async function startServer() {
     <title>${title}</title>
     <meta name="description" content="${description}">
     <meta name="keywords" content="${keywords}">
+    <meta name="google-site-verification" content="4WE47kn3xYj8tvKqcZi4f4rnxN7nnlPF9CPrhd-tCdE" />
     <link rel="canonical" href="${canonical}" />
     <link rel="icon" type="image/png" href="https://agendelle.com.br/favicon.png" />
     <link rel="apple-touch-icon" href="https://agendelle.com.br/favicon.png" />
