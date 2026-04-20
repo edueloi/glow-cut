@@ -6,8 +6,23 @@ import { randomUUID } from "crypto";
 import { getTenantId, asBool, formatDateOnly } from "../utils/helpers";
 
 const __filename = ""; // not used here as we use process.cwd()
-const uploadsDir = path.join(process.cwd(), "uploads");
+export const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+/**
+ * Deleta arquivo de upload local caso a URL aponte para /uploads/.
+ * Seguro: ignora URLs externas, base64 ou valores nulos.
+ */
+export function deleteLocalFile(url: string | null | undefined) {
+  if (!url || !url.startsWith("/uploads/")) return;
+  const filename = path.basename(url);
+  const filepath = path.join(uploadsDir, filename);
+  try {
+    if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+  } catch {
+    // falha silenciosa — arquivo já removido ou sem permissão
+  }
+}
 
 const DEFAULT_AGENDA_SETTINGS = {
   onlineBookingEnabled: true,
@@ -63,10 +78,16 @@ export const adminController = {
   // Atualizar perfil do próprio admin (dashboard)
   async updateProfile(req: Request, res: Response) {
     const { name, jobTitle, bio, phone, password, photo } = req.body;
-    
+
     console.log(`[Profile] Atualizando perfil usuário ${req.params.id}`, { name, photo: photo ? (photo.substring(0, 30) + "...") : null });
 
     try {
+      // Remove foto antiga do disco ao trocar
+      if (photo !== undefined) {
+        const current = await (prisma as any).adminUser.findUnique({ where: { id: req.params.id }, select: { photo: true } });
+        if (current?.photo && current.photo !== photo) deleteLocalFile(current.photo);
+      }
+
       const user = await (prisma as any).adminUser.update({
         where: { id: req.params.id },
         data: {
@@ -141,6 +162,16 @@ export const adminController = {
     console.log(`[Branding] Atualizando tenant ${tenantId}`, { logoUrl, coverUrl, slug });
 
     try {
+      // Remove imagens antigas do disco ao trocar
+      if (logoUrl !== undefined || coverUrl !== undefined || req.body.siteCoverUrl !== undefined) {
+        const cur = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { logoUrl: true, coverUrl: true, siteCoverUrl: true } });
+        if (cur) {
+          if (logoUrl !== undefined && cur.logoUrl && cur.logoUrl !== logoUrl) deleteLocalFile(cur.logoUrl);
+          if (coverUrl !== undefined && cur.coverUrl && cur.coverUrl !== coverUrl) deleteLocalFile(cur.coverUrl);
+          if (req.body.siteCoverUrl !== undefined && cur.siteCoverUrl && cur.siteCoverUrl !== req.body.siteCoverUrl) deleteLocalFile(cur.siteCoverUrl);
+        }
+      }
+
       const data: any = {};
       if (themeColor !== undefined) data.themeColor = themeColor;
       if (logoUrl !== undefined) data.logoUrl = logoUrl;
@@ -344,6 +375,9 @@ export const adminController = {
         where: { id: req.params.id, tenantId },
       });
       if (!current) return res.status(404).json({ error: "Usuário não encontrado." });
+
+      // Remove foto antiga do disco ao trocar
+      if (photo !== undefined && current.photo && current.photo !== photo) deleteLocalFile(current.photo);
 
       const user = await (prisma as any).adminUser.update({
         where: { id: current.id },

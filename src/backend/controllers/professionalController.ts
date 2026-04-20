@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
 import { getTenantId } from "../utils/helpers";
+import { deleteLocalFile } from "./adminController";
 
 const DAY_LABELS = [
   { dayOfWeek: 1, day: "segunda-feira" },
@@ -346,6 +347,9 @@ export const professionalController = {
         where: { id: req.params.id, tenantId },
       });
       if (!current) return res.status(404).json({ error: "Profissional não encontrado." });
+
+      // Remove foto antiga do disco ao trocar
+      if (photo !== undefined && current.photo && current.photo !== photo) deleteLocalFile(current.photo);
 
       const data: any = {
         ...(name !== undefined && { name }),

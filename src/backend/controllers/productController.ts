@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
 import { getTenantId } from "../utils/helpers";
+import { deleteLocalFile } from "./adminController";
 
 export const productController = {
   // PRODUCTS
@@ -58,6 +59,13 @@ export const productController = {
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { name, description, photo, brand, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, showOnSite, metadata, sectorId, unit } = req.body;
     try {
+      // Remove foto antiga do disco ao trocar
+      if (photo !== undefined) {
+        const rows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT photo FROM Product WHERE id = ? AND tenantId = ?`, req.params.id, tenantId);
+        const oldPhoto = rows[0]?.photo;
+        if (oldPhoto && oldPhoto !== photo) deleteLocalFile(oldPhoto);
+      }
+
       await (prisma as any).$executeRawUnsafe(
         `UPDATE Product SET name=?, description=?, photo=?, brand=?, costPrice=?, salePrice=?, stock=?, minStock=?, validUntil=?, code=?, isForSale=?, showOnSite=?, metadata=?, sectorId=?, unit=? WHERE id=? AND tenantId=?`,
         name, description || null, photo || null, brand || null, parseFloat(costPrice || "0"), parseFloat(salePrice || "0"), parseFloat(stock || "0"), parseFloat(minStock || "0"), validUntil ? new Date(validUntil) : null, code || null, isForSale !== false ? 1 : 0, showOnSite ? 1 : 0, metadata ? JSON.stringify(metadata) : null, sectorId || null, unit || "un", req.params.id, tenantId
