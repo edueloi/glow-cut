@@ -376,8 +376,10 @@ async function startServer() {
       const canonical = `https://agendelle.com.br${url}`;
 
       // ── SEO Dinâmico para Posts do Blog ───────────────────────────────────
-      // Usando regex para capturar o slug de forma mais segura
       const blogMatch = url.match(/^\/blog\/([^/]+)\/?$/);
+      const agendarMatch = url.match(/^\/agendar\/([^/]+)\/?$/);
+      const profMatch = url.match(/^\/p\/([^/]+)\/?$/);
+
       if (blogMatch) {
         const slug = blogMatch[1];
         try {
@@ -386,18 +388,25 @@ async function startServer() {
             select: { title: true, excerpt: true, coverImage: true, seoTitle: true, seoDescription: true, seoKeywords: true }
           });
           if (post) {
-            console.log(`[SEO] Injetando metadados para o post: ${slug}`);
             title = post.seoTitle || post.title + " | Blog Agendelle";
             description = (post.seoDescription || post.excerpt || "Leia mais no blog da Agendelle.").replace(/"/g, '&quot;');
-            if (post.coverImage) {
-               ogImage = post.coverImage.startsWith("http") ? post.coverImage : `https://agendelle.com.br${post.coverImage}`;
-            }
+            if (post.coverImage) ogImage = post.coverImage.startsWith("http") ? post.coverImage : `https://agendelle.com.br${post.coverImage}`;
             if (post.seoKeywords) keywords = post.seoKeywords;
-          } else {
-            console.warn(`[SEO] Post não encontrado ou não publicado: ${slug}`);
           }
         } catch (err) { console.error("[SEO] Erro ao buscar post:", err); }
       } 
+      else if (agendarMatch || profMatch) {
+        const slug = (agendarMatch || profMatch)![1];
+        try {
+          const tenant = await (prisma as any).tenant.findFirst({ where: { slug, isActive: true } });
+          if (tenant) {
+            title = `${tenant.name} | Agendamento Online`;
+            description = `Agende seu horário em ${tenant.name}. Profissionalismo e facilidade para você.`;
+            if (tenant.logoUrl) ogImage = tenant.logoUrl.startsWith("http") ? tenant.logoUrl : `https://agendelle.com.br${tenant.logoUrl}`;
+            keywords = `agendamento, ${tenant.name}, salão, barbearia, agendelle`;
+          }
+        } catch (err) { console.error("[SEO] Erro ao buscar parceiro:", err); }
+      }
       else if (url === "/blog" || url === "/blog/") {
         title = "Blog Agendelle | Dicas e Tendências para Beleza";
         description = "Acompanhe as melhores dicas de gestão, tendências e tecnologia para o seu salão ou barbearia no blog oficial da Agendelle.";
