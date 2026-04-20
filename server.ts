@@ -373,7 +373,7 @@ function htmlToParagraphs(value: string = ""): string[] {
 
 function truncate(value: string, maxLength: number): string {
   if (value.length <= maxLength) return value;
-  return `${value.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
 }
 
 function absoluteUrl(value: string | null | undefined): string {
@@ -484,6 +484,398 @@ async function startServer() {
 
     // ── INTERCEPTADOR DE PÁGINAS (SEO) ────────────────────────────────────
     // Esta rota deve vir ANTES do express.static para não entregar o index.html puro
+    app.get(["/", "/blog", "/blog/", "/blog/*", "/p/*", "/agendar", "/agendar/", "/agendar/*"], async (req, res, next) => {
+      try {
+        const url = req.path;
+        const indexPath = path.join(distPath, "index.html");
+
+        if (!fs.existsSync(indexPath)) return next();
+
+        console.log(`[SEO] Processando meta-tags para: ${url}`);
+        let html = fs.readFileSync(indexPath, "utf-8");
+
+        const canonicalPath = url === "/" ? "/" : url.replace(/\/+$/, "");
+        const canonical = `${SITE_URL}${canonicalPath}`;
+        const blogMatch = canonicalPath.match(/^\/blog\/([^/]+)$/);
+        const agendarMatch = canonicalPath.match(/^\/agendar\/([^/]+)$/);
+        const profMatch = canonicalPath.match(/^\/p\/([^/]+)$/);
+        const isBlogIndex = canonicalPath === "/blog";
+        const isHome = canonicalPath === "/";
+
+        let title = "Agendelle | Agendamentos Inteligentes para Sal\u00f5es e Barbearias";
+        let description = "Agendelle une organiza\u00e7\u00e3o inteligente com eleg\u00e2ncia e praticidade para sal\u00f5es, barbearias e neg\u00f3cios de beleza.";
+        let keywords = "agendamento online, sistema para sal\u00e3o de beleza, barbearia, gest\u00e3o de est\u00e9tica, agendelle, blog agendelle";
+        let ogImage = DEFAULT_OG_IMAGE;
+        let ogType = "website";
+        let robots = "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1";
+        let bodyMarkup = "";
+        let statusCode = 200;
+        let schemaItems: any[] = [
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "@id": `${SITE_URL}/#organization`,
+            name: "Agendelle",
+            url: SITE_URL,
+            logo: {
+              "@type": "ImageObject",
+              url: `${SITE_URL}/favicon.png`,
+            },
+            description,
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "@id": `${SITE_URL}/#website`,
+            url: SITE_URL,
+            name: "Agendelle",
+            inLanguage: "pt-BR",
+          },
+        ];
+
+        let articlePublishedTime = "";
+        let articleModifiedTime = "";
+        let articleSection = "";
+        let articleTags: string[] = [];
+
+        if (blogMatch) {
+          const slug = blogMatch[1];
+          const post = await (prisma as any).blogPost.findUnique({
+            where: { slug, status: "published" },
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              excerpt: true,
+              content: true,
+              coverImage: true,
+              seoTitle: true,
+              seoDescription: true,
+              seoKeywords: true,
+              publishedAt: true,
+              updatedAt: true,
+              readTimeMinutes: true,
+              tags: true,
+              categoryId: true,
+              category: { select: { name: true, slug: true } },
+              author: { select: { name: true, role: true } },
+            },
+          });
+
+          if (!post) {
+            statusCode = 404;
+            robots = "noindex,follow";
+            title = "Artigo n\u00e3o encontrado | Agendelle";
+            description = "O artigo solicitado n\u00e3o foi encontrado no blog da Agendelle.";
+            bodyMarkup = `
+              <main data-seo-preview="not-found">
+                <article>
+                  <h1>${escapeHtml(title)}</h1>
+                  <p>${escapeHtml(description)}</p>
+                  <p><a href="/blog">Voltar para o blog da Agendelle</a></p>
+                </article>
+              </main>
+            `;
+            schemaItems.push({
+              "@context": "https://schema.org",
+              "@type": "WebPage",
+              url: canonical,
+              name: title,
+              description,
+              isPartOf: { "@id": `${SITE_URL}/#website` },
+            });
+          } else {
+            title = post.seoTitle || `${post.title} | Blog Agendelle`;
+            description = post.seoDescription || post.excerpt || "Leia mais no blog da Agendelle.";
+            keywords = post.seoKeywords || keywords;
+            ogImage = absoluteUrl(post.coverImage);
+            ogType = "article";
+            articlePublishedTime = post.publishedAt ? new Date(post.publishedAt).toISOString() : "";
+            articleModifiedTime = post.updatedAt ? new Date(post.updatedAt).toISOString() : "";
+            articleSection = post.category?.name || "";
+
+            try {
+              articleTags = JSON.parse(post.tags || "[]");
+            } catch {
+              articleTags = [];
+            }
+
+            const relatedWhere: any = {
+              status: "published",
+              id: { not: post.id },
+            };
+            if (post.categoryId) relatedWhere.categoryId = post.categoryId;
+
+            const relatedPosts = await (prisma as any).blogPost.findMany({
+              where: relatedWhere,
+              take: 3,
+              orderBy: { publishedAt: "desc" },
+              select: {
+                title: true,
+                slug: true,
+                excerpt: true,
+                publishedAt: true,
+              },
+            });
+
+            const paragraphs = htmlToParagraphs(post.content).slice(0, 24);
+            const lead = truncate(stripHtml(post.excerpt || paragraphs.join(" ")), 240);
+            const authorName = post.author?.name || "Equipe Agendelle";
+            const authorRole = post.author?.role ? ` | ${post.author.role}` : "";
+            const publishedAtLabel = formatDateBr(post.publishedAt);
+            const updatedAtLabel = formatDateBr(post.updatedAt);
+            const articleKeywords = keywords.split(",").map((item) => item.trim()).filter(Boolean);
+
+            bodyMarkup = `
+              <main data-seo-preview="blog-post">
+                <article>
+                  <header>
+                    ${post.category?.name ? `<p>${escapeHtml(post.category.name)}</p>` : ""}
+                    <h1>${escapeHtml(post.title)}</h1>
+                    ${lead ? `<p>${escapeHtml(lead)}</p>` : ""}
+                    ${post.coverImage ? `<img src="${escapeAttribute(ogImage)}" alt="${escapeAttribute(post.title)}" />` : ""}
+                    <p>${escapeHtml([publishedAtLabel && `Publicado em ${publishedAtLabel}`, updatedAtLabel && `Atualizado em ${updatedAtLabel}`, `Leitura de ${post.readTimeMinutes || 1} min`].filter(Boolean).join(" | "))}</p>
+                    <p>${escapeHtml(`${authorName}${authorRole}`)}</p>
+                  </header>
+                  ${paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
+                  ${relatedPosts.length ? `
+                    <section>
+                      <h2>Mais conte\u00fados do blog</h2>
+                      ${renderPostTeasers(relatedPosts)}
+                    </section>
+                  ` : ""}
+                </article>
+              </main>
+            `;
+
+            schemaItems.push(
+              {
+                "@context": "https://schema.org",
+                "@type": "BreadcrumbList",
+                itemListElement: [
+                  { "@type": "ListItem", position: 1, name: "Agendelle", item: SITE_URL },
+                  { "@type": "ListItem", position: 2, name: "Blog", item: `${SITE_URL}/blog` },
+                  { "@type": "ListItem", position: 3, name: post.title, item: canonical },
+                ],
+              },
+              {
+                "@context": "https://schema.org",
+                "@type": "Article",
+                headline: post.title,
+                name: title,
+                description,
+                image: [ogImage],
+                datePublished: articlePublishedTime || undefined,
+                dateModified: articleModifiedTime || undefined,
+                author: {
+                  "@type": "Person",
+                  name: authorName,
+                },
+                articleSection: articleSection || undefined,
+                keywords: articleTags.length ? articleTags : articleKeywords,
+                mainEntityOfPage: canonical,
+                publisher: { "@id": `${SITE_URL}/#organization` },
+              },
+            );
+          }
+        } else if (isBlogIndex) {
+          title = "Blog Agendelle | Dicas, SEO e Gest\u00e3o para Beleza";
+          description = "Acompanhe no blog da Agendelle dicas de gest\u00e3o, atendimento, automa\u00e7\u00e3o, SEO e crescimento para sal\u00f5es, barbearias e neg\u00f3cios de beleza.";
+          keywords = "blog agendelle, dicas para sal\u00e3o, SEO para beleza, barbearia, agendamento online, gest\u00e3o para sal\u00e3o";
+
+          const posts = await (prisma as any).blogPost.findMany({
+            where: { status: "published" },
+            take: 12,
+            orderBy: { publishedAt: "desc" },
+            select: {
+              title: true,
+              slug: true,
+              excerpt: true,
+              publishedAt: true,
+              category: { select: { name: true } },
+            },
+          });
+
+          bodyMarkup = `
+            <main data-seo-preview="blog-index">
+              <section>
+                <h1>Blog Agendelle</h1>
+                <p>${escapeHtml(description)}</p>
+              </section>
+              <section>
+                <h2>\u00daltimos artigos</h2>
+                ${posts.length ? renderPostTeasers(posts) : "<p>Nenhum artigo publicado no momento.</p>"}
+              </section>
+            </main>
+          `;
+
+          schemaItems.push(
+            {
+              "@context": "https://schema.org",
+              "@type": "CollectionPage",
+              url: canonical,
+              name: title,
+              description,
+              isPartOf: { "@id": `${SITE_URL}/#website` },
+            },
+            {
+              "@context": "https://schema.org",
+              "@type": "ItemList",
+              itemListElement: posts.map((post: any, index: number) => ({
+                "@type": "ListItem",
+                position: index + 1,
+                url: `${SITE_URL}/blog/${post.slug}`,
+                name: post.title,
+              })),
+            },
+          );
+        } else if (agendarMatch || profMatch) {
+          const slug = (agendarMatch || profMatch)![1];
+          const tenant = await (prisma as any).tenant.findFirst({ where: { slug, isActive: true } });
+
+          if (!tenant) {
+            statusCode = 404;
+            robots = "noindex,follow";
+            title = "P\u00e1gina n\u00e3o encontrada | Agendelle";
+            description = "O espa\u00e7o solicitado n\u00e3o foi encontrado.";
+            bodyMarkup = `
+              <main data-seo-preview="partner-not-found">
+                <article>
+                  <h1>${escapeHtml(title)}</h1>
+                  <p>${escapeHtml(description)}</p>
+                </article>
+              </main>
+            `;
+          } else {
+            title = `${tenant.name} | Agendamento Online`;
+            description = `Agende seu hor\u00e1rio em ${tenant.name}. Profissionalismo, praticidade e confirma\u00e7\u00e3o online em um s\u00f3 lugar.`;
+            keywords = `agendamento, ${tenant.name}, sal\u00e3o, barbearia, agendelle`;
+            ogImage = absoluteUrl(tenant.logoUrl);
+
+            bodyMarkup = `
+              <main data-seo-preview="partner-page">
+                <article>
+                  <h1>${escapeHtml(title)}</h1>
+                  <p>${escapeHtml(description)}</p>
+                  <p><a href="${escapeAttribute(canonicalPath)}">Abrir agendamento online</a></p>
+                </article>
+              </main>
+            `;
+          }
+
+          schemaItems.push({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            url: canonical,
+            name: title,
+            description,
+            isPartOf: { "@id": `${SITE_URL}/#website` },
+          });
+        } else if (isHome) {
+          const latestPosts = await (prisma as any).blogPost.findMany({
+            where: { status: "published" },
+            take: 3,
+            orderBy: { publishedAt: "desc" },
+            select: {
+              title: true,
+              slug: true,
+              excerpt: true,
+              publishedAt: true,
+              category: { select: { name: true } },
+            },
+          });
+
+          bodyMarkup = `
+            <main data-seo-preview="home">
+              <section>
+                <h1>Agendelle | Agendamentos Inteligentes para Sal\u00f5es e Barbearias</h1>
+                <p>${escapeHtml(description)}</p>
+                <p><a href="/blog">Acesse o blog da Agendelle</a></p>
+              </section>
+              ${latestPosts.length ? `
+                <section>
+                  <h2>\u00daltimos artigos do blog</h2>
+                  ${renderPostTeasers(latestPosts)}
+                </section>
+              ` : ""}
+            </main>
+          `;
+
+          schemaItems.push(
+            {
+              "@context": "https://schema.org",
+              "@type": "WebPage",
+              url: canonical,
+              name: title,
+              description,
+              isPartOf: { "@id": `${SITE_URL}/#website` },
+            },
+            ...(latestPosts.length
+              ? [{
+                  "@context": "https://schema.org",
+                  "@type": "ItemList",
+                  itemListElement: latestPosts.map((post: any, index: number) => ({
+                    "@type": "ListItem",
+                    position: index + 1,
+                    url: `${SITE_URL}/blog/${post.slug}`,
+                    name: post.title,
+                  })),
+                }]
+              : []),
+          );
+        }
+
+        const cleanTitle = escapeAttribute(title);
+        const cleanDescription = escapeAttribute(description);
+        const cleanKeywords = escapeAttribute(keywords);
+        const cleanCanonical = escapeAttribute(canonical);
+        const cleanOgImage = escapeAttribute(ogImage);
+        const articleTagsMeta = articleTags
+          .map((tag) => `<meta property="article:tag" content="${escapeAttribute(String(tag))}">`)
+          .join("\n");
+
+        const seoTags = `
+    <title>${cleanTitle}</title>
+    <meta name="description" content="${cleanDescription}">
+    <meta name="keywords" content="${cleanKeywords}">
+    <meta name="robots" content="${escapeAttribute(robots)}">
+    <meta name="google-site-verification" content="4WE47kn3xYj8tvKqcZi4f4rnxN7nnlPF9CPrhd-tCdE" />
+    <link rel="canonical" href="${cleanCanonical}" />
+    <link rel="icon" type="image/png" href="${SITE_URL}/favicon.png" />
+    <link rel="apple-touch-icon" href="${SITE_URL}/favicon.png" />
+    <meta property="og:locale" content="pt_BR">
+    <meta property="og:site_name" content="Agendelle">
+    <meta property="og:type" content="${escapeAttribute(ogType)}">
+    <meta property="og:url" content="${cleanCanonical}">
+    <meta property="og:title" content="${cleanTitle}">
+    <meta property="og:description" content="${cleanDescription}">
+    <meta property="og:image" content="${cleanOgImage}">
+    <meta property="og:image:secure_url" content="${cleanOgImage}">
+    <meta property="og:image:alt" content="${cleanTitle}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${cleanTitle}">
+    <meta name="twitter:description" content="${cleanDescription}">
+    <meta name="twitter:image" content="${cleanOgImage}">
+    <meta name="twitter:image:alt" content="${cleanTitle}">
+    ${articlePublishedTime ? `<meta property="article:published_time" content="${escapeAttribute(articlePublishedTime)}">` : ""}
+    ${articleModifiedTime ? `<meta property="article:modified_time" content="${escapeAttribute(articleModifiedTime)}">` : ""}
+    ${articleSection ? `<meta property="article:section" content="${escapeAttribute(articleSection)}">` : ""}
+    ${articleTagsMeta}
+    <script type="application/ld+json">${safeJsonLd(schemaItems)}</script>
+      `;
+
+        html = html.replace(/<title>.*?<\/title>/, "").replace("</head>", `${seoTags}</head>`);
+        html = injectRootMarkup(html, bodyMarkup);
+
+        res.setHeader("Content-Language", "pt-BR");
+        res.status(statusCode).send(html);
+      } catch (err) {
+        console.error("[SEO] Erro ao montar SEO:", err);
+        next(err);
+      }
+    });
+
+    // SEO route inserted above keeps this legacy handler as fallback.
     app.get(["/", "/blog*", "/p/*", "/agendar*"], async (req, res, next) => {
       const url = req.path;
       const indexPath = path.join(distPath, "index.html");
