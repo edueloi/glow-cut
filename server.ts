@@ -361,50 +361,55 @@ async function startServer() {
     app.get("*", async (req, res) => {
       const url = req.path;
       const indexPath = path.join(distPath, "index.html");
-      
-      if (!fs.existsSync(indexPath)) {
-        return res.status(404).send("Index not found");
-      }
-
+      if (!fs.existsSync(indexPath)) return res.status(404).send("Index not found");
       let html = fs.readFileSync(indexPath, "utf-8");
 
-      // Injeção de Meta Tags Dinâmicas para o BLOG
-      // Formato esperado: /blog/slug-do-post
+      let title = "Agendelle | Agendamentos Inteligentes para Salões e Barbearias";
+      let description = "Agendelle une organização inteligente com elegância — o sistema perfeito para salões e barbearias que querem crescer com profissionalismo.";
+      let ogImage = "https://agendelle.com.br/assets/imagem-agendele-a9t6taIM.png";
+      const canonical = `https://agendelle.com.br${url}`;
+
       if (url.startsWith("/blog/") && url.split("/").length === 3) {
         const slug = url.split("/")[2];
         try {
-          const post = await (prisma as any).blogPost.findUnique({
-            where: { slug, status: "published" }
-          });
-
+          const post = await (prisma as any).blogPost.findUnique({ where: { slug, status: "published" } });
           if (post) {
-            const title = post.seoTitle || post.title;
-            const description = (post.seoDescription || post.excerpt || "Leia mais no blog da Agendelle.").replace(/"/g, '&quot;');
-            const image = post.coverImage 
-              ? (post.coverImage.startsWith("http") ? post.coverImage : `https://agendelle.com.br${post.coverImage}`)
-              : "https://agendelle.com.br/favicon-celular.png";
-
-            const metaTags = `
-              <title>${title}</title>
-              <meta name="description" content="${description}">
-              <meta property="og:title" content="${title}">
-              <meta property="og:description" content="${description}">
-              <meta property="og:image" content="${image}">
-              <meta property="og:url" content="https://agendelle.com.br${url}">
-              <meta property="og:type" content="article">
-              <meta name="twitter:card" content="summary_large_image">
-              <meta name="twitter:title" content="${title}">
-              <meta name="twitter:description" content="${description}">
-              <meta name="twitter:image" content="${image}">
-            `;
-            // Substitui o título original e injeta as tags OG no head
-            html = html.replace(/<title>.*?<\/title>/, metaTags);
+            title = post.seoTitle || post.title + " | Blog Agendelle";
+            description = (post.seoDescription || post.excerpt || "Leia mais no blog da Agendelle.").replace(/"/g, '&quot;');
+            if (post.coverImage) ogImage = post.coverImage.startsWith("http") ? post.coverImage : `https://agendelle.com.br${post.coverImage}`;
           }
-        } catch (e) {
-          console.error("[SEO] Erro ao injetar meta tags:", e);
-        }
+        } catch (err) { console.error("SEO Blog Error:", err); }
+      } else if (url === "/blog" || url === "/blog/") {
+        title = "Blog Agendelle | Dicas e Tendências para Beleza";
+        description = "Acompanhe as melhores dicas de gestão, tendências e tecnologia para o seu salão ou barbearia no blog oficial da Agendelle.";
       }
 
+      const seoTags = `
+    <title>${title}</title>
+    <meta name="description" content="${description}">
+    <link rel="canonical" href="${canonical}" />
+    <link rel="icon" type="image/png" href="https://agendelle.com.br/favicon.png" />
+    <link rel="apple-touch-icon" href="https://agendelle.com.br/favicon.png" />
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="${canonical}">
+    <meta property="og:title" content="${title}">
+    <meta property="og:description" content="${description}">
+    <meta property="og:image" content="${ogImage}">
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:image" content="${ogImage}">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Agendelle",
+      "url": "https://agendelle.com.br",
+      "logo": "https://agendelle.com.br/favicon.png",
+      "description": "${description}"
+    }
+    </script>
+      `;
+
+      html = html.replace(/<title>.*?<\/title>/, "").replace("</head>", `${seoTags}</head>`);
       res.send(html);
     });
   } else {
