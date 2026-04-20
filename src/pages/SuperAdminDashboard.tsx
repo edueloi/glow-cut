@@ -1372,44 +1372,196 @@ function StaffTab({ username }: { username: string }) {
    ABA: MEU PERFIL
 ═══════════════════════════════════════════ */
 function ProfileTab({ username }: { username: string }) {
+  const toast = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [form, setForm] = useState<any>({
+    id: "",
+    name: "",
+    email: "",
+    phone: "",
+    birthday: "",
+    bio: "",
+    photo: "",
+    password: "",
+  });
+
+  const loadProfile = useCallback(async () => {
+    try {
+      const r = await apiFetch(`/api/super-admin/profile/${username}`);
+      const data = await r.json();
+      if (data) {
+        setForm({
+          ...data,
+          birthday: data.birthday ? data.birthday.split("T")[0] : "",
+          password: "", // Não carregar a senha atual
+        });
+      }
+    } catch (err) {
+      toast.error("Falha ao carregar perfil");
+    } finally {
+      setLoading(false);
+    }
+  }, [username, toast]);
+
+  useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const r = await fetch("/api/admin/upload", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` },
+        body: formData
+      });
+      const d = await r.json();
+      if (d.url) setForm((f: any) => ({ ...f, photo: d.url }));
+    } catch {
+      toast.error("Falha ao subir foto");
+    }
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await apiFetch("/api/super-admin/profile", {
+        method: "PUT",
+        body: JSON.stringify(form)
+      });
+      if (r.ok) {
+        toast.success("Perfil atualizado com sucesso!");
+        setForm((f: any) => ({ ...f, password: "" })); // Limpa campo de senha após salvar
+      } else {
+        const d = await r.json();
+        throw new Error(d.error || "Erro ao salvar");
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-40 text-zinc-400 font-semibold">Carregando...</div>;
+
   return (
-    <div className="space-y-5 max-w-lg">
-      <SectionTitle title="Meu Perfil" description="Conta do Super Administrador" icon={User} />
+    <div className="space-y-6 max-w-4xl pb-10">
+      <SectionTitle title="Meu Perfil" description="Gerencie seus dados e segurança da conta" icon={User} />
 
-      <PanelCard>
-        <div className="flex items-center gap-4 mb-5">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
-            <Crown size={28} className="text-white" />
-          </div>
-          <div className="space-y-1">
-            <p className="text-base font-black text-zinc-900">{username}</p>
-            <Badge color="primary">Super Admin</Badge>
-            <p className="text-xs text-zinc-400">Proprietário da Plataforma</p>
-          </div>
-        </div>
-
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 mb-5">
-          <Shield size={16} className="text-amber-600 shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-700 font-medium leading-relaxed">
-            Esta é a conta master da plataforma. Acesso total e irrestrito a todos os parceiros.{" "}
-            <strong>Não aparece</strong> na lista de usuários de nenhum parceiro.
-          </p>
-        </div>
-
-        <div className="divide-y divide-zinc-100">
-          {[
-            { label: "Usuário",  value: username },
-            { label: "Nível",    value: <Badge color="primary">Super Administrador</Badge> },
-            { label: "Acesso",   value: <span className="text-sm font-black text-emerald-600">Total — Irrestrito</span> },
-            { label: "Rota",     value: <span className="text-xs font-mono font-bold text-zinc-400">/super-admin</span> },
-          ].map(({ label, value }) => (
-            <div key={label} className="flex items-center justify-between py-3">
-              <span className="text-sm text-zinc-500 font-semibold">{label}</span>
-              {typeof value === "string" ? <span className="text-sm font-black text-zinc-900">{value}</span> : value}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Lado Esquerdo: Info / Foto */}
+        <div className="lg:col-span-1 space-y-6">
+          <PanelCard>
+            <div className="flex flex-col items-center text-center py-4">
+              <div className="relative mb-4 group">
+                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-xl bg-zinc-100 flex items-center justify-center">
+                  {form.photo ? (
+                    <img src={form.photo} alt={form.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={48} className="text-zinc-300" />
+                  )}
+                </div>
+                <label className="absolute bottom-1 right-1 w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg hover:bg-amber-600 transition-colors border-4 border-white">
+                  <Camera size={18} />
+                  <input type="file" className="hidden" accept="image/*" onChange={handleUpload} />
+                </label>
+              </div>
+              <h3 className="text-xl font-black text-zinc-900">{form.name || username}</h3>
+              <p className="text-sm font-bold text-amber-600 uppercase tracking-widest mt-1">Super Administrador</p>
+              
+              <div className="mt-6 w-full p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-left">
+                <Shield size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
+                  Conta master da plataforma. Acesso total e irrestrito. Esta conta não é visível para outros parceiros.
+                </p>
+              </div>
             </div>
-          ))}
+          </PanelCard>
+
+          <PanelCard>
+            <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-4">Acesso ao Sistema</h4>
+            <div className="space-y-4">
+              <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-100">
+                <p className="text-[10px] font-black text-zinc-400 uppercase mb-1">Usuário de Acesso</p>
+                <p className="text-sm font-black text-zinc-600">{username}</p>
+                <p className="text-[9px] text-zinc-400 mt-1 italic">* O nome de usuário não pode ser alterado por segurança.</p>
+              </div>
+              <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-100">
+                <p className="text-[10px] font-black text-zinc-400 uppercase mb-1">Status da Conta</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-sm font-black text-emerald-600 uppercase tracking-tighter">Ativo — Master</span>
+                </div>
+              </div>
+            </div>
+          </PanelCard>
         </div>
-      </PanelCard>
+
+        {/* Lado Direito: Formulário */}
+        <div className="lg:col-span-2 space-y-6">
+          <PanelCard>
+            <div className="px-1 pt-1 mb-6">
+              <h4 className="text-sm font-black text-zinc-800 uppercase tracking-widest flex items-center gap-2">
+                <UserCircle2 size={16} className="text-amber-500" />
+                Dados Pessoais
+              </h4>
+            </div>
+
+            <FormRow>
+              <Input label="Nome Completo" value={form.name} onChange={e => setForm((f:any) => ({ ...f, name: e.target.value }))} placeholder="Ex: Luan dos Santos" />
+              <Input label="E-mail" type="email" value={form.email} onChange={e => setForm((f:any) => ({ ...f, email: e.target.value }))} placeholder="luan@agendelle.com.br" />
+              <Input label="WhatsApp / Telefone" value={form.phone} onChange={e => setForm((f:any) => ({ ...f, phone: e.target.value }))} placeholder="(00) 00000-0000" />
+              <Input label="Data de Nascimento" type="date" value={form.birthday} onChange={e => setForm((f:any) => ({ ...f, birthday: e.target.value }))} />
+            </FormRow>
+            
+            <div className="mt-4">
+              <Textarea 
+                label="Sobre Mim / Biografia" 
+                value={form.bio} 
+                onChange={e => setForm((f:any) => ({ ...f, bio: e.target.value }))} 
+                rows={4} 
+                placeholder="Conte um pouco sobre sua trajetória profissional..." 
+              />
+            </div>
+          </PanelCard>
+
+          <PanelCard>
+            <div className="px-1 pt-1 mb-6">
+              <h4 className="text-sm font-black text-zinc-800 uppercase tracking-widest flex items-center gap-2">
+                <Lock size={16} className="text-amber-500" />
+                Segurança
+              </h4>
+            </div>
+
+            <div className="max-w-md">
+              <Input 
+                label="Nova Senha"
+                type={showPass ? "text" : "password"} 
+                value={form.password} 
+                onChange={e => setForm((f:any) => ({ ...f, password: e.target.value }))} 
+                placeholder="Deixe em branco para manter a atual"
+                iconRight={
+                  <button type="button" onClick={() => setShowPass(!showPass)} className="text-zinc-400 hover:text-zinc-600 transition-colors pr-2">
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                }
+              />
+              <p className="text-xs text-zinc-400 mt-2">
+                Use senhas fortes com números e caracteres especiais para garantir a segurança da plataforma.
+              </p>
+            </div>
+          </PanelCard>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" onClick={loadProfile} disabled={saving}>Descartar Alterações</Button>
+            <Button onClick={save} loading={saving} iconLeft={<CheckCircle size={16} />}>Salvar Perfil Profissional</Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

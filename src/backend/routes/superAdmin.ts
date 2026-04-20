@@ -19,6 +19,41 @@ superAdminRouter.post("/login", async (req, res) => {
   res.json({ id: sa.id, username: sa.username, role: "superadmin" });
 });
 
+superAdminRouter.put("/profile", async (req, res) => {
+  const { id, name, email, phone, birthday, bio, photo, password } = req.body;
+  if (!id) return res.status(400).json({ error: "ID do usuário é obrigatório" });
+  
+  try {
+    const data: any = {
+      name,
+      email,
+      phone,
+      birthday: birthday ? new Date(birthday) : null,
+      bio,
+      photo
+    };
+    if (password) data.password = password;
+
+    const updated = await (prisma as any).superAdmin.update({
+      where: { id },
+      data
+    });
+    res.json(updated);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+superAdminRouter.get("/profile/:username", async (req, res) => {
+  try {
+    const sa = await (prisma as any).superAdmin.findUnique({ where: { username: req.params.username } });
+    if (!sa) return res.status(404).json({ error: "Usuário não encontrado" });
+    res.json(sa);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ═════════════════════════════════════════════════════════════
 //  SUPER-ADMIN — EQUIPE (STAFF)
 // ═════════════════════════════════════════════════════════════
