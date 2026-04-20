@@ -217,12 +217,18 @@ export const adminController = {
 
   async upload(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    const authType = (req as any).auth?.type;
+
+    if (!tenantId && authType !== "superadmin") {
+      return res.status(400).json({ error: "tenantId obrigatório." });
+    }
+
     const { data, mimeType } = req.body as { data?: string; mimeType?: string };
     if (!data || !mimeType) return res.status(400).json({ error: "data e mimeType são obrigatórios." });
     const base64 = data.includes(",") ? data.split(",")[1] : data;
     const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
-    const filename = `${tenantId}-${randomUUID()}.${ext}`;
+    const prefix = tenantId || "system";
+    const filename = `${prefix}-${randomUUID()}.${ext}`;
     const filepath = path.join(uploadsDir, filename);
     try {
       fs.writeFileSync(filepath, Buffer.from(base64, "base64"));
