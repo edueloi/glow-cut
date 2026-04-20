@@ -341,7 +341,7 @@ async function startServer() {
     // ── SEO: Robots.txt ───────────────────────────────────────────────────
     app.get("/robots.txt", (req, res) => {
       res.type("text/plain");
-      res.send("User-agent: *\nAllow: /\n\nSitemap: https://agendelle.com.br/sitemap.xml");
+      res.send("User-agent: *\nAllow: /\nUser-agent: facebookexternalhit\nAllow: /\nUser-agent: Facebot\nAllow: /\n\nSitemap: https://agendelle.com.br/sitemap.xml");
     });
 
     app.get("/agendar/:slug/manifest.json", async (req, res) => {
@@ -407,7 +407,7 @@ async function startServer() {
           }
         } catch (err) { console.error("[SEO] Erro ao buscar parceiro:", err); }
       }
-      else if (url === "/blog" || url === "/blog/") {
+      else if (urlPath === "/blog" || urlPath === "/blog/") {
         title = "Blog Agendelle | Dicas e Tendências para Beleza";
         description = "Acompanhe as melhores dicas de gestão, tendências e tecnologia para o seu salão ou barbearia no blog oficial da Agendelle.";
         keywords = "blog beleza, gestão salão, dicas barbearia, agendelle blog";
