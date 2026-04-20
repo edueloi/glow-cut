@@ -366,6 +366,7 @@ async function startServer() {
 
       let title = "Agendelle | Agendamentos Inteligentes para Salões e Barbearias";
       let description = "Agendelle une organização inteligente com elegância — o sistema perfeito para salões e barbearias que querem crescer com profissionalismo.";
+      let keywords = "agendamento online, sistema para salão de beleza, barbearia, gestão de estética, agendelle";
       let ogImage = "https://agendelle.com.br/assets/imagem-agendele-a9t6taIM.png";
       const canonical = `https://agendelle.com.br${url}`;
 
@@ -377,7 +378,7 @@ async function startServer() {
         try {
           const post = await (prisma as any).blogPost.findUnique({ 
             where: { slug, status: "published" },
-            select: { title: true, excerpt: true, coverImage: true, seoTitle: true, seoDescription: true }
+            select: { title: true, excerpt: true, coverImage: true, seoTitle: true, seoDescription: true, seoKeywords: true }
           });
           if (post) {
             console.log(`[SEO] Injetando metadados para o post: ${slug}`);
@@ -386,6 +387,7 @@ async function startServer() {
             if (post.coverImage) {
                ogImage = post.coverImage.startsWith("http") ? post.coverImage : `https://agendelle.com.br${post.coverImage}`;
             }
+            if (post.seoKeywords) keywords = post.seoKeywords;
           } else {
             console.warn(`[SEO] Post não encontrado ou não publicado: ${slug}`);
           }
@@ -394,11 +396,13 @@ async function startServer() {
       else if (url === "/blog" || url === "/blog/") {
         title = "Blog Agendelle | Dicas e Tendências para Beleza";
         description = "Acompanhe as melhores dicas de gestão, tendências e tecnologia para o seu salão ou barbearia no blog oficial da Agendelle.";
+        keywords = "blog beleza, gestão salão, dicas barbearia, agendelle blog";
       }
 
       const seoTags = `
     <title>${title}</title>
     <meta name="description" content="${description}">
+    <meta name="keywords" content="${keywords}">
     <link rel="canonical" href="${canonical}" />
     <link rel="icon" type="image/png" href="https://agendelle.com.br/favicon.png" />
     <link rel="apple-touch-icon" href="https://agendelle.com.br/favicon.png" />
