@@ -331,7 +331,7 @@ export function ProductsTab({
 
   const openNew = () => {
     setEditingProduct(null);
-    setNewProduct({ name: "", description: "", photo: "", costPrice: "", salePrice: "", stock: "0", minStock: "0", validUntil: "", code: "", isForSale: true, sectorId: "", metadata: {} });
+    setNewProduct({ name: "", description: "", photo: "", brand: "", costPrice: "", salePrice: "", stock: "0", minStock: "0", validUntil: "", code: "", isForSale: true, showOnSite: false, sectorId: "", metadata: {} });
     fetchSectors();
     setIsProductModalOpen(true);
   };
@@ -346,15 +346,18 @@ export function ProductsTab({
       parsedMetadata = p.metadata;
     }
 
-    setNewProduct({ 
-      ...p, 
-      costPrice: p.costPrice.toString(), 
-      salePrice: p.salePrice.toString(), 
-      stock: p.stock.toString(), 
-      minStock: p.minStock.toString(), 
-      validUntil: p.validUntil ? format(new Date(p.validUntil), "yyyy-MM-dd") : "", 
-      sectorId: p.sectorId || "", 
-      metadata: parsedMetadata 
+    setNewProduct({
+      ...p,
+      brand: p.brand || "",
+      costPrice: p.costPrice.toString(),
+      salePrice: p.salePrice.toString(),
+      stock: p.stock.toString(),
+      minStock: p.minStock.toString(),
+      validUntil: p.validUntil ? format(new Date(p.validUntil), "yyyy-MM-dd") : "",
+      sectorId: p.sectorId || "",
+      isForSale: p.isForSale === 1 || p.isForSale === true,
+      showOnSite: p.showOnSite === 1 || p.showOnSite === true,
+      metadata: parsedMetadata
     });
     fetchSectors();
     setIsProductModalOpen(true);

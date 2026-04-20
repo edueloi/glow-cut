@@ -143,6 +143,22 @@ async function initDb() {
     console.warn("[initDb] Tenant.wppOverride:", e?.message);
   }
 
+  // ── Product.showOnSite + Product.brand ───────────────────────────────────
+  for (const col of [
+    { name: "showOnSite", def: "TINYINT(1) NOT NULL DEFAULT 0" },
+    { name: "brand",      def: "VARCHAR(150) NULL" },
+  ]) {
+    try {
+      const rows: any[] = await (prisma as any).$queryRawUnsafe(`SHOW COLUMNS FROM \`Product\` LIKE '${col.name}'`);
+      if (!rows.length) {
+        await (prisma as any).$executeRawUnsafe(`ALTER TABLE \`Product\` ADD COLUMN \`${col.name}\` ${col.def}`);
+        console.log(`[initDb] Product.${col.name} added`);
+      }
+    } catch (e: any) {
+      console.warn(`[initDb] Product.${col.name}:`, e?.message);
+    }
+  }
+
   // ── Tenant.siteCoverUrl ───────────────────────────────────────────────────
   try {
     const col: any[] = await (prisma as any).$queryRawUnsafe(`SHOW COLUMNS FROM \`Tenant\` LIKE 'siteCoverUrl'`);

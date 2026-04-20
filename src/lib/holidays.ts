@@ -64,6 +64,9 @@ export function isHoliday(date: Date | string): Holiday | null {
   const d = typeof date === 'string' ? new Date(date + 'T12:00:00') : date;
   const year = d.getFullYear();
   const holidays = getNationalHolidays(year);
-  const iso = d.toISOString().split('T')[0];
+  // Use local date parts to avoid UTC offset shifting the date
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const iso = `${year}-${mm}-${dd}`;
   return holidays.find(h => h.date === iso) || null;
 }

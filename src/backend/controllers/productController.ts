@@ -25,7 +25,7 @@ export const productController = {
     if (!tenantId) return res.status(400).json({ error: "x-tenant-id obrigatório." });
     try {
       const products: any[] = await (prisma as any).$queryRawUnsafe(
-        `SELECT p.*, s.name as sectorName, s.color as sectorColor FROM Product p LEFT JOIN Sector s ON p.sectorId = s.id WHERE p.tenantId = ? AND p.isForSale = 1 ORDER BY p.name ASC`,
+        `SELECT p.*, s.name as sectorName, s.color as sectorColor FROM Product p LEFT JOIN Sector s ON p.sectorId = s.id WHERE p.tenantId = ? AND p.showOnSite = 1 ORDER BY p.name ASC`,
         tenantId
       );
       const result = products.map((p: any) => ({ ...p, sector: p.sectorId ? { id: p.sectorId, name: p.sectorName, color: p.sectorColor } : null }));
@@ -38,13 +38,13 @@ export const productController = {
   async create(req: Request, res: Response) {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-    const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata, sectorId, unit } = req.body;
+    const { name, description, photo, brand, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, showOnSite, metadata, sectorId, unit } = req.body;
     if (!name) return res.status(400).json({ error: "Nome obrigatório." });
     try {
       const id = randomUUID();
       await (prisma as any).$executeRawUnsafe(
-        `INSERT INTO Product (id, tenantId, name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata, sectorId, unit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        id, tenantId, name, description || null, photo || null, parseFloat(costPrice || "0"), parseFloat(salePrice || "0"), parseFloat(stock || "0"), parseFloat(minStock || "0"), validUntil ? new Date(validUntil) : null, code || null, isForSale !== false ? 1 : 0, metadata ? JSON.stringify(metadata) : null, sectorId || null, unit || "un"
+        `INSERT INTO Product (id, tenantId, name, description, photo, brand, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, showOnSite, metadata, sectorId, unit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, tenantId, name, description || null, photo || null, brand || null, parseFloat(costPrice || "0"), parseFloat(salePrice || "0"), parseFloat(stock || "0"), parseFloat(minStock || "0"), validUntil ? new Date(validUntil) : null, code || null, isForSale !== false ? 1 : 0, showOnSite ? 1 : 0, metadata ? JSON.stringify(metadata) : null, sectorId || null, unit || "un"
       );
       const rows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT * FROM Product WHERE id = ?`, id);
       res.json(rows[0] || { id });
@@ -56,11 +56,11 @@ export const productController = {
   async update(req: Request, res: Response) {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-    const { name, description, photo, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, metadata, sectorId, unit } = req.body;
+    const { name, description, photo, brand, costPrice, salePrice, stock, minStock, validUntil, code, isForSale, showOnSite, metadata, sectorId, unit } = req.body;
     try {
       await (prisma as any).$executeRawUnsafe(
-        `UPDATE Product SET name=?, description=?, photo=?, costPrice=?, salePrice=?, stock=?, minStock=?, validUntil=?, code=?, isForSale=?, metadata=?, sectorId=?, unit=? WHERE id=? AND tenantId=?`,
-        name, description || null, photo || null, parseFloat(costPrice || "0"), parseFloat(salePrice || "0"), parseFloat(stock || "0"), parseFloat(minStock || "0"), validUntil ? new Date(validUntil) : null, code || null, isForSale !== false ? 1 : 0, metadata ? JSON.stringify(metadata) : null, sectorId || null, unit || "un", req.params.id, tenantId
+        `UPDATE Product SET name=?, description=?, photo=?, brand=?, costPrice=?, salePrice=?, stock=?, minStock=?, validUntil=?, code=?, isForSale=?, showOnSite=?, metadata=?, sectorId=?, unit=? WHERE id=? AND tenantId=?`,
+        name, description || null, photo || null, brand || null, parseFloat(costPrice || "0"), parseFloat(salePrice || "0"), parseFloat(stock || "0"), parseFloat(minStock || "0"), validUntil ? new Date(validUntil) : null, code || null, isForSale !== false ? 1 : 0, showOnSite ? 1 : 0, metadata ? JSON.stringify(metadata) : null, sectorId || null, unit || "un", req.params.id, tenantId
       );
       res.json({ success: true });
     } catch (e: any) {

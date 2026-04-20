@@ -255,6 +255,7 @@ export default function AdminDashboard() {
     name: '',
     description: '',
     photo: '',
+    brand: '',
     costPrice: '',
     salePrice: '',
     stock: '0',
@@ -262,6 +263,7 @@ export default function AdminDashboard() {
     validUntil: '',
     code: '',
     isForSale: true,
+    showOnSite: false,
     sectorId: '' as string,
     unit: 'un',
     metadata: {} as Record<string, any>

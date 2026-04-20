@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { Package, Tag, DollarSign, Boxes, Eye } from "lucide-react";
+import React, { useMemo, useRef, useState } from "react";
+import { Package, Tag, DollarSign, Boxes, Eye, Globe, ImagePlus, X } from "lucide-react";
 import { apiFetch } from "@/src/lib/api";
 import {
   Button, Modal, ModalFooter,
@@ -54,6 +54,9 @@ export function ProductModal({
   setNewSectorColor,
 }: ProductModalProps) {
 
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
   const margin = useMemo(() => {
     const cost = Number(newProduct.costPrice);
     const sale = Number(newProduct.salePrice);
@@ -69,6 +72,29 @@ export function ProductModal({
     setNewSectorName("");
   };
 
+  const handlePhotoUpload = (file: File) => {
+    const mimeType = file.type;
+    const reader = new FileReader();
+    setUploadingPhoto(true);
+    reader.onload = async (ev) => {
+      const base64 = ev.target?.result as string;
+      try {
+        const res = await apiFetch("/api/admin/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: base64, mimeType }),
+        });
+        if (res.ok) {
+          const { url } = await res.json();
+          setNewProduct((prev: any) => ({ ...prev, photo: url }));
+        }
+      } finally {
+        setUploadingPhoto(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <Modal
       isOpen={isProductModalOpen}
@@ -77,6 +103,68 @@ export function ProductModal({
       size="lg"
     >
       <div className="space-y-6">
+
+        {/* ── Foto do Produto ── */}
+        <SectionHeader icon={ImagePlus} label="Foto do Produto" />
+
+        <div className="flex items-start gap-4">
+          {/* Preview */}
+          <div
+            className="w-24 h-24 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer hover:border-amber-400 transition-colors relative"
+            onClick={() => photoInputRef.current?.click()}
+          >
+            {newProduct.photo ? (
+              <>
+                <img src={newProduct.photo} alt="Foto do produto" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setNewProduct({ ...newProduct, photo: "" }); }}
+                  className="absolute top-1 right-1 w-5 h-5 bg-zinc-900/70 rounded-full flex items-center justify-center text-white hover:bg-red-500 transition-colors"
+                >
+                  <X size={10} />
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-1 text-zinc-400">
+                {uploadingPhoto ? (
+                  <div className="w-5 h-5 border-2 border-zinc-300 border-t-amber-500 rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <ImagePlus size={20} />
+                    <span className="text-[9px] font-bold uppercase tracking-wide">Foto</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 space-y-2">
+            <p className="text-xs text-zinc-500 font-medium leading-relaxed">
+              Clique na caixa ao lado para selecionar uma foto. Formatos aceitos: JPG, PNG, WEBP (máx. 5 MB).
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => photoInputRef.current?.click()}
+              disabled={uploadingPhoto}
+            >
+              {uploadingPhoto ? "Enviando..." : "Selecionar foto"}
+            </Button>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) handlePhotoUpload(file);
+                e.target.value = "";
+              }}
+            />
+          </div>
+        </div>
+
+        <Divider />
 
         {/* ── Informações Básicas ── */}
         <SectionHeader icon={Package} label="Informações Básicas" />
@@ -89,14 +177,13 @@ export function ProductModal({
           wrapperClassName="resize-none"
         />
 
-        <Textarea
-          label="Descrição"
-          placeholder="Detalhes ou observações adicionais sobre o produto..."
-          value={newProduct.description || ""}
-          onChange={e => setNewProduct({ ...newProduct, description: e.target.value })}
-        />
-
         <FormRow cols={2}>
+          <Input
+            label="Marca"
+            placeholder="Ex: Kerastase, L'Oréal..."
+            value={newProduct.brand || ""}
+            onChange={e => setNewProduct({ ...newProduct, brand: e.target.value })}
+          />
           <Input
             label="Código / SKU"
             placeholder="Ex: SHAM-001"
@@ -104,69 +191,76 @@ export function ProductModal({
             onChange={e => setNewProduct({ ...newProduct, code: e.target.value.toUpperCase() })}
             iconLeft={<Tag size={15} />}
           />
-
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="ds-label">Setor / Categoria</label>
-              <button
-                type="button"
-                onClick={() => setShowNewSectorForm(v => !v)}
-                className="text-[11px] font-black text-amber-600 hover:text-amber-700 transition-colors"
-              >
-                {showNewSectorForm ? "Cancelar" : "+ Novo"}
-              </button>
-            </div>
-
-            {showNewSectorForm ? (
-              <div className="p-2 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2">
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="color"
-                    value={newSectorColor}
-                    onChange={e => setNewSectorColor(e.target.value)}
-                    className="w-9 h-9 rounded-lg border border-zinc-200 cursor-pointer shrink-0"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Nome do setor..."
-                    value={newSectorName}
-                    onChange={e => setNewSectorName(e.target.value)}
-                    className="flex-1 min-w-0 text-sm px-3 py-2 bg-white border border-zinc-200 rounded-lg outline-none focus:border-amber-400 font-bold"
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  fullWidth
-                  onClick={async () => {
-                    if (!newSectorName.trim()) return;
-                    const res = await apiFetch("/api/sectors", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ name: newSectorName.trim(), color: newSectorColor }),
-                    });
-                    if (res.ok) {
-                      const created = await res.json();
-                      fetchSectors();
-                      setNewProduct({ ...newProduct, sectorId: created.id });
-                      setNewSectorName("");
-                      setNewSectorColor("#6b7280");
-                      setShowNewSectorForm(false);
-                    }
-                  }}
-                >
-                  Salvar Setor
-                </Button>
-              </div>
-            ) : (
-              <Select
-                value={newProduct.sectorId || ""}
-                onChange={e => setNewProduct({ ...newProduct, sectorId: e.target.value })}
-                placeholder="Selecione ou clique em + Novo"
-                options={sectors.map(s => ({ value: s.id, label: s.name }))}
-              />
-            )}
-          </div>
         </FormRow>
+
+        <Textarea
+          label="Descrição"
+          placeholder="Detalhes ou observações adicionais sobre o produto..."
+          value={newProduct.description || ""}
+          onChange={e => setNewProduct({ ...newProduct, description: e.target.value })}
+        />
+
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="ds-label">Setor / Categoria</label>
+            <button
+              type="button"
+              onClick={() => setShowNewSectorForm(v => !v)}
+              className="text-[11px] font-black text-amber-600 hover:text-amber-700 transition-colors"
+            >
+              {showNewSectorForm ? "Cancelar" : "+ Novo"}
+            </button>
+          </div>
+
+          {showNewSectorForm ? (
+            <div className="p-2 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2">
+              <div className="flex gap-2 items-center">
+                <input
+                  type="color"
+                  value={newSectorColor}
+                  onChange={e => setNewSectorColor(e.target.value)}
+                  className="w-9 h-9 rounded-lg border border-zinc-200 cursor-pointer shrink-0"
+                />
+                <input
+                  type="text"
+                  placeholder="Nome do setor..."
+                  value={newSectorName}
+                  onChange={e => setNewSectorName(e.target.value)}
+                  className="flex-1 min-w-0 text-sm px-3 py-2 bg-white border border-zinc-200 rounded-lg outline-none focus:border-amber-400 font-bold"
+                />
+              </div>
+              <Button
+                size="sm"
+                fullWidth
+                onClick={async () => {
+                  if (!newSectorName.trim()) return;
+                  const res = await apiFetch("/api/sectors", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: newSectorName.trim(), color: newSectorColor }),
+                  });
+                  if (res.ok) {
+                    const created = await res.json();
+                    fetchSectors();
+                    setNewProduct({ ...newProduct, sectorId: created.id });
+                    setNewSectorName("");
+                    setNewSectorColor("#6b7280");
+                    setShowNewSectorForm(false);
+                  }
+                }}
+              >
+                Salvar Setor
+              </Button>
+            </div>
+          ) : (
+            <Select
+              value={newProduct.sectorId || ""}
+              onChange={e => setNewProduct({ ...newProduct, sectorId: e.target.value })}
+              placeholder="Selecione ou clique em + Novo"
+              options={sectors.map(s => ({ value: s.id, label: s.name }))}
+            />
+          )}
+        </div>
 
         <Divider />
 
@@ -270,7 +364,7 @@ export function ProductModal({
 
         <Divider />
 
-        {/* ── Revenda ── */}
+        {/* ── Revenda (PDV) ── */}
         <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-zinc-200 bg-zinc-50">
           <div className="flex items-center gap-3">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${newProduct.isForSale ? "bg-amber-100 text-amber-600" : "bg-zinc-200 text-zinc-400"}`}>
@@ -287,6 +381,23 @@ export function ProductModal({
           />
         </div>
 
+        {/* ── Exibir no Site Externo ── */}
+        <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-zinc-200 bg-zinc-50">
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${newProduct.showOnSite ? "bg-emerald-100 text-emerald-600" : "bg-zinc-200 text-zinc-400"}`}>
+              <Globe size={17} />
+            </div>
+            <div>
+              <p className="text-sm font-black text-zinc-900">Exibir no Site Externo</p>
+              <p className="text-[11px] text-zinc-400 font-medium mt-0.5">Aparece na vitrine pública do seu site</p>
+            </div>
+          </div>
+          <Switch
+            checked={newProduct.showOnSite}
+            onCheckedChange={v => setNewProduct({ ...newProduct, showOnSite: v })}
+          />
+        </div>
+
       </div>
 
       <ModalFooter>
@@ -295,8 +406,8 @@ export function ProductModal({
           variant="primary"
           onClick={handleCreateProduct}
           disabled={
-            !newProduct.name || 
-            !newProduct.costPrice || 
+            !newProduct.name ||
+            !newProduct.costPrice ||
             (newProduct.isForSale && !newProduct.salePrice)
           }
         >

@@ -218,6 +218,8 @@ model Product {
   validUntil      DateTime?        @db.DateTime(0)
   code            String?          @db.VarChar(100)
   isForSale       Boolean          @default(true)
+  showOnSite      Boolean          @default(false)
+  brand           String?          @db.VarChar(150)
   tenantId        String?          @db.VarChar(36)
   sectorId        String?          @db.VarChar(36)
   supplierId      String?          @db.VarChar(36)
