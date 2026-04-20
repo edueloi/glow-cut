@@ -169,7 +169,7 @@ function PostCard({ post, featured = false }: { post: BlogPost; featured?: boole
       >
         <div style={{ position: "relative", minHeight: 280 }}>
           {post.coverImage ? (
-            <img src={post.coverImage} alt={post.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={post.coverImage} alt={post.title} className="featured-card-image" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
             <div style={{ width: "100%", height: "100%", minHeight: 280, background: "linear-gradient(135deg, #fef3c7, #fde68a)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: 48 }}>✂️</span>
@@ -560,7 +560,7 @@ export default function BlogPage() {
           .featured-card-content {
             padding: 24px;
           }
-          .featured-card img {
+          .featured-card-image {
             height: 200px !important;
           }
         }

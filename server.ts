@@ -315,6 +315,35 @@ async function startServer() {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath, { index: false }));
 
+    // ── SEO: Sitemap.xml ──────────────────────────────────────────────────
+    app.get("/sitemap.xml", async (req, res) => {
+      try {
+        const posts = await (prisma as any).blogPost.findMany({ where: { status: "published" }, select: { slug: true, updatedAt: true } });
+        const tenants = await (prisma as any).tenant.findMany({ where: { isActive: true }, select: { slug: true } });
+        
+        let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+        xml += `\n  <url><loc>https://agendelle.com.br/</loc><priority>1.0</priority></url>`;
+        xml += `\n  <url><loc>https://agendelle.com.br/blog</loc><priority>0.8</priority></url>`;
+
+        posts.forEach((p: any) => {
+          xml += `\n  <url><loc>https://agendelle.com.br/blog/${p.slug}</loc><lastmod>${p.updatedAt.toISOString().split('T')[0]}</lastmod><priority>0.7</priority></url>`;
+        });
+        tenants.forEach((t: any) => {
+          xml += `\n  <url><loc>https://agendelle.com.br/agendar/${t.slug}</loc><priority>0.6</priority></url>`;
+        });
+
+        xml += "\n</urlset>";
+        res.header("Content-Type", "application/xml");
+        res.send(xml);
+      } catch { res.status(500).send("Error generating sitemap"); }
+    });
+
+    // ── SEO: Robots.txt ───────────────────────────────────────────────────
+    app.get("/robots.txt", (req, res) => {
+      res.type("text/plain");
+      res.send("User-agent: *\nAllow: /\n\nSitemap: https://agendelle.com.br/sitemap.xml");
+    });
+
     app.get("/agendar/:slug/manifest.json", async (req, res) => {
       const { slug } = req.params;
       try {
