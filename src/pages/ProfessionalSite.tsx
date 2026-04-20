@@ -742,8 +742,8 @@ export default function ProfessionalSite() {
               © {new Date().getFullYear()} {tenant.name} · Desenvolvido por <span className="text-zinc-400">Agendelle</span>
             </p>
             <div className="flex gap-6 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
-              <a href="#" className="hover:text-zinc-400 transition-colors">Privacidade</a>
-              <a href="#" className="hover:text-zinc-400 transition-colors">Termos</a>
+              <Link to={`/${slug}/privacidade`} className="hover:text-zinc-400 transition-colors">Privacidade</Link>
+              <Link to={`/${slug}/termos`} className="hover:text-zinc-400 transition-colors">Termos</Link>
             </div>
           </div>
         </div>
