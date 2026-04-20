@@ -329,7 +329,55 @@ async function startServer() {
       } catch { res.status(500).json({}); }
     });
 
-    app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
+    app.get("*", async (req, res) => {
+      const url = req.path;
+      const indexPath = path.join(distPath, "index.html");
+      
+      if (!fs.existsSync(indexPath)) {
+        return res.status(404).send("Index not found");
+      }
+
+      let html = fs.readFileSync(indexPath, "utf-8");
+
+      // Injeção de Meta Tags Dinâmicas para o BLOG
+      // Formato esperado: /blog/slug-do-post
+      if (url.startsWith("/blog/") && url.split("/").length === 3) {
+        const slug = url.split("/")[2];
+        try {
+          const post = await (prisma as any).blogPost.findUnique({
+            where: { slug, status: "published" }
+          });
+
+          if (post) {
+            const title = post.seoTitle || post.title;
+            const description = (post.seoDescription || post.excerpt || "Leia mais no blog da Agendelle.").replace(/"/g, '&quot;');
+            const image = post.coverImage 
+              ? (post.coverImage.startsWith("http") ? post.coverImage : `https://agendelle.com.br${post.coverImage}`)
+              : "https://agendelle.com.br/favicon-celular.png";
+
+            const metaTags = `
+              <title>${title}</title>
+              <meta name="description" content="${description}">
+              <meta property="og:title" content="${title}">
+              <meta property="og:description" content="${description}">
+              <meta property="og:image" content="${image}">
+              <meta property="og:url" content="https://agendelle.com.br${url}">
+              <meta property="og:type" content="article">
+              <meta name="twitter:card" content="summary_large_image">
+              <meta name="twitter:title" content="${title}">
+              <meta name="twitter:description" content="${description}">
+              <meta name="twitter:image" content="${image}">
+            `;
+            // Substitui o título original e injeta as tags OG no head
+            html = html.replace(/<title>.*?<\/title>/, metaTags);
+          }
+        } catch (e) {
+          console.error("[SEO] Erro ao injetar meta tags:", e);
+        }
+      }
+
+      res.send(html);
+    });
   } else {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
     app.use(vite.middlewares);

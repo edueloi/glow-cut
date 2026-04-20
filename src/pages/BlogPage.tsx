@@ -163,13 +163,7 @@ function PostCard({ post, featured = false }: { post: BlogPost; featured?: boole
     return (
       <div
         onClick={() => navigate(`/blog/${post.slug}`)}
-        style={{
-          cursor: "pointer", borderRadius: 20, overflow: "hidden",
-          background: "#fff", border: "1px solid #f3f4f6",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
-          transition: "transform 0.2s ease, box-shadow 0.2s ease",
-          display: "grid", gridTemplateColumns: "1fr 1fr",
-        }}
+        className="featured-card"
         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-4px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 12px 40px rgba(0,0,0,0.12)"; }}
         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ""; (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 24px rgba(0,0,0,0.07)"; }}
       >
@@ -187,7 +181,7 @@ function PostCard({ post, featured = false }: { post: BlogPost; featured?: boole
             </div>
           )}
         </div>
-        <div style={{ padding: "32px 32px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 12 }}>
+        <div className="featured-card-content">
           {post.category && (
             <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: post.category.color || "#f59e0b" }}>
               {post.category.name}
@@ -538,6 +532,38 @@ export default function BlogPage() {
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         * { box-sizing: border-box; }
         body { margin: 0; }
+        
+        .featured-card {
+          cursor: pointer;
+          border-radius: 20px;
+          overflow: hidden;
+          background: #fff;
+          border: 1px solid #f3f4f6;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .featured-card-content {
+          padding: 32px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 12px;
+        }
+
+        @media (max-width: 768px) {
+          .featured-card {
+            grid-template-columns: 1fr;
+          }
+          .featured-card-content {
+            padding: 24px;
+          }
+          .featured-card img {
+            height: 200px !important;
+          }
+        }
       `}</style>
     </div>
   );

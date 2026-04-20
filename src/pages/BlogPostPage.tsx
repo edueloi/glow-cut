@@ -207,14 +207,14 @@ export default function BlogPostPage() {
       <div style={{ paddingTop: 72 }}>
         {/* ── Cover image ───────────────────────────────────────────────────── */}
         {post.coverImage && (
-          <div style={{ width: "100%", maxHeight: 480, overflow: "hidden" }}>
-            <img src={post.coverImage} alt={post.title} style={{ width: "100%", height: 480, objectFit: "cover" }} />
+          <div className="cover-image-container">
+            <img src={post.coverImage} alt={post.title} className="cover-image" />
           </div>
         )}
 
         {/* ── Main layout ───────────────────────────────────────────────────── */}
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 48, alignItems: "start", paddingTop: 48, paddingBottom: 80 }}>
+          <div className="blog-post-grid">
 
             {/* ── Article ─────────────────────────────────────────────────── */}
             <article>
@@ -409,6 +409,40 @@ export default function BlogPostPage() {
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         * { box-sizing: border-box; }
         body { margin: 0; }
+
+        .cover-image-container {
+          width: 100%;
+          max-height: 480px;
+          overflow: hidden;
+        }
+        .cover-image {
+          width: 100%;
+          height: 480px;
+          object-fit: cover;
+        }
+
+        .blog-post-grid {
+          display: grid;
+          grid-template-columns: 1fr 320px;
+          gap: 48px;
+          align-items: start;
+          padding-top: 48px;
+          padding-bottom: 80px;
+        }
+
+        @media (max-width: 992px) {
+          .blog-post-grid {
+            grid-template-columns: 1fr;
+            gap: 32px;
+          }
+          aside {
+            display: none !important;
+          }
+          .cover-image, .cover-image-container {
+            height: 260px !important;
+          }
+        }
+
         .blog-content h1, .blog-content h2, .blog-content h3, .blog-content h4 {
           color: #111; font-weight: 900; line-height: 1.3; margin-top: 2em; margin-bottom: 0.6em;
         }
@@ -436,10 +470,6 @@ export default function BlogPostPage() {
         .blog-content pre code { background: none; color: inherit; padding: 0; }
         .blog-content strong { color: #111; font-weight: 800; }
         .blog-content hr { border: none; border-top: 1px solid #f3f4f6; margin: 2em 0; }
-        @media (max-width: 768px) {
-          article { grid-column: 1 / -1 !important; }
-          aside { display: none !important; }
-        }
       `}</style>
     </div>
   );
