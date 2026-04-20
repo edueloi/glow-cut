@@ -52,8 +52,14 @@ function ensureDir(dir: string) {
 
 function normalizePhone(raw: string): string {
   const digits = String(raw || "").replace(/\D/g, "");
-  // Remove sufixo @s.whatsapp.net ou :X@s.whatsapp.net
+  // Remove sufixo :X@s.whatsapp.net
   const clean = digits.split(":")[0].replace(/@.*/, "");
+  // Normaliza números brasileiros para 13 dígitos: 55 + DDD(2) + 9(1) + número(8)
+  // Baileys às vezes retorna 15 dígitos para BR (formato legado com sufixo de roteamento)
+  // Ex: 551599289742537 (15) → 5515992897425 (13) — remove os últimos 2 dígitos
+  if (clean.startsWith("55") && clean.length === 15) {
+    return clean.slice(0, 13);
+  }
   return clean;
 }
 
@@ -195,7 +201,7 @@ export async function initSession(tenantId: string): Promise<void> {
       session.qrRaw = null;
       await updateDb(tenantId, "connected", session.phone, null);
       broadcast(tenantId);
-      console.log(`[Baileys][${tenantId}] Conectado como ${session.phone}`);
+      console.log(`[Baileys][${tenantId}] Conectado como ${session.phone} (JID: ${jid})`);
     }
 
     if (connection === "close") {
@@ -332,5 +338,22 @@ export async function restoreAllSessions(): Promise<void> {
     } catch (e) {
       console.warn(`[Baileys] Erro ao restaurar sessão ${tenantId}:`, e);
     }
+  }
+
+  // Corrige phones mal formatados no banco (ex: 15 dígitos BR → 13)
+  try {
+    const instances: any[] = await (prisma as any).wppInstance.findMany({
+      where: { phone: { not: null } },
+      select: { id: true, phone: true },
+    });
+    for (const inst of instances) {
+      const fixed = normalizePhone(inst.phone);
+      if (fixed !== inst.phone) {
+        await (prisma as any).wppInstance.update({ where: { id: inst.id }, data: { phone: fixed } });
+        console.log(`[Baileys] Phone corrigido: ${inst.phone} → ${fixed}`);
+      }
+    }
+  } catch (e) {
+    console.warn("[Baileys] Erro ao corrigir phones:", e);
   }
 }

@@ -484,6 +484,7 @@ model Tenant {
   showProducts          Boolean     @default(true)
   showServices          Boolean     @default(true)
   showTeam              Boolean     @default(true)
+  siteCoverUrl          String?     @db.Text
   adminuser             AdminUser[]
   plan                  Plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
 

@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { 
-  Scissors, 
-  MapPin, 
-  Instagram, 
-  Clock, 
-  User, 
-  ShoppingBag, 
-  ArrowRight, 
-  Target, 
-  Eye, 
+import {
+  Scissors,
+  MapPin,
+  Instagram,
+  Clock,
+  User,
+  ShoppingBag,
+  ArrowRight,
+  Target,
+  Eye,
   Heart,
   ChevronRight,
   Menu,
   X,
-  Phone
+  Phone,
+  Star,
+  Calendar,
+  Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -30,6 +33,7 @@ interface Tenant {
   themeColor: string | null;
   logoUrl: string | null;
   coverUrl: string | null;
+  siteCoverUrl: string | null;
   mission: string | null;
   vision: string | null;
   values: string | null;
@@ -55,60 +59,56 @@ export default function ProfessionalSite() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 60);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!slug) return;
       try {
-        // Fetch Tenant
         const tenantRes = await fetch(`/api/tenant-by-slug/${slug}`);
-        if (!tenantRes.ok) {
-          setLoading(false);
-          return;
-        }
+        if (!tenantRes.ok) { setLoading(false); return; }
         const tenantData = await tenantRes.json();
-        console.log("[SiteDebug] Tenant Data:", tenantData);
         setTenant(tenantData);
-
         const headers = { "x-tenant-id": tenantData.id };
 
-        // Fetch Professionals
-        const profRes = await fetch("/api/public/professionals", { headers });
+        const [profRes, svcRes, prodRes] = await Promise.all([
+          fetch("/api/public/professionals", { headers }),
+          fetch("/api/public/services", { headers }),
+          fetch("/api/public/products", { headers }),
+        ]);
         if (profRes.ok) {
-          const profData = await profRes.json();
-          setProfessionals(Array.isArray(profData) ? profData.filter(p => p.isActive !== false) : []);
+          const d = await profRes.json();
+          setProfessionals(Array.isArray(d) ? d.filter((p: any) => p.isActive !== false) : []);
         }
-
-        // Fetch Services
-        const svcRes = await fetch("/api/public/services", { headers });
         if (svcRes.ok) {
-          const svcData = await svcRes.json();
-          setServices(Array.isArray(svcData) ? svcData.filter(s => s.type === "service") : []);
+          const d = await svcRes.json();
+          setServices(Array.isArray(d) ? d.filter((s: any) => s.type === "service") : []);
         }
-
-        // Fetch Products (Will need to implement this endpoint or fallback)
-        const prodRes = await fetch("/api/public/products", { headers });
         if (prodRes.ok) {
-          const prodData = await prodRes.json();
-          setProducts(Array.isArray(prodData) ? prodData : []);
+          const d = await prodRes.json();
+          setProducts(Array.isArray(d) ? d : []);
         }
-
-      } catch (error) {
-        console.error("Error fetching site data:", error);
+      } catch (e) {
+        console.error("Error fetching site data:", e);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [slug]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
-          <p className="text-sm font-medium text-zinc-500">Carregando site...</p>
+          <div className="w-10 h-10 border-[3px] border-zinc-200 border-t-zinc-800 rounded-full animate-spin" />
+          <p className="text-sm font-semibold text-zinc-400">Carregando...</p>
         </div>
       </div>
     );
@@ -117,371 +117,536 @@ export default function ProfessionalSite() {
   if (!tenant) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-zinc-50">
-        <div className="w-20 h-20 bg-zinc-200 rounded-3xl flex items-center justify-center text-zinc-400 mb-6">
-          <X size={40} />
+        <div className="w-16 h-16 bg-zinc-100 rounded-2xl flex items-center justify-center text-zinc-300 mb-6">
+          <X size={32} />
         </div>
-        <h1 className="text-4xl font-black text-zinc-900 mb-2">Ops!</h1>
-        <p className="text-zinc-500 mb-8 max-w-xs">Este estabelecimento não foi encontrado ou está temporariamente indisponível.</p>
-        <button 
+        <h1 className="text-3xl font-black text-zinc-900 mb-2">Não encontrado</h1>
+        <p className="text-zinc-500 mb-8 max-w-xs text-sm">Este estabelecimento não foi encontrado ou está indisponível.</p>
+        <button
           onClick={() => navigate("/")}
-          className="px-8 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-xl shadow-zinc-900/10"
+          className="px-6 py-3 bg-zinc-900 text-white font-bold rounded-xl text-sm"
         >
-          Explorar Agendelle
+          Voltar ao início
         </button>
       </div>
     );
   }
 
   const themeColor = tenant.themeColor || "#18181b";
-  const primaryBtnStyle = { backgroundColor: themeColor };
+  const bookingUrl = `/${slug}/agendar`;
+  // siteCoverUrl é exclusivo do site externo; coverUrl é da agenda online.
+  // Usa siteCoverUrl se definido, senão cai no coverUrl como fallback.
+  const heroImage = tenant.siteCoverUrl || tenant.coverUrl;
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  const priceStr = (v: number | string) =>
+    `R$ ${parseFloat(String(v)).toFixed(2).replace(".", ",")}`;
+
+  const featureItems = () => {
+    if (tenant.mission || tenant.vision || tenant.values) {
+      return [
+        tenant.mission  && { icon: <Target size={18} />,  title: "Missão",  text: tenant.mission  },
+        tenant.vision   && { icon: <Eye size={18} />,     title: "Visão",   text: tenant.vision   },
+        tenant.values   && { icon: <Heart size={18} />,   title: "Valores", text: tenant.values   },
+      ].filter(Boolean) as { icon: React.ReactNode; title: string; text: string }[];
+    }
+    if (tenant.feature1Title || tenant.feature2Title || tenant.feature3Title) {
+      return [
+        tenant.feature1Title && { icon: <Target size={18} />, title: tenant.feature1Title, text: tenant.feature1Description || "" },
+        tenant.feature2Title && { icon: <User size={18} />,   title: tenant.feature2Title, text: tenant.feature2Description || "" },
+        tenant.feature3Title && { icon: <Heart size={18} />,  title: tenant.feature3Title, text: tenant.feature3Description || "" },
+      ].filter(Boolean) as { icon: React.ReactNode; title: string; text: string }[];
+    }
+    return [
+      { icon: <Target size={18} />, title: "Qualidade",  text: "Excelência em cada detalhe do atendimento." },
+      { icon: <User size={18} />,   title: "Equipe",     text: "Profissionais altamente qualificados." },
+      { icon: <Heart size={18} />,  title: "Cuidado",    text: "Seu bem-estar é nossa maior prioridade." },
+    ];
+  };
 
   return (
-    <div className="min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-900 selection:text-white">
-      
-      {/* ── NAVBAR ────────────────────────────────── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-zinc-100">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-white text-zinc-900 font-sans antialiased">
+
+      {/* ── NAVBAR ──────────────────────────────────────────────────────────────── */}
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled
+            ? "bg-white/95 backdrop-blur-md shadow-sm border-b border-zinc-100"
+            : "bg-transparent"
+        }`}
+      >
+        <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
+          <Link to={`/${slug}`} className="flex items-center gap-2.5">
             {tenant.logoUrl ? (
-              <img src={tenant.logoUrl} alt={tenant.name} className="h-10 w-10 object-contain rounded-lg" />
+              <img
+                src={tenant.logoUrl}
+                alt={tenant.name}
+                className={`h-8 w-8 object-contain rounded-lg transition-all ${!scrolled ? "brightness-0 invert" : ""}`}
+              />
             ) : (
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white" style={primaryBtnStyle}>
-                <Scissors size={20} />
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-white"
+                style={{ backgroundColor: scrolled ? themeColor : "rgba(255,255,255,0.15)" }}
+              >
+                <Scissors size={15} />
               </div>
             )}
-            <span className="text-xl font-black tracking-tight">{tenant.name}</span>
-          </div>
+            <span className={`font-black text-base tracking-tight transition-colors ${scrolled ? "text-zinc-900" : "text-white"}`}>
+              {tenant.name}
+            </span>
+          </Link>
 
-          {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-8">
-            <a href="#sobre" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Quem Somos</a>
-            {tenant.showServices !== false && <a href="#servicos" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Serviços</a>}
-            {(tenant.showProducts !== false && products.length > 0) && <a href="#produtos" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Produtos</a>}
-            {tenant.showTeam !== false && <a href="#equipe" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Equipe</a>}
-            <Link 
-              to={`/${slug}/agendar`}
-              className="px-6 py-2.5 text-white text-sm font-bold rounded-full shadow-lg shadow-zinc-900/10 hover:scale-105 active:scale-95 transition-all"
-              style={primaryBtnStyle}
+          {/* Desktop */}
+          <div className="hidden md:flex items-center gap-6">
+            <a href="#sobre"    className={`text-xs font-bold transition-colors uppercase tracking-wider ${scrolled ? "text-zinc-500 hover:text-zinc-900" : "text-white/70 hover:text-white"}`}>Quem Somos</a>
+            {tenant.showServices !== false && <a href="#servicos" className={`text-xs font-bold transition-colors uppercase tracking-wider ${scrolled ? "text-zinc-500 hover:text-zinc-900" : "text-white/70 hover:text-white"}`}>Serviços</a>}
+            {tenant.showProducts !== false && products.length > 0 && <a href="#produtos" className={`text-xs font-bold transition-colors uppercase tracking-wider ${scrolled ? "text-zinc-500 hover:text-zinc-900" : "text-white/70 hover:text-white"}`}>Produtos</a>}
+            {tenant.showTeam !== false && <a href="#equipe" className={`text-xs font-bold transition-colors uppercase tracking-wider ${scrolled ? "text-zinc-500 hover:text-zinc-900" : "text-white/70 hover:text-white"}`}>Equipe</a>}
+            <Link
+              to={bookingUrl}
+              className={`px-5 py-2 text-xs font-bold rounded-full shadow-md hover:opacity-90 active:scale-95 transition-all ${scrolled ? "text-white" : "bg-white/20 backdrop-blur-sm border border-white/30 text-white hover:bg-white/30"}`}
+              style={scrolled ? { backgroundColor: themeColor } : {}}
             >
               Agendar Agora
             </Link>
           </div>
 
-          {/* Mobile Menu Toggle */}
-          <button 
-            className="md:hidden p-2 text-zinc-900"
+          {/* Mobile hamburger */}
+          <button
+            className={`md:hidden p-2 rounded-lg transition-colors ${scrolled ? "text-zinc-700 hover:bg-zinc-100" : "text-white hover:bg-white/10"}`}
             onClick={() => setMobileMenuOpen(true)}
+            aria-label="Abrir menu"
           >
-            <Menu size={24} />
+            <Menu size={22} />
           </button>
         </div>
       </nav>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Drawer */}
       <AnimatePresence>
         {mobileMenuOpen && (
-          <motion.div 
-            initial={{ opacity: 0, x: "100%" }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: "100%" }}
-            className="fixed inset-0 z-[60] bg-white flex flex-col p-8"
-          >
-            <div className="flex justify-end mb-12">
-              <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-zinc-900">
-                <X size={32} />
-              </button>
-            </div>
-            <div className="flex flex-col gap-8 text-center">
-              <a href="#sobre" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Quem Somos</a>
-              {tenant.showServices !== false && <a href="#servicos" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Serviços</a>}
-              {(tenant.showProducts !== false && products.length > 0) && <a href="#produtos" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Produtos</a>}
-              {tenant.showTeam !== false && <a href="#equipe" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-black text-zinc-900">Equipe</a>}
-              <Link 
-                to={`/${slug}/agendar`}
-                onClick={() => setMobileMenuOpen(false)}
-                className="mt-4 px-8 py-4 text-white text-lg font-bold rounded-2xl shadow-xl shadow-zinc-900/10"
-                style={primaryBtnStyle}
-              >
-                Agendar Agora
-              </Link>
-            </div>
-          </motion.div>
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[60] bg-black/40"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className="fixed top-0 right-0 bottom-0 z-[70] w-72 bg-white shadow-2xl flex flex-col"
+            >
+              <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100">
+                <span className="font-black text-zinc-900">{tenant.name}</span>
+                <button onClick={() => setMobileMenuOpen(false)} className="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100" aria-label="Fechar menu">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="flex flex-col gap-1 p-4 flex-1">
+                {[
+                  { label: "Quem Somos", href: "#sobre" },
+                  ...(tenant.showServices !== false ? [{ label: "Serviços", href: "#servicos" }] : []),
+                  ...(tenant.showProducts !== false && products.length > 0 ? [{ label: "Produtos", href: "#produtos" }] : []),
+                  ...(tenant.showTeam !== false ? [{ label: "Equipe", href: "#equipe" }] : []),
+                ].map(item => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-3 rounded-xl text-sm font-bold text-zinc-700 hover:bg-zinc-50 transition-colors"
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </div>
+              <div className="p-4 border-t border-zinc-100">
+                <Link
+                  to={bookingUrl}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-2 w-full py-3.5 text-white text-sm font-bold rounded-xl shadow-md active:scale-95 transition-all"
+                  style={{ backgroundColor: themeColor }}
+                >
+                  <Calendar size={16} /> Agendar Horário
+                </Link>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
-      {/* ── HERO SECTION ──────────────────────────── */}
-      <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-[70vh] -z-10">
-          {tenant.coverUrl ? (
-            <div className="w-full h-full relative">
-              <img src={tenant.coverUrl} alt="" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-white/40 to-white" />
-            </div>
-          ) : (
-            <div className="w-full h-full bg-zinc-50" />
-          )}
-        </div>
+      {/* ── HERO ──────────────────────────────────────────────────────────────────── */}
+      <section
+        className="relative overflow-hidden"
+        style={!heroImage ? { background: `linear-gradient(135deg, ${themeColor} 0%, #0f0f0f 100%)` } : {}}
+      >
+        {/* Cover image + overlay */}
+        {heroImage && (
+          <div className="absolute inset-0">
+            <img src={heroImage} alt="" className="w-full h-full object-cover object-center" />
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/65 to-zinc-950/25" />
+          </div>
+        )}
 
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="max-w-3xl">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <h1 className="text-5xl md:text-7xl font-black text-zinc-900 tracking-tighter leading-tight mb-6">
-                {tenant.welcomeMessage || `Bem-vindo ao ${tenant.name}`}
-              </h1>
-              <p className="text-lg md:text-xl text-zinc-600 font-medium mb-10 leading-relaxed">
-                {tenant.description || "Transformando sua aparência com excelência e profissionalismo. Agende seu horário e viva uma experiência única de autocuidado."}
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <Link 
-                  to={`/${slug}/agendar`}
-                  className="px-8 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-zinc-900/20 flex items-center gap-2"
-                  style={primaryBtnStyle}
+        {/* Padrão decorativo quando não tem cover */}
+        {!heroImage && (
+          <div
+            className="absolute inset-0 opacity-[0.07]"
+            style={{
+              backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,1) 1px, transparent 0)`,
+              backgroundSize: "28px 28px",
+            }}
+          />
+        )}
+
+        {/* Content */}
+        <div className="relative z-10 max-w-6xl mx-auto px-5 pt-28 pb-20 md:pt-36 md:pb-28">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.25, 0.4, 0.25, 1] }}
+            className="max-w-2xl"
+          >
+            {/* Badge */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/80 text-[10px] font-bold uppercase tracking-widest mb-5">
+              <Sparkles size={10} /> Studio Premium
+            </div>
+
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight leading-[1.05] mb-5 whitespace-pre-line">
+              {tenant.welcomeMessage || `Bem-vindo ao ${tenant.name}`}
+            </h1>
+            <p className="text-white/70 text-base md:text-lg leading-relaxed mb-8 max-w-xl">
+              {tenant.description || "Transformando sua aparência com excelência e profissionalismo. Agende seu horário e viva uma experiência única."}
+            </p>
+
+            <div className="flex flex-wrap gap-3">
+              <Link
+                to={bookingUrl}
+                className="inline-flex items-center gap-2 px-6 py-3.5 text-sm font-bold rounded-xl shadow-lg active:scale-95 hover:opacity-90 transition-all bg-white"
+                style={{ color: themeColor }}
+              >
+                <Calendar size={16} /> Agendar Agora
+              </Link>
+              {tenant.instagram && (
+                <a
+                  href={tenant.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3.5 text-sm font-bold rounded-xl bg-white/10 backdrop-blur-sm border border-white/30 text-white hover:bg-white/20 transition-colors"
                 >
-                  Fazer Agendamento <ArrowRight size={20} />
-                </Link>
-                {tenant.instagram && (
-                  <a 
-                    href={tenant.instagram} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="px-8 py-4 bg-white text-zinc-900 border border-zinc-200 font-bold rounded-2xl hover:bg-zinc-50 transition-all flex items-center gap-2"
-                  >
-                    <Instagram size={20} /> Instagram
-                  </a>
+                  <Instagram size={16} /> Instagram
+                </a>
+              )}
+            </div>
+
+            {/* Quick stats */}
+            {(tenant.experienceYears || professionals.length > 0 || services.length > 0) && (
+              <div className="flex flex-wrap gap-8 mt-10 pt-8 border-t border-white/10">
+                {tenant.experienceYears && (
+                  <div>
+                    <p className="text-2xl font-black text-white">{tenant.experienceYears}</p>
+                    <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Anos</p>
+                  </div>
                 )}
+                {professionals.length > 0 && (
+                  <div>
+                    <p className="text-2xl font-black text-white">{professionals.length}+</p>
+                    <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Especialistas</p>
+                  </div>
+                )}
+                {services.length > 0 && (
+                  <div>
+                    <p className="text-2xl font-black text-white">{services.length}+</p>
+                    <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Serviços</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── QUEM SOMOS ─────────────────────────────────────────────────────────────── */}
+      <section id="sobre" className="py-20 md:py-28 bg-white">
+        <div className="max-w-6xl mx-auto px-5">
+          <div className="grid md:grid-cols-2 gap-12 md:gap-20 items-center">
+            {/* Image */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="relative"
+            >
+              <div className="aspect-[4/5] rounded-3xl overflow-hidden shadow-xl">
+                {heroImage ? (
+                  <img src={heroImage} alt="Sobre nós" className="w-full h-full object-cover" />
+                ) : (
+                  <div
+                    className="w-full h-full flex flex-col items-center justify-center gap-4 text-white"
+                    style={{ background: `linear-gradient(135deg, ${themeColor} 0%, #0f0f0f 100%)` }}
+                  >
+                    <Scissors size={48} className="opacity-30" />
+                    <span className="text-lg font-black opacity-40 uppercase tracking-widest">{tenant.name}</span>
+                  </div>
+                )}
+              </div>
+              {tenant.experienceYears && (
+                <div
+                  className="absolute -bottom-5 -right-5 md:-bottom-8 md:-right-8 w-28 h-28 md:w-36 md:h-36 rounded-2xl md:rounded-3xl flex flex-col items-center justify-center text-white shadow-xl"
+                  style={{ backgroundColor: themeColor }}
+                >
+                  <span className="text-3xl md:text-4xl font-black leading-none">{tenant.experienceYears}</span>
+                  <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest opacity-80 mt-1 text-center px-2">Anos de experiência</span>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Text */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+            >
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-200 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-5">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
+                Quem Somos
+              </div>
+              <h2 className="text-3xl md:text-4xl font-black text-zinc-900 tracking-tight mb-5 leading-tight">
+                {tenant.aboutTitle || "Nossa História"}
+              </h2>
+              <p className="text-zinc-500 text-base leading-relaxed mb-8 whitespace-pre-line">
+                {tenant.description ||
+                  `O ${tenant.name} nasceu da paixão pela beleza e pelo bem-estar. Buscamos oferecer não apenas um serviço, mas um momento de renovação para cada cliente.`}
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-zinc-100">
+                {featureItems().map((item, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="w-9 h-9 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-700">
+                      {item.icon}
+                    </div>
+                    <h4 className="font-bold text-zinc-900 text-sm">{item.title}</h4>
+                    <p className="text-xs text-zinc-500 leading-relaxed">{item.text}</p>
+                  </div>
+                ))}
               </div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* ── QUEM SOMOS ────────────────────────────── */}
-      <section id="sobre" className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
-            <div className="relative">
-              <div className="aspect-square rounded-[40px] overflow-hidden shadow-2xl">
-                <img 
-                  src={tenant.coverUrl || "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=800"} 
-                  alt="About Us" 
-                  className="w-full h-full object-cover" 
-                />
-              </div>
-              {tenant.experienceYears && (
-                <div className="absolute -bottom-8 -right-8 w-48 h-48 bg-zinc-900 rounded-[32px] p-8 text-white hidden md:flex flex-col justify-end" style={primaryBtnStyle}>
-                  <span className="text-4xl font-black mb-1">{tenant.experienceYears}</span>
-                  <span className="text-xs font-bold uppercase tracking-widest opacity-80">Anos de experiência</span>
-                </div>
-              )}
-            </div>
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-100 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">
-                <span className="w-1.5 h-1.5 rounded-full" style={primaryBtnStyle} /> Quem Somos
-              </div>
-              <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight mb-8">
-                {tenant.aboutTitle || "Nossa História"}
-              </h2>
-              <p className="text-zinc-600 text-lg leading-relaxed mb-12 whitespace-pre-line">
-                {tenant.description || `O ${tenant.name} nasceu da paixão pela beleza e pelo bem-estar. Localizado no coração de ${tenant.address || "nossa cidade"}, buscamos oferecer não apenas um serviço, mas um momento de renovação para cada cliente que passa por nossas portas.`}
-              </p>
-              
-              {/* Mission, Vision, Values */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 pt-8 border-t border-zinc-100">
-                {tenant.mission && (
-                  <div className="space-y-3">
-                    <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
-                      <Target size={20} />
-                    </div>
-                    <h4 className="font-black text-zinc-900">Missão</h4>
-                    <p className="text-sm text-zinc-500 leading-relaxed">{tenant.mission}</p>
-                  </div>
-                )}
-                {tenant.vision && (
-                  <div className="space-y-3">
-                    <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
-                      <Eye size={20} />
-                    </div>
-                    <h4 className="font-black text-zinc-900">Visão</h4>
-                    <p className="text-sm text-zinc-500 leading-relaxed">{tenant.vision}</p>
-                  </div>
-                )}
-                {tenant.values && (
-                  <div className="space-y-3">
-                    <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
-                      <Heart size={20} />
-                    </div>
-                    <h4 className="font-black text-zinc-900">Valores</h4>
-                    <p className="text-sm text-zinc-500 leading-relaxed">{tenant.values}</p>
-                  </div>
-                )}
-                {!tenant.mission && !tenant.vision && !tenant.values && (
-                  <>
-                {/* Features (Diferenciais) */}
-                {(tenant.feature1Title || tenant.feature2Title || tenant.feature3Title) ? (
-                  <>
-                    {tenant.feature1Title && (
-                      <div className="space-y-3">
-                        <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
-                          <Target size={20} />
-                        </div>
-                        <h4 className="font-black text-zinc-900">{tenant.feature1Title}</h4>
-                        <p className="text-sm text-zinc-500 leading-relaxed">{tenant.feature1Description}</p>
-                      </div>
-                    )}
-                    {tenant.feature2Title && (
-                      <div className="space-y-3">
-                        <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
-                          <User size={20} />
-                        </div>
-                        <h4 className="font-black text-zinc-900">{tenant.feature2Title}</h4>
-                        <p className="text-sm text-zinc-500 leading-relaxed">{tenant.feature2Description}</p>
-                      </div>
-                    )}
-                    {tenant.feature3Title && (
-                      <div className="space-y-3">
-                        <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
-                          <Heart size={20} />
-                        </div>
-                        <h4 className="font-black text-zinc-900">{tenant.feature3Title}</h4>
-                        <p className="text-sm text-zinc-500 leading-relaxed">{tenant.feature3Description}</p>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div className="space-y-3">
-                      <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
-                        <Target size={20} />
-                      </div>
-                      <h4 className="font-black text-zinc-900">Qualidade</h4>
-                      <p className="text-sm text-zinc-500 leading-relaxed">Excelência em cada detalhe do atendimento.</p>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
-                        <User size={20} />
-                      </div>
-                      <h4 className="font-black text-zinc-900">Equipe</h4>
-                      <p className="text-sm text-zinc-500 leading-relaxed">Profissionais altamente qualificados.</p>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-900">
-                        <Heart size={20} />
-                      </div>
-                      <h4 className="font-black text-zinc-900">Cuidado</h4>
-                      <p className="text-sm text-zinc-500 leading-relaxed">Seu bem-estar é nossa maior prioridade.</p>
-                    </div>
-                  </>
-                )}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── SERVIÇOS ─────────────────────────────── */}
+      {/* ── SERVIÇOS ────────────────────────────────────────────────────────────────── */}
       {tenant.showServices !== false && (
-        <section id="servicos" className="py-24 bg-zinc-50">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
-              <div className="max-w-2xl">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">
-                  <span className="w-1.5 h-1.5 rounded-full" style={primaryBtnStyle} /> Especialidades
+        <section id="servicos" className="py-20 md:py-28 bg-zinc-50">
+          <div className="max-w-6xl mx-auto px-5">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-12">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-zinc-200 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-4">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
+                  Especialidades
                 </div>
-                <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight">O que fazemos</h2>
+                <h2 className="text-3xl md:text-4xl font-black text-zinc-900 tracking-tight">O que fazemos</h2>
               </div>
-              <Link 
-                to={`/${slug}/agendar`}
-                className="text-sm font-bold flex items-center gap-2 group hover:gap-3 transition-all"
+              <Link
+                to={bookingUrl}
+                className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider hover:gap-3 transition-all shrink-0"
                 style={{ color: themeColor }}
               >
-                Ver todos os serviços <ArrowRight size={16} />
+                Ver todos <ArrowRight size={14} />
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {services.length > 0 ? services.slice(0, 6).map((service) => (
-                <div key={service.id} className="bg-white p-8 rounded-[32px] border border-zinc-100 hover:shadow-xl hover:-translate-y-1 transition-all group">
-                  <div className="w-14 h-14 rounded-2xl bg-zinc-50 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                    <Scissors size={24} className="text-zinc-900" />
-                  </div>
-                  <h3 className="text-xl font-black text-zinc-900 mb-2">{service.name}</h3>
-                  <p className="text-zinc-500 text-sm leading-relaxed mb-6 line-clamp-2">
-                    {service.description || "Tratamento personalizado realizado por especialistas para garantir o melhor resultado para você."}
-                  </p>
-                  <div className="flex items-center justify-between pt-6 border-t border-zinc-50">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1 text-[11px] font-bold text-zinc-400 uppercase">
-                        <Clock size={12} /> {service.duration} min
-                      </div>
+            {/* Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {services.length > 0 ? services.slice(0, 6).map((service, i) => (
+                <motion.div
+                  key={service.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.05 }}
+                  className="bg-white rounded-2xl border border-zinc-100 overflow-hidden hover:shadow-lg transition-shadow"
+                >
+                  <div className="p-6">
+                    <div
+                      className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
+                      style={{ backgroundColor: `${themeColor}15` }}
+                    >
+                      <Scissors size={20} style={{ color: themeColor }} />
                     </div>
-                    <span className="text-lg font-black text-zinc-900">R$ {parseFloat(service.price).toFixed(2).replace(".", ",")}</span>
+                    <h3 className="text-base font-black text-zinc-900 mb-1.5">{service.name}</h3>
+                    <p className="text-xs text-zinc-500 leading-relaxed mb-4 line-clamp-2">
+                      {service.description || "Tratamento personalizado realizado por especialistas."}
+                    </p>
+                    <div className="flex items-center gap-3 text-[11px] text-zinc-400 font-medium mb-5">
+                      <span className="flex items-center gap-1">
+                        <Clock size={11} /> {service.duration} min
+                      </span>
+                      <span className="w-1 h-1 rounded-full bg-zinc-200" />
+                      <span className="font-black text-zinc-800 text-sm">{priceStr(service.price)}</span>
+                    </div>
+                    <Link
+                      to={bookingUrl}
+                      className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-xs font-bold border transition-colors hover:opacity-90 active:scale-95"
+                      style={{ borderColor: themeColor, color: themeColor }}
+                    >
+                      <Calendar size={13} /> Agendar este serviço
+                    </Link>
                   </div>
-                </div>
+                </motion.div>
               )) : (
-                <div className="col-span-full py-20 text-center">
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 text-zinc-200">
-                    <Scissors size={32} />
-                  </div>
-                  <p className="text-zinc-400 font-bold uppercase tracking-widest">Nossos serviços estarão disponíveis em breve.</p>
+                <div className="col-span-full py-16 text-center">
+                  <Scissors size={28} className="mx-auto mb-4 text-zinc-200" />
+                  <p className="text-zinc-400 text-sm font-medium">Serviços disponíveis em breve.</p>
                 </div>
               )}
+            </div>
+
+            {/* CTA Banner */}
+            {services.length > 0 && (
+              <div
+                className="mt-10 rounded-2xl p-8 flex flex-col sm:flex-row items-center justify-between gap-6 text-white"
+                style={{ backgroundColor: themeColor }}
+              >
+                <div>
+                  <h3 className="text-xl font-black mb-1">Pronto para se cuidar?</h3>
+                  <p className="text-white/70 text-sm">Escolha seu serviço favorito e agende em segundos.</p>
+                </div>
+                <Link
+                  to={bookingUrl}
+                  className="shrink-0 px-6 py-3 bg-white font-bold text-sm rounded-xl hover:bg-zinc-50 active:scale-95 transition-all shadow-md"
+                  style={{ color: themeColor }}
+                >
+                  Ver todos os serviços
+                </Link>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ── EQUIPE ──────────────────────────────────────────────────────────────────── */}
+      {tenant.showTeam !== false && professionals.length > 0 && (
+        <section id="equipe" className="py-20 md:py-28 bg-white">
+          <div className="max-w-6xl mx-auto px-5">
+            <div className="mb-12">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-200 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-4">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
+                Time de Elite
+              </div>
+              <h2 className="text-3xl md:text-4xl font-black text-zinc-900 tracking-tight">Nossa Equipe</h2>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+              {professionals.map((prof, i) => (
+                <motion.div
+                  key={prof.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.06 }}
+                  className="flex flex-col"
+                >
+                  {/* Photo */}
+                  <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-zinc-100 mb-3 relative">
+                    {prof.photo ? (
+                      <img
+                        src={prof.photo}
+                        alt={prof.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div
+                        className="w-full h-full flex items-center justify-center text-4xl font-black text-white"
+                        style={{ backgroundColor: themeColor }}
+                      >
+                        {prof.name.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1">
+                    <h3 className="font-black text-zinc-900 text-sm leading-tight mb-0.5">{prof.name}</h3>
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">
+                      {prof.role || "Especialista"}
+                    </p>
+                  </div>
+
+                  {/* Booking button — always visible, no hover required */}
+                  <Link
+                    to={`${bookingUrl}?profId=${prof.id}`}
+                    className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-xs font-bold text-white active:scale-95 transition-all hover:opacity-90 shadow-sm"
+                    style={{ backgroundColor: themeColor }}
+                  >
+                    <Calendar size={12} />
+                    Agendar com {prof.name.split(" ")[0]}
+                  </Link>
+                </motion.div>
+              ))}
             </div>
           </div>
         </section>
       )}
 
-      {/* ── PRODUTOS ─────────────────────────────── */}
-      {(tenant.showProducts !== false && products.length > 0) && (
-        <section id="produtos" className="py-24 bg-white">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-50 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">
-                <span className="w-1.5 h-1.5 rounded-full" style={primaryBtnStyle} /> Shop
+      {/* ── PRODUTOS ────────────────────────────────────────────────────────────────── */}
+      {tenant.showProducts !== false && products.length > 0 && (
+        <section id="produtos" className="py-20 md:py-28 bg-zinc-50">
+          <div className="max-w-6xl mx-auto px-5">
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-zinc-200 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-4">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
+                Shop
               </div>
-              <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight">Nossos Produtos</h2>
-              <p className="text-zinc-500 mt-4 max-w-xl mx-auto">Leve a experiência do nosso studio para sua casa com produtos profissionais selecionados.</p>
+              <h2 className="text-3xl md:text-4xl font-black text-zinc-900 tracking-tight">Nossos Produtos</h2>
+              <p className="text-zinc-500 text-sm mt-3 max-w-md mx-auto">
+                Leve a experiência do nosso studio para sua casa com produtos selecionados.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
               {products.slice(0, 4).map((product) => (
-                <div key={product.id} className="group cursor-pointer">
-                  <div className="aspect-[3/4] rounded-[32px] overflow-hidden bg-zinc-100 mb-6 relative">
+                <div key={product.id} className="group">
+                  <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-zinc-200 mb-3 relative">
                     {product.photo ? (
-                      <img src={product.photo} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <img
+                        src={product.photo}
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-zinc-300">
-                        <ShoppingBag size={48} />
+                        <ShoppingBag size={36} />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                   </div>
-                  <h3 className="font-black text-zinc-900 mb-1 group-hover:text-zinc-700 transition-colors">{product.name}</h3>
-                  <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-2">{product.sector?.name || "Premium"}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg font-black text-zinc-900">R$ {parseFloat(product.salePrice).toFixed(2).replace(".", ",")}</span>
-                    <div className="p-2 bg-zinc-900 text-white rounded-xl opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all" style={primaryBtnStyle}>
-                      <ShoppingBag size={16} />
-                    </div>
-                  </div>
+                  <h3 className="font-bold text-zinc-900 text-sm mb-0.5 line-clamp-1">{product.name}</h3>
+                  <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-1">{product.sector?.name || "Premium"}</p>
+                  <span className="font-black text-zinc-900 text-sm">{priceStr(product.salePrice)}</span>
                 </div>
               ))}
             </div>
-            
-            <div className="mt-16 p-10 bg-zinc-900 rounded-[40px] text-white flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden" style={primaryBtnStyle}>
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-32 -mt-32" />
-              <div className="relative z-10 max-w-xl">
-                <h3 className="text-3xl font-black mb-4 tracking-tight">Precisa de reposição?</h3>
-                <p className="text-white/70 leading-relaxed font-medium">Todos os nossos produtos estão disponíveis para compra direta em nosso PDV. Consulte disponibilidade e garanta o melhor para o seu cuidado diário.</p>
+
+            <div
+              className="mt-10 rounded-2xl p-8 flex flex-col sm:flex-row items-center justify-between gap-6 text-white"
+              style={{ backgroundColor: themeColor }}
+            >
+              <div>
+                <h3 className="text-xl font-black mb-1">Precisa de reposição?</h3>
+                <p className="text-white/70 text-sm">Consulte disponibilidade e fale com a nossa equipe.</p>
               </div>
-              <Link 
-                to={`/${slug}/agendar`}
-                className="relative z-10 px-8 py-4 bg-white text-zinc-900 font-bold rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-black/20"
+              <Link
+                to={bookingUrl}
+                className="shrink-0 px-6 py-3 bg-white font-bold text-sm rounded-xl hover:bg-zinc-50 active:scale-95 transition-all shadow-md"
+                style={{ color: themeColor }}
               >
                 Falar com Equipe
               </Link>
@@ -490,139 +655,113 @@ export default function ProfessionalSite() {
         </section>
       )}
 
-      {/* ── EQUIPE ───────────────────────────────── */}
-      {tenant.showTeam !== false && (
-        <section id="equipe" className="py-24 bg-zinc-50">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">
-                <span className="w-1.5 h-1.5 rounded-full" style={primaryBtnStyle} /> Time de Elite
-              </div>
-              <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight">Nossa Equipe</h2>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-            {professionals.map((prof) => (
-              <div key={prof.id} className="group">
-                <div className="aspect-[4/5] rounded-[32px] overflow-hidden bg-zinc-200 mb-6 relative shadow-lg">
-                  {prof.photo ? (
-                    <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white text-5xl font-black" style={primaryBtnStyle}>
-                      {prof.name.charAt(0)}
-                    </div>
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-500">
-                    <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-xl">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-1">{prof.role || "Especialista"}</p>
-                      <Link 
-                        to={`/${slug}/agendar?profId=${prof.id}`} 
-                        className="text-xs font-bold flex items-center justify-between"
-                        style={{ color: themeColor }}
-                      >
-                        Agendar com {prof.name.split(" ")[0]} <ChevronRight size={14} />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                <h3 className="text-xl font-black text-zinc-900 mb-1 text-center">{prof.name}</h3>
-                <p className="text-sm text-zinc-400 font-bold text-center uppercase tracking-widest">{prof.role || "Profissional"}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      )}
-
-      {/* ── FOOTER ───────────────────────────────── */}
-      <footer className="bg-zinc-950 text-white pt-24 pb-12">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 mb-24">
-            <div className="lg:col-span-1">
-              <div className="flex items-center gap-3 mb-8">
+      {/* ── FOOTER ──────────────────────────────────────────────────────────────────── */}
+      <footer className="bg-zinc-950 text-white">
+        <div className="max-w-6xl mx-auto px-5 pt-16 pb-24 md:pb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+            {/* Brand */}
+            <div className="sm:col-span-2 lg:col-span-1">
+              <div className="flex items-center gap-2.5 mb-5">
                 {tenant.logoUrl ? (
-                  <img src={tenant.logoUrl} alt={tenant.name} className="h-10 w-10 object-contain rounded-lg brightness-0 invert" />
+                  <img src={tenant.logoUrl} alt={tenant.name} className="h-8 w-8 object-contain rounded-lg" />
                 ) : (
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white text-zinc-900">
-                    <Scissors size={20} />
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/10">
+                    <Scissors size={15} className="text-white" />
                   </div>
                 )}
-                <span className="text-2xl font-black tracking-tight">{tenant.name}</span>
+                <span className="font-black text-base">{tenant.name}</span>
               </div>
-              <p className="text-zinc-500 leading-relaxed mb-8">
-                {tenant.description || "Referência em beleza e bem-estar, proporcionando momentos únicos de cuidado para nossos clientes."}
+              <p className="text-zinc-500 text-sm leading-relaxed mb-5">
+                {tenant.description ? tenant.description.slice(0, 100) + (tenant.description.length > 100 ? "..." : "") : "Referência em beleza e bem-estar."}
               </p>
-              <div className="flex gap-4">
+              <div className="flex gap-3">
                 {tenant.instagram && (
-                  <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center hover:bg-zinc-800 transition-colors">
-                    <Instagram size={18} />
+                  <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 transition-colors">
+                    <Instagram size={15} />
                   </a>
                 )}
                 {tenant.phone && (
-                  <a href={`tel:${tenant.phone}`} className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center hover:bg-zinc-800 transition-colors">
-                    <Phone size={18} />
+                  <a href={`tel:${tenant.phone}`} className="w-9 h-9 rounded-lg bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 transition-colors">
+                    <Phone size={15} />
                   </a>
                 )}
               </div>
             </div>
 
+            {/* Nav */}
             <div>
-              <h4 className="text-lg font-black mb-8">Navegação</h4>
-              <ul className="space-y-4 text-zinc-500 font-medium">
-                <li><a href="#sobre" className="hover:text-white transition-colors">Quem Somos</a></li>
+              <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-4">Navegação</h4>
+              <ul className="space-y-2.5 text-sm text-zinc-500">
+                <li><a href="#sobre"    className="hover:text-white transition-colors">Quem Somos</a></li>
                 {tenant.showServices !== false && <li><a href="#servicos" className="hover:text-white transition-colors">Serviços</a></li>}
-                {(tenant.showProducts !== false && products.length > 0) && <li><a href="#produtos" className="hover:text-white transition-colors">Produtos</a></li>}
+                {tenant.showProducts !== false && products.length > 0 && <li><a href="#produtos" className="hover:text-white transition-colors">Produtos</a></li>}
                 {tenant.showTeam !== false && <li><a href="#equipe" className="hover:text-white transition-colors">Equipe</a></li>}
               </ul>
             </div>
 
+            {/* Info */}
             <div>
-              <h4 className="text-lg font-black mb-8">Informações</h4>
-              <ul className="space-y-4 text-zinc-500 font-medium">
-                <li className="flex items-start gap-3">
-                  <MapPin size={18} className="shrink-0 text-white mt-1" />
-                  <span>{tenant.address || "Rua Exemplo, 123 - Centro, Cidade"}</span>
-                </li>
+              <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-4">Informações</h4>
+              <ul className="space-y-3 text-sm text-zinc-500">
+                {tenant.address && (
+                  <li className="flex items-start gap-2">
+                    <MapPin size={15} className="shrink-0 text-zinc-400 mt-0.5" />
+                    <span>{tenant.address}</span>
+                  </li>
+                )}
                 {tenant.phone && (
-                  <li className="flex items-center gap-3">
-                    <Phone size={18} className="shrink-0 text-white" />
+                  <li className="flex items-center gap-2">
+                    <Phone size={15} className="shrink-0 text-zinc-400" />
                     <span>{tenant.phone}</span>
                   </li>
                 )}
-                <li className="flex items-center gap-3">
-                  <Clock size={18} className="shrink-0 text-white" />
-                  <span>Seg - Sáb: 09h às 20h</span>
+                <li className="flex items-center gap-2">
+                  <Clock size={15} className="shrink-0 text-zinc-400" />
+                  <span>Seg–Sáb: 09h às 20h</span>
                 </li>
               </ul>
             </div>
 
-            <div className="lg:col-span-1">
-              <div className="p-8 bg-zinc-900 rounded-3xl border border-zinc-800">
-                <h4 className="text-xl font-black mb-4">Agende agora</h4>
-                <p className="text-sm text-zinc-500 mb-6">Escolha seu profissional e serviço favorito em poucos segundos.</p>
-                <Link 
-                  to={`/${slug}/agendar`}
-                  className="w-full py-3 bg-white text-zinc-950 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-200 transition-all shadow-lg"
+            {/* CTA */}
+            <div>
+              <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900">
+                <h4 className="font-black text-base mb-2">Agende agora</h4>
+                <p className="text-xs text-zinc-500 mb-4 leading-relaxed">Escolha seu profissional e serviço favorito em segundos.</p>
+                <Link
+                  to={bookingUrl}
+                  className="flex items-center justify-center gap-2 w-full py-3 font-bold text-sm rounded-xl text-zinc-950 hover:bg-zinc-100 active:scale-95 transition-all bg-white"
                 >
-                  Ir para Agenda <ArrowRight size={16} />
+                  <Calendar size={14} /> Ir para Agenda
                 </Link>
               </div>
             </div>
           </div>
 
-          <div className="pt-12 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-6">
-            <p className="text-zinc-600 text-xs font-bold uppercase tracking-widest">
-              © 2026 {tenant.name} • Desenvolvido por <span className="text-zinc-400">Agendelle</span>
+          <div className="pt-6 border-t border-zinc-900 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p className="text-zinc-600 text-[11px] font-bold uppercase tracking-widest">
+              © {new Date().getFullYear()} {tenant.name} · Desenvolvido por <span className="text-zinc-400">Agendelle</span>
             </p>
-            <div className="flex gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">
-              <a href="#" className="hover:text-zinc-400">Privacidade</a>
-              <a href="#" className="hover:text-zinc-400">Termos</a>
+            <div className="flex gap-6 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
+              <a href="#" className="hover:text-zinc-400 transition-colors">Privacidade</a>
+              <a href="#" className="hover:text-zinc-400 transition-colors">Termos</a>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* ── FLOATING CTA (mobile only) ─────────────────────────────────────────────── */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
+        <div className="p-3 bg-white/95 backdrop-blur-md border-t border-zinc-100 shadow-xl">
+          <Link
+            to={bookingUrl}
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-bold text-white shadow-lg active:scale-95 transition-all"
+            style={{ backgroundColor: themeColor }}
+          >
+            <Calendar size={16} /> Agendar Horário
+          </Link>
+        </div>
+      </div>
+
     </div>
   );
 }

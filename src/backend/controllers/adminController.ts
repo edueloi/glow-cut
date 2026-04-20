@@ -168,6 +168,7 @@ export const adminController = {
       if (b.feature3Title !== undefined) data.feature3Title = b.feature3Title;
       if (b.feature3Description !== undefined) data.feature3Description = b.feature3Description;
       if (b.experienceYears !== undefined) data.experienceYears = b.experienceYears;
+      if (b.siteCoverUrl !== undefined) data.siteCoverUrl = b.siteCoverUrl;
 
       const tenant = await (prisma as any).tenant.update({
         where: { id: tenantId },
@@ -231,13 +232,26 @@ export const adminController = {
     return res.status(401).json({ error: "Usuário ou senha inválidos." });
   },
 
+  async checkSlug(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    const { slug } = req.params;
+    if (!slug || slug.length < 2) return res.json({ available: false, message: "Slug muito curto." });
+    const existing = await (prisma as any).tenant.findFirst({
+      where: { slug, NOT: { id: tenantId ?? "" } },
+      select: { id: true },
+    });
+    if (existing) return res.json({ available: false, message: "Este link já está em uso por outro estúdio." });
+    return res.json({ available: true });
+  },
+
   async getTenantBySlug(req: Request, res: Response) {
     const tenant = await (prisma as any).tenant.findFirst({
       where: { slug: req.params.slug, isActive: true },
       select: { 
-        id: true, name: true, slug: true, themeColor: true, logoUrl: true, coverUrl: true, 
-        address: true, instagram: true, welcomeMessage: true, description: true, 
-        mission: true, vision: true, values: true, phone: true, 
+        id: true, name: true, slug: true, themeColor: true, logoUrl: true, coverUrl: true,
+        siteCoverUrl: true,
+        address: true, instagram: true, welcomeMessage: true, description: true,
+        mission: true, vision: true, values: true, phone: true,
         showProducts: true, showServices: true, showTeam: true,
         aboutTitle: true, experienceYears: true,
         feature1Title: true, feature1Description: true,

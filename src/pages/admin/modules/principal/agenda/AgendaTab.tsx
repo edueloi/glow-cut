@@ -56,6 +56,8 @@ interface AgendaTabProps {
   onRefresh?: () => void;
   onGoToMinhaAgenda?: () => void;
   blockNationalHolidays?: boolean;
+  agendaClosedDays?: { id: string; date: string; name?: string; description?: string }[];
+  agendaSpecialDays?: { id: string; date: string; isClosed: boolean; startTime?: string; endTime?: string; description?: string }[];
 }
 
 /* ─── legend dots ─────────────────────────────────── */
@@ -246,6 +248,38 @@ export function AgendaTab(props: AgendaTabProps) {
   );
 }
 
+/* ─── Helper: check if date is manually blocked ───── */
+function getDayBlockInfo(
+  day: Date,
+  agendaClosedDays: { id: string; date: string; name?: string; description?: string }[],
+  agendaSpecialDays: { id: string; date: string; isClosed: boolean; description?: string }[],
+  blockNationalHolidays?: boolean,
+): { blocked: boolean; reason: string | null } {
+  const dateStr = format(day, "yyyy-MM-dd");
+
+  // Check ClosedDay
+  const closedDay = agendaClosedDays.find(cd => {
+    const cdDate = cd.date.slice(0, 10);
+    return cdDate === dateStr;
+  });
+  if (closedDay) return { blocked: true, reason: closedDay.name || closedDay.description || "Agenda fechada" };
+
+  // Check SpecialScheduleDay with isClosed=true
+  const specialDay = agendaSpecialDays.find(sd => {
+    const sdDate = sd.date.slice(0, 10);
+    return sdDate === dateStr && sd.isClosed;
+  });
+  if (specialDay) return { blocked: true, reason: specialDay.description || "Horário especial — fechado" };
+
+  // Check national holidays
+  if (blockNationalHolidays) {
+    const hol = isHoliday(day);
+    if (hol) return { blocked: true, reason: hol.name };
+  }
+
+  return { blocked: false, reason: null };
+}
+
 /* ─── Minha Agenda View (Formerly AgendaTab) ──────── */
 function MinhaAgendaView({
   view,
@@ -274,6 +308,8 @@ function MinhaAgendaView({
   newHoliday,
   setNewHoliday,
   blockNationalHolidays,
+  agendaClosedDays = [],
+  agendaSpecialDays = [],
 }: AgendaTabProps) {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
@@ -408,8 +444,8 @@ function MinhaAgendaView({
 
         {/* ── VIEW: DAY ── */}
         {view === "day" && (() => {
+          const { blocked: isDayBlocked, reason: dayBlockReason } = getDayBlockInfo(currentMonth, agendaClosedDays, agendaSpecialDays, blockNationalHolidays);
           const dayHoliday = isHoliday(currentMonth);
-          const isDayBlocked = !!(blockNationalHolidays && dayHoliday);
           return (
           <div className="flex flex-col flex-1 min-h-0">
             {/* Day header */}
@@ -431,10 +467,10 @@ function MinhaAgendaView({
                   <p className="text-xs sm:text-sm font-black text-zinc-900 capitalize truncate">
                     {format(currentMonth, "EEEE", { locale: ptBR })}
                   </p>
-                  {dayHoliday && (
+                  {(isDayBlocked || dayHoliday) && (
                     <span className={cn("text-[9px] font-black px-2 py-0.5 rounded-full border uppercase tracking-widest flex items-center gap-1 shrink-0", isDayBlocked ? "bg-red-100 text-red-700 border-red-200" : "bg-red-50 text-red-600 border-red-100")}>
                       <div className="w-1 h-1 rounded-full bg-red-400" />
-                      {dayHoliday.name}{isDayBlocked && " — Fechado"}
+                      {isDayBlocked ? `${dayBlockReason} — Fechado` : dayHoliday?.name}
                     </span>
                   )}
                 </div>
@@ -453,8 +489,8 @@ function MinhaAgendaView({
                 <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center">
                   <span className="text-2xl">🚫</span>
                 </div>
-                <p className="text-sm font-black text-red-400">Feriado Nacional — Agenda Fechada</p>
-                <p className="text-xs text-red-300 font-bold">{dayHoliday?.name}</p>
+                <p className="text-sm font-black text-red-400">Agenda Fechada</p>
+                <p className="text-xs text-red-300 font-bold">{dayBlockReason}</p>
               </div>
             ) : (
             <div className="flex-1 overflow-y-auto scrollbar-hide divide-y divide-zinc-50">
@@ -590,7 +626,7 @@ function MinhaAgendaView({
                   const dayApps = appointments.filter((a) => isSameDay(new Date(a.date), day));
                   const holiday = isHoliday(day);
                   const isCurrentDay = isToday(day);
-                  const isBlocked = !!(blockNationalHolidays && holiday);
+                  const { blocked: isBlocked, reason: blockReason } = getDayBlockInfo(day, agendaClosedDays, agendaSpecialDays, blockNationalHolidays);
 
                   return (
                     <div
@@ -621,9 +657,9 @@ function MinhaAgendaView({
                         )}
                       </div>
 
-                      {/* Holiday label when blocked */}
+                      {/* Blocked label */}
                       {isBlocked && (
-                        <p className="text-[8px] text-red-400 font-bold truncate leading-tight hidden sm:block">{holiday?.name}</p>
+                        <p className="text-[8px] text-red-400 font-bold truncate leading-tight hidden sm:block">{blockReason}</p>
                       )}
 
                       {/* Events — desktop: text pills, mobile: dots */}
@@ -697,13 +733,13 @@ function MinhaAgendaView({
                     start: startOfWeek(currentMonth),
                     end: endOfWeek(currentMonth),
                   }).map((day) => {
+                    const { blocked: isBlockedDay, reason: blockReason } = getDayBlockInfo(day, agendaClosedDays, agendaSpecialDays, blockNationalHolidays);
                     const hol = isHoliday(day);
-                    const isBlockedDay = !!(blockNationalHolidays && hol);
                     return (
                       <div
                         key={day.toString()}
                         onClick={() => { if (!isBlockedDay) { setCurrentMonth(day); setView("day"); } }}
-                        title={hol?.name}
+                        title={isBlockedDay ? (blockReason ?? undefined) : (hol?.name ?? undefined)}
                         className={cn(
                           "py-2 px-1 text-center border-r border-zinc-100 last:border-r-0 relative transition-colors",
                           isBlockedDay ? "bg-red-50/60 cursor-not-allowed" : "cursor-pointer hover:bg-zinc-50",
@@ -717,9 +753,9 @@ function MinhaAgendaView({
                           <p className={cn("text-sm font-black", isBlockedDay ? "text-red-500" : isToday(day) ? "text-amber-600" : "text-zinc-800")}>
                             {format(day, "d")}
                           </p>
-                          {hol && <div className="w-1 h-1 rounded-full bg-red-400" />}
+                          {(isBlockedDay || hol) && <div className="w-1 h-1 rounded-full bg-red-400" />}
                         </div>
-                        {isBlockedDay && <p className="text-[7px] text-red-400 font-bold truncate px-0.5 leading-tight">{hol?.name}</p>}
+                        {isBlockedDay && <p className="text-[7px] text-red-400 font-bold truncate px-0.5 leading-tight">{blockReason}</p>}
                       </div>
                     );
                   })}
@@ -753,7 +789,7 @@ function MinhaAgendaView({
                           (a) => isSameDay(new Date(a.date), day) && a.startTime === hourStr
                         );
                         const hasApps = dayApps.length > 0;
-                        const isBlockedWeekDay = !!(blockNationalHolidays && isHoliday(day));
+                        const { blocked: isBlockedWeekDay } = getDayBlockInfo(day, agendaClosedDays, agendaSpecialDays, blockNationalHolidays);
                         return (
                           <div
                             key={j}

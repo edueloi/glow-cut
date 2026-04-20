@@ -40,7 +40,7 @@ interface AdminDashboardShellProps {
   isSidebarOpen: boolean;
   onLogout: () => void;
   onSubModuleChange: (key: string) => void;
-  profileMenuRef: React.RefObject<HTMLDivElement>;
+  profileMenuRef: React.RefObject<HTMLDivElement | null>;
   setIsNotificationsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setIsProfileMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setIsSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;

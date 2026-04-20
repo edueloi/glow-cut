@@ -92,7 +92,7 @@ async function initDb() {
         userId   VARCHAR(36)  NOT NULL,
         userType VARCHAR(20)  NOT NULL DEFAULT 'admin',
         tenantId VARCHAR(36)  NOT NULL,
-        preferences TEXT      NOT NULL DEFAULT '{}',
+        preferences TEXT      NOT NULL,
         updatedAt DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY uq_userprefs_user (userId, userType),
         KEY idx_userprefs_tenant (tenantId)
@@ -141,6 +141,17 @@ async function initDb() {
     }
   } catch (e: any) {
     console.warn("[initDb] Tenant.wppOverride:", e?.message);
+  }
+
+  // ── Tenant.siteCoverUrl ───────────────────────────────────────────────────
+  try {
+    const col: any[] = await (prisma as any).$queryRawUnsafe(`SHOW COLUMNS FROM \`Tenant\` LIKE 'siteCoverUrl'`);
+    if (!col.length) {
+      await (prisma as any).$executeRawUnsafe(`ALTER TABLE \`Tenant\` ADD COLUMN \`siteCoverUrl\` TEXT NULL`);
+      console.log("[initDb] Tenant.siteCoverUrl added");
+    }
+  } catch (e: any) {
+    console.warn("[initDb] Tenant.siteCoverUrl:", e?.message);
   }
 
   // ── WppBotConfig novos campos ─────────────────────────────────────────────

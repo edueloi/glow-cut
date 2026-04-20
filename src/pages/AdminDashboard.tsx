@@ -246,6 +246,8 @@ export default function AdminDashboard() {
   const [localWorkingHours, setLocalWorkingHours] = useState<any[]>([]);
   const [settingsOpenCard, setSettingsOpenCard] = useState<string | null>('agenda');
   const [blockNationalHolidays, setBlockNationalHolidays] = useState(false);
+  const [agendaClosedDays, setAgendaClosedDays] = useState<{ id: string; date: string; name?: string; description?: string }[]>([]);
+  const [agendaSpecialDays, setAgendaSpecialDays] = useState<{ id: string; date: string; isClosed: boolean; startTime?: string; endTime?: string; description?: string }[]>([]);
 
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -553,15 +555,25 @@ export default function AdminDashboard() {
     });
   }, []);
 
+  const fetchAgendaBlockingData = React.useCallback(async () => {
+    const [agendaRes, closedRes] = await Promise.all([
+      apiFetch("/api/settings/agenda").then(r => r.json()).catch(() => ({})),
+      apiFetch("/api/settings/closed-days").then(r => r.json()).catch(() => []),
+    ]);
+    if (agendaRes?.blockNationalHolidays !== undefined) setBlockNationalHolidays(!!agendaRes.blockNationalHolidays);
+    if (Array.isArray(agendaRes?.specialDays)) setAgendaSpecialDays(agendaRes.specialDays);
+    if (Array.isArray(closedRes)) setAgendaClosedDays(closedRes);
+  }, []);
+
   // Carrega dados estáticos uma única vez
   useEffect(() => {
     apiFetch("/api/services").then(res => res.json()).then(d => setServices(Array.isArray(d) ? d : []));
     fetchProfessionals();
     apiFetch("/api/settings/working-hours").then(res => res.json()).then(setWorkingHours);
-    apiFetch("/api/settings/agenda").then(res => res.json()).then(d => { if (d?.blockNationalHolidays !== undefined) setBlockNationalHolidays(!!d.blockNationalHolidays); });
+    fetchAgendaBlockingData();
     apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
     apiFetch("/api/clients").then(res => res.json()).then(d => setClients(Array.isArray(d) ? d : []));
-  }, [fetchProfessionals]);
+  }, [fetchProfessionals, fetchAgendaBlockingData]);
 
   const fetchAppointments = React.useCallback(() => {
     // Busca do início da primeira semana do mês até o fim da última semana do mês
@@ -587,7 +599,10 @@ export default function AdminDashboard() {
     if (activeTab === 'agenda' || activeTab === 'dash') {
       fetchAppointments();
     }
-  }, [fetchAppointments, activeTab]);
+    if (activeTab === 'agenda') {
+      fetchAgendaBlockingData();
+    }
+  }, [fetchAppointments, fetchAgendaBlockingData, activeTab]);
 
   const handleAddServiceToComanda = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
@@ -1382,6 +1397,8 @@ export default function AdminDashboard() {
           handleCreateBlockAppointment={handleCreateBlockAppointment}
           fetchAppointments={fetchAppointments}
           blockNationalHolidays={blockNationalHolidays}
+          agendaClosedDays={agendaClosedDays}
+          agendaSpecialDays={agendaSpecialDays}
         />
       </AdminDashboardShell>
 

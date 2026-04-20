@@ -30,24 +30,37 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       wrapperClassName,
       className,
       id,
+      maxLength,
+      value,
       ...props
     },
     ref
   ) => {
     const inputId = id ?? `input-${Math.random().toString(36).slice(2, 7)}`;
+    const currentLen = typeof value === "string" ? value.length : 0;
+    const nearLimit = maxLength !== undefined && currentLen >= maxLength * 0.85;
 
     return (
       <div className={cn("flex flex-col gap-1.5", wrapperClassName)}>
         {label && (
-          <label htmlFor={inputId} className="ds-label">
-            {label}
-          </label>
+          <div className="flex items-center justify-between">
+            <label htmlFor={inputId} className="ds-label">
+              {label}
+            </label>
+            {maxLength !== undefined && (
+              <span className={cn(
+                "text-[10px] font-bold tabular-nums transition-colors",
+                currentLen >= maxLength ? "text-red-500" : nearLimit ? "text-amber-500" : "text-zinc-400"
+              )}>
+                {currentLen}/{maxLength}
+              </span>
+            )}
+          </div>
         )}
 
-        <div 
+        <div
           className={cn(
             "group relative flex items-stretch overflow-hidden transition-all duration-200",
-            // Container styles that mimic ds-input but for the group
             "rounded-[10px] bg-zinc-50 border border-zinc-200 shadow-sm",
             "focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-500/10 focus-within:bg-white",
             error && "border-red-400 focus-within:border-red-500 focus-within:ring-red-500/10 bg-red-50/30"
@@ -69,8 +82,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             <input
               ref={ref}
               id={inputId}
+              maxLength={maxLength}
+              value={value}
               className={cn(
-                // Base reset for input inside a group
                 "w-full bg-transparent px-3 py-2.5 outline-none",
                 "text-sm text-zinc-800 placeholder:text-zinc-400 font-bold tracking-tight",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -117,20 +131,34 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 }
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ label, error, hint, wrapperClassName, className, id, ...props }, ref) => {
+  ({ label, error, hint, wrapperClassName, className, id, maxLength, value, ...props }, ref) => {
     const inputId = id ?? `textarea-${Math.random().toString(36).slice(2, 7)}`;
+    const currentLen = typeof value === "string" ? value.length : 0;
+    const nearLimit = maxLength !== undefined && currentLen >= maxLength * 0.85;
 
     return (
       <div className={cn("flex flex-col gap-1.5", wrapperClassName)}>
         {label && (
-          <label htmlFor={inputId} className="ds-label">
-            {label}
-          </label>
+          <div className="flex items-center justify-between">
+            <label htmlFor={inputId} className="ds-label">
+              {label}
+            </label>
+            {maxLength !== undefined && (
+              <span className={cn(
+                "text-[10px] font-bold tabular-nums transition-colors",
+                currentLen >= maxLength ? "text-red-500" : nearLimit ? "text-amber-500" : "text-zinc-400"
+              )}>
+                {currentLen}/{maxLength}
+              </span>
+            )}
+          </div>
         )}
 
         <textarea
           ref={ref}
           id={inputId}
+          maxLength={maxLength}
+          value={value}
           className={cn(
             "w-full rounded-[10px] border border-zinc-200 bg-zinc-50 px-3 py-2.5",
             "text-sm text-zinc-800 placeholder:text-zinc-400 font-medium",

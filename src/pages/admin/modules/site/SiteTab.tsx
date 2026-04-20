@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { 
-  Globe, 
-  Save, 
-  Target, 
-  Eye, 
-  Heart, 
-  Layout, 
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Globe,
+  Save,
+  Target,
+  Eye,
+  Heart,
+  Layout,
   Image as ImageIcon,
   Palette,
   ExternalLink,
@@ -15,9 +15,11 @@ import {
   FileText,
   Hash,
   MapPin,
-  Star
+  Star,
+  Upload,
+  X,
+  Camera
 } from "lucide-react";
-import { motion } from "motion/react";
 import { Button } from "@/src/components/ui/Button";
 import { Input, Textarea } from "@/src/components/ui/Input";
 import { PageWrapper, SectionTitle, FormRow } from "@/src/components/ui/PageWrapper";
@@ -31,6 +33,12 @@ export function SiteTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [cep, setCep] = useState("");
+
+  // Validação de slug
+  const [slugStatus, setSlugStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const [slugMessage, setSlugMessage] = useState("");
+  const slugDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialSlugRef = useRef(""); // slug original carregado do banco
 
   const [formData, setFormData] = useState({
     title: "",
@@ -54,8 +62,15 @@ export function SiteTab() {
     feature2Description: "",
     feature3Title: "",
     feature3Description: "",
-    experienceYears: "10+"
+    experienceYears: "10+",
+    logoUrl: "",
+    siteCoverUrl: "",
   });
+
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -85,8 +100,11 @@ export function SiteTab() {
             feature2Description: data.feature2Description || "",
             feature3Title: data.feature3Title || "",
             feature3Description: data.feature3Description || "",
-            experienceYears: data.experienceYears || "10+"
+            experienceYears: data.experienceYears || "10+",
+            logoUrl: data.logoUrl || "",
+            siteCoverUrl: data.siteCoverUrl || "",
           });
+          initialSlugRef.current = data.slug || "";
         }
       } catch (err) {
         console.error("Erro ao carregar dados do site:", err);
@@ -98,6 +116,14 @@ export function SiteTab() {
   }, []);
 
   const handleSave = async () => {
+    if (slugStatus === "taken") {
+      toast.error("Corrija o link do site antes de salvar.");
+      return;
+    }
+    if (slugStatus === "checking") {
+      toast.error("Aguarde a verificação do link antes de salvar.");
+      return;
+    }
     setSaving(true);
     try {
       const res = await apiFetch("/api/admin/tenant/branding", {
@@ -106,6 +132,8 @@ export function SiteTab() {
         body: JSON.stringify(formData)
       });
       if (res.ok) {
+        initialSlugRef.current = formData.slug;
+        setSlugStatus("idle");
         toast.success("Configurações do site salvas com sucesso!");
       } else {
         const data = await res.json();
@@ -116,6 +144,82 @@ export function SiteTab() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleImageUpload = async (
+    file: File,
+    field: "logoUrl" | "siteCoverUrl",
+    setUploading: (v: boolean) => void
+  ) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const base64 = ev.target?.result as string;
+        const mimeType = file.type;
+        try {
+          const res = await apiFetch("/api/admin/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ data: base64, mimeType }),
+          });
+          if (res.ok) {
+            const { url } = await res.json();
+            setFormData(prev => ({ ...prev, [field]: url }));
+            toast.success("Imagem enviada com sucesso!");
+          } else {
+            toast.error("Erro ao enviar imagem.");
+          }
+        } catch {
+          toast.error("Erro ao enviar imagem.");
+        } finally {
+          setUploading(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setUploading(false);
+    }
+  };
+
+  const handleSlugChange = (raw: string) => {
+    // Limpa para só letras minúsculas, números e hifens
+    const slug = raw.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 50);
+    setFormData(prev => ({ ...prev, slug }));
+
+    // Se voltou ao slug original não precisa checar
+    if (slug === initialSlugRef.current) {
+      setSlugStatus("idle");
+      setSlugMessage("");
+      return;
+    }
+
+    if (slug.length < 2) {
+      setSlugStatus("taken");
+      setSlugMessage("Mínimo de 2 caracteres.");
+      return;
+    }
+
+    setSlugStatus("checking");
+    setSlugMessage("");
+
+    if (slugDebounceRef.current) clearTimeout(slugDebounceRef.current);
+    slugDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await apiFetch(`/api/admin/check-slug/${encodeURIComponent(slug)}`);
+        const data = await res.json();
+        if (data.available) {
+          setSlugStatus("available");
+          setSlugMessage("Link disponível!");
+        } else {
+          setSlugStatus("taken");
+          setSlugMessage(data.message || "Este link já está em uso.");
+        }
+      } catch {
+        setSlugStatus("idle");
+      }
+    }, 600);
   };
 
   const handleCEPChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,14 +294,49 @@ export function SiteTab() {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="Nome do seu negócio"
+                  maxLength={60}
                 />
-                <Input
-                  label="Link do Site (Slug)"
-                  value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  placeholder="ex: barber-premium"
-                  addonLeft="agendelle.com/"
-                />
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="ds-label">Link do Site (Slug)</label>
+                    <span className="text-[10px] font-bold tabular-nums text-zinc-400">
+                      {formData.slug.length}/50
+                    </span>
+                  </div>
+                  <div className={`group relative flex items-stretch overflow-hidden transition-all duration-200 rounded-[10px] shadow-sm border bg-zinc-50
+                    ${slugStatus === "taken"     ? "border-red-400 ring-2 ring-red-500/10 bg-red-50/30" :
+                      slugStatus === "available"  ? "border-emerald-400 ring-2 ring-emerald-500/10" :
+                      "border-zinc-200 focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-500/10 focus-within:bg-white"}`}
+                  >
+                    <div className="flex items-center justify-center bg-zinc-100 px-3.5 border-r border-zinc-200 text-xs font-black text-zinc-500 whitespace-nowrap select-none shrink-0">
+                      agendelle.com/
+                    </div>
+                    <input
+                      value={formData.slug}
+                      onChange={(e) => handleSlugChange(e.target.value)}
+                      placeholder="ex: barber-premium"
+                      maxLength={50}
+                      className="w-full bg-transparent px-3 py-2.5 outline-none text-sm text-zinc-800 placeholder:text-zinc-400 font-bold tracking-tight"
+                    />
+                    <div className="flex items-center pr-3 shrink-0">
+                      {slugStatus === "checking" && (
+                        <div className="w-3.5 h-3.5 border-2 border-zinc-300 border-t-zinc-500 rounded-full animate-spin" />
+                      )}
+                      {slugStatus === "available" && (
+                        <CheckCircle size={14} className="text-emerald-500" />
+                      )}
+                      {slugStatus === "taken" && (
+                        <AlertCircle size={14} className="text-red-500" />
+                      )}
+                    </div>
+                  </div>
+                  {slugStatus === "taken" && (
+                    <p className="text-[11px] font-semibold text-red-500">{slugMessage}</p>
+                  )}
+                  {slugStatus === "available" && (
+                    <p className="text-[11px] font-semibold text-emerald-600">{slugMessage}</p>
+                  )}
+                </div>
               </FormRow>
 
               <Input
@@ -205,6 +344,7 @@ export function SiteTab() {
                 value={formData.welcomeMessage}
                 onChange={(e) => setFormData({ ...formData, welcomeMessage: e.target.value })}
                 placeholder="Ex: O melhor corte da cidade está aqui."
+                maxLength={100}
               />
             </div>
           </PanelCard>
@@ -222,14 +362,16 @@ export function SiteTab() {
                 value={formData.experienceYears}
                 onChange={(e) => setFormData({ ...formData, experienceYears: e.target.value })}
                 placeholder="Ex: 10+"
-                hint="Aparece no selo preto ao lado da imagem 'Sobre Nós'."
+                hint="Aparece no selo ao lado da imagem 'Sobre Nós'."
                 iconLeft={<Star size={16} />}
+                maxLength={10}
               />
               <Input
                 label="Título da Seção (ex: Nossa História)"
                 value={formData.aboutTitle}
                 onChange={(e) => setFormData({ ...formData, aboutTitle: e.target.value })}
                 placeholder="Nossa História"
+                maxLength={60}
               />
               <Textarea
                 label="Conteúdo da História"
@@ -237,6 +379,7 @@ export function SiteTab() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={5}
                 placeholder="Conte a trajetória do seu negócio..."
+                maxLength={800}
               />
             </div>
           </PanelCard>
@@ -257,12 +400,14 @@ export function SiteTab() {
                     value={formData.feature1Title}
                     onChange={(e) => setFormData({ ...formData, feature1Title: e.target.value })}
                     placeholder="Ex: Qualidade"
+                    maxLength={40}
                   />
                   <Input
                     label="Descrição Curta"
                     value={formData.feature1Description}
                     onChange={(e) => setFormData({ ...formData, feature1Description: e.target.value })}
                     placeholder="Ex: Excelência em cada detalhe."
+                    maxLength={100}
                   />
                 </FormRow>
               </div>
@@ -275,12 +420,14 @@ export function SiteTab() {
                     value={formData.feature2Title}
                     onChange={(e) => setFormData({ ...formData, feature2Title: e.target.value })}
                     placeholder="Ex: Equipe"
+                    maxLength={40}
                   />
                   <Input
                     label="Descrição Curta"
                     value={formData.feature2Description}
                     onChange={(e) => setFormData({ ...formData, feature2Description: e.target.value })}
                     placeholder="Ex: Profissionais qualificados."
+                    maxLength={100}
                   />
                 </FormRow>
               </div>
@@ -293,12 +440,14 @@ export function SiteTab() {
                     value={formData.feature3Title}
                     onChange={(e) => setFormData({ ...formData, feature3Title: e.target.value })}
                     placeholder="Ex: Cuidado"
+                    maxLength={40}
                   />
                   <Input
                     label="Descrição Curta"
                     value={formData.feature3Description}
                     onChange={(e) => setFormData({ ...formData, feature3Description: e.target.value })}
                     placeholder="Ex: Seu bem-estar em primeiro lugar."
+                    maxLength={100}
                   />
                 </FormRow>
               </div>
@@ -317,6 +466,7 @@ export function SiteTab() {
                 onChange={(e) => setFormData({ ...formData, mission: e.target.value })}
                 placeholder="Qual o propósito fundamental do seu negócio?"
                 rows={2}
+                maxLength={200}
               />
               <Textarea
                 label="Visão"
@@ -324,6 +474,7 @@ export function SiteTab() {
                 onChange={(e) => setFormData({ ...formData, vision: e.target.value })}
                 placeholder="Onde você quer chegar nos próximos anos?"
                 rows={2}
+                maxLength={200}
               />
               <Textarea
                 label="Valores"
@@ -331,12 +482,133 @@ export function SiteTab() {
                 onChange={(e) => setFormData({ ...formData, values: e.target.value })}
                 placeholder="Quais princípios guiam o seu atendimento?"
                 rows={2}
+                maxLength={200}
               />
             </div>
           </PanelCard>
         </div>
 
         <div className="space-y-6">
+          {/* ── Imagens do Site ───────────────────────────────────────────── */}
+          <PanelCard
+            title="Imagens do Site"
+            description="Logo e foto de capa que aparecem no seu site público."
+            icon={ImageIcon}
+            iconWrapClassName="bg-purple-50 border-purple-100"
+            iconClassName="text-purple-600"
+          >
+            <div className="space-y-5">
+              {/* Logo */}
+              <div>
+                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Logo</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-16 h-16 rounded-xl border-2 border-dashed border-zinc-200 flex items-center justify-center overflow-hidden bg-zinc-50 shrink-0">
+                    {formData.logoUrl ? (
+                      <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                    ) : (
+                      <Camera size={20} className="text-zinc-300" />
+                    )}
+                  </div>
+                  <div className="flex-1 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      disabled={uploadingLogo}
+                      className="flex items-center justify-center gap-2 w-full py-2 text-xs font-bold rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 transition-colors disabled:opacity-50"
+                    >
+                      {uploadingLogo ? (
+                        <div className="w-3 h-3 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
+                      ) : (
+                        <Upload size={13} />
+                      )}
+                      {uploadingLogo ? "Enviando..." : "Trocar Logo"}
+                    </button>
+                    {formData.logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, logoUrl: "" }))}
+                        className="flex items-center justify-center gap-1 w-full py-1.5 text-[11px] font-bold text-red-500 hover:text-red-600 transition-colors"
+                      >
+                        <X size={11} /> Remover
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) handleImageUpload(f, "logoUrl", setUploadingLogo);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+
+              {/* Foto de Capa do Site */}
+              <div className="pt-4 border-t border-zinc-100">
+                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Foto de Capa do Site</p>
+                <p className="text-[10px] text-zinc-400 mb-2">Exclusiva do site externo — diferente da foto da agenda online.</p>
+                <div
+                  className="relative w-full h-32 rounded-xl border-2 border-dashed border-zinc-200 overflow-hidden bg-zinc-50 flex items-center justify-center cursor-pointer hover:bg-zinc-100 transition-colors mb-2"
+                  onClick={() => coverInputRef.current?.click()}
+                >
+                  {formData.siteCoverUrl ? (
+                    <>
+                      <img src={formData.siteCoverUrl} alt="Capa do site" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Camera size={24} className="text-white" />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-zinc-400">
+                      <ImageIcon size={24} />
+                      <span className="text-xs font-medium">Clique para enviar a foto de capa</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => coverInputRef.current?.click()}
+                    disabled={uploadingCover}
+                    className="flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 transition-colors disabled:opacity-50"
+                  >
+                    {uploadingCover ? (
+                      <div className="w-3 h-3 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
+                    ) : (
+                      <Upload size={13} />
+                    )}
+                    {uploadingCover ? "Enviando..." : "Trocar Capa"}
+                  </button>
+                  {formData.siteCoverUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, siteCoverUrl: "" }))}
+                      className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-red-500 hover:text-red-600 transition-colors"
+                    >
+                      <X size={11} /> Remover
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) handleImageUpload(f, "siteCoverUrl", setUploadingCover);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+            </div>
+          </PanelCard>
+
+          {/* ── Estilo & Cores ─────────────────────────────────────────────── */}
           <PanelCard
             title="Estilo & Cores"
             icon={Palette}
@@ -379,12 +651,14 @@ export function SiteTab() {
                 value={formData.instagram}
                 onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
                 placeholder="https://instagram.com/..."
+                maxLength={100}
               />
               <Input
                 label="Telefone de Contato"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="(00) 00000-0000"
+                maxLength={20}
               />
               <Input
                 label="CEP"
@@ -400,6 +674,7 @@ export function SiteTab() {
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 placeholder="Rua Exemplo, 123..."
                 iconLeft={<MapPin size={16} />}
+                maxLength={150}
               />
             </div>
           </PanelCard>
