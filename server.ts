@@ -407,7 +407,7 @@ async function startServer() {
           }
         } catch (err) { console.error("[SEO] Erro ao buscar parceiro:", err); }
       }
-      else if (urlPath === "/blog" || urlPath === "/blog/") {
+      else if (url === "/blog" || url === "/blog/") {
         title = "Blog Agendelle | Dicas e Tendências para Beleza";
         description = "Acompanhe as melhores dicas de gestão, tendências e tecnologia para o seu salão ou barbearia no blog oficial da Agendelle.";
         keywords = "blog beleza, gestão salão, dicas barbearia, agendelle blog";
