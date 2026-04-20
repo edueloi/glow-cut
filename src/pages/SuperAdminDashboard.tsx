@@ -1849,11 +1849,12 @@ function BlogDashView({ onNav }: { onNav: (v: BlogView) => void }) {
       </StatGrid>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           { icon: <Plus size={16} />, label: "Novo Post", color: "bg-amber-500 text-white", action: () => onNav("newpost") },
           { icon: <FileText size={16} />, label: "Gerenciar Posts", color: "bg-white border border-zinc-200 text-zinc-700", action: () => onNav("posts") },
           { icon: <Tag size={16} />, label: "Categorias", color: "bg-white border border-zinc-200 text-zinc-700", action: () => onNav("categories") },
+          { icon: <UserCircle2 size={16} />, label: "Autores", color: "bg-white border border-zinc-200 text-zinc-700", action: () => onNav("authors") },
           { icon: <Bell size={16} />, label: "Assinantes", color: "bg-white border border-zinc-200 text-zinc-700", action: () => onNav("subscribers") },
         ].map(item => (
           <button key={item.label} onClick={item.action} className={cn("flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02] shadow-sm", item.color)}>
@@ -2400,6 +2401,13 @@ function BlogAuthorsView({ onNav }: { onNav: (v: BlogView) => void }) {
   const [modal, setModal] = useState<{ open: boolean; item: any | null }>({ open: false, item: null });
   const [form, setForm] = useState({ name: "", bio: "", photo: "", role: "", instagram: "", isActive: true });
   const [saving, setSaving] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = e => setForm(f => ({ ...f, photo: e.target?.result as string }));
+    reader.readAsDataURL(file);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -2476,7 +2484,28 @@ function BlogAuthorsView({ onNav }: { onNav: (v: BlogView) => void }) {
           <Input label="Cargo / Função" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} placeholder="Ex: Redatora de Conteúdo" />
           <Textarea label="Bio" value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={3} />
           <Input label="Instagram" value={form.instagram} onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))} placeholder="@usuario" />
-          <Input label="Foto (URL)" value={form.photo} onChange={e => setForm(f => ({ ...f, photo: e.target.value }))} placeholder="https://..." />
+          <div>
+            <p className="text-xs font-bold text-zinc-700 mb-1.5">Foto do autor</p>
+            <input ref={photoInputRef} type="file" accept="image/*" className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }} />
+            {form.photo ? (
+              <div className="flex items-center gap-3">
+                <img src={form.photo} alt="preview" className="w-16 h-16 rounded-full object-cover border-2 border-zinc-200" />
+                <div className="flex flex-col gap-1.5">
+                  <button type="button" onClick={() => photoInputRef.current?.click()}
+                    className="text-xs font-bold text-amber-600 hover:text-amber-700 text-left">Trocar foto</button>
+                  <button type="button" onClick={() => setForm(f => ({ ...f, photo: "" }))}
+                    className="text-xs font-bold text-red-400 hover:text-red-500 text-left">Remover</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => photoInputRef.current?.click()}
+                className="w-full py-4 border-2 border-dashed border-zinc-200 rounded-xl text-xs font-bold text-zinc-500 hover:border-amber-400 hover:text-amber-600 hover:bg-amber-50/50 transition-all"
+              >
+                Escolher foto do dispositivo
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex justify-end gap-2 px-5 pb-5">
           <Button variant="ghost" onClick={() => setModal({ open: false, item: null })}>Cancelar</Button>
