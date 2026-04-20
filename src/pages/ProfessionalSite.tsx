@@ -181,7 +181,7 @@ export default function ProfessionalSite() {
               <img
                 src={tenant.logoUrl}
                 alt={tenant.name}
-                className={`h-8 w-8 object-contain rounded-lg transition-all ${!scrolled ? "brightness-0 invert" : ""}`}
+                className="h-8 w-8 object-contain rounded-lg"
               />
             ) : (
               <div
