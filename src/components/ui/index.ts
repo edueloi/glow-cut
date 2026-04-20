@@ -9,6 +9,7 @@ export { Switch } from './Switch';
 export { DatePicker } from './DatePicker';
 export { Calendar } from './Calendar';
 export { Combobox } from './Combobox';
+export { RichTextEditor } from './RichTextEditor';
 
 // ── Feedback ───────────────────────────────────────────────────────────────
 export { Toast, ToastProvider, useToast } from './Toast';

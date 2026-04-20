@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/src/App";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
 import {
@@ -19,12 +20,15 @@ import {
   FormRow,
   EmptyState,
 } from "@/src/components/ui";
+import { RichTextEditor } from "@/src/components/ui/RichTextEditor";
 import {
   LayoutDashboard, Users, Building2, CreditCard,
   LogOut, Plus, Edit2, Trash2, X, Check, ChevronDown,
   Shield, Eye, EyeOff, TrendingUp, Crown, Search,
   Mail, Globe, User, Lock, MessageCircle, RefreshCw,
-  Menu,
+  Menu, BookOpen, FileText, Tag, UserCircle2, Bell,
+  BarChart2, ArrowUpRight, ArrowLeft, ExternalLink,
+  CheckCircle, Clock, Archive,
 } from "lucide-react";
 import logoFavicon from "../images/system/logo-favicon.png";
 import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/permissions";
@@ -32,7 +36,7 @@ import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/per
 /* ═══════════════════════════════════════════
    TIPOS
 ═══════════════════════════════════════════ */
-type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp";
+type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp" | "blog";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
@@ -62,8 +66,12 @@ function DashboardTab() {
     );
   }
 
-  const topPlan = stats.plans?.sort((a: any, b: any) => b._count.tenants - a._count.tenants)[0]?.name ?? "—";
-  const maxTenants = Math.max(...(stats.plans?.map((p: any) => p._count.tenants) ?? [1]), 1);
+  // Deduplica planos por nome (caso haja seeds duplicados no banco)
+  const uniquePlans: any[] = [];
+  const seenNames = new Set<string>();
+  (stats.plans ?? []).forEach((p: any) => { if (!seenNames.has(p.name)) { seenNames.add(p.name); uniquePlans.push(p); } });
+  const topPlan = [...uniquePlans].sort((a: any, b: any) => b._count.tenants - a._count.tenants)[0]?.name ?? "—";
+  const maxTenants = Math.max(...uniquePlans.map((p: any) => p._count.tenants), 1);
 
   return (
     <div className="space-y-6">
@@ -76,8 +84,8 @@ function DashboardTab() {
       <StatGrid cols={4}>
         <StatCard icon={Building2} title="Parceiros"      value={stats.totalTenants} description={`${stats.activeTenants} ativos`}  color="default"  delay={0}    />
         <StatCard icon={Users}      title="Usuários Admin" value={stats.totalAdmins}  description={`${stats.activeAdmins} ativos`}   color="info"     delay={0.05} />
-        <StatCard icon={CreditCard} title="Planos Ativos"  value={stats.plans?.filter((p: any) => p.isActive).length ?? 0}            color="purple"   delay={0.1}  />
-        <StatCard icon={TrendingUp} title="Plano Top"      value={topPlan}                                                            color="success"  delay={0.15} />
+        <StatCard icon={CreditCard} title="Planos Ativos"  value={uniquePlans.filter((p: any) => p.isActive).length}  color="purple"   delay={0.1}  />
+        <StatCard icon={TrendingUp} title="Plano Top"      value={topPlan}                                             color="success"  delay={0.15} />
       </StatGrid>
 
       <ContentCard padding="none">
@@ -85,10 +93,10 @@ function DashboardTab() {
           <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Distribuição por Plano</h3>
         </div>
         <div className="divide-y divide-zinc-100">
-          {stats.plans?.length === 0 && (
+          {uniquePlans.length === 0 && (
             <p className="text-xs text-zinc-400 text-center py-8">Nenhum plano cadastrado</p>
           )}
-          {stats.plans?.map((p: any) => (
+          {uniquePlans.map((p: any) => (
             <div key={p.id} className="flex items-center gap-4 px-5 py-4">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-black text-zinc-800">{p.name}</p>
@@ -216,7 +224,7 @@ function PlansTab() {
                       </p>
                     </div>
                     <div className="flex items-center gap-0.5 shrink-0">
-                      <Switch checked={p.isActive} onChange={() => toggle(p)} />
+                      <Switch checked={p.isActive} onCheckedChange={() => toggle(p)} />
                       <IconButton size="sm" variant="ghost" onClick={() => openEdit(p)}>
                         <Edit2 size={13} />
                       </IconButton>
@@ -276,7 +284,7 @@ function PlansTab() {
                 { key: "wppEnabled",          label: "WhatsApp Bot incluso no plano" },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <Switch checked={!!form[key]} onChange={() => setF(key, !form[key])} />
+                  <Switch checked={!!form[key]} onCheckedChange={() => setF(key, !form[key])} />
                   <span className="text-sm font-semibold text-zinc-700">{label}</span>
                 </label>
               ))}
@@ -883,7 +891,7 @@ function UsersTab({ tenants }: { tenants: any[] }) {
                 { key: "canDeleteAccount", label: "Pode excluir a conta do parceiro" },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <Switch checked={!!form[key]} onChange={() => setF(key, !form[key])} />
+                  <Switch checked={!!form[key]} onCheckedChange={() => setF(key, !form[key])} />
                   <span className="text-sm font-semibold text-zinc-700">{label}</span>
                 </label>
               ))}
@@ -1644,7 +1652,7 @@ function WppTab({ plans }: { plans: any[] }) {
                 <Badge color={plan.wppEnabled ? "success" : "default"}>{plan.wppEnabled ? "WPP Incluso" : "Sem WPP"}</Badge>
                 <Switch
                   checked={!!plan.wppEnabled}
-                  onChange={() => saving !== `plan_${plan.id}` && setPlanWpp(plan.id, !plan.wppEnabled)}
+                  onCheckedChange={() => saving !== `plan_${plan.id}` && setPlanWpp(plan.id, !plan.wppEnabled)}
                   disabled={saving === `plan_${plan.id}`}
                 />
               </div>
@@ -1691,7 +1699,7 @@ function WppTab({ plans }: { plans: any[] }) {
                         <div className="flex items-center gap-1.5">
                           <Switch
                             checked={!!row.wppEnabled}
-                            onChange={() => saving !== row.tenantId && setTenantWpp(row.tenantId, !row.wppEnabled)}
+                            onCheckedChange={() => saving !== row.tenantId && setTenantWpp(row.tenantId, !row.wppEnabled)}
                             disabled={saving === row.tenantId}
                           />
                           {row.wppOverride !== null && row.wppOverride !== undefined && (
@@ -1767,6 +1775,794 @@ function WppTab({ plans }: { plans: any[] }) {
 }
 
 /* ═══════════════════════════════════════════
+   ABA: BLOG
+═══════════════════════════════════════════ */
+type BlogView = "dashboard" | "posts" | "newpost" | "editpost" | "categories" | "authors" | "subscribers";
+
+function BlogTab() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [editingPost, setEditingPost] = useState<any>(null);
+
+  // Derive view from URL
+  const path = location.pathname;
+  let view: BlogView = "dashboard";
+  if (path.includes("/blog/posts/novo")) view = "newpost";
+  else if (path.includes("/blog/posts/editar")) view = "editpost";
+  else if (path.includes("/blog/posts")) view = "posts";
+  else if (path.includes("/blog/categorias")) view = "categories";
+  else if (path.includes("/blog/autores")) view = "authors";
+  else if (path.includes("/blog/assinantes")) view = "subscribers";
+
+  const goTo = (v: BlogView) => {
+    const map: Record<BlogView, string> = {
+      dashboard:   "/super-admin/blog",
+      posts:       "/super-admin/blog/posts",
+      newpost:     "/super-admin/blog/posts/novo",
+      editpost:    "/super-admin/blog/posts/editar",
+      categories:  "/super-admin/blog/categorias",
+      authors:     "/super-admin/blog/autores",
+      subscribers: "/super-admin/blog/assinantes",
+    };
+    navigate(map[v]);
+  };
+
+  return (
+    <div className="space-y-0">
+      {view === "dashboard"   && <BlogDashView   onNav={goTo} />}
+      {view === "posts"       && <BlogPostsView  onNav={goTo} onEdit={(p) => { setEditingPost(p); goTo("editpost"); }} />}
+      {view === "newpost"     && <BlogPostEditor post={null}        onBack={() => goTo("posts")} onSaved={() => goTo("posts")} />}
+      {view === "editpost"    && <BlogPostEditor post={editingPost} onBack={() => goTo("posts")} onSaved={() => goTo("posts")} />}
+      {view === "categories"  && <BlogCategoriesView onNav={goTo} />}
+      {view === "authors"     && <BlogAuthorsView    onNav={goTo} />}
+      {view === "subscribers" && <BlogSubscribersView onNav={goTo} />}
+    </div>
+  );
+}
+
+// ── Blog Dashboard (stats + quick actions) ──────────────────────────────────
+function BlogDashView({ onNav }: { onNav: (v: BlogView) => void }) {
+  const [stats, setStats] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch("/api/super-admin/blog/stats").then(r => r.json()),
+      apiFetch("/api/super-admin/blog/analytics?days=30").then(r => r.json()),
+    ]).then(([s, a]) => { setStats(s); setAnalytics(a.chartData || []); setLoading(false); });
+  }, []);
+
+  if (loading) return <div className="flex items-center justify-center h-40 text-zinc-400 text-sm font-semibold">Carregando...</div>;
+
+  const maxViews = Math.max(...analytics.map((d: any) => d.views), 1);
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle title="Blog — Painel" description="Visão geral do blog Agendelle" icon={BookOpen} />
+
+      <StatGrid cols={4}>
+        <StatCard icon={FileText}    title="Total de Posts"   value={stats?.totalPosts ?? 0}       description={`${stats?.publishedPosts ?? 0} publicados`} color="default" delay={0} />
+        <StatCard icon={BarChart2}   title="Visualizações"    value={(stats?.totalViews ?? 0).toLocaleString("pt-BR")} color="info"    delay={0.05} />
+        <StatCard icon={Bell}        title="Assinantes"       value={stats?.activeSubscribers ?? 0} description={`${stats?.totalSubscribers ?? 0} total`}  color="purple"  delay={0.1} />
+        <StatCard icon={Tag}         title="Categorias"       value={stats?.totalCategories ?? 0}  description={`${stats?.totalAuthors ?? 0} autores`}      color="success" delay={0.15} />
+      </StatGrid>
+
+      {/* Quick actions */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { icon: <Plus size={16} />, label: "Novo Post", color: "bg-amber-500 text-white", action: () => onNav("newpost") },
+          { icon: <FileText size={16} />, label: "Gerenciar Posts", color: "bg-white border border-zinc-200 text-zinc-700", action: () => onNav("posts") },
+          { icon: <Tag size={16} />, label: "Categorias", color: "bg-white border border-zinc-200 text-zinc-700", action: () => onNav("categories") },
+          { icon: <Bell size={16} />, label: "Assinantes", color: "bg-white border border-zinc-200 text-zinc-700", action: () => onNav("subscribers") },
+        ].map(item => (
+          <button key={item.label} onClick={item.action} className={cn("flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02] shadow-sm", item.color)}>
+            {item.icon} {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Views chart */}
+        <ContentCard padding="none">
+          <div className="px-5 py-4 border-b border-zinc-100">
+            <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Visualizações — últimos 30 dias</h3>
+          </div>
+          <div className="px-5 py-4">
+            {analytics.length === 0 ? (
+              <p className="text-xs text-zinc-400 text-center py-8">Nenhuma visualização ainda</p>
+            ) : (
+              <div className="flex items-end gap-1 h-32">
+                {analytics.slice(-30).map((d: any, i: number) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1 group" title={`${d.date}: ${d.views} views`}>
+                    <div
+                      className="w-full bg-amber-400 rounded-t-sm transition-all group-hover:bg-amber-500"
+                      style={{ height: `${Math.round((d.views / maxViews) * 100)}%`, minHeight: d.views > 0 ? 2 : 0 }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </ContentCard>
+
+        {/* Top posts */}
+        <ContentCard padding="none">
+          <div className="px-5 py-4 border-b border-zinc-100">
+            <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Posts Mais Vistos</h3>
+          </div>
+          <div className="divide-y divide-zinc-100">
+            {(stats?.topPosts ?? []).length === 0 && (
+              <p className="text-xs text-zinc-400 text-center py-8">Nenhum post publicado ainda</p>
+            )}
+            {(stats?.topPosts ?? []).map((p: any, i: number) => (
+              <div key={p.id} className="flex items-center gap-3 px-5 py-3">
+                <span className="text-lg font-black text-zinc-300 w-6 text-center">{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-black text-zinc-800 truncate">{p.title}</p>
+                  <p className="text-[10px] text-zinc-400">
+                    {p.publishedAt ? new Date(p.publishedAt).toLocaleDateString("pt-BR") : "—"}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-black text-amber-600">{(p.views || 0).toLocaleString("pt-BR")}</p>
+                  <p className="text-[9px] text-zinc-400">views</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </ContentCard>
+      </div>
+
+      {/* Status breakdown */}
+      <ContentCard padding="none">
+        <div className="px-5 py-4 border-b border-zinc-100">
+          <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Status dos Posts</h3>
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-zinc-100">
+          {[
+            { label: "Publicados", value: stats?.publishedPosts ?? 0, icon: <CheckCircle size={14} className="text-green-500" /> },
+            { label: "Rascunhos",  value: stats?.draftPosts ?? 0,     icon: <Clock       size={14} className="text-amber-500" /> },
+            { label: "Arquivados", value: (stats?.totalPosts ?? 0) - (stats?.publishedPosts ?? 0) - (stats?.draftPosts ?? 0), icon: <Archive size={14} className="text-zinc-400" /> },
+          ].map(s => (
+            <div key={s.label} className="flex flex-col items-center gap-1.5 py-5">
+              {s.icon}
+              <p className="text-2xl font-black text-zinc-900">{s.value}</p>
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </ContentCard>
+    </div>
+  );
+}
+
+// ── Blog Posts List ──────────────────────────────────────────────────────────
+function BlogPostsView({ onNav, onEdit }: { onNav: (v: BlogView) => void; onEdit: (post: any) => void }) {
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const fetch_ = async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(page), status: statusFilter });
+    if (search) params.set("search", search);
+    const r = await apiFetch(`/api/super-admin/blog/posts?${params}`).then(r => r.json());
+    setPosts(r.posts || []);
+    setTotalPages(r.pagination?.totalPages || 1);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetch_(); }, [page, statusFilter]);
+
+  const handleSearch = () => { setPage(1); fetch_(); };
+
+  const handlePublish = async (id: string) => {
+    await apiFetch(`/api/super-admin/blog/posts/${id}/publish`, { method: "PATCH" });
+    fetch_();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Excluir este post? Esta ação não pode ser desfeita.")) return;
+    setDeleting(id);
+    await apiFetch(`/api/super-admin/blog/posts/${id}`, { method: "DELETE" });
+    setDeleting(null);
+    fetch_();
+  };
+
+  const statusColor = (s: string) => s === "published" ? "bg-green-100 text-green-700" : s === "draft" ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-500";
+  const statusLabel = (s: string) => s === "published" ? "Publicado" : s === "draft" ? "Rascunho" : "Arquivado";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <button onClick={() => onNav("dashboard")} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 transition-colors">
+          <ArrowLeft size={16} />
+        </button>
+        <SectionTitle title="Posts do Blog" description={`Gerencie os artigos do blog Agendelle`} icon={FileText} />
+        <div className="ml-auto">
+          <Button onClick={() => onNav("newpost")} size="sm"><span className="flex items-center gap-1.5"><Plus size={14} />Novo Post</span></Button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex gap-0 border border-zinc-200 rounded-xl overflow-hidden bg-white">
+          {[["all","Todos"],["published","Publicados"],["draft","Rascunhos"],["archived","Arquivados"]].map(([v,l]) => (
+            <button key={v} onClick={() => { setStatusFilter(v); setPage(1); }}
+              className={cn("px-3 py-2 text-xs font-bold transition-all", statusFilter === v ? "bg-amber-500 text-white" : "text-zinc-500 hover:bg-zinc-50")}
+            >{l}</button>
+          ))}
+        </div>
+        <div className="flex gap-2 flex-1 min-w-[200px]">
+          <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSearch()} placeholder="Buscar posts..." className="flex-1 px-3 py-2 text-sm border border-zinc-200 rounded-xl bg-white outline-none focus:border-amber-400" />
+          <Button onClick={handleSearch} size="sm"><span className="flex items-center gap-1.5"><Search size={14} />Buscar</span></Button>
+        </div>
+      </div>
+
+      <ContentCard padding="none">
+        {loading ? (
+          <div className="p-8 text-center text-sm text-zinc-400">Carregando...</div>
+        ) : posts.length === 0 ? (
+          <EmptyState icon={FileText} title="Nenhum post encontrado" description="Crie seu primeiro artigo para o blog." action={<Button onClick={() => onNav("newpost")} size="sm">Criar Post</Button>} />
+        ) : (
+          <div className="divide-y divide-zinc-100">
+            {posts.map(post => (
+              <div key={post.id} className="flex items-center gap-4 px-5 py-4 hover:bg-zinc-50/50 transition-colors">
+                <div className="w-16 h-12 rounded-lg overflow-hidden shrink-0 bg-zinc-100">
+                  {post.coverImage ? <img src={post.coverImage} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xl">✂️</div>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-zinc-800 truncate">{post.title}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {post.category && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: post.category.color + "20", color: post.category.color }}>{post.category.name}</span>}
+                    {post.author && <span className="text-[10px] text-zinc-400">{post.author.name}</span>}
+                    <span className="text-[10px] text-zinc-400">{post.publishedAt ? new Date(post.publishedAt).toLocaleDateString("pt-BR") : "—"}</span>
+                    <span className="text-[10px] text-zinc-400">{(post.views || 0).toLocaleString("pt-BR")} views</span>
+                  </div>
+                </div>
+                <span className={cn("text-[9px] font-bold px-2 py-1 rounded-full uppercase tracking-wide shrink-0", statusColor(post.status))}>{statusLabel(post.status)}</span>
+                <div className="flex items-center gap-1 shrink-0">
+                  {post.status !== "published" && (
+                    <button onClick={() => handlePublish(post.id)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Publicar">
+                      <CheckCircle size={14} />
+                    </button>
+                  )}
+                  <button onClick={() => onEdit(post)} className="p-1.5 text-zinc-400 hover:bg-zinc-100 rounded-lg transition-colors" title="Editar">
+                    <Edit2 size={14} />
+                  </button>
+                  <button onClick={() => handleDelete(post.id)} disabled={deleting === post.id} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50" title="Excluir">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {totalPages > 1 && (
+          <div className="px-5 py-3 border-t border-zinc-100 flex justify-center gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="px-3 py-1.5 text-xs border border-zinc-200 rounded-lg disabled:opacity-50">←</button>
+            <span className="px-3 py-1.5 text-xs font-bold text-zinc-600">{page} / {totalPages}</span>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="px-3 py-1.5 text-xs border border-zinc-200 rounded-lg disabled:opacity-50">→</button>
+          </div>
+        )}
+      </ContentCard>
+    </div>
+  );
+}
+
+// ── Blog Post Editor (criar / editar) ────────────────────────────────────────
+function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => void; onSaved: () => void }) {
+  const { user } = useAuth();
+  const [categories, setCategories] = useState<any[]>([]);
+  const [authors, setAuthors] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [form, setForm] = useState({
+    title: post?.title || "",
+    excerpt: post?.excerpt || "",
+    content: post?.content || "",
+    coverImage: post?.coverImage || "",
+    status: post?.status || "draft",
+    featured: post?.featured || false,
+    categoryId: post?.categoryId || "",
+    authorId: post?.authorId || "",
+    tags: post?.tags ? (Array.isArray(JSON.parse(post.tags)) ? JSON.parse(post.tags).join(", ") : "") : "",
+    seoTitle: post?.seoTitle || "",
+    seoDescription: post?.seoDescription || "",
+    seoKeywords: post?.seoKeywords || "",
+  });
+  const [activeTab, setActiveTab] = useState<"content" | "seo" | "settings">("content");
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch("/api/super-admin/blog/categories").then(r => r.json()),
+      apiFetch("/api/super-admin/blog/authors").then(r => r.json()),
+    ]).then(([cats, auths]) => {
+      const authList = Array.isArray(auths) ? auths : [];
+      setCategories(Array.isArray(cats) ? cats : []);
+      setAuthors(authList);
+      // Se for novo post e não tiver autor definido, busca o autor que bate com o usuário logado
+      if (!post && !form.authorId) {
+        const match = authList.find((a: any) =>
+          a.name?.toLowerCase() === (user?.name || user?.username || "")?.toLowerCase() ||
+          a.name?.toLowerCase().includes((user?.name || "").toLowerCase())
+        );
+        if (match) setForm(f => ({ ...f, authorId: match.id }));
+      }
+    });
+  }, []);
+
+  // Upload de imagem de capa
+  const handleCoverUpload = async (file: File) => {
+    setUploadingCover(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const r = await apiFetch("/api/upload", { method: "POST", body: formData });
+      if (r.ok) {
+        const data = await r.json();
+        set("coverImage", data.url || data.path || "");
+      }
+    } catch {
+      // fallback: use object URL for preview only
+      set("coverImage", URL.createObjectURL(file));
+    }
+    setUploadingCover(false);
+  };
+
+  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSave = async (publishNow = false) => {
+    if (!form.title || !form.content) { alert("Título e conteúdo são obrigatórios"); return; }
+    setSaving(true);
+    try {
+      const tagsArr = form.tags.split(",").map(t => t.trim()).filter(Boolean);
+      const body = {
+        ...form,
+        tags: JSON.stringify(tagsArr),
+        status: publishNow ? "published" : form.status,
+        categoryId: form.categoryId || null,
+        authorId: form.authorId || null,
+      };
+      const url = post ? `/api/super-admin/blog/posts/${post.id}` : "/api/super-admin/blog/posts";
+      const method = post ? "PUT" : "POST";
+      const r = await apiFetch(url, { method, body: JSON.stringify(body) });
+      if (!r.ok) { const err = await r.json(); alert(err.error || "Erro ao salvar"); }
+      else onSaved();
+    } catch (e: any) { alert(e.message || "Erro ao salvar"); }
+    setSaving(false);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 transition-colors">
+          <ArrowLeft size={16} />
+        </button>
+        <SectionTitle title={post ? "Editar Post" : "Novo Post"} description="Editor de artigo do blog" icon={FileText} />
+        <div className="ml-auto flex gap-2">
+          <Button variant="ghost" onClick={() => handleSave(false)} disabled={saving} size="sm">
+            {saving ? "Salvando..." : "Salvar rascunho"}
+          </Button>
+          <Button onClick={() => handleSave(true)} disabled={saving} size="sm">
+            <span className="flex items-center gap-1.5"><CheckCircle size={14} />{saving ? "..." : post?.status === "published" ? "Atualizar" : "Publicar"}</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex gap-0 border-b border-zinc-200">
+        {[["content","Conteúdo"],["seo","SEO"],["settings","Configurações"]].map(([k,l]) => (
+          <button key={k} onClick={() => setActiveTab(k as any)}
+            className={cn("px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition-colors", activeTab === k ? "border-amber-500 text-amber-600" : "border-transparent text-zinc-500 hover:text-zinc-700")}
+          >{l}</button>
+        ))}
+      </div>
+
+      {activeTab === "content" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 space-y-4">
+            <ContentCard>
+              <div className="space-y-4">
+                <Input label="Título do Post *" value={form.title} onChange={e => set("title", e.target.value)} placeholder="Ex: Como aumentar o faturamento da sua barbearia" />
+                <Textarea label="Resumo (excerpt)" value={form.excerpt} onChange={e => set("excerpt", e.target.value)} placeholder="Breve descrição do artigo (aparece na listagem)" rows={2} />
+                <div>
+                  <p className="text-xs font-bold text-zinc-700 mb-1.5">Conteúdo *</p>
+                  <RichTextEditor value={form.content} onChange={v => set("content", v)} placeholder="Escreva o conteúdo do artigo aqui..." minHeight={480} />
+                </div>
+              </div>
+            </ContentCard>
+          </div>
+
+          <div className="space-y-4">
+            <ContentCard title="Imagem de Capa">
+              <div className="space-y-2">
+                <Input label="URL da imagem" value={form.coverImage} onChange={e => set("coverImage", e.target.value)} placeholder="https://..." />
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-zinc-100" />
+                  <span className="text-[10px] text-zinc-400 font-medium">ou</span>
+                  <div className="flex-1 h-px bg-zinc-100" />
+                </div>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleCoverUpload(f); }}
+                />
+                <button
+                  type="button"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={uploadingCover}
+                  className="w-full py-2.5 border-2 border-dashed border-zinc-200 rounded-xl text-xs font-bold text-zinc-500 hover:border-amber-400 hover:text-amber-600 hover:bg-amber-50/50 transition-all disabled:opacity-60"
+                >
+                  {uploadingCover ? "Enviando..." : "Escolher do dispositivo"}
+                </button>
+                {form.coverImage && (
+                  <div className="relative rounded-xl overflow-hidden border border-zinc-200">
+                    <img src={form.coverImage} alt="Preview" className="w-full h-36 object-cover" onError={e => (e.currentTarget.style.display = "none")} />
+                    <button
+                      type="button"
+                      onClick={() => set("coverImage", "")}
+                      className="absolute top-2 right-2 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </ContentCard>
+
+            <ContentCard title="Metadados">
+              <div className="space-y-3">
+                <Select label="Categoria" value={form.categoryId} onChange={e => set("categoryId", e.target.value)}>
+                  <option value="">— Sem categoria —</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </Select>
+                <Select label="Autor" value={form.authorId} onChange={e => set("authorId", e.target.value)}>
+                  <option value="">— Sem autor —</option>
+                  {authors.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </Select>
+                <Select label="Status" value={form.status} onChange={e => set("status", e.target.value)}>
+                  <option value="draft">Rascunho</option>
+                  <option value="published">Publicado</option>
+                  <option value="archived">Arquivado</option>
+                </Select>
+                <Input label="Tags (separadas por vírgula)" value={form.tags} onChange={e => set("tags", e.target.value)} placeholder="gestão, marketing, barbearia" />
+                <div className="flex items-center justify-between pt-1">
+                  <p className="text-xs font-bold text-zinc-700">Post em destaque</p>
+                  <Switch checked={form.featured} onCheckedChange={v => set("featured", v)} />
+                </div>
+              </div>
+            </ContentCard>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "seo" && (
+        <ContentCard>
+          <div className="space-y-4">
+            <p className="text-xs text-zinc-400">Configure os metadados de SEO para melhorar o ranqueamento nos buscadores.</p>
+            <div>
+              <Input label="Título SEO" value={form.seoTitle} onChange={e => set("seoTitle", e.target.value)} placeholder="Título para buscadores (max 60 chars)" maxLength={60} />
+              <p className="text-[10px] text-zinc-400 mt-1">{form.seoTitle.length}/60 caracteres</p>
+            </div>
+            <div>
+              <Textarea label="Descrição SEO (meta description)" value={form.seoDescription} onChange={e => set("seoDescription", e.target.value)} placeholder="Descrição para buscadores (max 160 chars)" maxLength={160} rows={3} />
+              <p className="text-[10px] text-zinc-400 mt-1">{form.seoDescription.length}/160 caracteres</p>
+            </div>
+            <Input label="Palavras-chave SEO" value={form.seoKeywords} onChange={e => set("seoKeywords", e.target.value)} placeholder="barbearia, agendamento, gestão salão" />
+            <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Preview no Google</p>
+              <p className="text-sm font-bold text-blue-600 truncate">{form.seoTitle || form.title || "Título do artigo"}</p>
+              <p className="text-[11px] text-green-700">agendelle.com.br/blog/...</p>
+              <p className="text-xs text-zinc-600 mt-1 line-clamp-2">{form.seoDescription || form.excerpt || "Descrição do artigo..."}</p>
+            </div>
+          </div>
+        </ContentCard>
+      )}
+
+      {activeTab === "settings" && (
+        <ContentCard>
+          <div className="space-y-4">
+            <Select label="Status de publicação" value={form.status} onChange={e => set("status", e.target.value)}>
+              <option value="draft">Rascunho — visível apenas no admin</option>
+              <option value="published">Publicado — visível no blog público</option>
+              <option value="archived">Arquivado — não aparece em listagens</option>
+            </Select>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-zinc-700">Post em destaque</p>
+                <p className="text-[10px] text-zinc-400">Aparece na seção de destaque da página principal do blog</p>
+              </div>
+              <Switch checked={form.featured} onCheckedChange={v => set("featured", v)} />
+            </div>
+            <div className="pt-2 border-t border-zinc-100">
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">URL do post (slug)</p>
+              <p className="text-sm font-mono text-zinc-600 bg-zinc-50 px-3 py-2 rounded-lg">
+                /blog/{post?.slug || "gerado-automaticamente-do-titulo"}
+              </p>
+            </div>
+          </div>
+        </ContentCard>
+      )}
+    </div>
+  );
+}
+
+// ── Blog Categories ──────────────────────────────────────────────────────────
+function BlogCategoriesView({ onNav }: { onNav: (v: BlogView) => void }) {
+  const [cats, setCats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<{ open: boolean; item: any | null }>({ open: false, item: null });
+  const [form, setForm] = useState({ name: "", description: "", color: "#f59e0b", isActive: true, sortOrder: 0 });
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const r = await apiFetch("/api/super-admin/blog/categories").then(r => r.json());
+    setCats(Array.isArray(r) ? r : []);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const openNew = () => { setForm({ name: "", description: "", color: "#f59e0b", isActive: true, sortOrder: cats.length }); setModal({ open: true, item: null }); };
+  const openEdit = (c: any) => { setForm({ name: c.name, description: c.description || "", color: c.color, isActive: c.isActive, sortOrder: c.sortOrder }); setModal({ open: true, item: c }); };
+
+  const handleSave = async () => {
+    if (!form.name) return;
+    setSaving(true);
+    const url = modal.item ? `/api/super-admin/blog/categories/${modal.item.id}` : "/api/super-admin/blog/categories";
+    const method = modal.item ? "PUT" : "POST";
+    await apiFetch(url, { method, body: JSON.stringify(form) });
+    setSaving(false);
+    setModal({ open: false, item: null });
+    load();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Excluir esta categoria?")) return;
+    await apiFetch(`/api/super-admin/blog/categories/${id}`, { method: "DELETE" });
+    load();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={() => onNav("dashboard")} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 transition-colors">
+          <ArrowLeft size={16} />
+        </button>
+        <SectionTitle title="Categorias do Blog" description="Organize os artigos por categoria" icon={Tag} />
+        <div className="ml-auto">
+          <Button onClick={openNew} size="sm"><span className="flex items-center gap-1.5"><Plus size={14} />Nova Categoria</span></Button>
+        </div>
+      </div>
+
+      <ContentCard padding="none">
+        {loading ? <div className="p-8 text-center text-sm text-zinc-400">Carregando...</div>
+          : cats.length === 0 ? <EmptyState icon={Tag} title="Sem categorias" description="Crie categorias para organizar seus posts." action={<Button onClick={openNew} size="sm">Criar Categoria</Button>} />
+          : (
+            <div className="divide-y divide-zinc-100">
+              {cats.map(cat => (
+                <div key={cat.id} className="flex items-center gap-4 px-5 py-4 hover:bg-zinc-50/50">
+                  <div className="w-3 h-3 rounded-full shrink-0" style={{ background: cat.color }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-zinc-800">{cat.name}</p>
+                    {cat.description && <p className="text-xs text-zinc-400 truncate">{cat.description}</p>}
+                  </div>
+                  <span className="text-[10px] text-zinc-400">{cat._count?.posts ?? 0} posts</span>
+                  <span className={cn("text-[9px] font-bold px-2 py-1 rounded-full", cat.isActive ? "bg-green-100 text-green-700" : "bg-zinc-100 text-zinc-500")}>{cat.isActive ? "Ativa" : "Inativa"}</span>
+                  <div className="flex gap-1">
+                    <button onClick={() => openEdit(cat)} className="p-1.5 text-zinc-400 hover:bg-zinc-100 rounded-lg"><Edit2 size={13} /></button>
+                    <button onClick={() => handleDelete(cat.id)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={13} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+      </ContentCard>
+
+      <Modal isOpen={modal.open} onClose={() => setModal({ open: false, item: null })} title={modal.item ? "Editar Categoria" : "Nova Categoria"}>
+        <div className="space-y-3 p-5">
+          <Input label="Nome *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Gestão, Marketing..." />
+          <Input label="Descrição" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+          <div>
+            <p className="text-xs font-bold text-zinc-700 mb-1.5">Cor</p>
+            <div className="flex items-center gap-2">
+              <input type="color" value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="w-10 h-10 rounded-lg border border-zinc-200 cursor-pointer" />
+              <Input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} />
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-zinc-700">Categoria ativa</p>
+            <Switch checked={form.isActive} onCheckedChange={v => setForm(f => ({ ...f, isActive: v }))} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 px-5 pb-5">
+          <Button variant="ghost" onClick={() => setModal({ open: false, item: null })}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving || !form.name}>{saving ? "Salvando..." : "Salvar"}</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ── Blog Authors ─────────────────────────────────────────────────────────────
+function BlogAuthorsView({ onNav }: { onNav: (v: BlogView) => void }) {
+  const [authors, setAuthors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<{ open: boolean; item: any | null }>({ open: false, item: null });
+  const [form, setForm] = useState({ name: "", bio: "", photo: "", role: "", instagram: "", isActive: true });
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const r = await apiFetch("/api/super-admin/blog/authors").then(r => r.json());
+    setAuthors(Array.isArray(r) ? r : []);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const openNew = () => { setForm({ name: "", bio: "", photo: "", role: "", instagram: "", isActive: true }); setModal({ open: true, item: null }); };
+  const openEdit = (a: any) => { setForm({ name: a.name, bio: a.bio || "", photo: a.photo || "", role: a.role || "", instagram: a.instagram || "", isActive: a.isActive }); setModal({ open: true, item: a }); };
+
+  const handleSave = async () => {
+    if (!form.name) return;
+    setSaving(true);
+    const url = modal.item ? `/api/super-admin/blog/authors/${modal.item.id}` : "/api/super-admin/blog/authors";
+    const method = modal.item ? "PUT" : "POST";
+    await apiFetch(url, { method, body: JSON.stringify(form) });
+    setSaving(false);
+    setModal({ open: false, item: null });
+    load();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Excluir este autor?")) return;
+    await apiFetch(`/api/super-admin/blog/authors/${id}`, { method: "DELETE" });
+    load();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={() => onNav("dashboard")} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 transition-colors">
+          <ArrowLeft size={16} />
+        </button>
+        <SectionTitle title="Autores do Blog" description="Gerencie os redatores do blog" icon={UserCircle2} />
+        <div className="ml-auto">
+          <Button onClick={openNew} size="sm"><span className="flex items-center gap-1.5"><Plus size={14} />Novo Autor</span></Button>
+        </div>
+      </div>
+
+      <ContentCard padding="none">
+        {loading ? <div className="p-8 text-center text-sm text-zinc-400">Carregando...</div>
+          : authors.length === 0 ? <EmptyState icon={UserCircle2} title="Sem autores" description="Crie autores para assinar os posts." action={<Button onClick={openNew} size="sm">Criar Autor</Button>} />
+          : (
+            <div className="divide-y divide-zinc-100">
+              {authors.map(author => (
+                <div key={author.id} className="flex items-center gap-4 px-5 py-4 hover:bg-zinc-50/50">
+                  {author.photo ? (
+                    <img src={author.photo} alt={author.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-sm font-black text-amber-600 shrink-0">{author.name[0]}</div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-zinc-800">{author.name}</p>
+                    {author.role && <p className="text-xs text-zinc-400">{author.role}</p>}
+                  </div>
+                  <span className="text-[10px] text-zinc-400">{author._count?.posts ?? 0} posts</span>
+                  <span className={cn("text-[9px] font-bold px-2 py-1 rounded-full", author.isActive ? "bg-green-100 text-green-700" : "bg-zinc-100 text-zinc-500")}>{author.isActive ? "Ativo" : "Inativo"}</span>
+                  <div className="flex gap-1">
+                    <button onClick={() => openEdit(author)} className="p-1.5 text-zinc-400 hover:bg-zinc-100 rounded-lg"><Edit2 size={13} /></button>
+                    <button onClick={() => handleDelete(author.id)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={13} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+      </ContentCard>
+
+      <Modal isOpen={modal.open} onClose={() => setModal({ open: false, item: null })} title={modal.item ? "Editar Autor" : "Novo Autor"}>
+        <div className="space-y-3 p-5">
+          <Input label="Nome *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          <Input label="Cargo / Função" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} placeholder="Ex: Redatora de Conteúdo" />
+          <Textarea label="Bio" value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={3} />
+          <Input label="Instagram" value={form.instagram} onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))} placeholder="@usuario" />
+          <Input label="Foto (URL)" value={form.photo} onChange={e => setForm(f => ({ ...f, photo: e.target.value }))} placeholder="https://..." />
+        </div>
+        <div className="flex justify-end gap-2 px-5 pb-5">
+          <Button variant="ghost" onClick={() => setModal({ open: false, item: null })}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving || !form.name}>{saving ? "Salvando..." : "Salvar"}</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ── Blog Subscribers ──────────────────────────────────────────────────────────
+function BlogSubscribersView({ onNav }: { onNav: (v: BlogView) => void }) {
+  const [subs, setSubs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const load = async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(page) });
+    if (search) params.set("search", search);
+    const r = await apiFetch(`/api/super-admin/blog/subscribers?${params}`).then(r => r.json());
+    setSubs(r.subscribers || []);
+    setTotal(r.pagination?.total || 0);
+    setTotalPages(r.pagination?.totalPages || 1);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [page]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Remover assinante?")) return;
+    await apiFetch(`/api/super-admin/blog/subscribers/${id}`, { method: "DELETE" });
+    load();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={() => onNav("dashboard")} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 transition-colors">
+          <ArrowLeft size={16} />
+        </button>
+        <SectionTitle title="Assinantes da Newsletter" description={`${total} assinante${total !== 1 ? "s" : ""} cadastrado${total !== 1 ? "s" : ""}`} icon={Bell} />
+      </div>
+
+      <div className="flex gap-2">
+        <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === "Enter" && load()} placeholder="Buscar por e-mail ou nome..." className="flex-1 px-3 py-2 text-sm border border-zinc-200 rounded-xl bg-white outline-none focus:border-amber-400" />
+        <Button onClick={load} size="sm"><span className="flex items-center gap-1.5"><Search size={14} />Buscar</span></Button>
+      </div>
+
+      <ContentCard padding="none">
+        {loading ? <div className="p-8 text-center text-sm text-zinc-400">Carregando...</div>
+          : subs.length === 0 ? <EmptyState icon={Bell} title="Sem assinantes" description="Ainda não há inscritos na newsletter." />
+          : (
+            <div className="divide-y divide-zinc-100">
+              {subs.map(sub => (
+                <div key={sub.id} className="flex items-center gap-4 px-5 py-3 hover:bg-zinc-50/50">
+                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-xs font-black text-amber-600 shrink-0">
+                    {(sub.name || sub.email)[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {sub.name && <p className="text-xs font-black text-zinc-800">{sub.name}</p>}
+                    <p className="text-xs text-zinc-500 truncate">{sub.email}</p>
+                  </div>
+                  <span className="text-[10px] text-zinc-400">{new Date(sub.createdAt).toLocaleDateString("pt-BR")}</span>
+                  <span className={cn("text-[9px] font-bold px-2 py-1 rounded-full", sub.isActive ? "bg-green-100 text-green-700" : "bg-zinc-100 text-zinc-500")}>{sub.isActive ? "Ativo" : "Inativo"}</span>
+                  <button onClick={() => handleDelete(sub.id)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={13} /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        {totalPages > 1 && (
+          <div className="px-5 py-3 border-t border-zinc-100 flex justify-center gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="px-3 py-1.5 text-xs border border-zinc-200 rounded-lg disabled:opacity-50">←</button>
+            <span className="px-3 py-1.5 text-xs font-bold text-zinc-600">{page} / {totalPages}</span>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="px-3 py-1.5 text-xs border border-zinc-200 rounded-lg disabled:opacity-50">→</button>
+          </div>
+        )}
+      </ContentCard>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
    SIDEBAR
 ═══════════════════════════════════════════ */
 const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: string }[] = [
@@ -1775,6 +2571,7 @@ const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: stri
   { key: "tenants",     icon: <Building2 size={17} />,       label: "Parceiros",      path: "/super-admin/parceiros" },
   { key: "users",       icon: <Users size={17} />,           label: "Usuários Admin", path: "/super-admin/usuarios" },
   { key: "permissions", icon: <Lock size={17} />,            label: "Permissões",     path: "/super-admin/permissoes" },
+  { key: "blog",        icon: <BookOpen size={17} />,        label: "Blog",           path: "/super-admin/blog" },
   { key: "wpp",         icon: <MessageCircle size={17} />,   label: "WhatsApp",       path: "/super-admin/whatsapp" },
   { key: "staff",       icon: <Shield size={17} />,          label: "Minha Equipe",   path: "/super-admin/equipe" },
   { key: "profile",     icon: <User size={17} />,            label: "Meu Perfil",     path: "/super-admin/perfil" },
@@ -1786,6 +2583,7 @@ function pathToTab(pathname: string): TabKey {
   if (pathname.includes("/parceiros"))   return "tenants";
   if (pathname.includes("/usuarios"))    return "users";
   if (pathname.includes("/permissoes"))  return "permissions";
+  if (pathname.includes("/blog"))        return "blog";
   if (pathname.includes("/whatsapp"))    return "wpp";
   if (pathname.includes("/equipe"))      return "staff";
   if (pathname.includes("/perfil"))      return "profile";
@@ -1797,61 +2595,60 @@ function Sidebar({ tab, setTab, username, onLogout, onClose }: {
 }) {
   const navigate = useNavigate();
   return (
-    <div className="flex flex-col h-full bg-zinc-950">
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#fff", borderRight: "1px solid #f3f4f6", width: "100%" }}>
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-white/10 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
-            <Crown size={16} className="text-white" />
+      <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid #f3f4f6", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 12, background: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <img src={logoFavicon} alt="Agendelle" style={{ width: 20, height: 20, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
           </div>
-          <div className="min-w-0">
-            <p className="text-xs font-black text-white">Super Admin</p>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <div className="w-4 h-4 rounded-md bg-indigo-500 flex items-center justify-center shrink-0">
-                <img src={logoFavicon} alt="Logo" className="w-3 h-3 object-contain invert" />
-              </div>
-              <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest">Agendelle</p>
-            </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: 14, fontWeight: 900, color: "#111", lineHeight: 1, margin: 0 }}>Agendelle</p>
+            <p style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.15em", margin: "3px 0 0" }}>Super Admin</p>
           </div>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav style={{ flex: 1, padding: "10px 8px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
         {NAV_ITEMS.map(item => (
           <button
             key={item.key}
             onClick={() => { setTab(item.key); navigate(item.path); onClose?.(); }}
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all overflow-hidden",
-              tab === item.key
-                ? "bg-amber-500 text-white shadow-sm shadow-amber-500/30"
-                : "text-zinc-400 hover:bg-white/5 hover:text-white"
-            )}
+            style={{
+              width: "100%", display: "flex", alignItems: "center", gap: 10,
+              padding: "9px 12px", borderRadius: 10, border: "none", cursor: "pointer",
+              fontSize: 13, fontWeight: 700, textAlign: "left", transition: "all 0.15s",
+              background: tab === item.key ? "#f59e0b" : "transparent",
+              color: tab === item.key ? "#fff" : "#6b7280",
+            }}
+            onMouseEnter={e => { if (tab !== item.key) { (e.currentTarget as HTMLElement).style.background = "#fafafa"; (e.currentTarget as HTMLElement).style.color = "#111"; } }}
+            onMouseLeave={e => { if (tab !== item.key) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#6b7280"; } }}
           >
-            <span className="shrink-0">{item.icon}</span>
-            <span className="truncate">{item.label}</span>
+            <span style={{ flexShrink: 0, display: "flex" }}>{item.icon}</span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
           </button>
         ))}
       </nav>
 
       {/* User / Logout */}
-      <div className="px-3 pb-5 pt-3 shrink-0 border-t border-white/10 space-y-1">
-        <div className="flex items-center gap-2.5 px-3 py-2">
-          <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
-            <Shield size={13} className="text-amber-400" />
+      <div style={{ padding: "8px 8px 16px", borderTop: "1px solid #f3f4f6", flexShrink: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, background: "#fffbeb" }}>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: "#fde68a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ fontSize: 12, fontWeight: 900, color: "#d97706" }}>{username[0]?.toUpperCase()}</span>
           </div>
-          <div className="min-w-0">
-            <p className="text-xs font-black text-white truncate">{username}</p>
-            <p className="text-[9px] text-amber-400 font-bold uppercase tracking-widest">Super Admin</p>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ fontSize: 12, fontWeight: 800, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{username}</p>
+            <p style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.1em", margin: "2px 0 0" }}>Super Admin</p>
           </div>
         </div>
         <button
-          type="button"
-          onClick={onLogout}
-          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-zinc-400 hover:bg-red-500/10 hover:text-red-400 transition-all text-sm font-bold"
+          type="button" onClick={onLogout}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, border: "none", cursor: "pointer", background: "transparent", fontSize: 13, fontWeight: 700, color: "#9ca3af", transition: "all 0.15s" }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#fef2f2"; (e.currentTarget as HTMLElement).style.color = "#ef4444"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#9ca3af"; }}
         >
-          <LogOut size={15} />
+          <LogOut size={14} />
           <span>Sair</span>
         </button>
       </div>
@@ -1879,53 +2676,63 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
   const currentNav = NAV_ITEMS.find(n => n.key === tab);
 
   return (
-    <div className="flex h-screen bg-zinc-100 overflow-hidden">
-      {/* Sidebar desktop */}
-      <aside className="hidden md:flex md:w-56 shrink-0">
+    <div style={{ display: "flex", height: "100vh", background: "#f8f9fa", overflow: "hidden", fontFamily: "'Inter', sans-serif" }}>
+      {/* ── Sidebar desktop ── */}
+      <aside className="hidden md:block" style={{ width: 220, flexShrink: 0 }}>
         <Sidebar tab={tab} setTab={setTab} username={username} onLogout={onLogout} />
       </aside>
 
-      {/* Sidebar mobile drawer */}
+      {/* ── Sidebar mobile overlay ── */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 flex md:hidden">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="relative w-64 shadow-2xl">
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex" }} className="md:hidden">
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }} onClick={() => setMobileOpen(false)} />
+          <aside style={{ position: "relative", width: 240, boxShadow: "4px 0 24px rgba(0,0,0,0.15)" }}>
             <Sidebar tab={tab} setTab={setTab} username={username} onLogout={onLogout} onClose={() => setMobileOpen(false)} />
           </aside>
-          <button className="absolute top-4 right-4 text-white p-1" onClick={() => setMobileOpen(false)}>
-            <X size={20} />
+          <button
+            style={{ position: "absolute", top: 12, right: 12, background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", color: "#fff", borderRadius: 8, padding: 6, display: "flex" }}
+            onClick={() => setMobileOpen(false)}
+          >
+            <X size={18} />
           </button>
         </div>
       )}
 
-      {/* Main */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* ── Main area ── */}
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
         {/* Topbar */}
-        <header className="bg-white border-b border-zinc-200 px-4 md:px-6 py-3 flex items-center gap-3 shrink-0">
+        <header style={{ background: "#fff", borderBottom: "1px solid #f3f4f6", padding: "0 20px", height: 56, display: "flex", alignItems: "center", gap: 12, flexShrink: 0, boxShadow: "0 1px 0 #f3f4f6" }}>
+          {/* Mobile menu button + logo (só aparece em mobile, md:hidden) */}
           <button
-            className="md:hidden p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-500 transition-colors"
+            className="md:hidden"
             onClick={() => setMobileOpen(true)}
-            aria-label="Abrir menu"
+            style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", padding: 4, borderRadius: 8, flexShrink: 0 }}
           >
             <Menu size={20} />
           </button>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-black text-zinc-900 truncate">{currentNav?.label}</p>
-            <p className="text-[10px] text-zinc-400 hidden sm:block">Plataforma Agendelle — Painel de Controle</p>
+          <div className="flex items-center gap-2 md:hidden" style={{ flexShrink: 0 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <img src={logoFavicon} alt="" style={{ width: 16, height: 16, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 900, color: "#111" }}>Agendelle</span>
           </div>
-          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl shrink-0">
-            <Crown size={12} className="text-amber-600" />
-            <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider hidden sm:block">Super Admin</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 14, fontWeight: 800, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentNav?.label}</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#fffbeb", border: "1px solid #fde68a", padding: "5px 12px", borderRadius: 8, flexShrink: 0 }}>
+            <Crown size={12} style={{ color: "#f59e0b" }} />
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#d97706", textTransform: "uppercase", letterSpacing: "0.08em" }}>Super Admin</span>
           </div>
         </header>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px" }}>
           {tab === "dash"        && <DashboardTab />}
           {tab === "plans"       && <PlansTab />}
           {tab === "tenants"     && <TenantsTab plans={plans} />}
           {tab === "users"       && <UsersTab tenants={tenants} />}
           {tab === "permissions" && <PermissionsTab tenants={tenants} />}
+          {tab === "blog"        && <BlogTab />}
           {tab === "wpp"         && <WppTab plans={plans} />}
           {tab === "staff"       && <StaffTab username={username} />}
           {tab === "profile"     && <ProfileTab username={username} />}

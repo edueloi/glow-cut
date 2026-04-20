@@ -14,6 +14,8 @@ import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import LandingPage from "./pages/LandingPage";
 import ProfessionalSite from "./pages/ProfessionalSite";
 import SiteLegalPage from "./pages/SiteLegalPage";
+import BlogPage from "./pages/BlogPage";
+import BlogPostPage from "./pages/BlogPostPage";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 
 import logoFavicon from "./images/system/logo-favicon.png";
@@ -454,6 +456,8 @@ function App() {
           />
 
           <Route path="/" element={<HomeRedirect />} />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="/pat/:professionalId" element={<PATQueue />} />
           <Route path="/pat/general/:slug" element={<PATQueue />} />
           <Route path="/:slug" element={<ProfessionalSite />} />

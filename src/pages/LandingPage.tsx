@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LandingPage.css";
 
@@ -48,6 +48,7 @@ export default function LandingPage() {
             <li><a href="#como-funciona" onClick={e => { e.preventDefault(); scrollTo("#como-funciona"); }}>Como Funciona</a></li>
             <li><a href="#precos"        onClick={e => { e.preventDefault(); scrollTo("#precos"); }}>Preços</a></li>
             <li><a href="#depoimentos"   onClick={e => { e.preventDefault(); scrollTo("#depoimentos"); }}>Depoimentos</a></li>
+            <li><a href="/blog"          onClick={e => { e.preventDefault(); navigate("/blog"); }}>Blog</a></li>
           </ul>
           <div className="lp-nav-cta">
             <button className="lp-btn lp-btn-ghost" onClick={() => navigate("/login")}>Entrar</button>
@@ -65,6 +66,7 @@ export default function LandingPage() {
         <a href="#como-funciona" onClick={() => scrollTo("#como-funciona")}>Como Funciona</a>
         <a href="#precos"        onClick={() => scrollTo("#precos")}>Preços</a>
         <a href="#depoimentos"   onClick={() => scrollTo("#depoimentos")}>Depoimentos</a>
+        <a href="/blog"          onClick={() => navigate("/blog")}>Blog</a>
         <button className="lp-btn lp-btn-ghost"   onClick={() => navigate("/login")}>Entrar</button>
         <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>Falar com vendas →</button>
       </div>
@@ -450,7 +452,7 @@ export default function LandingPage() {
               <h5>Empresa</h5>
               <ul>
                 <li><a href="#">Sobre nós</a></li>
-                <li><a href="#">Blog</a></li>
+                <li><a href="/blog" onClick={e => { e.preventDefault(); navigate("/blog"); }}>Blog</a></li>
                 <li><a href="#">Parceiros</a></li>
                 <li><a href="#">Carreiras</a></li>
               </ul>

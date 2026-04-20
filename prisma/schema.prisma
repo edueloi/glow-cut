@@ -572,3 +572,85 @@ model WppMessageSent {
   @@index([tenantId], map: "idx_wpp_sent_tenant")
   @@index([sentAt], map: "idx_wpp_sent_at")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BLOG
+// ─────────────────────────────────────────────────────────────────────────────
+
+model BlogCategory {
+  id          String     @id @db.VarChar(36)
+  name        String     @db.VarChar(100)
+  slug        String     @unique @db.VarChar(120)
+  description String?    @db.VarChar(500)
+  color       String     @default("#f59e0b") @db.VarChar(20)
+  isActive    Boolean    @default(true)
+  sortOrder   Int        @default(0)
+  createdAt   DateTime   @default(now()) @db.DateTime(0)
+  posts       BlogPost[]
+}
+
+model BlogAuthor {
+  id        String     @id @db.VarChar(36)
+  name      String     @db.VarChar(255)
+  slug      String     @unique @db.VarChar(120)
+  bio       String?    @db.VarChar(1000)
+  photo     String?    @db.Text
+  role      String?    @db.VarChar(100)
+  instagram String?    @db.VarChar(255)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now()) @db.DateTime(0)
+  posts     BlogPost[]
+}
+
+model BlogPost {
+  id              String       @id @db.VarChar(36)
+  title           String       @db.VarChar(500)
+  slug            String       @unique @db.VarChar(600)
+  excerpt         String?      @db.VarChar(1000)
+  content         String       @db.LongText
+  coverImage      String?      @db.Text
+  status          String       @default("draft") @db.VarChar(20) // draft | published | archived
+  featured        Boolean      @default(false)
+  categoryId      String?      @db.VarChar(36)
+  authorId        String?      @db.VarChar(36)
+  tags            String?      @default("[]") @db.VarChar(2000)
+  // SEO
+  seoTitle        String?      @db.VarChar(500)
+  seoDescription  String?      @db.VarChar(500)
+  seoKeywords     String?      @db.VarChar(500)
+  // Analytics
+  views           Int          @default(0)
+  readTimeMinutes Int          @default(5)
+  publishedAt     DateTime?    @db.DateTime(0)
+  createdAt       DateTime     @default(now()) @db.DateTime(0)
+  updatedAt       DateTime     @updatedAt @db.DateTime(0)
+  category        BlogCategory? @relation(fields: [categoryId], references: [id])
+  author          BlogAuthor?  @relation(fields: [authorId], references: [id])
+  analytics       BlogAnalytics[]
+
+  @@index([status, publishedAt], map: "idx_blogpost_status_pub")
+  @@index([categoryId], map: "idx_blogpost_category")
+  @@index([authorId], map: "idx_blogpost_author")
+  @@index([slug], map: "idx_blogpost_slug")
+}
+
+model BlogAnalytics {
+  id        String   @id @db.VarChar(36)
+  postId    String   @db.VarChar(36)
+  date      DateTime @db.Date
+  views     Int      @default(0)
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, date])
+  @@index([postId], map: "idx_bloganalytics_post")
+  @@index([date], map: "idx_bloganalytics_date")
+}
+
+model BlogSubscriber {
+  id          String   @id @db.VarChar(36)
+  email       String   @unique @db.VarChar(255)
+  name        String?  @db.VarChar(255)
+  isActive    Boolean  @default(true)
+  confirmedAt DateTime? @db.DateTime(0)
+  createdAt   DateTime @default(now()) @db.DateTime(0)
+}

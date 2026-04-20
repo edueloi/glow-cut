@@ -24,6 +24,7 @@ import { wppRouter } from "./src/backend/routes/wppRoutes";
 import { sectorRouter } from "./src/backend/routes/sectorRoutes";
 import { publicBookingRouter } from "./src/backend/routes/publicBookingRoutes";
 import { preferencesRouter } from "./src/backend/routes/preferencesRoutes";
+import { blogPublicRouter, blogAdminRouter } from "./src/backend/routes/blogRoutes";
 
 // Import middleware
 import { requireAuth, requireSuperAdmin } from "./src/backend/middleware/auth";
@@ -57,8 +58,11 @@ app.use("/api/auth", authRouter);
 app.post("/api/login", adminController.unifiedLogin);
 app.get("/api/tenant-by-slug/:slug", adminController.getTenantBySlug);
 app.use("/api/public", publicBookingRouter);
+app.use("/api/blog", blogPublicRouter);
 
 // ── Rotas que requerem autenticação ──────────────────────────────────────────
+// IMPORTANTE: rotas mais específicas ANTES das genéricas
+app.use("/api/super-admin/blog", requireSuperAdmin, blogAdminRouter);
 app.use("/api/super-admin", requireSuperAdmin, superAdminRouter);
 app.use("/api/admin", requireAuth, adminRouter);
 app.use("/api/clients", requireAuth, clientRouter);
@@ -188,6 +192,98 @@ async function initDb() {
       console.warn(`[initDb] WppBotConfig.${col.name}:`, e?.message);
     }
   }
+
+  // ── Blog tables ───────────────────────────────────────────────────────────
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS BlogCategory (
+        id          VARCHAR(36)  NOT NULL PRIMARY KEY,
+        name        VARCHAR(100) NOT NULL,
+        slug        VARCHAR(120) NOT NULL,
+        description VARCHAR(500) NULL,
+        color       VARCHAR(20)  NOT NULL DEFAULT '#f59e0b',
+        isActive    TINYINT(1)   NOT NULL DEFAULT 1,
+        sortOrder   INT          NOT NULL DEFAULT 0,
+        createdAt   DATETIME(0)  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_blogcategory_slug (slug)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+  } catch (e: any) { console.warn("[initDb] BlogCategory:", e?.message); }
+
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS BlogAuthor (
+        id        VARCHAR(36)   NOT NULL PRIMARY KEY,
+        name      VARCHAR(255)  NOT NULL,
+        slug      VARCHAR(120)  NOT NULL,
+        bio       VARCHAR(1000) NULL,
+        photo     TEXT          NULL,
+        role      VARCHAR(100)  NULL,
+        instagram VARCHAR(255)  NULL,
+        isActive  TINYINT(1)    NOT NULL DEFAULT 1,
+        createdAt DATETIME(0)   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_blogauthor_slug (slug)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+  } catch (e: any) { console.warn("[initDb] BlogAuthor:", e?.message); }
+
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS BlogPost (
+        id             VARCHAR(36)  NOT NULL PRIMARY KEY,
+        title          VARCHAR(500) NOT NULL,
+        slug           VARCHAR(600) NOT NULL,
+        excerpt        VARCHAR(1000) NULL,
+        content        LONGTEXT     NOT NULL,
+        coverImage     TEXT         NULL,
+        status         VARCHAR(20)  NOT NULL DEFAULT 'draft',
+        featured       TINYINT(1)   NOT NULL DEFAULT 0,
+        categoryId     VARCHAR(36)  NULL,
+        authorId       VARCHAR(36)  NULL,
+        tags           VARCHAR(2000) NULL DEFAULT '[]',
+        seoTitle       VARCHAR(500) NULL,
+        seoDescription VARCHAR(500) NULL,
+        seoKeywords    VARCHAR(500) NULL,
+        views          INT          NOT NULL DEFAULT 0,
+        readTimeMinutes INT         NOT NULL DEFAULT 5,
+        publishedAt    DATETIME(0)  NULL,
+        createdAt      DATETIME(0)  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt      DATETIME(0)  NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_blogpost_slug (slug),
+        KEY idx_blogpost_status_pub (status, publishedAt),
+        KEY idx_blogpost_category (categoryId),
+        KEY idx_blogpost_author (authorId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+  } catch (e: any) { console.warn("[initDb] BlogPost:", e?.message); }
+
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS BlogAnalytics (
+        id     VARCHAR(36) NOT NULL PRIMARY KEY,
+        postId VARCHAR(36) NOT NULL,
+        date   DATE        NOT NULL,
+        views  INT         NOT NULL DEFAULT 0,
+        UNIQUE KEY uq_bloganalytics (postId, date),
+        KEY idx_bloganalytics_post (postId),
+        KEY idx_bloganalytics_date (date)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+  } catch (e: any) { console.warn("[initDb] BlogAnalytics:", e?.message); }
+
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS BlogSubscriber (
+        id          VARCHAR(36)  NOT NULL PRIMARY KEY,
+        email       VARCHAR(255) NOT NULL,
+        name        VARCHAR(255) NULL,
+        isActive    TINYINT(1)   NOT NULL DEFAULT 1,
+        confirmedAt DATETIME(0)  NULL,
+        createdAt   DATETIME(0)  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_blogsubscriber_email (email)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+  } catch (e: any) { console.warn("[initDb] BlogSubscriber:", e?.message); }
 
   try {
     const sa = await (prisma as any).superAdmin.findFirst({ where: { username: "Admin" } });
