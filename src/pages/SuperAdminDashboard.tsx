@@ -2123,19 +2123,26 @@ function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => vo
   // Upload de imagem de capa
   const handleCoverUpload = async (file: File) => {
     setUploadingCover(true);
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const r = await apiFetch("/api/upload", { method: "POST", body: formData });
-      if (r.ok) {
-        const data = await r.json();
-        set("coverImage", data.url || data.path || "");
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const base64 = ev.target?.result as string;
+      const mimeType = file.type;
+      try {
+        const r = await apiFetch("/api/admin/upload", {
+          method: "POST",
+          body: JSON.stringify({ data: base64, mimeType })
+        });
+        if (r.ok) {
+          const data = await r.json();
+          set("coverImage", data.url || data.path || "");
+        }
+      } catch {
+        set("coverImage", URL.createObjectURL(file));
+      } finally {
+        setUploadingCover(false);
       }
-    } catch {
-      // fallback: use object URL for preview only
-      set("coverImage", URL.createObjectURL(file));
-    }
-    setUploadingCover(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
@@ -2432,7 +2439,22 @@ function BlogAuthorsView({ onNav }: { onNav: (v: BlogView) => void }) {
 
   const handlePhotoUpload = (file: File) => {
     const reader = new FileReader();
-    reader.onload = e => setForm(f => ({ ...f, photo: e.target?.result as string }));
+    reader.onload = async (ev) => {
+      const base64 = ev.target?.result as string;
+      const mimeType = file.type;
+      try {
+        const r = await apiFetch("/api/admin/upload", {
+          method: "POST",
+          body: JSON.stringify({ data: base64, mimeType })
+        });
+        if (r.ok) {
+          const data = await r.json();
+          setForm(f => ({ ...f, photo: data.url || data.path || "" }));
+        }
+      } catch (err) {
+        console.error("Erro ao fazer upload da foto do autor:", err);
+      }
+    };
     reader.readAsDataURL(file);
   };
 

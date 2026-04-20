@@ -61,14 +61,11 @@ export const blogController = {
           skip,
           take: limit,
           orderBy: { publishedAt: "desc" },
-          include: {
-            category: { select: { id: true, name: true, slug: true, color: true } },
-            author: { select: { id: true, name: true, slug: true, photo: true, role: true } },
-          },
           select: {
             id: true, title: true, slug: true, excerpt: true, coverImage: true,
             featured: true, tags: true, views: true, readTimeMinutes: true, publishedAt: true,
-            category: true, author: true,
+            category: { select: { id: true, name: true, slug: true, color: true } },
+            author: { select: { id: true, name: true, slug: true, photo: true, role: true } },
           },
         }),
         (prisma as any).blogPost.count({ where }),
