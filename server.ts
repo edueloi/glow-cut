@@ -369,17 +369,29 @@ async function startServer() {
       let ogImage = "https://agendelle.com.br/assets/imagem-agendele-a9t6taIM.png";
       const canonical = `https://agendelle.com.br${url}`;
 
-      if (url.startsWith("/blog/") && url.split("/").length === 3) {
-        const slug = url.split("/")[2];
+      // ── SEO Dinâmico para Posts do Blog ───────────────────────────────────
+      // Usando regex para capturar o slug de forma mais segura
+      const blogMatch = url.match(/^\/blog\/([^/]+)\/?$/);
+      if (blogMatch) {
+        const slug = blogMatch[1];
         try {
-          const post = await (prisma as any).blogPost.findUnique({ where: { slug, status: "published" } });
+          const post = await (prisma as any).blogPost.findUnique({ 
+            where: { slug, status: "published" },
+            select: { title: true, excerpt: true, coverImage: true, seoTitle: true, seoDescription: true }
+          });
           if (post) {
+            console.log(`[SEO] Injetando metadados para o post: ${slug}`);
             title = post.seoTitle || post.title + " | Blog Agendelle";
             description = (post.seoDescription || post.excerpt || "Leia mais no blog da Agendelle.").replace(/"/g, '&quot;');
-            if (post.coverImage) ogImage = post.coverImage.startsWith("http") ? post.coverImage : `https://agendelle.com.br${post.coverImage}`;
+            if (post.coverImage) {
+               ogImage = post.coverImage.startsWith("http") ? post.coverImage : `https://agendelle.com.br${post.coverImage}`;
+            }
+          } else {
+            console.warn(`[SEO] Post não encontrado ou não publicado: ${slug}`);
           }
-        } catch (err) { console.error("SEO Blog Error:", err); }
-      } else if (url === "/blog" || url === "/blog/") {
+        } catch (err) { console.error("[SEO] Erro ao buscar post:", err); }
+      } 
+      else if (url === "/blog" || url === "/blog/") {
         title = "Blog Agendelle | Dicas e Tendências para Beleza";
         description = "Acompanhe as melhores dicas de gestão, tendências e tecnologia para o seu salão ou barbearia no blog oficial da Agendelle.";
       }
@@ -390,12 +402,14 @@ async function startServer() {
     <link rel="canonical" href="${canonical}" />
     <link rel="icon" type="image/png" href="https://agendelle.com.br/favicon.png" />
     <link rel="apple-touch-icon" href="https://agendelle.com.br/favicon.png" />
-    <meta property="og:type" content="website">
+    <meta property="og:type" content="article">
     <meta property="og:url" content="${canonical}">
     <meta property="og:title" content="${title}">
     <meta property="og:description" content="${description}">
     <meta property="og:image" content="${ogImage}">
     <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:title" content="${title}">
+    <meta property="twitter:description" content="${description}">
     <meta property="twitter:image" content="${ogImage}">
     <script type="application/ld+json">
     {
