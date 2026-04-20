@@ -307,6 +307,130 @@ initDb().then(() => {
   restoreAllSessions().catch((e) => console.warn("[Server] restoreAllSessions error:", e));
 });
 
+const SITE_URL = "https://agendelle.com.br";
+const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
+
+function escapeHtml(value: string = ""): string {
+  return value.replace(/[&<>"']/g, (char) => {
+    switch (char) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      case "'":
+        return "&#39;";
+      default:
+        return char;
+    }
+  });
+}
+
+function escapeAttribute(value: string = ""): string {
+  return escapeHtml(value).replace(/`/g, "&#96;");
+}
+
+function decodeBasicEntities(value: string): string {
+  return value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">");
+}
+
+function stripHtml(value: string = ""): string {
+  return decodeBasicEntities(
+    value
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " "),
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function htmlToParagraphs(value: string = ""): string[] {
+  const normalized = decodeBasicEntities(
+    value
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(p|div|section|article|li|h[1-6]|blockquote|tr)>/gi, "\n")
+      .replace(/<img[^>]*>/gi, "\n")
+      .replace(/<[^>]+>/g, " "),
+  );
+
+  return normalized
+    .split(/\n+/)
+    .map((part) => part.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+function truncate(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
+function absoluteUrl(value: string | null | undefined): string {
+  if (!value) return DEFAULT_OG_IMAGE;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `${SITE_URL}${value.startsWith("/") ? value : `/${value}`}`;
+}
+
+function safeJsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+function formatDateBr(value: Date | string | null | undefined): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const year = date.getUTCFullYear();
+
+  return `${day}/${month}/${year}`;
+}
+
+function injectRootMarkup(html: string, markup: string): string {
+  if (!markup) return html;
+
+  const rootPattern = /<div id="root">\s*<\/div>/i;
+  if (rootPattern.test(html)) {
+    return html.replace(rootPattern, `<div id="root">${markup}</div>`);
+  }
+
+  return html.replace("</body>", `${markup}</body>`);
+}
+
+function renderPostTeasers(posts: any[]): string {
+  return posts
+    .map((post) => {
+      const href = `/blog/${post.slug}`;
+      const category = post.category?.name ? `<p>${escapeHtml(post.category.name)}</p>` : "";
+      const excerptSource = post.excerpt || stripHtml(post.content || "");
+      const excerpt = excerptSource ? truncate(stripHtml(excerptSource), 220) : "";
+      const publishedAt = formatDateBr(post.publishedAt);
+
+      return `
+        <article>
+          ${category}
+          <h2><a href="${escapeAttribute(href)}">${escapeHtml(post.title)}</a></h2>
+          ${publishedAt ? `<p>${escapeHtml(publishedAt)}</p>` : ""}
+          ${excerpt ? `<p>${escapeHtml(excerpt)}</p>` : ""}
+          <p><a href="${escapeAttribute(href)}">Ler artigo completo</a></p>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 // ─────────────────────────────────────────────────────────────
 //  START SERVER
 // ─────────────────────────────────────────────────────────────
