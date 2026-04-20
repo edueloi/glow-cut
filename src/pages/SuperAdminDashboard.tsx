@@ -31,6 +31,7 @@ import {
   Menu, BookOpen, FileText, Tag, UserCircle2, Bell,
   BarChart2, ArrowUpRight, ArrowLeft, ExternalLink,
   CheckCircle, Clock, Archive,
+  Camera,
 } from "lucide-react";
 import logoFavicon from "../images/system/logo-favicon.png";
 import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/permissions";
@@ -1167,7 +1168,29 @@ function StaffTab({ username }: { username: string }) {
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [showPass, setShowPass] = useState(false);
-  const [form, setForm] = useState({ username: "", password: "" });
+  const [form, setForm] = useState({ username: "", password: "", name: "", email: "", phone: "", birthday: "", role: "", bio: "", photo: "" });
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const base64 = ev.target?.result as string;
+      const mimeType = file.type;
+      try {
+        const r = await apiFetch("/api/admin/upload", {
+          method: "POST",
+          body: JSON.stringify({ data: base64, mimeType })
+        });
+        if (r.ok) {
+          const data = await r.json();
+          setForm(f => ({ ...f, photo: data.url || data.path || "" }));
+        }
+      } catch (err) {
+        console.error("Erro ao fazer upload da foto:", err);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
   const isMaster = ["admin", "flavio_sikorsky"].includes(username.toLowerCase());
 
   const load = useCallback(async () => {
@@ -1186,7 +1209,19 @@ function StaffTab({ username }: { username: string }) {
   const openForm = (u?: any) => {
     if (!isMaster && !u) return;
     if (!isMaster && u && u.username !== username) return;
-    setEditing(u || null); setForm({ username: u?.username || "", password: "" }); setModal(true);
+    setEditing(u || null);
+    setForm({
+      username: u?.username || "",
+      password: "",
+      name: u?.name || "",
+      email: u?.email || "",
+      phone: u?.phone || "",
+      birthday: u?.birthday ? u.birthday.split("T")[0] : "",
+      role: u?.role || "",
+      bio: u?.bio || "",
+      photo: u?.photo || ""
+    });
+    setModal(true);
   };
 
   return (
@@ -1212,8 +1247,8 @@ function StaffTab({ username }: { username: string }) {
             <table className="w-full">
               <thead className="bg-zinc-50 border-b border-zinc-100">
                 <tr>
-                  {["Usuário", "Acesso desde", ""].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest">{h}</th>
+                  {["Usuário", "E-mail / Telefone", "Acesso desde", ""].map(h => (
+                    <th key={h} className={cn("text-left px-4 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest", h === "" && "text-right")}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -1222,10 +1257,23 @@ function StaffTab({ username }: { username: string }) {
                   <tr key={u.id} className="hover:bg-zinc-50/60 transition-colors">
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center text-[11px] font-black shrink-0">{u.username.charAt(0).toUpperCase()}</div>
-                        <p className="text-sm font-black text-zinc-900">{u.username}</p>
-                        {u.username === username && <Badge color="primary">Você</Badge>}
+                        {u.photo ? (
+                          <img src={u.photo} alt={u.name || u.username} className="w-8 h-8 rounded-xl object-cover shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center text-[11px] font-black shrink-0">{(u.name || u.username).charAt(0).toUpperCase()}</div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-black text-zinc-900">{u.name || u.username}</p>
+                            {u.username === username && <Badge color="primary">Você</Badge>}
+                          </div>
+                          <p className="text-[10px] text-zinc-400">@{u.username} • {u.role || "Membro da Equipe"}</p>
+                        </div>
                       </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="text-xs font-bold text-zinc-700">{u.email || "-"}</p>
+                      <p className="text-[10px] text-zinc-400">{u.phone || "-"}</p>
                     </td>
                     <td className="px-4 py-3.5 text-xs text-zinc-500">{new Date(u.createdAt).toLocaleDateString("pt-BR")}</td>
                     <td className="px-4 py-3.5 text-right">
@@ -1248,30 +1296,72 @@ function StaffTab({ username }: { username: string }) {
         </ContentCard>
       )}
 
-      <Modal isOpen={modal} onClose={() => setModal(false)} title={editing ? "Editar Acesso" : "Novo Acesso Equipe"} size="sm">
-        <div className="space-y-4 p-5">
-          <Input
-            label="Nome de Usuário (Login)"
-            value={form.username}
-            onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-            placeholder="Ex: amanda_admin"
-          />
-          <Input
-            label={editing ? "Nova Senha (branco = manter)" : "Senha"}
-            type={showPass ? "text" : "password"}
-            value={form.password}
-            onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-            placeholder="••••••"
-            iconRight={
-              <button type="button" onClick={() => setShowPass(!showPass)} className="text-zinc-400 hover:text-zinc-600">
-                {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
-            }
-          />
-          <FormRow cols={2}>
-            <Button variant="ghost" onClick={() => setModal(false)} fullWidth>Cancelar</Button>
-            <Button onClick={save} fullWidth>Salvar</Button>
-          </FormRow>
+      <Modal isOpen={modal} onClose={() => setModal(false)} title={editing ? "Editar Perfil da Equipe" : "Novo Acesso Equipe"} size="lg">
+        <div className="p-5 space-y-5">
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="w-full md:w-40 shrink-0">
+              <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-3 text-center">Foto de Perfil</p>
+              <input ref={photoInputRef} type="file" accept="image/*" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }} />
+              <div className="flex flex-col items-center gap-3">
+                {form.photo ? (
+                  <div className="relative group">
+                    <img src={form.photo} alt="preview" className="w-32 h-32 rounded-3xl object-cover border-4 border-zinc-50 shadow-sm" />
+                    <button type="button" onClick={() => photoInputRef.current?.click()} className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                      <Camera size={20} />
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => photoInputRef.current?.click()} className="w-32 h-32 rounded-3xl bg-zinc-50 border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center gap-2 text-zinc-400 hover:border-amber-400 hover:text-amber-500 hover:bg-amber-50/50 transition-all">
+                    <Camera size={24} />
+                    <span className="text-[10px] font-bold">Adicionar foto</span>
+                  </button>
+                )}
+                {form.photo && (
+                  <button type="button" onClick={() => setForm(f => ({ ...f, photo: "" }))} className="text-[10px] font-bold text-red-400 hover:text-red-500">Remover foto</button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-4">
+              <FormRow cols={2}>
+                <Input label="Nome Completo" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Amanda Silva" />
+                <Input label="Cargo / Função" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} placeholder="Ex: Suporte, Vendas..." />
+              </FormRow>
+
+              <FormRow cols={2}>
+                <Input label="E-mail" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="email@agendelle.com" />
+                <Input label="Telefone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="(00) 00000-0000" />
+              </FormRow>
+
+              <FormRow cols={2}>
+                <Input label="Nome de Usuário (Login) *" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} placeholder="amanda_admin" />
+                <Input label="Data de Aniversário" type="date" value={form.birthday} onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} />
+              </FormRow>
+
+              <FormRow cols={2}>
+                <Input
+                  label={editing ? "Alterar Senha (em branco = manter)" : "Senha *"}
+                  type={showPass ? "text" : "password"}
+                  value={form.password}
+                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="••••••"
+                  iconRight={
+                    <button type="button" onClick={() => setShowPass(!showPass)} className="text-zinc-400 hover:text-zinc-600">
+                      {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  }
+                />
+              </FormRow>
+
+              <Textarea label="Biografia / Notas" value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={3} placeholder="Breve descrição sobre o membro da equipe..." />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-zinc-100">
+            <Button variant="ghost" onClick={() => setModal(false)}>Cancelar</Button>
+            <Button onClick={save} disabled={!form.username || (!editing && !form.password)}>Salvar Alterações</Button>
+          </div>
         </div>
       </Modal>
     </div>

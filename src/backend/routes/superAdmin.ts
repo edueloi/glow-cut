@@ -25,7 +25,11 @@ superAdminRouter.post("/login", async (req, res) => {
 superAdminRouter.get("/staff", async (req, res) => {
   try {
     const staff = await (prisma as any).superAdmin.findMany({
-      select: { id: true, username: true, createdAt: true }
+      select: { 
+        id: true, username: true, createdAt: true, 
+        name: true, email: true, phone: true, birthday: true, 
+        role: true, bio: true, photo: true 
+      }
     });
     res.json(staff);
   } catch (e: any) {
@@ -34,14 +38,25 @@ superAdminRouter.get("/staff", async (req, res) => {
 });
 
 superAdminRouter.post("/staff", async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, name, email, phone, birthday, role, bio, photo } = req.body;
   if (!username || !password) return res.status(400).json({ error: "Username e senha obrigatórios" });
   try {
     const existing = await (prisma as any).superAdmin.findUnique({ where: { username } });
     if (existing) return res.status(400).json({ error: "Este usuário já existe" });
 
     const newUser = await (prisma as any).superAdmin.create({
-      data: { id: randomUUID(), username, password }
+      data: { 
+        id: randomUUID(), 
+        username, 
+        password,
+        name,
+        email,
+        phone,
+        birthday: birthday ? new Date(birthday) : null,
+        role,
+        bio,
+        photo
+      }
     });
     res.json({ id: newUser.id, username: newUser.username });
   } catch (e: any) {
@@ -50,9 +65,18 @@ superAdminRouter.post("/staff", async (req, res) => {
 });
 
 superAdminRouter.put("/staff/:id", async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, name, email, phone, birthday, role, bio, photo } = req.body;
   try {
-    const data: any = { username };
+    const data: any = { 
+      username,
+      name,
+      email,
+      phone,
+      birthday: birthday ? new Date(birthday) : null,
+      role,
+      bio,
+      photo
+    };
     if (password) data.password = password;
 
     const updated = await (prisma as any).superAdmin.update({
