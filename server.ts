@@ -312,8 +312,8 @@ initDb().then(() => {
 // ─────────────────────────────────────────────────────────────
 async function startServer() {
   if (process.env.NODE_ENV === "production") {
+    console.log(" [Server] Iniciando em MODO PRODUÇÃO com SEO Ativo");
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath, { index: false }));
 
     // ── SEO: Sitemap.xml ──────────────────────────────────────────────────
     app.get("/sitemap.xml", async (req, res) => {
@@ -358,10 +358,15 @@ async function startServer() {
       } catch { res.status(500).json({}); }
     });
 
-    app.get("*", async (req, res) => {
+    // ── INTERCEPTADOR DE PÁGINAS (SEO) ────────────────────────────────────
+    // Esta rota deve vir ANTES do express.static para não entregar o index.html puro
+    app.get(["/", "/blog*", "/p/*", "/agendar*"], async (req, res, next) => {
       const url = req.path;
       const indexPath = path.join(distPath, "index.html");
-      if (!fs.existsSync(indexPath)) return res.status(404).send("Index not found");
+      
+      if (!fs.existsSync(indexPath)) return next();
+
+      console.log(`[SEO] Processando meta-tags para: ${url}`);
       let html = fs.readFileSync(indexPath, "utf-8");
 
       let title = "Agendelle | Agendamentos Inteligentes para Salões e Barbearias";
@@ -431,6 +436,9 @@ async function startServer() {
       html = html.replace(/<title>.*?<\/title>/, "").replace("</head>", `${seoTags}</head>`);
       res.send(html);
     });
+
+    // Servir arquivos estáticos (JS, CSS, Imagens) DEPOIS do interceptador de SEO
+    app.use(express.static(distPath));
   } else {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
     app.use(vite.middlewares);
