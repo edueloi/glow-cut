@@ -122,7 +122,7 @@ export function AdminDashboardShell({
           sidebarCollapsed ? "lg:w-[72px]" : "w-72"
         )}
       >
-        <div className="flex items-center justify-between border-b border-zinc-50 bg-zinc-50/50 p-4 lg:hidden">
+        <div className="flex items-center justify-between border-b border-zinc-50 bg-zinc-50/50 p-4 pt-[calc(1rem+env(safe-area-inset-top))] lg:hidden">
           <div className="flex items-center gap-2">
             <img src={logoFavicon} alt="Agendelle" className="h-6 w-6 object-contain" />
             <span className="text-sm font-black uppercase tracking-tighter text-zinc-900">Agendelle</span>
@@ -220,7 +220,7 @@ export function AdminDashboardShell({
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-zinc-50">
-        <header className="sticky top-0 z-[52] isolate flex h-16 shrink-0 items-center justify-between border-b border-zinc-200 bg-white/90 px-4 backdrop-blur-xl md:h-20 md:px-8">
+        <header className="sticky top-0 z-[52] isolate flex shrink-0 items-center justify-between border-b border-zinc-200 bg-white/90 px-4 backdrop-blur-xl h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:h-[calc(5rem+env(safe-area-inset-top))] md:px-8">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsSidebarOpen(true)} className="rounded-xl p-2 text-zinc-500 transition-all hover:bg-zinc-100 lg:hidden">
               <Menu size={20} />

@@ -15,9 +15,9 @@ agendaRouter.get("/appointments/client", agendaController.clientAppointments);
 agendaRouter.post("/appointments", agendaController.create);
 agendaRouter.put("/appointments/:id", agendaController.update);
 agendaRouter.patch("/appointments/:id", agendaController.patch);
+agendaRouter.delete("/appointments/batch", agendaController.batchDelete);
 agendaRouter.delete("/appointments/:id", agendaController.delete);
 agendaRouter.get("/appointments/group/:groupId", agendaController.getGroup);
-agendaRouter.delete("/appointments/batch", agendaController.batchDelete);
 
 // Settings
 agendaRouter.get("/settings/agenda", agendaController.getSettings);
