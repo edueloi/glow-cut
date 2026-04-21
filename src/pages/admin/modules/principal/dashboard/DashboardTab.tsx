@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -9,7 +9,7 @@ import {
   DollarSign, CalendarIcon, UserPlus, TrendingUp, Cake,
   Eye, EyeOff, Plus, Receipt, Users, BarChart2, Scissors,
   ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Zap, Trophy, Star, Activity,
-  Lock
+  Lock, Bell, Check, Loader2
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { calculateAge, parseBirthDateParts } from "@/src/lib/masks";
@@ -26,6 +26,7 @@ interface DashboardTabProps {
   setIsAppointmentModalOpen?: (v: boolean) => void;
   setIsComandaModalOpen?: (v: boolean) => void;
   setIsClientModalOpen?: (v: boolean) => void;
+  onAppointmentConfirmed?: () => void;
 }
 
 const QUICK_ACTIONS = [
@@ -69,12 +70,14 @@ function StatCard({ title, value, icon: Icon, description, hidden, accent = "amb
 
 export function DashboardTab({
   revenueData, servicesData, appointments, comandas, clients, handleTabChange,
-  setIsAppointmentModalOpen, setIsComandaModalOpen, setIsClientModalOpen
+  setIsAppointmentModalOpen, setIsComandaModalOpen, setIsClientModalOpen, onAppointmentConfirmed
 }: DashboardTabProps) {
   const [showFinancials, setShowFinancials] = useState(true);
   const [statPeriod, setStatPeriod] = useState<StatPeriod>("today");
   const [profReport, setProfReport] = useState<any[]>([]);
   const [profitability, setProfitability] = useState<any>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set());
 
   const currentMonthNum = new Date().getMonth() + 1;
   const todayDay = new Date().getDate();
@@ -182,6 +185,30 @@ export function DashboardTab({
   }, [statPeriod, comandas, appointments, clients]);
 
   const topProfessional = profReport[0] || null;
+
+  // Agendamentos do dia com status "scheduled" (pendentes de confirmação)
+  const today = new Date().toISOString().slice(0, 10);
+  const pendingConfirmations = useMemo(() =>
+    appointments.filter(a => a.date === today && a.status === "scheduled" && !confirmedIds.has(a.id))
+      .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || "")),
+    [appointments, today, confirmedIds]
+  );
+
+  const handleConfirm = useCallback(async (apptId: string) => {
+    setConfirmingId(apptId);
+    try {
+      await apiFetch(`/api/appointments/${apptId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "confirmed" }),
+      });
+      setConfirmedIds(prev => new Set([...prev, apptId]));
+      onAppointmentConfirmed?.();
+    } catch {
+      // silently ignore — user will see the button re-enable
+    } finally {
+      setConfirmingId(null);
+    }
+  }, [onAppointmentConfirmed]);
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -440,6 +467,77 @@ export function DashboardTab({
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CONFIRMAÇÕES PENDENTES ── */}
+      {pendingConfirmations.length > 0 && (
+        <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-amber-100 bg-amber-50">
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Bell size={16} className="text-amber-600" />
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                  {pendingConfirmations.length}
+                </span>
+              </div>
+              <h3 className="text-sm font-bold text-zinc-900">Confirmações Pendentes</h3>
+              <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Hoje</span>
+            </div>
+            <button onClick={() => handleTabChange("agenda")} className="text-[10px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 transition-colors">
+              Ver Agenda <ArrowUpRight size={11} />
+            </button>
+          </div>
+          <div className="divide-y divide-zinc-100">
+            {pendingConfirmations.map((appt) => (
+              <div key={appt.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-zinc-50/60 transition-colors">
+                {/* Avatar */}
+                <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700 font-black text-sm shrink-0">
+                  {appt.client?.name?.charAt(0).toUpperCase() || "?"}
+                </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-zinc-900 truncate">{appt.client?.name || "—"}</p>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span className="text-[10px] text-zinc-500 font-bold">{appt.service?.name || "Serviço"}</span>
+                    {appt.professional?.name && (
+                      <>
+                        <span className="text-zinc-300">·</span>
+                        <span className="text-[10px] text-zinc-400 font-bold">{appt.professional.name}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {/* Horário */}
+                <div className="text-right shrink-0 mr-2">
+                  <p className="text-sm font-black text-zinc-800">{appt.startTime}</p>
+                  <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">hoje</p>
+                </div>
+                {/* Botão confirmar */}
+                <button
+                  onClick={() => handleConfirm(appt.id)}
+                  disabled={confirmingId === appt.id}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-black border transition-all shrink-0",
+                    confirmingId === appt.id
+                      ? "bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed"
+                      : "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent shadow-sm active:scale-95"
+                  )}
+                >
+                  {confirmingId === appt.id
+                    ? <Loader2 size={12} className="animate-spin" />
+                    : <Check size={12} />
+                  }
+                  <span className="hidden sm:inline">{confirmingId === appt.id ? "Confirmando..." : "Confirmar"}</span>
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="px-5 py-2.5 bg-amber-50/50 border-t border-amber-100">
+            <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">
+              Ao confirmar, o cliente recebe notificação via WhatsApp
+            </p>
           </div>
         </div>
       )}

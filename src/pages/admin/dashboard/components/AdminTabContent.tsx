@@ -187,6 +187,7 @@ export function AdminTabContent(props: any) {
         setIsAppointmentModalOpen={setIsAppointmentModalOpen}
         setIsComandaModalOpen={setIsComandaModalOpen}
         setIsClientModalOpen={setIsClientModalOpen}
+        onAppointmentConfirmed={fetchAppointments}
       />
     );
   };
