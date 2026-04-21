@@ -51,8 +51,8 @@ export function AdminScheduleActionModals(props: any) {
 
           return (
             <>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setApptDeleteModal(null)} className="fixed inset-0 z-[80] bg-black/40" />
-              <div className="pointer-events-none fixed inset-0 z-[80] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setApptDeleteModal(null)} className="fixed inset-0 bg-black/40" style={{ zIndex: 9990 }} />
+              <div className="pointer-events-none fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 9990 }}>
                 <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }} transition={{ duration: 0.18 }} className="pointer-events-auto w-full max-w-md rounded-2xl border border-zinc-200 bg-white shadow-2xl">
                   <div className="flex items-center justify-between border-b border-zinc-100 px-5 pb-3 pt-5">
                     <div>
@@ -115,7 +115,7 @@ export function AdminScheduleActionModals(props: any) {
       <PaymentModal isOpen={isPaymentModalOpen} onClose={() => { setIsPaymentModalOpen(false); }} comanda={payingComanda} onConfirm={handleConfirmPayment} />
 
       {isChangeProfModalOpen && changeProfAppt && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setIsChangeProfModalOpen(false)}>
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" style={{ zIndex: 9990 }} onClick={() => setIsChangeProfModalOpen(false)}>
           <div className="w-full max-w-sm space-y-5 rounded-[28px] border border-zinc-200 bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
@@ -145,7 +145,7 @@ export function AdminScheduleActionModals(props: any) {
       )}
 
       {isLinkComandaModalOpen && linkComandaAppt && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setIsLinkComandaModalOpen(false)}>
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" style={{ zIndex: 9990 }} onClick={() => setIsLinkComandaModalOpen(false)}>
           <div className="w-full max-w-sm space-y-5 rounded-[28px] border border-zinc-200 bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
