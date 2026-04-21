@@ -190,11 +190,6 @@ function mapSpecialScheduleDay(row: any) {
 }
 
 
-// Usa o wppController central (Baileys) para enviar confirmação
-async function fireWppConfirmationBalcao(tenantId: string, appt: any) {
-  return fireWppConfirmationCentral(tenantId, appt);
-}
-
 async function fireWppConfirmation(tenantId: string, appt: any) {
   return fireWppConfirmationCentral(tenantId, appt);
 }
@@ -594,7 +589,7 @@ export const agendaController = {
       }
 
       const firstAppt = results[0];
-      if (tenantId && firstAppt?.client?.phone) fireWppConfirmationBalcao(tenantId, firstAppt).catch(() => {});
+      // Notifica apenas o profissional ao criar — cliente só recebe ao confirmar
       if (tenantId) fireWppProfNewBooking(tenantId, firstAppt).catch(() => {});
 
       res.json(results[0]);
