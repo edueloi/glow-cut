@@ -65,7 +65,7 @@ interface ComandasTabProps {
   isComandaDetailOpen: boolean;
   setIsComandaDetailOpen: (b: boolean) => void;
   handlePayComanda: (c: any) => void;
-  handleDeleteComanda: (id: string) => void;
+  handleDeleteComanda: (id: string, name?: string) => void;
   fetchComandas: () => void;
 }
 
@@ -1022,7 +1022,7 @@ export function ComandasTab({
             onPay={() => handlePayComanda(c)}
             onEdit={() => setEditingComanda(c)}
             onView={() => setDetailComanda(c)}
-            onDelete={() => handleDeleteComanda(c.id)}
+            onDelete={() => handleDeleteComanda(c.id, c.client?.name || "esta comanda")}
           />
         </div>
       ),
@@ -1177,7 +1177,7 @@ export function ComandasTab({
                   Editar
                 </Button>
                 <IconButton variant="outline" size="xs" onClick={e => { e.stopPropagation(); setDetailComanda(c); }}><Eye size={12} /></IconButton>
-                <IconButton variant="ghost" size="xs" onClick={e => { e.stopPropagation(); handleDeleteComanda(c.id); }} className="text-zinc-300 hover:text-red-500 hover:bg-red-50">
+                <IconButton variant="ghost" size="xs" onClick={e => { e.stopPropagation(); handleDeleteComanda(c.id, c.client?.name || "esta comanda"); }} className="text-zinc-300 hover:text-red-500 hover:bg-red-50">
                   <Trash2 size={14} />
                 </IconButton>
               </div>

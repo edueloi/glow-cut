@@ -49,6 +49,7 @@ import {
   RankingView,
   SaidaAutoView,
 } from "./submodules";
+import { DeleteConfirmModal } from "@/src/pages/admin/dashboard/components/modals/DeleteConfirmModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ProductsTabProps {
@@ -269,6 +270,7 @@ export function ProductsTab({
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortAsc, setSortAsc] = useState(true);
   const [showCharts, setShowCharts] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
 
   // ─── Metrics ──────────────────────────────────────────────────────────────
   const lowStockItems  = useMemo(() => products.filter(p => p.stock <= p.minStock && p.stock > 0), [products]);
@@ -323,9 +325,14 @@ export function ProductsTab({
   }, [products, activeTab, search, lowStockItems, outOfStockItems, forSaleItems, internalItems, sortKey, sortAsc]);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
-  const handleDelete = async (id: string) => {
-    if (!confirm("Deseja realmente excluir este produto?")) return;
-    await apiFetch(`/api/products/${id}`, { method: "DELETE" });
+  const handleDelete = (id: string, name: string) => {
+    setDeleteConfirm({ type: "produto", id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
+    await apiFetch(`/api/products/${deleteConfirm.id}`, { method: "DELETE" });
+    setDeleteConfirm(null);
     fetchProducts();
   };
 
@@ -462,7 +469,7 @@ export function ProductsTab({
       render: (p: any) => (
         <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
           <IconButton variant="ghost" size="sm" onClick={() => openEdit(p)}><Edit2 size={13} /></IconButton>
-          <IconButton variant="ghost" size="sm" onClick={() => handleDelete(p.id)}><Trash2 size={13} /></IconButton>
+          <IconButton variant="ghost" size="sm" onClick={() => handleDelete(p.id, p.name)}><Trash2 size={13} /></IconButton>
         </div>
       ),
     },
@@ -781,7 +788,7 @@ export function ProductsTab({
                 />
               }
               renderMobileItem={(p) => (
-                <ProductCard product={p} sectors={sectors} onEdit={() => openEdit(p)} onDelete={() => handleDelete(p.id)} />
+                <ProductCard product={p} sectors={sectors} onEdit={() => openEdit(p)} onDelete={() => handleDelete(p.id, p.name)} />
               )}
             />
 
@@ -818,6 +825,12 @@ export function ProductsTab({
           <Plus size={24} />
         </button>
       )}
+
+      <DeleteConfirmModal
+        deleteConfirm={deleteConfirm}
+        setDeleteConfirm={setDeleteConfirm}
+        confirmDelete={confirmDelete}
+      />
     </div>
   );
 }

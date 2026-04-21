@@ -209,10 +209,18 @@ export const clientController = {
 
       if (!client) return res.status(404).json({ error: "Cliente não encontrado." });
 
-      if ((client.appointment?.length || 0) > 0 || (client.comanda?.length || 0) > 0) {
-        return res.status(400).json({
-          error: "Não é possível excluir cliente com agendamentos ou comandas vinculadas.",
-        });
+      const appointmentIds = (client.appointment || []).map((a: any) => a.id);
+      const comandaIds = (client.comanda || []).map((c: any) => c.id);
+
+      // Excluir registros filhos antes do cliente
+      if (appointmentIds.length > 0) {
+        await (prisma as any).wppMessageSent.deleteMany({ where: { appointmentId: { in: appointmentIds } } }).catch(() => {});
+        await (prisma as any).appointment.deleteMany({ where: { id: { in: appointmentIds } } });
+      }
+      if (comandaIds.length > 0) {
+        // Excluir itens das comandas antes das comandas
+        await (prisma as any).comandaItem.deleteMany({ where: { comandaId: { in: comandaIds } } }).catch(() => {});
+        await (prisma as any).comanda.deleteMany({ where: { id: { in: comandaIds } } });
       }
 
       await (prisma as any).client.delete({ where: { id: client.id } });

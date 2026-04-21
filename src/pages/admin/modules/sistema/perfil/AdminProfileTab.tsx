@@ -14,6 +14,7 @@ import { Button } from "@/src/components/ui/Button";
 import { Input, Textarea } from "@/src/components/ui/Input";
 import { PageWrapper, SectionTitle, FormRow } from "@/src/components/ui/PageWrapper";
 import { PanelCard } from "@/src/components/ui/PanelCard";
+import { DeleteConfirmModal } from "@/src/pages/admin/dashboard/components/modals/DeleteConfirmModal";
 
 /* ═══════════════════════════════════════════════════════
    PERMISSÕES — mapa completo por módulo
@@ -579,6 +580,7 @@ export function AdminProfileTab() {
   const [teamUsers, setTeamUsers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [userModal, setUserModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [viewPermsUser, setViewPermsUser] = useState<any>(null);
 
@@ -655,9 +657,14 @@ export function AdminProfileTab() {
     loadTeam();
   };
 
-  const handleDeleteUser = async (id: string) => {
-    if (!confirm("Excluir este usuário da equipe?")) return;
-    await apiFetch(`/api/admin/team/${id}`, { method: "DELETE" });
+  const handleDeleteUser = (id: string, name: string) => {
+    setDeleteConfirm({ type: "usuário", id, name });
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!deleteConfirm) return;
+    await apiFetch(`/api/admin/team/${deleteConfirm.id}`, { method: "DELETE" });
+    setDeleteConfirm(null);
     loadTeam();
   };
 
@@ -945,7 +952,7 @@ export function AdminProfileTab() {
                             variant="ghost"
                             size="sm"
                             className="px-2 min-w-0 hover:text-red-500 hover:bg-red-50"
-                            onClick={() => handleDeleteUser(u.id)}
+                            onClick={() => handleDeleteUser(u.id, u.name)}
                           >
                             <Trash2 size={16} />
                           </Button>
@@ -984,6 +991,7 @@ export function AdminProfileTab() {
           editing={editingUser}
         />
       </div>
+      <DeleteConfirmModal deleteConfirm={deleteConfirm} setDeleteConfirm={setDeleteConfirm} confirmDelete={confirmDeleteUser} />
     </PageWrapper>
   );
 }

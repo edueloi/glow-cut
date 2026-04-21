@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Truck, Plus, Edit2, Trash2, Phone, Mail, MapPin, User, FileText } from "lucide-react";
 import { apiFetch } from "@/src/lib/api";
+import { DeleteConfirmModal } from "@/src/pages/admin/dashboard/components/modals/DeleteConfirmModal";
 import {
   StatCard,
   FilterLine, FilterLineSection, FilterLineItem, FilterLineSearch,
@@ -96,6 +97,7 @@ export function FornecedoresView() {
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
   const toast = useToast();
 
   const load = useCallback(async () => {
@@ -109,11 +111,16 @@ export function FornecedoresView() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Excluir este fornecedor?")) return;
+  const handleDelete = (id: string, name: string) => {
+    setDeleteConfirm({ type: "fornecedor", id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await apiFetch(`/api/inventory/suppliers/${id}`, { method: "DELETE" });
+      await apiFetch(`/api/inventory/suppliers/${deleteConfirm.id}`, { method: "DELETE" });
       toast.success("Fornecedor removido.");
+      setDeleteConfirm(null);
       load();
     } catch { toast.error("Erro ao excluir."); }
   };
@@ -171,7 +178,7 @@ export function FornecedoresView() {
       render: (s) => (
         <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
           <IconButton variant="ghost" size="sm" onClick={() => openEdit(s)}><Edit2 size={13} /></IconButton>
-          <IconButton variant="ghost" size="sm" onClick={() => handleDelete(s.id)}><Trash2 size={13} /></IconButton>
+          <IconButton variant="ghost" size="sm" onClick={() => handleDelete(s.id, s.name)}><Trash2 size={13} /></IconButton>
         </div>
       ),
     },
@@ -226,7 +233,7 @@ export function FornecedoresView() {
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <IconButton variant="ghost" size="xs" onClick={() => openEdit(s)}><Edit2 size={12} /></IconButton>
-                <IconButton variant="ghost" size="xs" onClick={() => handleDelete(s.id)}><Trash2 size={12} /></IconButton>
+                <IconButton variant="ghost" size="xs" onClick={() => handleDelete(s.id, s.name)}><Trash2 size={12} /></IconButton>
               </div>
             </div>
           )}
@@ -241,6 +248,7 @@ export function FornecedoresView() {
       </ContentCard>
 
       <SupplierModal isOpen={modalOpen} onClose={() => setModalOpen(false)} editingItem={editing} onSaved={load} />
+      <DeleteConfirmModal deleteConfirm={deleteConfirm} setDeleteConfirm={setDeleteConfirm} confirmDelete={confirmDelete} />
     </>
   );
 }

@@ -1017,6 +1017,22 @@ export default function AdminDashboard() {
       shades: { 50:'#f8fafc',100:'#f1f5f9',200:'#e2e8f0',300:'#cbd5e1',400:'#94a3b8',500:'#64748b',600:'#475569',700:'#334155' } },
     { value: 'zinc',    label: 'Carvão',    hex: '#18181b', light: '#f4f4f5', border: '#a1a1aa',
       shades: { 50:'#f4f4f5',100:'#f4f4f5',200:'#e4e4e7',300:'#d4d4d8',400:'#a1a1aa',500:'#71717a',600:'#52525b',700:'#3f3f46' } },
+    { value: 'red',     label: 'Vermelho',  hex: '#ef4444', light: '#fef2f2', border: '#fca5a5',
+      shades: { 50:'#fef2f2',100:'#fee2e2',200:'#fecaca',300:'#fca5a5',400:'#f87171',500:'#ef4444',600:'#dc2626',700:'#b91c1c' } },
+    { value: 'coral',   label: 'Coral',     hex: '#f2623a', light: '#fff4f1', border: '#ffb09e',
+      shades: { 50:'#fff4f1',100:'#ffe8e1',200:'#ffcbbb',300:'#ffb09e',400:'#ff8a6e',500:'#f2623a',600:'#d94e28',700:'#b83d1a' } },
+    { value: 'gold',    label: 'Ouro',      hex: '#d4a017', light: '#fdf8e1', border: '#f0d060',
+      shades: { 50:'#fdf8e1',100:'#faf0b8',200:'#f5e07a',300:'#f0d060',400:'#e8c040',500:'#d4a017',600:'#b8860b',700:'#966a08' } },
+    { value: 'brown',   label: 'Café',      hex: '#92400e', light: '#fdf4ee', border: '#d4a57a',
+      shades: { 50:'#fdf4ee',100:'#fbe8d5',200:'#f5cfa6',300:'#d4a57a',400:'#bc8045',500:'#92400e',600:'#7c3a0c',700:'#6b2f09' } },
+    { value: 'green',   label: 'Verde',     hex: '#22c55e', light: '#f0fdf4', border: '#86efac',
+      shades: { 50:'#f0fdf4',100:'#dcfce7',200:'#bbf7d0',300:'#86efac',400:'#4ade80',500:'#22c55e',600:'#16a34a',700:'#15803d' } },
+    { value: 'olive',   label: 'Militar',   hex: '#4d7c0f', light: '#f7fee7', border: '#a3e635',
+      shades: { 50:'#f7fee7',100:'#ecfccb',200:'#d9f99d',300:'#bef264',400:'#a3e635',500:'#65a30d',600:'#4d7c0f',700:'#3f6212' } },
+    { value: 'purple',  label: 'Roxo',      hex: '#7e22ce', light: '#faf5ff', border: '#d8b4fe',
+      shades: { 50:'#faf5ff',100:'#f3e8ff',200:'#e9d5ff',300:'#d8b4fe',400:'#c084fc',500:'#a855f7',600:'#9333ea',700:'#7e22ce' } },
+    { value: 'sky',     label: 'Céu',       hex: '#0ea5e9', light: '#f0f9ff', border: '#7dd3fc',
+      shades: { 50:'#f0f9ff',100:'#e0f2fe',200:'#bae6fd',300:'#7dd3fc',400:'#38bdf8',500:'#0ea5e9',600:'#0284c7',700:'#0369a1' } },
   ];
 
   const applyThemeToDom = (colorValue: string) => {
@@ -1107,10 +1123,8 @@ export default function AdminDashboard() {
     setIsPaymentModalOpen(true);
   };
 
-  const handleDeleteComanda = async (id: string) => {
-    if (!confirm("Excluir esta comanda? Essa ação não pode ser desfeita.")) return;
-    await apiFetch(`/api/comandas/${id}`, { method: "DELETE" });
-    apiFetch("/api/comandas").then(r => r.json()).then(d => setComandas(Array.isArray(d) ? d : []));
+  const handleDeleteComanda = (id: string, name?: string) => {
+    setDeleteConfirm({ type: "comanda", id, name: name || "esta comanda" });
   };
 
   const fetchComandas = () => {
@@ -1280,6 +1294,9 @@ export default function AdminDashboard() {
     } else if (deleteConfirm.type === "appointment") {
       await apiFetch(`/api/appointments/${deleteConfirm.id}`, { method: "DELETE" });
       fetchAppointments();
+    } else if (deleteConfirm.type === "comanda") {
+      await apiFetch(`/api/comandas/${deleteConfirm.id}`, { method: "DELETE" });
+      apiFetch("/api/comandas").then(r => r.json()).then(d => setComandas(Array.isArray(d) ? d : []));
     }
     setDeleteConfirm(null);
   };

@@ -13,6 +13,7 @@ import {
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
 import { motion, AnimatePresence } from "motion/react";
+import { DeleteConfirmModal } from "@/src/pages/admin/dashboard/components/modals/DeleteConfirmModal";
 
 function fmtBRL(v: number | undefined | null) {
   return Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -64,6 +65,7 @@ const INCOME_CATEGORIES = ["Comanda", "Venda Avulsa", "Serviço Avulso", "Invest
 export function FluxoTab({ comandas, sectors }: FluxoTabProps) {
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
   const [profitReport, setProfitReport] = useState<any>(null);
   const [period, setPeriod] = useState<Period>("month");
   
@@ -219,13 +221,18 @@ export function FluxoTab({ comandas, sectors }: FluxoTabProps) {
     }
   };
 
-  const handleDeleteEntry = async (id: string, comandaId: string | null) => {
+  const handleDeleteEntry = (id: string, comandaId: string | null, description?: string) => {
     if (comandaId) {
       alert("Lançamentos vinculados a comandas devem ser estornados através da comanda correspondente.");
       return;
     }
-    if (!confirm("Tem certeza que deseja excluir este lançamento?")) return;
-    
+    setDeleteConfirm({ type: "entry", id, name: description || "este lançamento" });
+  };
+
+  const confirmDeleteEntry = async () => {
+    if (!deleteConfirm) return;
+    const id = deleteConfirm.id;
+    setDeleteConfirm(null);
     setEntries(prev => prev.filter(e => e.id !== id));
     try {
       await apiFetch(`/api/cash-entries/${id}`, { method: "DELETE" });
@@ -515,7 +522,7 @@ export function FluxoTab({ comandas, sectors }: FluxoTabProps) {
                         {entry.type === "income" ? "+" : "-"}{fmtBRL(Number(entry.amount))}
                       </span>
                       <button 
-                        onClick={() => handleDeleteEntry(entry.id, entry.comandaId)}
+                        onClick={() => handleDeleteEntry(entry.id, entry.comandaId, entry.description)}
                         className="opacity-0 group-hover:opacity-100 p-1 text-zinc-300 hover:text-red-500 transition-all -mr-1 mt-0.5"
                       >
                         <Trash2 size={12} />
@@ -645,6 +652,11 @@ export function FluxoTab({ comandas, sectors }: FluxoTabProps) {
         )}
       </AnimatePresence>
 
+      <DeleteConfirmModal
+        deleteConfirm={deleteConfirm}
+        setDeleteConfirm={setDeleteConfirm}
+        confirmDelete={confirmDeleteEntry}
+      />
     </div>
   );
 }

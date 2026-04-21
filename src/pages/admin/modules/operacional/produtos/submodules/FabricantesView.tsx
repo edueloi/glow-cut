@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Factory, Plus, Edit2, Trash2, Phone, Mail, Globe, FileText } from "lucide-react";
 import { apiFetch } from "@/src/lib/api";
+import { DeleteConfirmModal } from "@/src/pages/admin/dashboard/components/modals/DeleteConfirmModal";
 import {
   StatCard,
   FilterLine, FilterLineSection, FilterLineItem, FilterLineSearch,
@@ -84,6 +85,7 @@ export function FabricantesView() {
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Manufacturer | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
   const toast = useToast();
 
   const load = useCallback(async () => {
@@ -97,11 +99,16 @@ export function FabricantesView() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Excluir este fabricante?")) return;
+  const handleDelete = (id: string, name: string) => {
+    setDeleteConfirm({ type: "fabricante", id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await apiFetch(`/api/inventory/manufacturers/${id}`, { method: "DELETE" });
+      await apiFetch(`/api/inventory/manufacturers/${deleteConfirm.id}`, { method: "DELETE" });
       toast.success("Fabricante removido.");
+      setDeleteConfirm(null);
       load();
     } catch { toast.error("Erro ao excluir."); }
   };
@@ -153,7 +160,7 @@ export function FabricantesView() {
       render: m => (
         <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
           <IconButton variant="ghost" size="sm" onClick={() => openEdit(m)}><Edit2 size={13} /></IconButton>
-          <IconButton variant="ghost" size="sm" onClick={() => handleDelete(m.id)}><Trash2 size={13} /></IconButton>
+          <IconButton variant="ghost" size="sm" onClick={() => handleDelete(m.id, m.name)}><Trash2 size={13} /></IconButton>
         </div>
       ),
     },
@@ -208,7 +215,7 @@ export function FabricantesView() {
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <IconButton variant="ghost" size="xs" onClick={() => openEdit(m)}><Edit2 size={12} /></IconButton>
-                <IconButton variant="ghost" size="xs" onClick={() => handleDelete(m.id)}><Trash2 size={12} /></IconButton>
+                <IconButton variant="ghost" size="xs" onClick={() => handleDelete(m.id, m.name)}><Trash2 size={12} /></IconButton>
               </div>
             </div>
           )}
@@ -223,6 +230,7 @@ export function FabricantesView() {
       </ContentCard>
 
       <ManufacturerModal isOpen={modalOpen} onClose={() => setModalOpen(false)} editingItem={editing} onSaved={load} />
+      <DeleteConfirmModal deleteConfirm={deleteConfirm} setDeleteConfirm={setDeleteConfirm} confirmDelete={confirmDelete} />
     </>
   );
 }
