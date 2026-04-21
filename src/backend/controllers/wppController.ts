@@ -92,18 +92,32 @@ function applyVars(template: string, vars: Record<string, string>): string {
 
 export async function sendWppToPhone(tenantId: string, phone: string, text: string): Promise<void> {
   try {
-    // Tenta usar bot próprio do parceiro
+    // 1. Checa se o tenant tem permissão (Plano ou Override)
+    const tenant = await (prisma as any).tenant.findUnique({
+      where: { id: tenantId },
+      select: { wppOverride: true, plan: { select: { wppEnabled: true } } }
+    });
+    
+    const wppAllowed = tenant?.wppOverride !== null ? tenant?.wppOverride : tenant?.plan?.wppEnabled;
+    if (!wppAllowed) {
+      console.log(`[WPP][${tenantId}] Envio bloqueado: parceiro não tem o módulo WhatsApp ativo.`);
+      return;
+    }
+
+    // 2. Tenta usar bot próprio do parceiro
     const info = getSessionInfo(tenantId);
     if (info.status === "connected") {
       await sendMessage(tenantId, phone, text);
       return;
     }
-    // Fallback: usa bot do sistema
+
+    // 3. Fallback: usa bot do sistema
     const systemInfo = getSessionInfo("system");
     if (systemInfo.status === "connected") {
       await sendMessage("system", phone, text);
       return;
     }
+    
     console.warn(`[WPP][${tenantId}] Nenhuma sessão conectada (própria nem sistema) — mensagem descartada para ${phone}`);
   } catch (e) {
     console.warn(`[WPP][${tenantId}] sendWppToPhone error:`, e);
@@ -207,10 +221,27 @@ export const wppController = {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     try {
-      const record = await (prisma as any).wppInstance.findUnique({ where: { tenantId } });
+      const [record, tenant] = await Promise.all([
+        (prisma as any).wppInstance.findUnique({ where: { tenantId } }),
+        (prisma as any).tenant.findUnique({ 
+          where: { id: tenantId }, 
+          select: { wppOverride: true, plan: { select: { wppEnabled: true } } } 
+        }),
+      ]);
+
+      const wppAllowed = tenant?.wppOverride !== null ? tenant?.wppOverride : tenant?.plan?.wppEnabled;
       const sessionInfo = getSessionInfo(tenantId);
-      // Mescla: prioriza status em memória (mais atualizado)
-      res.json(record ? { ...record, status: sessionInfo.status, phone: sessionInfo.phone, qrCode: sessionInfo.qrDataUrl } : null);
+      
+      res.json(record ? { 
+        ...record, 
+        status: sessionInfo.status, 
+        phone: sessionInfo.phone, 
+        qrCode: sessionInfo.qrDataUrl,
+        wppAllowed: !!wppAllowed
+      } : { 
+        status: "not_configured", 
+        wppAllowed: !!wppAllowed 
+      });
     } catch (e: any) {
       res.status(500).json({ error: e?.message });
     }
@@ -221,21 +252,20 @@ export const wppController = {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { instanceName } = req.body;
-    if (!instanceName) return res.status(400).json({ error: "instanceName obrigatório." });
     try {
       const instance = await (prisma as any).wppInstance.upsert({
         where: { tenantId },
         create: {
           id: randomUUID(),
           tenantId,
-          instanceName: String(instanceName).trim(),
-          apiUrl: "",        // não usado com Baileys
+          instanceName: String(instanceName || "Meu Bot").trim(),
+          apiUrl: "",        // Baileys não usa
           apiKey: null,
           status: "disconnected",
           isActive: false,
         },
         update: {
-          instanceName: String(instanceName).trim(),
+          instanceName: String(instanceName || "Meu Bot").trim(),
         },
       });
       await Promise.all([ensureTemplates(tenantId), ensureBotConfig(tenantId)]);

@@ -299,21 +299,48 @@ export async function disconnectSession(tenantId: string): Promise<void> {
   await updateDb(tenantId, "disconnected", null, null);
 }
 
-/** Envia mensagem de texto para um número */
+// Fila simples para evitar disparos simultâneos na mesma sessão
+const sendingLocks = new Map<string, Promise<void>>();
+
+/** Envia mensagem de texto para um número com delay anti-spam */
 export async function sendMessage(tenantId: string, phone: string, text: string): Promise<void> {
   const s = sessions.get(tenantId);
   if (!s || s.status !== "connected" || !s.sock) {
     console.warn(`[Baileys][${tenantId}] Sessão não conectada — mensagem descartada para ${phone}`);
     return;
   }
-  const digits = String(phone).replace(/\D/g, "");
-  const num = digits.startsWith("55") ? digits : `55${digits}`;
-  const jid = `${num}@s.whatsapp.net`;
-  try {
-    await s.sock.sendMessage(jid, { text });
-  } catch (e) {
-    console.warn(`[Baileys][${tenantId}] sendMessage error:`, e);
-  }
+
+  // Pega a promessa da mensagem anterior ou inicia uma nova
+  const previous = sendingLocks.get(tenantId) || Promise.resolve();
+  
+  const current = previous.then(async () => {
+    const digits = String(phone).replace(/\D/g, "");
+    const num = digits.startsWith("55") ? digits : `55${digits}`;
+    const jid = `${num}@s.whatsapp.net`;
+
+    try {
+      // Delay aleatório entre 1.5s e 4s para evitar detecção de bot (anti-spam)
+      const delay = Math.floor(Math.random() * (4000 - 1500 + 1)) + 1500;
+      await new Promise(r => setTimeout(r, delay));
+
+      await s.sock.sendMessage(jid, { text });
+      console.log(`[Baileys][${tenantId}] Mensagem enviada para ${num}`);
+    } catch (e) {
+      console.warn(`[Baileys][${tenantId}] sendMessage error for ${num}:`, e);
+    }
+  });
+
+  // Salva a nova "cauda" da fila
+  sendingLocks.set(tenantId, current);
+  
+  // Limpa a memória após o envio
+  current.finally(() => {
+    if (sendingLocks.get(tenantId) === current) {
+      sendingLocks.delete(tenantId);
+    }
+  });
+
+  return current;
 }
 
 /** Retorna QR code atual (data URL) se em estado qr_pending */
