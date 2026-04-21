@@ -2524,7 +2524,19 @@ function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => vo
       {activeTab === "seo" && (
         <ContentCard>
           <div className="space-y-4">
-            <p className="text-xs text-zinc-400">Configure os metadados de SEO para melhorar o ranqueamento nos buscadores.</p>
+            <p className="text-xs text-zinc-400">Configure os metadados de SEO para melhorar o ranqueamento nos buscadores e o preview no WhatsApp e redes sociais.</p>
+
+            {/* Aviso de imagem OG */}
+            {!form.coverImage && (
+              <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                <span className="text-amber-500 text-base mt-0.5">⚠️</span>
+                <p className="text-xs text-amber-700">
+                  <strong>Sem imagem de capa!</strong> O WhatsApp e redes sociais vão mostrar a imagem padrão da Agendelle.
+                  Adicione uma imagem de capa na aba <strong>Conteúdo</strong> para um preview personalizado.
+                </p>
+              </div>
+            )}
+
             <div>
               <Input label="Título SEO" value={form.seoTitle} onChange={e => set("seoTitle", e.target.value)} placeholder="Título para buscadores (max 60 chars)" maxLength={60} />
               <p className="text-[10px] text-zinc-400 mt-1">{form.seoTitle.length}/60 caracteres</p>
@@ -2534,11 +2546,33 @@ function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => vo
               <p className="text-[10px] text-zinc-400 mt-1">{form.seoDescription.length}/160 caracteres</p>
             </div>
             <Input label="Palavras-chave SEO" value={form.seoKeywords} onChange={e => set("seoKeywords", e.target.value)} placeholder="barbearia, agendamento, gestão salão" />
+
+            {/* Preview Google */}
             <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
               <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Preview no Google</p>
               <p className="text-sm font-bold text-blue-600 truncate">{form.seoTitle || form.title || "Título do artigo"}</p>
               <p className="text-[11px] text-green-700">agendelle.com.br/blog/...</p>
               <p className="text-xs text-zinc-600 mt-1 line-clamp-2">{form.seoDescription || form.excerpt || "Descrição do artigo..."}</p>
+            </div>
+
+            {/* Preview WhatsApp / redes sociais */}
+            <div className="border border-zinc-200 rounded-xl overflow-hidden">
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest px-4 pt-3 pb-2">Preview WhatsApp / Redes Sociais</p>
+              <div className="bg-white border-t border-zinc-100">
+                {form.coverImage ? (
+                  <img src={form.coverImage} alt="OG preview" className="w-full h-40 object-cover" onError={e => (e.currentTarget.style.display = "none")} />
+                ) : (
+                  <div className="w-full h-40 bg-amber-50 flex flex-col items-center justify-center gap-1 border-b border-amber-100">
+                    <span className="text-2xl">🖼️</span>
+                    <p className="text-[10px] text-amber-600 font-medium">Imagem padrão Agendelle</p>
+                  </div>
+                )}
+                <div className="px-3 py-2.5 bg-zinc-50 border-t border-zinc-200">
+                  <p className="text-[10px] text-zinc-400 uppercase tracking-wider">agendelle.com.br</p>
+                  <p className="text-xs font-bold text-zinc-800 mt-0.5 truncate">{form.seoTitle || form.title || "Título do artigo"}</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5 line-clamp-2">{form.seoDescription || form.excerpt || "Descrição do artigo..."}</p>
+                </div>
+              </div>
             </div>
           </div>
         </ContentCard>

@@ -308,7 +308,7 @@ initDb().then(() => {
 });
 
 const SITE_URL = "https://agendelle.com.br";
-const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
+const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.jpg`;
 
 function escapeHtml(value: string = ""): string {
   return value.replace(/[&<>"']/g, (char) => {
@@ -588,7 +588,7 @@ async function startServer() {
             title = post.seoTitle || `${post.title} | Blog Agendelle`;
             description = post.seoDescription || post.excerpt || "Leia mais no blog da Agendelle.";
             keywords = post.seoKeywords || keywords;
-            ogImage = absoluteUrl(post.coverImage);
+            ogImage = absoluteUrl(post.coverImage || null);
             ogType = "article";
             articlePublishedTime = post.publishedAt ? new Date(post.publishedAt).toISOString() : "";
             articleModifiedTime = post.updatedAt ? new Date(post.updatedAt).toISOString() : "";
@@ -888,7 +888,7 @@ async function startServer() {
       let title = "Agendelle | Agendamentos Inteligentes para Salões e Barbearias";
       let description = "Agendelle une organização inteligente com elegância — o sistema perfeito para salões e barbearias que querem crescer com profissionalismo.";
       let keywords = "agendamento online, sistema para salão de beleza, barbearia, gestão de estética, agendelle";
-      let ogImage = "https://agendelle.com.br/assets/imagem-agendele-a9t6taIM.png";
+      let ogImage = `${SITE_URL}/og-default.jpg`;
       const canonical = `https://agendelle.com.br${url}`;
 
       // ── SEO Dinâmico para Posts do Blog ───────────────────────────────────
