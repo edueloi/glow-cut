@@ -661,9 +661,14 @@ export const agendaController = {
 
         await ensureSlotAvailable(tenantId, professionalId, apptDate, startTime, resolvedEndTime);
 
+        const finalTotalSessions = count - skipDatesList.length;
         const appt = await (prisma as any).appointment.create({
           data: {
-            id: randomUUID(), date: apptDate, startTime, endTime: resolvedEndTime, status: effectiveStatus,
+            id: randomUUID(),
+            date: apptDate,
+            startTime,
+            endTime: resolvedEndTime,
+            status: effectiveStatus,
             type: isPublicRequest ? "atendimento" : (type || "atendimento"),
             clientId: clientId || null,
             serviceId: serviceId || null,

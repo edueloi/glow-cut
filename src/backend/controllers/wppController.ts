@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { getTenantId } from "../utils/helpers";
 import {
   connectSession,
@@ -137,6 +139,12 @@ export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Pro
   const appt = Array.isArray(appts) ? appts[0] : appts;
   if (!appt) return;
 
+  console.log("[WPP] fireWppProfNewBooking", { 
+    tenantId, 
+    totalSessions: appt.totalSessions, 
+    batchSize: Array.isArray(appts) ? appts.length : 1 
+  });
+
   try {
     const [config, tenant] = await Promise.all([
       (prisma as any).wppBotConfig.findUnique({ where: { tenantId } }),
@@ -171,8 +179,8 @@ export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Pro
 
     if (appt.totalSessions > 1) {
       const repeticoes = Array.isArray(appts) ? appts : [appt];
-      textoRecorrencia = `\n\n🔄 *Sessões (${appt.totalSessions}):*\n` +
-        repeticoes.map((r: any, idx: number) => `   ${idx + 1}ª: ${new Date(r.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às ${r.startTime}`).join("\n");
+      textoRecorrencia = `\n\n🔄 *AGENDA RECORRENTE (${appt.totalSessions} SESSÕES):*\n` +
+        repeticoes.map((r: any, idx: number) => `   🔹 ${idx + 1}ª: ${format(new Date(r.date), "dd/MM", { locale: ptBR })} às ${r.startTime}`).join("\n");
     }
 
     const vars: Record<string, string> = {
@@ -184,7 +192,7 @@ export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Pro
       valor_agendamento: appt.service?.price != null ? appt.service.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "",
       recorrencia: textoRecorrencia,
       nome_estabelecimento: tenant?.name || "",
-      data_agendamento: new Date(appt.date).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }),
+      data_agendamento: format(new Date(appt.date), "EEEE, dd 'de' MMMM", { locale: ptBR }),
       hora_agendamento: appt.startTime || "",
       link_painel: tenantSlug ? `https://agendelle.com.br/${tenantSlug}/admin` : "https://agendelle.com.br",
     };

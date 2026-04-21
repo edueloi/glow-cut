@@ -1302,9 +1302,9 @@ export default function ClientBooking() {
               <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center mb-4">
                 <CalendarIcon size={20} className="text-amber-600" />
               </div>
-              <h3 className="text-xl font-black text-zinc-900 mb-2">Conflito de datas</h3>
+              <h3 className="text-xl font-black text-zinc-900 mb-2">Datas Indisponíveis</h3>
               <p className="text-xs text-zinc-500 font-medium mb-4 leading-relaxed">
-                Algumas semanas futuras caindo em dias indisponíveis. Deseja ignorar esses dias e agendar o resto?
+                Algumas datas da sua recorrência caíram em feriados ou horários já ocupados. Deseja <strong>pular essas semanas</strong> e agendar apenas as datas livres?
               </p>
               
               <div className="max-h-[200px] overflow-y-auto space-y-2 mb-6">
