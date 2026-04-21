@@ -634,66 +634,71 @@ export default function ClientBooking() {
                 <motion.div key="choose-mode" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-4 flex-1 flex flex-col justify-center">
                   <BackBtn to="home" />
                   <div className="mb-2">
-                    <h3 className="text-xl font-black text-zinc-900">Agendar Horário</h3>
+                    <h3 className="text-2xl font-black text-zinc-900 tracking-tight">Agendar</h3>
                     <p className="text-xs text-zinc-400 font-medium mt-1">Como prefere começar?</p>
                   </div>
 
                   <button
                     onClick={() => setStep("by-professional")}
-                    className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm transition-all active:scale-[0.98] text-left"
+                    className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-zinc-100 bg-white hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group"
                   >
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-white" style={{ backgroundColor: customColor }}>
-                      <User size={20} />
+                    <div className="w-13 h-13 rounded-2xl flex items-center justify-center shrink-0 text-white shadow-sm" style={{ backgroundColor: customColor }}>
+                      <User size={22} />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-black text-zinc-900">Por Profissional</p>
-                      <p className="text-[10px] text-zinc-400 font-medium mt-0.5">Escolha quem vai te atender primeiro</p>
+                      <p className="text-[11px] text-zinc-400 font-medium mt-0.5">Escolha quem vai te atender primeiro</p>
                     </div>
-                    <ChevronRight size={16} className="text-zinc-300 shrink-0" />
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: customColor + "15" }}>
+                      <ChevronRight size={15} style={{ color: customColor }} />
+                    </div>
                   </button>
 
                   <button
                     onClick={() => setStep("by-service")}
-                    className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm transition-all active:scale-[0.98] text-left"
+                    className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-zinc-100 bg-white hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group"
                   >
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-zinc-100">
-                      <Scissors size={20} className="text-zinc-500" />
+                    <div className="w-13 h-13 rounded-2xl flex items-center justify-center shrink-0 bg-zinc-100">
+                      <Scissors size={22} className="text-zinc-500" />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-black text-zinc-900">Por Serviço</p>
-                      <p className="text-[10px] text-zinc-400 font-medium mt-0.5">Escolha o serviço e veja quem faz</p>
+                      <p className="text-[11px] text-zinc-400 font-medium mt-0.5">Escolha o serviço e veja quem faz</p>
                     </div>
-                    <ChevronRight size={16} className="text-zinc-300 shrink-0" />
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-zinc-100">
+                      <ChevronRight size={15} className="text-zinc-400" />
+                    </div>
                   </button>
                 </motion.div>
               )}
 
               {/* ── BY PROFESSIONAL (lista de profissionais) ── */}
               {step === "by-professional" && (
-                <motion.div key="by-professional" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-4">
+                <motion.div key="by-professional" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-5">
                   <BackBtn to="choose-mode" />
                   <div>
-                    <h3 className="text-xl font-black text-zinc-900">Profissionais</h3>
+                    <h3 className="text-2xl font-black text-zinc-900 tracking-tight">Profissionais</h3>
                     <p className="text-xs text-zinc-400 font-medium mt-1">Com quem deseja ser atendido?</p>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {professionals.map((p) => {
                       const svcCount = servicesForProfessional(p.id).length;
                       return (
                         <button key={p.id}
                           onClick={() => { setSelectedProfessional(p); setStep("pick-service"); }}
-                          className="w-full flex items-center gap-3.5 p-4 bg-white border border-zinc-200 rounded-2xl hover:border-zinc-300 hover:shadow-sm transition-all active:scale-[0.98] text-left">
-                          <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 flex items-center justify-center text-white font-black text-base shadow-sm"
+                          className="w-full flex items-center gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
+                          <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center text-white font-black text-xl shadow-sm"
                             style={{ backgroundColor: customColor }}>
-                            {p.photo ? <img src={p.photo} alt={p.name} className="w-full h-full object-cover" /> : p.name.charAt(0)}
+                            {p.photo ? <img src={p.photo} alt={p.name} className="w-full h-full object-cover" /> : p.name.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-black text-zinc-900 truncate">{p.name}</p>
-                            <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
-                              {p.role}{svcCount > 0 ? ` · ${svcCount} serviço${svcCount !== 1 ? "s" : ""}` : ""}
-                            </p>
+                            {p.role && <p className="text-[11px] font-bold mt-0.5" style={{ color: customColor }}>{p.role}</p>}
+                            {svcCount > 0 && <p className="text-[10px] text-zinc-400 font-medium mt-0.5">{svcCount} serviço{svcCount !== 1 ? "s" : ""} disponível{svcCount !== 1 ? "is" : ""}</p>}
                           </div>
-                          <ChevronRight size={16} className="text-zinc-300 shrink-0" />
+                          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all group-hover:translate-x-0.5" style={{ backgroundColor: customColor + "15" }}>
+                            <ChevronRight size={15} style={{ color: customColor }} />
+                          </div>
                         </button>
                       );
                     })}
@@ -703,29 +708,32 @@ export default function ClientBooking() {
 
               {/* ── PICK SERVICE (depois de escolher profissional) ── */}
               {step === "pick-service" && (
-                <motion.div key="pick-service" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-4">
+                <motion.div key="pick-service" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-5">
                   <BackBtn to="by-professional" />
                   <div>
-                    <h3 className="text-xl font-black text-zinc-900">Serviços</h3>
+                    <h3 className="text-2xl font-black text-zinc-900 tracking-tight">Serviços</h3>
                     <p className="text-xs text-zinc-400 font-medium mt-1">O que você deseja fazer?</p>
                   </div>
                   {selectedProfessional && (
                     <SelectionChip label={selectedProfessional.name} sub={selectedProfessional.role} />
                   )}
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {servicesForProfessional(selectedProfessional?.id || "").map((s) => (
                       <button key={s.id}
                         onClick={() => { setSelectedService(s); setStep("date"); fetchAvailability(selectedDate, s.id, selectedProfessional.id); }}
-                        className="w-full flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-2xl hover:border-zinc-300 hover:shadow-sm transition-all active:scale-[0.98] text-left">
-                        <div className="flex-1 min-w-0 pr-3">
+                        className="w-full flex items-center gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
+                        <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: customColor + "15" }}>
+                          <Scissors size={16} style={{ color: customColor }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
                           <p className="text-sm font-black text-zinc-900 truncate">{s.name}</p>
-                          <p className="text-[10px] text-zinc-400 font-medium mt-0.5 flex items-center gap-2">
-                            <span className="flex items-center gap-1"><Clock size={9} />{s.duration} min</span>
-                            <span className="text-zinc-200">·</span>
-                            <span className="font-bold text-emerald-600">R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</span>
+                          <p className="text-[10px] text-zinc-400 font-medium mt-0.5 flex items-center gap-1.5">
+                            <Clock size={9} />{s.duration} min
                           </p>
                         </div>
-                        <ChevronRight size={16} className="text-zinc-300 shrink-0" />
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-black" style={{ color: customColor }}>R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</p>
+                        </div>
                       </button>
                     ))}
                     {servicesForProfessional(selectedProfessional?.id || "").length === 0 && (
@@ -739,48 +747,51 @@ export default function ClientBooking() {
 
               {/* ── BY SERVICE (lista de serviços) ── */}
               {step === "by-service" && (
-                <motion.div key="by-service" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-4">
+                <motion.div key="by-service" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-5">
                   <BackBtn to="choose-mode" />
                   <div>
-                    <h3 className="text-xl font-black text-zinc-900">Serviços</h3>
+                    <h3 className="text-2xl font-black text-zinc-900 tracking-tight">Serviços</h3>
                     <p className="text-xs text-zinc-400 font-medium mt-1">O que você deseja fazer?</p>
                   </div>
-                  <div className="space-y-2">
-                    {services.map((s) => (
-                      <button key={s.id}
-                        onClick={() => handleServiceSelected(s)}
-                        className="w-full flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-2xl hover:border-zinc-300 hover:shadow-sm transition-all active:scale-[0.98] text-left">
-                        <div className="flex-1 min-w-0 pr-3">
-                          <p className="text-sm font-black text-zinc-900 truncate">{s.name}</p>
-                          <p className="text-[10px] text-zinc-400 font-medium mt-0.5 flex items-center gap-2">
-                            <span className="flex items-center gap-1"><Clock size={9} />{s.duration} min</span>
-                            <span className="text-zinc-200">·</span>
-                            <span className="font-bold text-emerald-600">R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</span>
-                          </p>
-                          {!onlyOneProfessional && (() => {
-                            const profs = professionalsForService(s.id);
-                            return profs.length > 0 ? (
-                              <p className="text-[9px] text-zinc-300 font-medium mt-1">{profs.length} profissional{profs.length !== 1 ? "is" : ""}</p>
-                            ) : null;
-                          })()}
-                        </div>
-                        <ChevronRight size={16} className="text-zinc-300 shrink-0" />
-                      </button>
-                    ))}
+                  <div className="space-y-2.5">
+                    {services.map((s) => {
+                      const profs = professionalsForService(s.id);
+                      return (
+                        <button key={s.id}
+                          onClick={() => handleServiceSelected(s)}
+                          className="w-full flex items-center gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
+                          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: customColor + "15" }}>
+                            <Scissors size={16} style={{ color: customColor }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-black text-zinc-900 truncate">{s.name}</p>
+                            <p className="text-[10px] text-zinc-400 font-medium mt-0.5 flex items-center gap-1.5">
+                              <Clock size={9} />{s.duration} min
+                              {!onlyOneProfessional && profs.length > 0 && (
+                                <><span className="text-zinc-200">·</span>{profs.length} prof.</>
+                              )}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-black" style={{ color: customColor }}>R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </motion.div>
               )}
 
               {/* ── PICK PROFESSIONAL (depois de escolher serviço) ── */}
               {step === "pick-professional" && (
-                <motion.div key="pick-professional" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-4">
+                <motion.div key="pick-professional" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-5">
                   <BackBtn to="by-service" />
                   <div>
-                    <h3 className="text-xl font-black text-zinc-900">Profissional</h3>
+                    <h3 className="text-2xl font-black text-zinc-900 tracking-tight">Profissional</h3>
                     <p className="text-xs text-zinc-400 font-medium mt-1">Quem vai te atender?</p>
                   </div>
                   {selectedService && <SelectionChip label={selectedService.name} sub={`${selectedService.duration} min · R$ ${parseFloat(selectedService.price).toFixed(2).replace(".", ",")}`} />}
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {/* Sem preferência */}
                     <button
                       onClick={() => {
@@ -789,9 +800,9 @@ export default function ClientBooking() {
                         setStep("date");
                         fetchAvailability(selectedDate, selectedService.id, first?.id);
                       }}
-                      className="w-full flex items-center gap-3.5 p-4 bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-2xl hover:border-zinc-300 hover:bg-zinc-100 transition-all active:scale-[0.98] text-left">
-                      <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-sm border border-zinc-100 shrink-0">
-                        <User size={16} className="text-zinc-400" />
+                      className="w-full flex items-center gap-4 p-4 bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-2xl hover:border-zinc-300 hover:bg-zinc-100 transition-all active:scale-[0.98] text-left">
+                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-zinc-100 shrink-0">
+                        <User size={18} className="text-zinc-400" />
                       </div>
                       <div>
                         <p className="text-sm font-black text-zinc-700">Sem Preferência</p>
@@ -809,16 +820,18 @@ export default function ClientBooking() {
                     {professionalsForService(selectedService?.id || "").map((p) => (
                       <button key={p.id}
                         onClick={() => { setSelectedProfessional(p); setStep("date"); fetchAvailability(selectedDate, selectedService.id, p.id); }}
-                        className="w-full flex items-center gap-3.5 p-4 bg-white border border-zinc-200 rounded-2xl hover:border-zinc-300 hover:shadow-sm transition-all active:scale-[0.98] text-left">
-                        <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 flex items-center justify-center text-white font-black text-base shadow-sm"
+                        className="w-full flex items-center gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
+                        <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center text-white font-black text-xl shadow-sm"
                           style={{ backgroundColor: customColor }}>
-                          {p.photo ? <img src={p.photo} alt={p.name} className="w-full h-full object-cover" /> : p.name.charAt(0)}
+                          {p.photo ? <img src={p.photo} alt={p.name} className="w-full h-full object-cover" /> : p.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-black text-zinc-900 truncate">{p.name}</p>
-                          <p className="text-[10px] text-zinc-400 font-medium">{p.role}</p>
+                          <p className="text-[11px] font-bold mt-0.5" style={{ color: customColor }}>{p.role}</p>
                         </div>
-                        <ChevronRight size={16} className="text-zinc-300 shrink-0" />
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all group-hover:translate-x-0.5" style={{ backgroundColor: customColor + "15" }}>
+                          <ChevronRight size={15} style={{ color: customColor }} />
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -1063,62 +1076,70 @@ export default function ClientBooking() {
 
               {/* ── SUCCESS ── */}
               {step === "success" && (
-                <motion.div key="success" 
-                  initial={{ scale: 0.95, opacity: 0 }} 
+                <motion.div key="success"
+                  initial={{ scale: 0.95, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="text-center py-4 space-y-8 flex flex-col items-center"
+                  className="flex flex-col items-center py-2 space-y-6"
                 >
-                  <div className="relative">
-                    <div className="absolute inset-0 rounded-full blur-[40px] opacity-20 animate-pulse" style={{ backgroundColor: customColor }} />
-                    <div className="w-24 h-24 rounded-full flex items-center justify-center relative z-10 border-4 border-white shadow-2xl"
+                  {/* Ícone animado */}
+                  <div className="relative mt-2">
+                    <div className="absolute inset-0 rounded-full blur-[32px] opacity-30 animate-pulse" style={{ backgroundColor: customColor }} />
+                    <div className="w-20 h-20 rounded-full flex items-center justify-center relative z-10 shadow-2xl"
                       style={{ backgroundColor: customColor }}>
-                      <CheckCircle2 size={48} className="text-white stroke-[2.5] animate-in zoom-in-50 duration-500 delay-200" />
+                      <CheckCircle2 size={40} className="text-white stroke-[2]" />
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <h3 className="text-4xl font-black text-zinc-950 tracking-tighter">Tudo pronto!</h3>
-                    <p className="text-base text-zinc-500 font-medium max-w-[280px] mx-auto leading-relaxed">
-                      Sua reserva foi confirmada com sucesso em <span className="text-zinc-900 font-bold">{studioName}</span>.
+                  <div className="text-center space-y-1.5">
+                    <h3 className="text-3xl font-black text-zinc-950 tracking-tight">Reservado!</h3>
+                    <p className="text-sm text-zinc-400 font-medium max-w-[260px] mx-auto leading-relaxed">
+                      Agendamento confirmado em <span className="text-zinc-700 font-bold">{studioName}</span>
                     </p>
                   </div>
 
-                  <div className="w-full p-6 rounded-[28px] border-2 border-zinc-100 bg-zinc-50/50 space-y-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center shrink-0">
-                        <CalendarIcon size={20} style={{ color: customColor }} />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-black text-zinc-900">{format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}</p>
-                        <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">{selectedSlot} • {selectedService?.name}</p>
-                      </div>
+                  {/* Card resumo */}
+                  <div className="w-full rounded-3xl overflow-hidden border-2 border-zinc-100 shadow-sm">
+                    {/* Header colorido */}
+                    <div className="px-5 py-4 text-white" style={{ backgroundColor: customColor }}>
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Seu agendamento</p>
+                      <p className="text-lg font-black leading-tight">{selectedService?.name}</p>
+                      <p className="text-sm font-bold opacity-80 mt-0.5">
+                        {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })} • {selectedSlot}
+                      </p>
                     </div>
-                    
-                    <Divider />
-                    
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center shrink-0 overflow-hidden">
-                        {selectedProfessional?.photo ? <img src={selectedProfessional.photo} className="w-full h-full object-cover" /> : <User size={20} style={{ color: customColor }} />}
+                    {/* Corpo branco */}
+                    <div className="bg-white px-5 py-4 flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-2xl overflow-hidden flex items-center justify-center text-white font-black text-base shrink-0 shadow-sm"
+                        style={{ backgroundColor: customColor }}>
+                        {selectedProfessional?.photo
+                          ? <img src={selectedProfessional.photo} alt="" className="w-full h-full object-cover" />
+                          : selectedProfessional?.name?.charAt(0).toUpperCase()}
                       </div>
-                      <div className="text-left">
+                      <div>
                         <p className="text-sm font-black text-zinc-900">{selectedProfessional?.name}</p>
-                        <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">{selectedProfessional?.role}</p>
+                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">{selectedProfessional?.role}</p>
+                      </div>
+                      <div className="ml-auto text-right">
+                        <p className="text-sm font-black" style={{ color: customColor }}>
+                          R$ {parseFloat(selectedService?.price || "0").toFixed(2).replace(".", ",")}
+                        </p>
+                        <p className="text-[10px] text-zinc-400 font-medium">{selectedService?.duration} min</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="w-full space-y-4">
+                  <div className="w-full space-y-3">
                     <Button
-                      onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Olá! Confirmando meu agendamento no ${studioName} para ${format(selectedDate, "dd/MM/yyyy")} às ${selectedSlot}.`)}`, "_blank")}
-                      className="w-full h-14 rounded-2xl bg-[#25D366] hover:bg-[#1DA851] text-white font-black text-base shadow-xl border-transparent"
-                      iconLeft={<Phone size={20} />}
+                      onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Olá! Confirmando meu agendamento no ${studioName} para ${format(selectedDate, "EEEE, dd/MM/yyyy", { locale: ptBR })} às ${selectedSlot}.`)}`, "_blank")}
+                      className="w-full h-13 rounded-2xl bg-[#25D366] hover:bg-[#1DA851] text-white font-black text-sm shadow-lg border-transparent"
+                      iconLeft={<Phone size={18} />}
                     >
                       Avisar no WhatsApp
                     </Button>
-                    
-                    <button 
+
+                    <button
                       onClick={() => setStep("home")}
-                      className="w-full py-2 text-xs font-black text-zinc-400 hover:text-zinc-800 uppercase tracking-[0.2em] transition-colors"
+                      className="w-full py-2.5 text-[11px] font-black text-zinc-400 hover:text-zinc-700 uppercase tracking-[0.2em] transition-colors"
                     >
                       Voltar ao Início
                     </button>
