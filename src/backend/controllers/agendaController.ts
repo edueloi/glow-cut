@@ -571,7 +571,14 @@ export const agendaController = {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
     const { date, startTime, endTime, clientId, serviceId, professionalId: rawProfessionalId, comandaId, duration, notes, status, type, sessionNumber, totalSessions, recurrence, repeat, repeatCount, skipDates } = req.body;
-    if (!date || !startTime) return res.status(400).json({ error: "data e horâ”œÃ­rio sâ”œÃºo obrigatâ”œâ”‚rios." });
+    
+    console.log("[Agenda] Criando agendamento", { 
+      date, startTime, repeat, repeatCount, 
+      isPublic: !(req as any).auth,
+      skipDatesCount: skipDates?.length || 0 
+    });
+
+    if (!date || !startTime) return res.status(400).json({ error: "data e horário são obrigatórios." });
     const isPublicRequest = !(req as any).auth;
 
     let professionalId = rawProfessionalId || null;
@@ -675,9 +682,13 @@ export const agendaController = {
         }
       }
 
-      const firstAppt = results[0];
-      // Notifica apenas o profissional ao criar — cliente só recebe ao confirmar
-      if (tenantId) fireWppProfNewBooking(tenantId, firstAppt).catch(() => {});
+      // Notifica profissional e cliente (se confirmado)
+      if (tenantId && results.length > 0) {
+        fireWppProfNewBooking(tenantId, results).catch(e => console.error("Erro wpp prof:", e));
+        if (effectiveStatus === "confirmed") {
+          fireWppConfirmationCentral(tenantId, results).catch(e => console.error("Erro wpp client:", e));
+        }
+      }
 
       res.json(results[0]);
     } catch (e: any) {

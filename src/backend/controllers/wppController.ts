@@ -133,7 +133,10 @@ export async function getTemplateBody(tenantId: string, type: string): Promise<s
   } catch { return null; }
 }
 
-export async function fireWppProfNewBooking(tenantId: string, appt: any): Promise<void> {
+export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Promise<void> {
+  const appt = Array.isArray(appts) ? appts[0] : appts;
+  if (!appt) return;
+
   try {
     const [config, tenant] = await Promise.all([
       (prisma as any).wppBotConfig.findUnique({ where: { tenantId } }),
@@ -166,16 +169,10 @@ export async function fireWppProfNewBooking(tenantId: string, appt: any): Promis
       }
     }
 
-    if (appt.totalSessions > 1 && appt.repeatGroupId) {
-      const repeticoes = await (prisma as any).appointment.findMany({
-        where: { repeatGroupId: appt.repeatGroupId },
-        orderBy: { date: "asc" },
-        select: { date: true, startTime: true }
-      });
-      if (repeticoes.length > 0) {
-        textoRecorrencia = `\n\n🔄 *Sessões (${appt.totalSessions}):*\n` +
-          repeticoes.map((r: any, idx: number) => `   ${idx + 1}ª: ${new Date(r.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às ${r.startTime}`).join("\n");
-      }
+    if (appt.totalSessions > 1) {
+      const repeticoes = Array.isArray(appts) ? appts : [appt];
+      textoRecorrencia = `\n\n🔄 *Sessões (${appt.totalSessions}):*\n` +
+        repeticoes.map((r: any, idx: number) => `   ${idx + 1}ª: ${new Date(r.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às ${r.startTime}`).join("\n");
     }
 
     const vars: Record<string, string> = {
@@ -198,7 +195,10 @@ export async function fireWppProfNewBooking(tenantId: string, appt: any): Promis
   }
 }
 
-export async function fireWppConfirmation(tenantId: string, appt: any): Promise<void> {
+export async function fireWppConfirmation(tenantId: string, appts: any[]): Promise<void> {
+  const appt = Array.isArray(appts) ? appts[0] : appts;
+  if (!appt) return;
+
   try {
     const [config, tenant] = await Promise.all([
       (prisma as any).wppBotConfig.findUnique({ where: { tenantId } }),
@@ -229,16 +229,10 @@ export async function fireWppConfirmation(tenantId: string, appt: any): Promise<
       }
     }
 
-    if (appt.totalSessions > 1 && appt.repeatGroupId) {
-      const repeticoes = await (prisma as any).appointment.findMany({
-        where: { repeatGroupId: appt.repeatGroupId },
-        orderBy: { date: "asc" },
-        select: { date: true, startTime: true }
-      });
-      if (repeticoes.length > 0) {
-        textoRecorrencia = `\n\n🔄 *Sessões (${appt.totalSessions}):*\n` +
-          repeticoes.map((r: any, idx: number) => `   ${idx + 1}ª: ${new Date(r.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às ${r.startTime}`).join("\n");
-      }
+    if (appt.totalSessions > 1) {
+      const repeticoes = Array.isArray(appts) ? appts : [appt];
+      textoRecorrencia = `\n\n🔄 *Sessões (${appt.totalSessions}):*\n` +
+        repeticoes.map((r: any, idx: number) => `   ${idx + 1}ª: ${new Date(r.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às ${r.startTime}`).join("\n");
     }
 
     const vars: Record<string, string> = {

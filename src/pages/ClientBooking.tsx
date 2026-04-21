@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Calendar as CalendarIcon, Clock, User, Phone, Instagram, ArrowRight, CheckCircle2, Search, Loader2, Scissors, MapPin, Download, X, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, User, Phone, Instagram, ArrowRight, CheckCircle2, Search, Loader2, Scissors, MapPin, Download, X, ChevronRight, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { format, addDays, isSameDay, startOfDay, startOfMonth, endOfMonth, endOfWeek, startOfWeek, isSameMonth, isBefore, addMonths, subMonths, addMinutes, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -15,6 +15,7 @@ interface PublicAgendaSettings {
   enableAppointmentSearch: boolean;
   enableClientAgendaView: boolean;
   allowClientRecurrence: boolean;
+  autoConfirmAppointments: boolean;
 }
 
 function toDateInputValue(value: string | null | undefined) {
@@ -31,6 +32,7 @@ const DEFAULT_PUBLIC_AGENDA_SETTINGS: PublicAgendaSettings = {
   enableAppointmentSearch: true,
   enableClientAgendaView: true,
   allowClientRecurrence: false,
+  autoConfirmAppointments: false,
 };
 
 export default function ClientBooking() {
@@ -1158,10 +1160,15 @@ export default function ClientBooking() {
                     </div>
                   </div>
 
-                  <div className="text-center space-y-1.5">
-                    <h3 className="text-3xl font-black text-zinc-950 tracking-tight">Reservado!</h3>
+                   <div className="text-center space-y-1.5">
+                    <h3 className="text-3xl font-black text-zinc-950 tracking-tight">
+                      {publicAgendaSettings.autoConfirmAppointments ? "Reservado!" : "Solicitado!"}
+                    </h3>
                     <p className="text-sm text-zinc-400 font-medium max-w-[260px] mx-auto leading-relaxed">
-                      Agendamento confirmado em <span className="text-zinc-700 font-bold">{studioName}</span>
+                      {publicAgendaSettings.autoConfirmAppointments 
+                        ? `Agendamento confirmado em ` 
+                        : `Aguardando confirmação em `}
+                      <span className="text-zinc-700 font-bold">{studioName}</span>
                     </p>
                   </div>
 
@@ -1169,11 +1176,19 @@ export default function ClientBooking() {
                   <div className="w-full rounded-3xl overflow-hidden border-2 border-zinc-100 shadow-sm">
                     {/* Header colorido */}
                     <div className="px-5 py-4 text-white" style={{ backgroundColor: customColor }}>
-                      <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Seu agendamento</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">
+                        {repeatWeeks > 1 ? `Agendamento Recorrente (${repeatWeeks}x)` : "Seu agendamento"}
+                      </p>
                       <p className="text-lg font-black leading-tight">{selectedService?.name}</p>
                       <p className="text-sm font-bold opacity-80 mt-0.5">
                         {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })} • {selectedSlot}
                       </p>
+                      {repeatWeeks > 1 && (
+                        <div className="mt-2 pt-2 border-t border-white/20 text-[10px] font-bold opacity-90 flex items-center gap-1.5">
+                          <RefreshCw size={10} className="animate-spin-slow" />
+                          Repetindo semanalmente pelas próximas {repeatWeeks - 1} semanas
+                        </div>
+                      )}
                     </div>
                     {/* Corpo branco */}
                     <div className="bg-white px-5 py-4 flex items-center gap-3">
@@ -1198,7 +1213,18 @@ export default function ClientBooking() {
 
                   <div className="w-full space-y-3">
                     <Button
-                      onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Olá! Confirmando meu agendamento no ${studioName} para ${format(selectedDate, "EEEE, dd/MM/yyyy", { locale: ptBR })} às ${selectedSlot}.`)}`, "_blank")}
+                      onClick={() => {
+                        let msg = `Olá! Acabei de solicitar um agendamento no ${studioName}:\n\n` +
+                                  `✂️ *Serviço:* ${selectedService?.name}\n` +
+                                  `📅 *Data:* ${format(selectedDate, "dd/MM/yyyy", { locale: ptBR })}\n` +
+                                  `⏰ *Horário:* ${selectedSlot}`;
+                        
+                        if (repeatWeeks > 1) {
+                          msg += `\n🔄 *Recorrência:* Repetir por ${repeatWeeks} semanas`;
+                        }
+                        
+                        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+                      }}
                       className="w-full h-13 rounded-2xl bg-[#25D366] hover:bg-[#1DA851] text-white font-black text-sm shadow-lg border-transparent"
                       iconLeft={<Phone size={18} />}
                     >
