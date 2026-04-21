@@ -49,6 +49,7 @@ interface AdminDashboardShellProps {
   notificationsRef: React.RefObject<HTMLDivElement | null>;
   onLogout: () => void;
   onSubModuleChange: (key: string) => void;
+  pendingConfirmationsCount?: number;
   profileMenuRef: React.RefObject<HTMLDivElement | null>;
   setIsNotificationsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setIsProfileMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -71,6 +72,7 @@ export function AdminDashboardShell({
   notificationsRef,
   onLogout,
   onSubModuleChange,
+  pendingConfirmationsCount = 0,
   profileMenuRef,
   setIsNotificationsOpen,
   setIsProfileMenuOpen,
@@ -251,6 +253,22 @@ export function AdminDashboardShell({
               <ExternalLink size={14} />
               Ver Site
             </a>
+
+            {pendingConfirmationsCount > 0 && (
+              <button
+                onClick={() => handleTabChange("dash")}
+                title={`${pendingConfirmationsCount} agendamento${pendingConfirmationsCount > 1 ? "s" : ""} pendente${pendingConfirmationsCount > 1 ? "s" : ""} de confirmação`}
+                className="relative flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-600 transition-all hover:bg-amber-100 hover:border-amber-300 md:px-3"
+              >
+                <AlertTriangle size={16} className="shrink-0" />
+                <span className="hidden text-[11px] font-black md:inline">
+                  {pendingConfirmationsCount}
+                </span>
+                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-white md:hidden">
+                  {pendingConfirmationsCount}
+                </span>
+              </button>
+            )}
 
             <div className="relative" ref={notificationsRef}>
               <button

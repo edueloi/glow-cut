@@ -408,6 +408,12 @@ export default function AdminDashboard() {
     lockOrientation();
   }, []);
 
+  // Agendamentos pendentes de confirmação (hoje, status scheduled)
+  const pendingConfirmationsCount = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return appointments.filter(a => a.date === today && a.status === "scheduled").length;
+  }, [appointments]);
+
   // Notificações reais calculadas a partir do estado local
   const notifications = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -1372,6 +1378,7 @@ export default function AdminDashboard() {
         notificationsRef={notificationsRef}
         onLogout={logout}
         onSubModuleChange={handleSubModuleChange}
+        pendingConfirmationsCount={pendingConfirmationsCount}
         profileMenuRef={profileMenuRef}
         setIsNotificationsOpen={setIsNotificationsOpen}
         setIsProfileMenuOpen={setIsProfileMenuOpen}
