@@ -638,7 +638,7 @@ export const agendaController = {
         count = recurrence.count || 1;
         interval = recurrence.interval || 7;
       } else if (isPublicRequest && repeat === "weekly") {
-        count = repeatCount || 1;
+        count = Number(repeatCount) || 1;
       }
       
       const effectiveDuration = Number(duration) > 0 ? Number(duration) : Number(service?.duration || 60);

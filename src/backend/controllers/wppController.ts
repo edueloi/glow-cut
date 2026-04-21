@@ -177,10 +177,17 @@ export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Pro
       }
     }
 
-    if (appt.totalSessions > 1) {
+    const numSessoes = Array.isArray(appts) ? appts.length : (appt.totalSessions || 1);
+    
+    if (numSessoes > 1) {
       const repeticoes = Array.isArray(appts) ? appts : [appt];
-      textoRecorrencia = `\n\n🔄 *AGENDA RECORRENTE (${appt.totalSessions} SESSÕES):*\n` +
+      textoRecorrencia = `\n\n🔄 *AGENDA RECORRENTE (${numSessoes} SESSÕES):*\n` +
         repeticoes.map((r: any, idx: number) => `   🔹 ${idx + 1}ª: ${format(new Date(r.date), "dd/MM", { locale: ptBR })} às ${r.startTime}`).join("\n");
+      
+      if (appt.service?.price) {
+        const total = appt.service.price * numSessoes;
+        textoRecorrencia += `\n\n💰 *VALOR TOTAL:* ${total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`;
+      }
     }
 
     const vars: Record<string, string> = {
