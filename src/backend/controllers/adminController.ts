@@ -165,12 +165,11 @@ export const adminController = {
 
     try {
       // Remove imagens antigas do disco ao trocar
-      if (logoUrl !== undefined || coverUrl !== undefined || req.body.siteCoverUrl !== undefined) {
-        const cur = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { logoUrl: true, coverUrl: true, siteCoverUrl: true } });
+      if (logoUrl !== undefined || coverUrl !== undefined) {
+        const cur = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { logoUrl: true, coverUrl: true } });
         if (cur) {
           if (logoUrl !== undefined && cur.logoUrl && cur.logoUrl !== logoUrl) deleteLocalFile(cur.logoUrl);
           if (coverUrl !== undefined && cur.coverUrl && cur.coverUrl !== coverUrl) deleteLocalFile(cur.coverUrl);
-          if (req.body.siteCoverUrl !== undefined && cur.siteCoverUrl && cur.siteCoverUrl !== req.body.siteCoverUrl) deleteLocalFile(cur.siteCoverUrl);
         }
       }
 
@@ -201,7 +200,6 @@ export const adminController = {
       if (b.feature3Title !== undefined) data.feature3Title = b.feature3Title;
       if (b.feature3Description !== undefined) data.feature3Description = b.feature3Description;
       if (b.experienceYears !== undefined) data.experienceYears = b.experienceYears;
-      if (b.siteCoverUrl !== undefined) data.siteCoverUrl = b.siteCoverUrl;
 
       const tenant = await (prisma as any).tenant.update({
         where: { id: tenantId },
@@ -288,7 +286,6 @@ export const adminController = {
       where: { slug: req.params.slug, isActive: true },
       select: { 
         id: true, name: true, slug: true, themeColor: true, logoUrl: true, coverUrl: true,
-        siteCoverUrl: true,
         address: true, instagram: true, welcomeMessage: true, description: true,
         mission: true, vision: true, values: true, phone: true,
         showProducts: true, showServices: true, showTeam: true,
