@@ -864,7 +864,19 @@ async function startServer() {
     <script type="application/ld+json">${safeJsonLd(schemaItems)}</script>
       `;
 
-        html = html.replace(/<title>.*?<\/title>/, "").replace("</head>", `${seoTags}</head>`);
+        // Remove tags dinâmicas existentes para evitar duplicação
+        html = html
+          .replace(/<title>[\s\S]*?<\/title>/i, "")
+          .replace(/<meta\s+name=["']description["'][^>]*>/gi, "")
+          .replace(/<meta\s+name=["']robots["'][^>]*>/gi, "")
+          .replace(/<meta\s+name=["']keywords["'][^>]*>/gi, "")
+          .replace(/<link\s+rel=["']canonical["'][^>]*>/gi, "")
+          .replace(/<meta\s+property=["']og:[^"']*["'][^>]*>/gi, "")
+          .replace(/<meta\s+name=["']twitter:[^"']*["'][^>]*>/gi, "")
+          .replace(/<meta\s+property=["']twitter:[^"']*["'][^>]*>/gi, "")
+          .replace(/<meta\s+name=["']google-site-verification["'][^>]*>/gi, "")
+          .replace(/<script\s+type=["']application\/ld\+json["']>[\s\S]*?<\/script>/gi, "")
+          .replace("</head>", `${seoTags}</head>`);
         html = injectRootMarkup(html, bodyMarkup);
 
         res.setHeader("Content-Language", "pt-BR");
@@ -958,7 +970,16 @@ async function startServer() {
     </script>
       `;
 
-      html = html.replace(/<title>.*?<\/title>/, "").replace("</head>", `${seoTags}</head>`);
+      html = html
+        .replace(/<title>[\s\S]*?<\/title>/i, "")
+        .replace(/<meta\s+name=["']description["'][^>]*>/gi, "")
+        .replace(/<meta\s+name=["']robots["'][^>]*>/gi, "")
+        .replace(/<meta\s+property=["']og:[^"']*["'][^>]*>/gi, "")
+        .replace(/<meta\s+name=["']twitter:[^"']*["'][^>]*>/gi, "")
+        .replace(/<meta\s+property=["']twitter:[^"']*["'][^>]*>/gi, "")
+        .replace(/<link\s+rel=["']canonical["'][^>]*>/gi, "")
+        .replace(/<script\s+type=["']application\/ld\+json["']>[\s\S]*?<\/script>/gi, "")
+        .replace("</head>", `${seoTags}</head>`);
       res.send(html);
     });
 
