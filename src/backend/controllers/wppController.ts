@@ -21,7 +21,7 @@ export const DEFAULT_TEMPLATES = [
   { type: "cobranca",        name: "Cobrança / Pagamento Pendente",         body: "{{saudacao}}, *{{nome_cliente}}*.\n\nConsta em nosso sistema um valor pendente referente ao seu último atendimento em *{{nome_estabelecimento}}*. Se precisar de ajuda com o pagamento ou houver algum equívoco, responda esta mensagem para resolvermos juntos! 🤝" },
   { type: "welcome",         name: "Boas-vindas",                           body: "{{saudacao}}, *{{nome_cliente}}*! 👋\n\nSeja muito bem-vindo(a) a *{{nome_estabelecimento}}*. É um prazer ter você com a gente!\n\nQualquer dúvida ou se quiser agendar um horário, nossa equipe está por aqui." },
   // Profissional
-  { type: "prof_new_booking",    name: "Novo Agendamento Online (Profissional)", body: "{{saudacao}}, *{{profissional}}*! 🚀\n\nVocê acaba de receber um novo agendamento online!\n\n👤 *Cliente:* {{nome_cliente}}\n✂️ *Serviço:* {{servico}}\n📅 *Data:* {{data_agendamento}}\n⏰ *Horário:* {{hora_agendamento}}\n\nBora pra cima! 💪" },
+  { type: "prof_new_booking",    name: "Novo Agendamento Online (Profissional)", body: "{{saudacao}}, *{{profissional}}*! 🚀\n\nVocê acaba de receber um *novo agendamento online*!\n\n👤 *Cliente:* {{nome_cliente}}\n✂️ *Serviço:* {{servico}}\n📅 *Data:* {{data_agendamento}}\n⏰ *Horário:* {{hora_agendamento}}\n\n✅ *Confirme o agendamento no painel do sistema para que o cliente receba a notificação de confirmação.*\n\n🔗 Acesse: {{link_painel}}\n\nBora pra cima! 💪" },
   { type: "prof_reminder_24h",   name: "Lembrete 24h Antes (Profissional)",     body: "{{saudacao}}, *{{profissional}}*! 📅\n\nLembrete de agendamento para **amanhã**:\n\n👤 *Cliente:* {{nome_cliente}}\n✂️ *Serviço:* {{servico}}\n⏰ *Horário:* {{hora_agendamento}}\n\nBom descanso e bom trabalho amanhã!" },
   { type: "prof_reminder_60min", name: "Lembrete 60min Antes (Profissional)",   body: "{{saudacao}}, *{{profissional}}*! ⏰\n\nAtenção: Seu próximo cliente chega em **1 hora**.\n\n👤 *Cliente:* {{nome_cliente}}\n✂️ *Serviço:* {{servico}}\n⏰ *Horário:* {{hora_agendamento}}\n\nPrepare-se!" },
 ];
@@ -30,12 +30,19 @@ export const DEFAULT_TEMPLATES = [
 
 async function ensureTemplates(tenantId: string) {
   for (const tpl of DEFAULT_TEMPLATES) {
-    const exists = await (prisma as any).wppMessageTemplate.findUnique({
+    const existing = await (prisma as any).wppMessageTemplate.findUnique({
       where: { tenantId_type: { tenantId, type: tpl.type } },
     });
-    if (!exists) {
+    if (!existing) {
+      // Cria se não existe
       await (prisma as any).wppMessageTemplate.create({
         data: { id: randomUUID(), tenantId, ...tpl, isActive: true, isDefault: true },
+      });
+    } else if (existing.isDefault) {
+      // Atualiza body se ainda é o template padrão (não personalizado pelo usuário)
+      await (prisma as any).wppMessageTemplate.update({
+        where: { tenantId_type: { tenantId, type: tpl.type } },
+        data: { body: tpl.body, name: tpl.name },
       });
     }
   }
@@ -65,8 +72,14 @@ async function ensureBotConfig(tenantId: string) {
 }
 
 function getSaudacao(hour?: number): string {
-  const h = hour ?? new Date().getHours();
-  if (h >= 5 && h < 12) return "Bom dia";
+  let h = hour;
+  if (h === undefined) {
+    // Pega a hora atual no fuso do Brasil, independente do fuso do servidor
+    const dateStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo", hour: "numeric", hour12: false });
+    h = parseInt(dateStr, 10);
+  }
+  
+  if (h >= 6 && h < 12) return "Bom dia";
   if (h >= 12 && h < 18) return "Boa tarde";
   return "Boa noite";
 }
@@ -127,6 +140,8 @@ export async function fireWppProfNewBooking(tenantId: string, appt: any): Promis
       return;
     }
 
+    const tenantSlug = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { slug: true } }).then((t: any) => t?.slug || "");
+
     const vars: Record<string, string> = {
       saudacao: getSaudacao(),
       nome_cliente: appt.client?.name || "",
@@ -135,6 +150,7 @@ export async function fireWppProfNewBooking(tenantId: string, appt: any): Promis
       nome_estabelecimento: tenant?.name || "",
       data_agendamento: new Date(appt.date).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }),
       hora_agendamento: appt.startTime || "",
+      link_painel: tenantSlug ? `https://agendelle.com.br/${tenantSlug}/admin` : "https://agendelle.com.br",
     };
 
     await sendWppToPhone(tenantId, appt.professional.phone, applyVars(tpl, vars));

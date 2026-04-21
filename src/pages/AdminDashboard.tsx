@@ -116,6 +116,7 @@ import {
   ProductModal,
 } from "@/src/pages/admin/dashboard/components/modals";
 import { PaymentModal } from "@/src/components/ui/PaymentModal";
+import { useToast } from "@/src/components/ui/Toast";
 import { Combobox, ComboboxOption } from "@/src/components/ui/Combobox";
 import {
   AreaChart, 
@@ -136,6 +137,7 @@ import {
 // ── Componente de item de navegação da sidebar ──────────────────────────────
 export default function AdminDashboard() {
   const { user: adminUser, logout } = useAuth();
+  const toast = useToast();
   const [tenantName, setTenantName] = useState<string>(adminUser?.tenantName || "Studio Admin");
   const [tenantSlug, setTenantSlug] = useState<string>(adminUser?.tenantSlug || "");
   const location = useLocation();
@@ -1242,7 +1244,10 @@ export default function AdminDashboard() {
       email: newProfessional.email,
       instagram: newProfessional.instagram,
       bio: newProfessional.bio,
-      photo: newProfessional.photo,
+      // Nunca enviar base64 — apenas URLs de upload ou vazio
+      photo: (newProfessional.photo && !newProfessional.photo.startsWith("data:"))
+        ? newProfessional.photo
+        : undefined,
       permissions: mergedPerms,
       accessLevel: newProfessional.accessLevel,
       patAccess: newProfessional.patAccess,
@@ -1251,11 +1256,32 @@ export default function AdminDashboard() {
       services: newProfessional.services,
     };
     if (newProfessional.password) body.password = newProfessional.password;
-    await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    setIsProfessionalModalOpen(false);
-    setEditingProfessional(null);
-    setNewProfessional(JSON.parse(JSON.stringify(emptyProfessional)));
-    apiFetch("/api/professionals").then(res => res.json()).then(d => setProfessionals(Array.isArray(d) ? d : []));
+    try {
+      const res = await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) {
+        let errMsg = editingProfessional
+          ? "Erro ao atualizar profissional."
+          : "Erro ao criar profissional.";
+        try {
+          const errData = await res.json();
+          if (errData?.error) errMsg = errData.error;
+          else if (errData?.message) errMsg = errData.message;
+        } catch {}
+        toast.error(errMsg);
+        return;
+      }
+      setIsProfessionalModalOpen(false);
+      setEditingProfessional(null);
+      setNewProfessional(JSON.parse(JSON.stringify(emptyProfessional)));
+      apiFetch("/api/professionals").then(r => r.json()).then(d => setProfessionals(Array.isArray(d) ? d : []));
+      toast.success(
+        editingProfessional
+          ? "Profissional atualizado com sucesso!"
+          : "Profissional criado com sucesso!"
+      );
+    } catch {
+      toast.error("Erro de conexão ao salvar profissional.");
+    }
   };
 
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);

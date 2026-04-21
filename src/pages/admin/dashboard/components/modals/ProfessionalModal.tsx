@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Camera,
   Eye,
@@ -11,6 +11,7 @@ import {
   Scissors,
   Info,
   User,
+  X,
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { Button } from "@/src/components/ui/Button";
@@ -18,6 +19,7 @@ import { Modal, ModalFooter } from "@/src/components/ui/Modal";
 import { Input, Textarea, Select } from "@/src/components/ui/Input";
 import { Switch } from "@/src/components/ui/Switch";
 import { maskCPF, maskPhone, maskDate } from "@/src/lib/masks";
+import { apiFetch } from "@/src/lib/api";
 
 interface ProfessionalModalProps {
   isProfessionalModalOpen: boolean;
@@ -61,6 +63,31 @@ export function ProfessionalModal({
   services,
 }: ProfessionalModalProps) {
   const [currentStep, setCurrentStep] = useState(1);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoUpload = (file: File) => {
+    const mimeType = file.type;
+    const reader = new FileReader();
+    setUploadingPhoto(true);
+    reader.onload = async (ev) => {
+      const base64 = ev.target?.result as string;
+      try {
+        const res = await apiFetch("/api/admin/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: base64, mimeType }),
+        });
+        if (res.ok) {
+          const { url } = await res.json();
+          setNewProfessional((p: any) => ({ ...p, photo: url }));
+        }
+      } finally {
+        setUploadingPhoto(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Reset steps when opening for new professional
   useEffect(() => {
@@ -240,18 +267,41 @@ export function ProfessionalModal({
           <div className="flex items-center gap-4 sm:gap-5">
             <div className="relative shrink-0">
               {newProfessional.photo ? (
-                <img src={newProfessional.photo} className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-zinc-100 shadow-sm" />
+                <>
+                  <img src={newProfessional.photo} className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-zinc-100 shadow-sm" />
+                  <button
+                    type="button"
+                    onClick={() => setNewProfessional((p: any) => ({ ...p, photo: "" }))}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-zinc-900/80 rounded-full flex items-center justify-center text-white hover:bg-red-500 transition-colors z-10"
+                  >
+                    <X size={10} />
+                  </button>
+                </>
               ) : (
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-zinc-50 border-2 border-zinc-100 flex items-center justify-center text-zinc-300 text-2xl sm:text-3xl font-black">
-                  ?
+                  {uploadingPhoto
+                    ? <div className="w-6 h-6 border-2 border-zinc-300 border-t-amber-500 rounded-full animate-spin" />
+                    : "?"}
                 </div>
               )}
-              <label className="absolute -bottom-1.5 -right-1.5 w-7 h-7 bg-zinc-900 text-white rounded-lg flex items-center justify-center cursor-pointer shadow-md transition-all hover:scale-110 active:scale-90">
+              <label
+                className={cn(
+                  "absolute -bottom-1.5 -right-1.5 w-7 h-7 bg-zinc-900 text-white rounded-lg flex items-center justify-center shadow-md transition-all hover:scale-110 active:scale-90",
+                  uploadingPhoto ? "opacity-50 pointer-events-none" : "cursor-pointer"
+                )}
+              >
                 <Camera size={13} />
-                <input type="file" accept="image/*" className="hidden" onChange={e => {
-                  const file = e.target.files?.[0];
-                  if (file) { const r = new FileReader(); r.onload = ev => setNewProfessional((p: any) => ({ ...p, photo: ev.target?.result as string })); r.readAsDataURL(file); }
-                }} />
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) handlePhotoUpload(file);
+                    e.target.value = "";
+                  }}
+                />
               </label>
             </div>
             <div className="flex-1 min-w-0">

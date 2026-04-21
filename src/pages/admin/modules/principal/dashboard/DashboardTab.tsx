@@ -374,7 +374,7 @@ export function DashboardTab({
 
         <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-zinc-200">
           <h3 className="text-sm font-bold text-zinc-900 mb-4">Serviços Populares</h3>
-          <div className="h-[150px] sm:h-[180px] w-full flex items-center justify-center">
+          <div className="h-[150px] sm:h-[180px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={servicesData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} paddingAngle={5} dataKey="value">
