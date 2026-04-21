@@ -29,6 +29,13 @@ import {
 import { usePermissions } from "@/src/hooks/usePermissions";
 import type { Module, Action } from "@/src/lib/permissions";
 
+interface Notification {
+  id: string;
+  type: "success" | "warning" | "error";
+  title: string;
+  message: string;
+}
+
 interface AdminDashboardShellProps {
   activeTab: AdminTabId;
   activeSubModule: string;
@@ -38,6 +45,8 @@ interface AdminDashboardShellProps {
   isNotificationsOpen: boolean;
   isProfileMenuOpen: boolean;
   isSidebarOpen: boolean;
+  notifications: Notification[];
+  notificationsRef: React.RefObject<HTMLDivElement | null>;
   onLogout: () => void;
   onSubModuleChange: (key: string) => void;
   profileMenuRef: React.RefObject<HTMLDivElement | null>;
@@ -58,6 +67,8 @@ export function AdminDashboardShell({
   isNotificationsOpen,
   isProfileMenuOpen,
   isSidebarOpen,
+  notifications,
+  notificationsRef,
   onLogout,
   onSubModuleChange,
   profileMenuRef,
@@ -241,7 +252,7 @@ export function AdminDashboardShell({
               Ver Site
             </a>
 
-            <div className="relative">
+            <div className="relative" ref={notificationsRef}>
               <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                 className={cn(
@@ -250,62 +261,59 @@ export function AdminDashboardShell({
                 )}
               >
                 <Bell size={20} />
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-amber-500" />
+                {notifications.length > 0 && (
+                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-amber-500" />
+                )}
               </button>
 
               <AnimatePresence>
                 {isNotificationsOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-[60] bg-zinc-900/10 backdrop-blur-[1px]"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setIsNotificationsOpen(false);
-                      }}
-                    />
-
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="fixed left-4 right-4 top-20 z-[70] mt-3 overflow-hidden rounded-3xl border border-zinc-100 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.25)] md:absolute md:left-auto md:right-0 md:top-full md:w-[320px]"
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="fixed left-4 right-4 top-20 z-[70] mt-3 overflow-hidden rounded-3xl border border-zinc-100 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.25)] md:absolute md:left-auto md:right-0 md:top-full md:w-[320px]"
+                  >
+                    <div className="flex items-center justify-between border-b border-zinc-50 bg-zinc-50/50 px-5 py-4">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Notificações</p>
+                      {notifications.length > 0 && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-700">{notifications.length} {notifications.length === 1 ? "Nova" : "Novas"}</span>
+                      )}
+                    </div>
+                    <div className="max-h-[350px] overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-10 text-zinc-400">
+                          <Bell size={28} className="mb-2 opacity-30" />
+                          <p className="text-xs font-bold">Nenhuma notificação</p>
+                          <p className="text-[10px] mt-0.5">Tudo em ordem por aqui!</p>
+                        </div>
+                      ) : (
+                        notifications.map(n => (
+                          <div key={n.id} className="group cursor-pointer border-b border-zinc-50 p-4 transition-colors hover:bg-zinc-50" onClick={() => setIsNotificationsOpen(false)}>
+                            <div className="flex gap-3">
+                              <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                                n.type === "success" && "bg-emerald-100 text-emerald-600",
+                                n.type === "warning" && "bg-amber-100 text-amber-600",
+                                n.type === "error"   && "bg-red-100 text-red-600",
+                              )}>
+                                {n.type === "success" ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-zinc-800">{n.title}</p>
+                                <p className="mt-0.5 text-[10px] text-zinc-400">{n.message}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setIsNotificationsOpen(false)}
+                      className="w-full border-t border-zinc-50 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all hover:bg-zinc-50 hover:text-zinc-600"
                     >
-                      <div className="flex items-center justify-between border-b border-zinc-50 bg-zinc-50/50 px-5 py-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Notificações</p>
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-700">2 Novas</span>
-                      </div>
-                      <div className="max-h-[350px] overflow-y-auto">
-                        <div className="group cursor-pointer border-b border-zinc-50 p-4 transition-colors hover:bg-zinc-50" onClick={() => setIsNotificationsOpen(false)}>
-                          <div className="flex gap-3">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-                              <CheckCircle size={16} />
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-zinc-800">Novo Agendamento</p>
-                              <p className="mt-0.5 text-[10px] text-zinc-400">Novo agendamento recebido para hoje às 14:30.</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="group cursor-pointer border-b border-zinc-50 p-4 transition-colors hover:bg-zinc-50" onClick={() => setIsNotificationsOpen(false)}>
-                          <div className="flex gap-3">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                              <AlertTriangle size={16} />
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-zinc-800">Lembrete de Estoque</p>
-                              <p className="mt-0.5 text-[10px] text-zinc-400">O produto "Pomada Efeito Matte" está quase acabando.</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setIsNotificationsOpen(false)}
-                        className="w-full border-t border-zinc-50 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all hover:bg-zinc-50 hover:text-zinc-600"
-                      >
-                        Ver Tudo
-                      </button>
-                    </motion.div>
-                  </>
+                      Fechar
+                    </button>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/src/App";
 import { 
@@ -406,8 +406,34 @@ export default function AdminDashboard() {
     lockOrientation();
   }, []);
 
-  // Tooltip hover state for agenda
+  // Notificações reais calculadas a partir do estado local
+  const notifications = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const todayAppts = appointments.filter(a => a.date === today && a.status === "scheduled");
+    const lowStock = products.filter(p => p.stock <= p.minStock && p.minStock > 0);
+    const outOfStock = products.filter(p => p.stock === 0 && p.minStock >= 0);
+    const result: { id: string; type: "success" | "warning" | "error"; title: string; message: string }[] = [];
+    if (todayAppts.length > 0) {
+      result.push({ id: "appt-today", type: "success", title: "Agendamentos hoje", message: `${todayAppts.length} agendamento${todayAppts.length > 1 ? "s" : ""} para hoje.` });
+    }
+    outOfStock.forEach(p => result.push({ id: `stock-zero-${p.id}`, type: "error", title: "Estoque zerado", message: `"${p.name}" está sem estoque.` }));
+    lowStock.forEach(p => result.push({ id: `stock-low-${p.id}`, type: "warning", title: "Estoque baixo", message: `"${p.name}" está quase acabando (${p.stock} ${p.unit || "un"}).` }));
+    return result;
+  }, [appointments, products]);
+
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isNotificationsOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
+        setIsNotificationsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isNotificationsOpen]);
+
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -1316,6 +1342,8 @@ export default function AdminDashboard() {
         isNotificationsOpen={isNotificationsOpen}
         isProfileMenuOpen={isProfileMenuOpen}
         isSidebarOpen={isSidebarOpen}
+        notifications={notifications}
+        notificationsRef={notificationsRef}
         onLogout={logout}
         onSubModuleChange={handleSubModuleChange}
         profileMenuRef={profileMenuRef}
