@@ -964,6 +964,16 @@ async function startServer() {
 
     // Servir arquivos estáticos (JS, CSS, Imagens) DEPOIS do interceptador de SEO
     app.use(express.static(distPath));
+
+    // SPA fallback — qualquer rota não capturada entrega o index.html pro React Router
+    app.get("*", (req, res) => {
+      const indexPath = path.join(distPath, "index.html");
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send("App not built");
+      }
+    });
   } else {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
     app.use(vite.middlewares);
