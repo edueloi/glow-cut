@@ -115,7 +115,7 @@ export function AdminScheduleActionModals(props: any) {
       <PaymentModal isOpen={isPaymentModalOpen} onClose={() => { setIsPaymentModalOpen(false); }} comanda={payingComanda} onConfirm={handleConfirmPayment} />
 
       {isChangeProfModalOpen && changeProfAppt && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setIsChangeProfModalOpen(false)}>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setIsChangeProfModalOpen(false)}>
           <div className="w-full max-w-sm space-y-5 rounded-[28px] border border-zinc-200 bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
@@ -145,7 +145,7 @@ export function AdminScheduleActionModals(props: any) {
       )}
 
       {isLinkComandaModalOpen && linkComandaAppt && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setIsLinkComandaModalOpen(false)}>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setIsLinkComandaModalOpen(false)}>
           <div className="w-full max-w-sm space-y-5 rounded-[28px] border border-zinc-200 bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
