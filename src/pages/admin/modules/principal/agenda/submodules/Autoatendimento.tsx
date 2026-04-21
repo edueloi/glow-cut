@@ -27,6 +27,7 @@ interface SelfServiceSettings {
   selfServiceShowProfessional: boolean;
   allowClientCancellation: boolean;
   allowClientReschedule: boolean;
+  allowClientRecurrence: boolean;
   maxAdvanceDays: number;
   minAdvanceMinutes: number;
   selfServiceWelcomeMessage: string;
@@ -39,6 +40,7 @@ const DEFAULT_SETTINGS: SelfServiceSettings = {
   selfServiceShowProfessional: true,
   allowClientCancellation: true,
   allowClientReschedule: false,
+  allowClientRecurrence: false,
   maxAdvanceDays: 60,
   minAdvanceMinutes: 30,
   selfServiceWelcomeMessage: "",
@@ -231,6 +233,14 @@ export function Autoatendimento({ professionals, services, onRefresh, onGoToMinh
                   <p className="text-xs text-zinc-400">Cliente pode remarcar pelo portal</p>
                 </div>
                 <Switch checked={settings.allowClientReschedule} onCheckedChange={(v) => set("allowClientReschedule", v)} />
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-bold text-zinc-800">Permitir recorrência</p>
+                  <p className="text-xs text-zinc-400">Cliente pode agendar o mesmo horário para as próximas semanas</p>
+                </div>
+                {/* @ts-ignore */}
+                <Switch checked={settings.allowClientRecurrence || false} onCheckedChange={(v) => set("allowClientRecurrence", v)} />
               </div>
             </div>
 

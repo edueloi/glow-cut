@@ -126,6 +126,7 @@ model AgendaSettings {
   autoConfirmAppointments     Boolean  @default(false)
   allowClientCancellation     Boolean  @default(true)
   allowClientReschedule       Boolean  @default(false)
+  allowClientRecurrence       Boolean  @default(false)
   blockNationalHolidays       Boolean  @default(false)
   slotIntervalMinutes         Int      @default(30)
   minAdvanceMinutes           Int      @default(30)

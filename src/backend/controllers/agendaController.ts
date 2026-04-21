@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
-import { addMinutes, format, parse, startOfDay, addDays, startOfMonth, endOfMonth, isSameDay } from "date-fns";
+import { format, addDays, isSameDay, startOfDay, startOfMonth, endOfMonth, endOfWeek, startOfWeek, isSameMonth, isBefore, addMonths, subMonths, addMinutes, parse } from "date-fns";
 import { getTenantId, asBool, asNumber, toDateOnly, getDayRange, formatDateOnly, getSaudacao, applyTemplateVars, samePhone, normalizePhone } from "../utils/helpers";
 import { fireWppProfNewBooking, fireWppConfirmation as fireWppConfirmationCentral } from "./wppController";
 
@@ -20,6 +20,7 @@ const DEFAULT_AGENDA_SETTINGS = {
   selfServiceShowProfessional: true,
   selfServiceShowPrices: true,
   selfServiceWelcomeMessage: "",
+  allowClientRecurrence: false,
   // Gerais
   enableClientAgendaView: true,
   enableAppointmentSearch: true,
@@ -133,6 +134,7 @@ function normalizeAgendaSettings(row: any, tenantId: string) {
     autoConfirmAppointments: asBool(row?.autoConfirmAppointments, DEFAULT_AGENDA_SETTINGS.autoConfirmAppointments),
     allowClientCancellation: asBool(row?.allowClientCancellation, DEFAULT_AGENDA_SETTINGS.allowClientCancellation),
     allowClientReschedule: asBool(row?.allowClientReschedule, DEFAULT_AGENDA_SETTINGS.allowClientReschedule),
+    allowClientRecurrence: asBool(row?.allowClientRecurrence, DEFAULT_AGENDA_SETTINGS.allowClientRecurrence),
     blockNationalHolidays: asBool(row?.blockNationalHolidays, DEFAULT_AGENDA_SETTINGS.blockNationalHolidays),
     slotIntervalMinutes: Math.max(5, asNumber(row?.slotIntervalMinutes, DEFAULT_AGENDA_SETTINGS.slotIntervalMinutes)),
     minAdvanceMinutes: Math.max(0, asNumber(row?.minAdvanceMinutes, DEFAULT_AGENDA_SETTINGS.minAdvanceMinutes)),
@@ -152,16 +154,16 @@ async function ensureAgendaSettingsRecord(tenantId: string) {
     `INSERT INTO AgendaSettings (
       id, tenantId, onlineBookingEnabled,
       enablePatTerminal, patShowClientName, patShowService, patShowTime, patAutoAdvance, patAutoAdvanceMinutes,
-      enableSelfService, selfServiceRequireLogin, selfServiceShowProfessional, selfServiceShowPrices, selfServiceWelcomeMessage,
+      enableSelfService, selfServiceRequireLogin, selfServiceShowProfessional, selfServiceShowPrices, selfServiceWelcomeMessage, allowClientRecurrence,
       enableClientAgendaView, enableAppointmentSearch, enableWhatsAppReminders,
       autoConfirmAppointments, allowClientCancellation, allowClientReschedule,
       blockNationalHolidays, slotIntervalMinutes, minAdvanceMinutes, maxAdvanceDays, notes,
       createdAt, updatedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id, tenantId,
     D.onlineBookingEnabled ? 1 : 0,
     D.enablePatTerminal ? 1 : 0, D.patShowClientName ? 1 : 0, D.patShowService ? 1 : 0, D.patShowTime ? 1 : 0, D.patAutoAdvance ? 1 : 0, D.patAutoAdvanceMinutes,
-    D.enableSelfService ? 1 : 0, D.selfServiceRequireLogin ? 1 : 0, D.selfServiceShowProfessional ? 1 : 0, D.selfServiceShowPrices ? 1 : 0, D.selfServiceWelcomeMessage,
+    D.enableSelfService ? 1 : 0, D.selfServiceRequireLogin ? 1 : 0, D.selfServiceShowProfessional ? 1 : 0, D.selfServiceShowPrices ? 1 : 0, D.selfServiceWelcomeMessage, D.allowClientRecurrence ? 1 : 0,
     D.enableClientAgendaView ? 1 : 0, D.enableAppointmentSearch ? 1 : 0, D.enableWhatsAppReminders ? 1 : 0,
     D.autoConfirmAppointments ? 1 : 0, D.allowClientCancellation ? 1 : 0, D.allowClientReschedule ? 1 : 0,
     D.blockNationalHolidays ? 1 : 0, D.slotIntervalMinutes, D.minAdvanceMinutes, D.maxAdvanceDays, D.notes,
@@ -498,10 +500,77 @@ export const agendaController = {
     }
   },
   
+  async checkRecurrence(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório" });
+    const { dates, professionalId, startTime, endTime } = req.body;
+    
+    if (!Array.isArray(dates) || dates.length === 0 || !professionalId || !startTime || !endTime) {
+      return res.status(400).json({ error: "Parâmetros incompletos para validação." });
+    }
+
+    try {
+      const settings = await ensureAgendaSettingsRecord(tenantId);
+      
+      const closedDays = await (prisma as any).closedDay.findMany({ where: { tenantId } });
+      const specialDays = await (prisma as any).specialScheduleDay.findMany({ 
+        where: { tenantId, professionalId: { in: [null, professionalId] }, isClosed: true } 
+      });
+
+      const parsedDates = dates.map((d: string) => parse(d, "yyyy-MM-dd", new Date()));
+
+      const existingAppts = await (prisma as any).appointment.findMany({
+        where: {
+          tenantId,
+          professionalId,
+          status: { in: ["scheduled", "confirmed"] },
+          date: { in: parsedDates }
+        }
+      });
+
+      const conflicts: any[] = [];
+      
+      for (const d of dates) {
+        const dateObj = parse(d, "yyyy-MM-dd", new Date());
+        
+        // 1. National holiday
+        if (settings.blockNationalHolidays && isNationalHoliday(dateObj)) {
+          conflicts.push({ date: d, reason: "holiday", message: "Feriado Nacional" });
+          continue;
+        }
+
+        // 2. Closed Day
+        const closed = closedDays.find((cd: any) => format(cd.date, "yyyy-MM-dd") === d);
+        if (closed) {
+          conflicts.push({ date: d, reason: "closed", message: closed.description || "Dia Fechado" });
+          continue;
+        }
+
+        // 3. Special Schedule Closed
+        const special = specialDays.find((sd: any) => format(sd.date, "yyyy-MM-dd") === d);
+        if (special) {
+          conflicts.push({ date: d, reason: "special_closed", message: special.description || "Profissional Ausente" });
+          continue;
+        }
+
+        // 4. Existing Appointment Overlap
+        const dayAppts = existingAppts.filter((a: any) => format(a.date, "yyyy-MM-dd") === d);
+        if (hasSlotOverlap(startTime, endTime, dayAppts)) {
+          conflicts.push({ date: d, reason: "booked", message: "Horário Indisponível" });
+          continue;
+        }
+      }
+
+      res.json({ conflicts });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message || "Erro." });
+    }
+  },
+
   async create(req: Request, res: Response) {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
-    const { date, startTime, endTime, clientId, serviceId, professionalId: rawProfessionalId, comandaId, duration, notes, status, type, sessionNumber, totalSessions, recurrence } = req.body;
+    const { date, startTime, endTime, clientId, serviceId, professionalId: rawProfessionalId, comandaId, duration, notes, status, type, sessionNumber, totalSessions, recurrence, repeat, repeatCount, skipDates } = req.body;
     if (!date || !startTime) return res.status(400).json({ error: "data e horâ”œÃ­rio sâ”œÃºo obrigatâ”œâ”‚rios." });
     const isPublicRequest = !(req as any).auth;
 
@@ -555,14 +624,32 @@ export const agendaController = {
         ? (agendaSettings.autoConfirmAppointments ? "confirmed" : "scheduled")
         : (status || (agendaSettings.autoConfirmAppointments ? "confirmed" : "scheduled"));
       const baseDate = new Date(date);
-      const count = !isPublicRequest && recurrence && recurrence.type !== "none" ? (recurrence.count || 1) : 1;
-      const interval = !isPublicRequest && recurrence && recurrence.type !== "none" ? (recurrence.interval || 7) : 7;
+      
+      let count = 1;
+      let interval = 7;
+      if (!isPublicRequest && recurrence && recurrence.type !== "none") {
+        count = recurrence.count || 1;
+        interval = recurrence.interval || 7;
+      } else if (isPublicRequest && repeat === "weekly") {
+        count = repeatCount || 1;
+      }
+      
       const effectiveDuration = Number(duration) > 0 ? Number(duration) : Number(service?.duration || 60);
       
       const groupId = count > 1 ? randomUUID() : null;
       const results = [];
+      const skipDatesList = Array.isArray(skipDates) ? skipDates : [];
+      
+      let createdCount = 0;
       for (let i = 0; i < count; i++) {
         const apptDate = addDays(baseDate, i * interval);
+        const apptDateStr = format(apptDate, "yyyy-MM-dd");
+        
+        if (skipDatesList.includes(apptDateStr)) {
+          continue; 
+        }
+
+        createdCount++;
         const resolvedEndTime = resolveEndTime(apptDate, startTime, endTime, effectiveDuration);
 
         await ensureSlotAvailable(tenantId, professionalId, apptDate, startTime, resolvedEndTime);
@@ -577,7 +664,7 @@ export const agendaController = {
             comandaId: isPublicRequest ? null : (comandaId || null),
             duration: effectiveDuration,
             notes: isPublicRequest ? null : (notes || null),
-            tenantId, sessionNumber: i + 1, totalSessions: count, repeatGroupId: groupId,
+            tenantId, sessionNumber: createdCount, totalSessions: count - skipDatesList.length, repeatGroupId: groupId,
           },
           include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true } }, professional: { select: { id: true, name: true, phone: true } } }
         });
@@ -939,14 +1026,14 @@ export const agendaController = {
         `UPDATE AgendaSettings SET
           onlineBookingEnabled=?,
           enablePatTerminal=?, patShowClientName=?, patShowService=?, patShowTime=?, patAutoAdvance=?, patAutoAdvanceMinutes=?,
-          enableSelfService=?, selfServiceRequireLogin=?, selfServiceShowProfessional=?, selfServiceShowPrices=?, selfServiceWelcomeMessage=?,
+          enableSelfService=?, selfServiceRequireLogin=?, selfServiceShowProfessional=?, selfServiceShowPrices=?, selfServiceWelcomeMessage=?, allowClientRecurrence=?,
           enableClientAgendaView=?, enableAppointmentSearch=?, enableWhatsAppReminders=?,
           autoConfirmAppointments=?, allowClientCancellation=?, allowClientReschedule=?,
           blockNationalHolidays=?, slotIntervalMinutes=?, minAdvanceMinutes=?, maxAdvanceDays=?, notes=?
         WHERE tenantId=?`,
         next.onlineBookingEnabled ? 1 : 0,
         next.enablePatTerminal ? 1 : 0, next.patShowClientName ? 1 : 0, next.patShowService ? 1 : 0, next.patShowTime ? 1 : 0, next.patAutoAdvance ? 1 : 0, next.patAutoAdvanceMinutes,
-        next.enableSelfService ? 1 : 0, next.selfServiceRequireLogin ? 1 : 0, next.selfServiceShowProfessional ? 1 : 0, next.selfServiceShowPrices ? 1 : 0, next.selfServiceWelcomeMessage,
+        next.enableSelfService ? 1 : 0, next.selfServiceRequireLogin ? 1 : 0, next.selfServiceShowProfessional ? 1 : 0, next.selfServiceShowPrices ? 1 : 0, next.selfServiceWelcomeMessage, next.allowClientRecurrence ? 1 : 0,
         next.enableClientAgendaView ? 1 : 0, next.enableAppointmentSearch ? 1 : 0, next.enableWhatsAppReminders ? 1 : 0,
         next.autoConfirmAppointments ? 1 : 0, next.allowClientCancellation ? 1 : 0, next.allowClientReschedule ? 1 : 0,
         next.blockNationalHolidays ? 1 : 0, next.slotIntervalMinutes, next.minAdvanceMinutes, next.maxAdvanceDays, next.notes,

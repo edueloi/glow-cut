@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Calendar as CalendarIcon, Clock, User, Phone, Instagram, ArrowRight, CheckCircle2, Search, Loader2, Scissors, MapPin, Download, X, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { format, addDays, isSameDay, startOfDay, startOfMonth, endOfMonth, endOfWeek, startOfWeek, isSameMonth, isBefore, addMonths, subMonths } from "date-fns";
+import { format, addDays, isSameDay, startOfDay, startOfMonth, endOfMonth, endOfWeek, startOfWeek, isSameMonth, isBefore, addMonths, subMonths, addMinutes, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useParams, useNavigate } from "react-router-dom";
 import { cn } from "@/src/lib/utils";
@@ -14,6 +14,7 @@ interface PublicAgendaSettings {
   enableSelfService: boolean;
   enableAppointmentSearch: boolean;
   enableClientAgendaView: boolean;
+  allowClientRecurrence: boolean;
 }
 
 function toDateInputValue(value: string | null | undefined) {
@@ -29,6 +30,7 @@ const DEFAULT_PUBLIC_AGENDA_SETTINGS: PublicAgendaSettings = {
   enableSelfService: true,
   enableAppointmentSearch: true,
   enableClientAgendaView: true,
+  allowClientRecurrence: false,
 };
 
 export default function ClientBooking() {
@@ -60,6 +62,11 @@ export default function ClientBooking() {
   const [clientData, setClientData] = useState({ name: "", age: "", birthDate: "" });
   const [isExistingClient, setIsExistingClient] = useState(false);
   const [phoneSearched, setPhoneSearched] = useState(false);
+  
+  const [repeatWeeks, setRepeatWeeks] = useState(1);
+  const [recurrenceConflicts, setRecurrenceConflicts] = useState<any[]>([]);
+  const [datesToBook, setDatesToBook] = useState<string[]>([]);
+  const [showConflictsModal, setShowConflictsModal] = useState(false);
 
   const formatPhone = (v: string) => {
     const d = v.replace(/\D/g, "").slice(0, 11);
@@ -269,7 +276,7 @@ export default function ClientBooking() {
     finally { setIsLoading(false); }
   };
 
-  const handleBooking = async () => {
+  const handleBooking = async (skipConflicts: boolean = false) => {
     if (!canBookOnline) return;
     setBookingError("");
     setIsLoading(true);
@@ -279,6 +286,32 @@ export default function ClientBooking() {
     // Garante profissional resolvido — usa o único se só tiver 1
     const profId = selectedProfessional?.id || (professionals.length === 1 ? professionals[0].id : null);
 
+    // Calcula datas
+    let finalDates = datesToBook;
+    if (finalDates.length === 0 && repeatWeeks > 1) {
+      finalDates = Array.from({ length: repeatWeeks }).map((_, i) => format(addDays(selectedDate, i * 7), "yyyy-MM-dd"));
+    }
+
+    if (!skipConflicts && repeatWeeks > 1) {
+      try {
+        const confRes = await fetch("/api/appointments/check-recurrence", {
+          method: "POST", headers,
+          body: JSON.stringify({ dates: finalDates, professionalId: profId, startTime: selectedSlot, endTime: format(addMinutes(parse(selectedSlot!, "HH:mm", new Date()), selectedService?.duration || 60), "HH:mm") })
+        });
+        if (confRes.ok) {
+          const confData = await confRes.json();
+          if (confData.conflicts && confData.conflicts.length > 0) {
+            setRecurrenceConflicts(confData.conflicts);
+            setShowConflictsModal(true);
+            setIsLoading(false);
+            return; // Espera o usuário decidir no modal
+          }
+        }
+      } catch (e) {
+        // Ignora erro e tenta agendar
+      }
+    }
+
     const clientRes = await fetch("/api/public/clients", { method: "POST", headers, body: JSON.stringify({ ...clientData, phone, birthDate: clientData.birthDate || undefined }) });
     const client = await clientRes.json().catch(() => ({}));
     if (!clientRes.ok || !client?.id) {
@@ -287,9 +320,21 @@ export default function ClientBooking() {
       return;
     }
 
+    // CriaÃ§Ã£o em batch ou repetiÃ§Ã£o (vamos mandar no formato repeat)
+    const payload = {
+      date: selectedDate, 
+      startTime: selectedSlot, 
+      clientId: client.id, 
+      serviceId: selectedService?.id, 
+      professionalId: profId,
+      repeat: repeatWeeks > 1 ? "weekly" : undefined,
+      repeatCount: repeatWeeks > 1 ? repeatWeeks : undefined,
+      skipDates: recurrenceConflicts.map(c => c.date)
+    };
+
     const apptRes = await fetch("/api/public/appointments", {
       method: "POST", headers,
-      body: JSON.stringify({ date: selectedDate, startTime: selectedSlot, clientId: client.id, serviceId: selectedService?.id, professionalId: profId })
+      body: JSON.stringify(payload)
     });
     if (!apptRes.ok) {
       const err = await apptRes.json().catch(() => ({}));
@@ -1055,6 +1100,29 @@ export default function ClientBooking() {
                         )}
                       </AnimatePresence>
                     </div>
+                    
+                    {publicAgendaSettings.allowClientRecurrence && (
+                      <div className="pt-4 border-t border-zinc-100">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">
+                          Repetir agendamento (opcional)
+                        </label>
+                        <select
+                          value={repeatWeeks}
+                          onChange={(e) => setRepeatWeeks(Number(e.target.value))}
+                          className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-800 font-medium focus:ring-2 outline-none transition-all"
+                        >
+                          <option value={1}>Não repetir (apenas este dia)</option>
+                          <option value={2}>Repetir por 2 semanas seguidas</option>
+                          <option value={4}>Repetir por 4 semanas seguidas (1 mês)</option>
+                          <option value={8}>Repetir por 8 semanas seguidas (2 meses)</option>
+                        </select>
+                        {repeatWeeks > 1 && (
+                          <p className="text-[10px] text-amber-600 font-medium mt-2 bg-amber-50 p-2 rounded-xl border border-amber-100">
+                            Atenção: Ao confirmar, serão gerados {repeatWeeks} agendamentos. Avisaremos caso haja conflito com feriados ou agenda do profissional nas próximas semanas.
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                   {bookingError && (
                     <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-bold text-red-600">
@@ -1063,7 +1131,7 @@ export default function ClientBooking() {
                   )}
 
                   <Button
-                    onClick={handleBooking}
+                    onClick={() => handleBooking()}
                     disabled={!clientData.name || phone.replace(/\D/g,"").length < 10 || isLoading}
                     className="w-full h-14 rounded-2xl text-white font-black text-base shadow-2xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
                     style={{ backgroundColor: customColor }}
@@ -1194,6 +1262,49 @@ export default function ClientBooking() {
           <a href="/login" className="text-[9px] text-zinc-300 hover:text-zinc-500 font-medium transition-colors">Área Administrativa</a>
         </div>
       </div>
+      
+      {/* Conflicts Modal */}
+      <AnimatePresence>
+        {showConflictsModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-[32px] p-6 max-w-sm w-full shadow-2xl"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center mb-4">
+                <CalendarIcon size={20} className="text-amber-600" />
+              </div>
+              <h3 className="text-xl font-black text-zinc-900 mb-2">Conflito de datas</h3>
+              <p className="text-xs text-zinc-500 font-medium mb-4 leading-relaxed">
+                Algumas semanas futuras caindo em dias indisponíveis. Deseja ignorar esses dias e agendar o resto?
+              </p>
+              
+              <div className="max-h-[200px] overflow-y-auto space-y-2 mb-6">
+                {recurrenceConflicts.map((c, i) => (
+                  <div key={i} className="p-3 bg-zinc-50 border border-zinc-100 rounded-xl flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-black text-zinc-800">{format(parse(c.date, "yyyy-MM-dd", new Date()), "dd/MM/yyyy")}</p>
+                      <p className="text-[10px] text-zinc-400 font-bold uppercase">{c.message}</p>
+                    </div>
+                    <span className="text-[9px] bg-red-100 text-red-600 px-2 py-1 rounded-md font-bold uppercase">Pular</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Button variant="primary" fullWidth onClick={() => { setShowConflictsModal(false); handleBooking(true); }} className="h-12 shadow-md">
+                  Pular conflitos e Agendar
+                </Button>
+                <Button variant="ghost" fullWidth onClick={() => { setShowConflictsModal(false); setRecurrenceConflicts([]); setIsLoading(false); }} className="h-12 text-zinc-500 hover:bg-zinc-100">
+                  Cancelar
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
