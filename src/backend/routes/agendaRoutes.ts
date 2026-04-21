@@ -5,6 +5,7 @@ import { agendaController } from "../controllers/agendaController";
 export const agendaPublicRouter = Router();
 agendaPublicRouter.get("/pat/:professionalId", agendaController.getPatQueue);
 agendaPublicRouter.get("/availability", agendaController.getAvailability);
+agendaPublicRouter.post("/appointments/check-recurrence", agendaController.checkRecurrence);
 
 // Rotas protegidas
 export const agendaRouter = Router();
@@ -13,7 +14,6 @@ agendaRouter.get("/calendar-status", agendaController.getCalendarStatus);
 agendaRouter.get("/appointments", agendaController.list);
 agendaRouter.get("/appointments/client", agendaController.clientAppointments);
 agendaRouter.post("/appointments", agendaController.create);
-agendaRouter.post("/appointments/check-recurrence", agendaController.checkRecurrence);
 agendaRouter.put("/appointments/:id", agendaController.update);
 agendaRouter.patch("/appointments/:id", agendaController.patch);
 agendaRouter.delete("/appointments/batch", agendaController.batchDelete);

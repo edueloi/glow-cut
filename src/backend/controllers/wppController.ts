@@ -204,7 +204,14 @@ export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Pro
       link_painel: tenantSlug ? `https://agendelle.com.br/${tenantSlug}/admin` : "https://agendelle.com.br",
     };
 
-    await sendWppToPhone(tenantId, appt.professional.phone, applyVars(tpl, vars));
+    const msg = applyVars(tpl, vars);
+    console.log("[WPP] fireWppProfNewBooking message prepared", { 
+      hasRecorrencia: textoRecorrencia.length > 0,
+      totalSessoes: numSessoes,
+      finalMsgLen: msg.length 
+    });
+
+    await sendWppToPhone(tenantId, appt.professional.phone, msg);
   } catch (err) {
     console.warn("[WPP] fireWppProfNewBooking error:", err);
   }
