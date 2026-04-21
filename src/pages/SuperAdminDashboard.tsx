@@ -33,7 +33,6 @@ import {
   CheckCircle, Clock, Archive,
   Camera,
 } from "lucide-react";
-import logoFavicon from "../images/system/logo-favicon.png";
 import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/permissions";
 
 /* ═══════════════════════════════════════════
@@ -121,6 +120,13 @@ function DashboardTab() {
       </ContentCard>
     </div>
   );
+}
+
+// Utilitário global de máscara de telefone
+function maskPhone(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 10) return d.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3").replace(/-$/, "");
+  return d.replace(/(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3").replace(/-$/, "");
 }
 
 /* ═══════════════════════════════════════════
@@ -345,11 +351,6 @@ function TenantsTab({ plans }: { plans: any[] }) {
   };
   const [form, setForm] = useState<any>(empty);
 
-  const maskPhone = (v: string) => {
-    const d = v.replace(/\D/g, "").slice(0, 11);
-    if (d.length <= 10) return d.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3").replace(/-$/, "");
-    return d.replace(/(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3").replace(/-$/, "");
-  };
   const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
   const toInputDate = (d: any) => d ? new Date(d).toISOString().slice(0, 10) : "";
 
@@ -693,12 +694,6 @@ function UsersTab({ tenants }: { tenants: any[] }) {
     phone: "", canCreateUsers: false, canDeleteAccount: false, tenantId: "",
   };
   const [form, setForm] = useState<any>(empty);
-
-  const maskPhone = (v: string) => {
-    const d = v.replace(/\D/g, "").slice(0, 11);
-    if (d.length <= 10) return d.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3").replace(/-$/, "");
-    return d.replace(/(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3").replace(/-$/, "");
-  };
 
   const load = useCallback(async () => {
     const r = await apiFetch("/api/super-admin/admin-users");
@@ -1514,7 +1509,7 @@ function ProfileTab({ username }: { username: string }) {
             <FormRow>
               <Input label="Nome Completo" value={form.name} onChange={e => setForm((f:any) => ({ ...f, name: e.target.value }))} placeholder="Ex: Luan dos Santos" />
               <Input label="E-mail" type="email" value={form.email} onChange={e => setForm((f:any) => ({ ...f, email: e.target.value }))} placeholder="luan@agendelle.com.br" />
-              <Input label="WhatsApp / Telefone" value={form.phone} onChange={e => setForm((f:any) => ({ ...f, phone: e.target.value }))} placeholder="(00) 00000-0000" />
+              <Input label="WhatsApp / Telefone" value={form.phone} onChange={e => setForm((f:any) => ({ ...f, phone: maskPhone(e.target.value) }))} placeholder="(00) 00000-0000" />
               <Input label="Data de Nascimento" type="date" value={form.birthday} onChange={e => setForm((f:any) => ({ ...f, birthday: e.target.value }))} />
             </FormRow>
             
@@ -2954,7 +2949,7 @@ function Sidebar({ tab, setTab, username, onLogout, onClose }: {
       <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid #f3f4f6", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: 12, background: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <img src={logoFavicon} alt="Agendelle" style={{ width: 20, height: 20, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+            <img src="/favicon.png" alt="Agendelle" style={{ width: 20, height: 20, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
           </div>
           <div style={{ minWidth: 0 }}>
             <p style={{ fontSize: 14, fontWeight: 900, color: "#111", lineHeight: 1, margin: 0 }}>Agendelle</p>
@@ -3066,7 +3061,7 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
           </button>
           <div className="flex items-center gap-2 md:hidden" style={{ flexShrink: 0 }}>
             <div style={{ width: 28, height: 28, borderRadius: 8, background: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <img src={logoFavicon} alt="" style={{ width: 16, height: 16, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+              <img src="/favicon.png" alt="" style={{ width: 16, height: 16, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
             </div>
             <span style={{ fontSize: 13, fontWeight: 900, color: "#111" }}>Agendelle</span>
           </div>
