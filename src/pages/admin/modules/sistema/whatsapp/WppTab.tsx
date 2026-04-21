@@ -344,7 +344,16 @@ export function WppTab() {
       const res = await apiFetch("/api/wpp/send-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: J  if (instanceLoading) {
+        body: JSON.stringify({ phone: testPhone, message: testMsg }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setTestResult({ ok: false, msg: data.error || "Erro ao enviar." }); }
+      else { setTestResult({ ok: true, msg: "Mensagem enviada com sucesso!" }); }
+    } catch { setTestResult({ ok: false, msg: "Erro de conexão." }); }
+    setTestLoading(false);
+  }
+
+  if (instanceLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Loader2 className="w-8 h-8 text-zinc-300 animate-spin" />
@@ -352,6 +361,15 @@ export function WppTab() {
       </div>
     );
   }
+
+  // Badge de status da conexão
+  const badge = (() => {
+    const s = instance?.status;
+    if (s === "connected")     return { color: "bg-emerald-50 text-emerald-700 border border-emerald-200", icon: <Wifi size={14} />, label: "Conectado" };
+    if (s === "qr_pending")    return { color: "bg-amber-50 text-amber-700 border border-amber-200", icon: <QrCode size={14} />, label: "Aguardando QR" };
+    if (s === "disconnected")  return { color: "bg-zinc-100 text-zinc-500 border border-zinc-200", icon: <WifiOff size={14} />, label: "Desconectado" };
+    return { color: "bg-zinc-100 text-zinc-400 border border-zinc-200", icon: <WifiOff size={14} />, label: "Não configurado" };
+  })();
 
   // TRAVA DO SUPER ADMIN
   if (instance && instance.wppAllowed === false) {
