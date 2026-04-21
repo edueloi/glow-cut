@@ -55,8 +55,11 @@ const prisma = new PrismaClient();
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getSaudacao(): string {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 12) return "Bom dia";
+  // Pega a hora atual no fuso do Brasil, independente do fuso do servidor
+  const dateStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo", hour: "numeric", hour12: false });
+  const h = parseInt(dateStr, 10);
+  
+  if (h >= 6 && h < 12) return "Bom dia";
   if (h >= 12 && h < 18) return "Boa tarde";
   return "Boa noite";
 }
@@ -279,11 +282,77 @@ async function processReminders60min(): Promise<void> {
   }
 }
 
+// ─── Cron: Aniversários ──────────────────────────────────────────────────────
+
+async function processBirthdays(): Promise<void> {
+  const now = new Date();
+  const brHourStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo", hour: "numeric", hour12: false });
+  const brHour = parseInt(brHourStr, 10);
+
+  // Somente envia feliz aniversário entre as 09:00 e 18:00
+  if (brHour < 9 || brHour > 18) return;
+
+  const currentMonthNum = now.getMonth() + 1;
+  const currentDay = now.getDate();
+  const currentYear = now.getFullYear();
+
+  try {
+    const clients: any[] = await (prisma as any).$queryRawUnsafe(`
+      SELECT c.id, c.tenantId, c.name, c.phone, c.birthDate, t.name as tenantName
+      FROM Client c
+      JOIN Tenant t ON t.id = c.tenantId
+      WHERE c.birthDate IS NOT NULL AND c.birthDate != ''
+    `);
+
+    for (const client of clients) {
+      if (!client.tenantId || !client.phone) continue;
+
+      const parts = client.birthDate.split(/[-/]/);
+      let day, month;
+      if (parts[0].length === 4) { // yyyy-mm-dd
+        day = parseInt(parts[2], 10);
+        month = parseInt(parts[1], 10);
+      } else { // dd/mm/yyyy
+        day = parseInt(parts[0], 10);
+        month = parseInt(parts[1], 10);
+      }
+
+      if (day !== currentDay || month !== currentMonthNum) continue;
+
+      const isWppEnabled = await tenantHasWpp(client.tenantId);
+      if (!isWppEnabled) continue;
+
+      const config = await (prisma as any).wppBotConfig.findUnique({ where: { tenantId: client.tenantId } });
+      if (!config?.botEnabled || !config?.sendBirthday) continue;
+
+      const keyType = `birthday_${currentYear}`;
+      // Reutiliza wppMessageSent, passando o ID do cliente no lugar do appointmentId
+      const hasSent = await wasSent(client.id, keyType); 
+      if (hasSent) continue;
+
+      const tpl = await getTemplate(client.tenantId, "birthday");
+      if (tpl) {
+        const vars: Record<string, string> = {
+          saudacao: getSaudacao(),
+          nome_cliente: client.name || "",
+          nome_estabelecimento: client.tenantName || "",
+        };
+
+        await sendWppToPhone(client.tenantId, client.phone, applyVars(tpl, vars));
+        await markSent(client.id, keyType, client.tenantId);
+        console.log(`[WPP Birthday] Cliente ${client.name} → ${client.phone}`);
+      }
+    }
+  } catch (err) {
+    console.error("[WPP Scheduler] processBirthdays error:", err);
+  }
+}
+
 // ─── Loop principal ──────────────────────────────────────────────────────────
 
 async function tick(): Promise<void> {
   console.log(`[WPP Scheduler] tick ${new Date().toISOString()}`);
-  await Promise.allSettled([processReminders24h(), processReminders60min()]);
+  await Promise.allSettled([processReminders24h(), processReminders60min(), processBirthdays()]);
 }
 
 async function main() {
