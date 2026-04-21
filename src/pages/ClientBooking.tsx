@@ -298,7 +298,13 @@ export default function ClientBooking() {
       try {
         const confRes = await fetch("/api/appointments/check-recurrence", {
           method: "POST", headers,
-          body: JSON.stringify({ dates: finalDates, professionalId: profId, startTime: selectedSlot, endTime: format(addMinutes(parse(selectedSlot!, "HH:mm", new Date()), selectedService?.duration || 60), "HH:mm") })
+          body: JSON.stringify({ 
+            dates: finalDates, 
+            professionalId: profId, 
+            startTime: selectedSlot, 
+            serviceId: selectedService?.id,
+            endTime: format(addMinutes(parse(selectedSlot!, "HH:mm", new Date()), selectedService?.duration || 60), "HH:mm") 
+          })
         });
         if (confRes.ok) {
           const confData = await confRes.json();

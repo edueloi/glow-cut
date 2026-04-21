@@ -503,13 +503,23 @@ export const agendaController = {
   async checkRecurrence(req: Request, res: Response) {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório" });
-    const { dates, professionalId, startTime, endTime } = req.body;
+    const { dates, professionalId, startTime, endTime: rawEndTime, serviceId } = req.body;
     
-    if (!Array.isArray(dates) || dates.length === 0 || !professionalId || !startTime || !endTime) {
+    if (!Array.isArray(dates) || dates.length === 0 || !professionalId || !startTime) {
       return res.status(400).json({ error: "Parâmetros incompletos para validação." });
     }
 
     try {
+      let endTime = rawEndTime;
+      if (!endTime && serviceId) {
+        const svc = await (prisma as any).service.findUnique({ where: { id: serviceId } });
+        if (svc) {
+          const start = parse(`2000-01-01 ${startTime}`, "yyyy-MM-dd HH:mm", new Date());
+          endTime = format(addMinutes(start, svc.duration || 30), "HH:mm");
+        }
+      }
+      if (!endTime) endTime = format(addMinutes(parse(`2000-01-01 ${startTime}`, "yyyy-MM-dd HH:mm", new Date()), 30), "HH:mm");
+
       const settings = await ensureAgendaSettingsRecord(tenantId);
       
       const closedDays = await (prisma as any).closedDay.findMany({ where: { tenantId } });
