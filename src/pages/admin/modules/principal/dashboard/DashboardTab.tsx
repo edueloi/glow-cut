@@ -16,7 +16,6 @@ import { cn } from "@/src/lib/utils";
 import { calculateAge, parseBirthDateParts } from "@/src/lib/masks";
 import { motion, AnimatePresence } from "motion/react";
 import { apiFetch } from "@/src/lib/api";
-import { useAuth } from "@/src/App";
 import { Badge } from "@/src/components/ui/Badge";
 import { parseISO, differenceInDays } from "date-fns";
 import { Modal, ConfirmModal } from "@/src/components/ui/Modal";
@@ -257,8 +256,6 @@ export function DashboardTab({
       return (a.startTime || "").localeCompare(b.startTime || "");
     });
   }, [appointments, pendingAppointments, today, confirmedIds]);
-
-  const { user: adminUser } = useAuth();
 
   return (
     <div className="space-y-5 sm:space-y-6">

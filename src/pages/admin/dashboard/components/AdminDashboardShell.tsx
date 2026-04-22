@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -14,6 +14,9 @@ import {
   Users,
   X,
   ExternalLink,
+  Calendar,
+  Clock,
+  CheckCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -50,6 +53,9 @@ interface AdminDashboardShellProps {
   onLogout: () => void;
   onSubModuleChange: (key: string) => void;
   pendingConfirmationsCount?: number;
+  pendingAppointments?: any[];
+  professionals?: any[];
+  onConfirmAppointment?: (id: string) => void;
   profileMenuRef: React.RefObject<HTMLDivElement | null>;
   setIsNotificationsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setIsProfileMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -73,6 +79,9 @@ export function AdminDashboardShell({
   onLogout,
   onSubModuleChange,
   pendingConfirmationsCount = 0,
+  pendingAppointments = [],
+  professionals = [],
+  onConfirmAppointment,
   profileMenuRef,
   setIsNotificationsOpen,
   setIsProfileMenuOpen,
@@ -87,6 +96,31 @@ export function AdminDashboardShell({
   const isItemPermitted = (permModule?: string, permAction?: string): boolean => {
     if (!permModule) return true; // Sem módulo configurado = sempre visível
     return can(permModule as Module, (permAction ?? "ver") as Action);
+  };
+
+  // ── Pending confirmations dropdown ──
+  const [isPendingOpen, setIsPendingOpen] = useState(false);
+  const pendingRef = useRef<HTMLDivElement>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isPendingOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pendingRef.current && !pendingRef.current.contains(e.target as Node)) {
+        setIsPendingOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isPendingOpen]);
+
+  const handleConfirm = async (id: string) => {
+    setConfirmingId(id);
+    // Espera a animação rodar antes de chamar a função que remove da lista
+    setTimeout(async () => {
+      await onConfirmAppointment?.(id);
+      setConfirmingId(null);
+    }, 600);
   };
 
   return (
@@ -248,19 +282,117 @@ export function AdminDashboardShell({
 
 
             {pendingConfirmationsCount > 0 && (
-              <button
-                onClick={() => handleTabChange("dash")}
-                title={`${pendingConfirmationsCount} agendamento${pendingConfirmationsCount > 1 ? "s" : ""} pendente${pendingConfirmationsCount > 1 ? "s" : ""} de confirmação`}
-                className="relative flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-600 transition-all hover:bg-amber-100 hover:border-amber-300 md:px-3"
-              >
-                <AlertTriangle size={16} className="shrink-0" />
-                <span className="hidden text-[11px] font-black md:inline">
-                  {pendingConfirmationsCount}
-                </span>
-                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-white md:hidden">
-                  {pendingConfirmationsCount}
-                </span>
-              </button>
+              <div className="relative" ref={pendingRef}>
+                <button
+                  onClick={() => setIsPendingOpen(!isPendingOpen)}
+                  title={`${pendingConfirmationsCount} agendamento${pendingConfirmationsCount > 1 ? "s" : ""} pendente${pendingConfirmationsCount > 1 ? "s" : ""} de confirmação`}
+                  className={cn(
+                    "relative flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-600 transition-all hover:bg-amber-100 hover:border-amber-300 md:px-3",
+                    isPendingOpen && "bg-amber-100 border-amber-300 shadow-sm"
+                  )}
+                >
+                  <AlertTriangle size={16} className="shrink-0" />
+                  <span className="hidden text-[11px] font-black md:inline">
+                    {pendingConfirmationsCount}
+                  </span>
+                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-white md:hidden">
+                    {pendingConfirmationsCount}
+                  </span>
+                </button>
+
+                <AnimatePresence>
+                  {isPendingOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="fixed left-4 right-4 top-20 z-[70] mt-3 overflow-hidden rounded-3xl border border-zinc-100 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.25)] md:absolute md:left-auto md:right-0 md:top-full md:w-[380px]"
+                    >
+                      <div className="flex items-center justify-between border-b border-zinc-50 bg-amber-50/50 px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle size={14} className="text-amber-500" />
+                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Pendentes de Confirmação</p>
+                        </div>
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-700">
+                          {pendingConfirmationsCount}
+                        </span>
+                      </div>
+                      <div className="max-h-[400px] overflow-y-auto divide-y divide-zinc-50">
+                        {pendingAppointments.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-10 text-zinc-400">
+                            <CheckCheck size={28} className="mb-2 opacity-30" />
+                            <p className="text-xs font-bold">Nenhum agendamento pendente</p>
+                            <p className="text-[10px] mt-0.5">Tudo confirmado!</p>
+                          </div>
+                        ) : (
+                          pendingAppointments.map((appt) => {
+                            const prof = professionals.find((p: any) => p.id === appt.professionalId);
+                            const isConfirming = confirmingId === appt.id;
+                            return (
+                              <div key={appt.id} className="group p-4 transition-colors hover:bg-zinc-50">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-black text-zinc-800 truncate">
+                                      {appt.clientName || appt.client?.name || "Cliente"}
+                                    </p>
+                                    <p className="mt-0.5 text-[10px] text-zinc-400 truncate">
+                                      {appt.serviceName || appt.service?.name || "Serviço"}
+                                    </p>
+                                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                      <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold text-zinc-500">
+                                        <Calendar size={10} />
+                                        {appt.date ? (() => {
+                                          try {
+                                            const dateStr = String(appt.date);
+                                            const d = new Date(dateStr.includes("T") ? dateStr : dateStr + "T12:00:00");
+                                            return isNaN(d.getTime()) ? "—" : format(d, "dd/MM", { locale: ptBR });
+                                          } catch { return "—"; }
+                                        })() : "—"}
+                                      </span>
+                                      <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold text-zinc-500">
+                                        <Clock size={10} />
+                                        {appt.startTime || "—"}
+                                      </span>
+                                      {prof && (
+                                        <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-blue-600">
+                                          <Users size={10} />
+                                          {prof.nickname || prof.name}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => handleConfirm(appt.id)}
+                                    disabled={isConfirming}
+                                    className={cn(
+                                      "shrink-0 flex items-center gap-1 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wide transition-all",
+                                      isConfirming
+                                        ? "bg-emerald-100 text-emerald-600 cursor-not-allowed"
+                                        : "bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm hover:shadow-md"
+                                    )}
+                                  >
+                                    {isConfirming ? (
+                                      <><CheckCheck size={14} /> OK</>
+                                    ) : (
+                                      <><CheckCircle size={14} /> Confirmar</>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setIsPendingOpen(false)}
+                        className="w-full border-t border-zinc-50 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all hover:bg-zinc-50 hover:text-zinc-600"
+                      >
+                        Fechar
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             )}
 
             <div className="relative" ref={notificationsRef}>

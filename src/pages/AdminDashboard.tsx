@@ -669,7 +669,13 @@ export default function AdminDashboard() {
     const today = new Date().toISOString().slice(0, 10);
     apiFetch(`/api/appointments?status=scheduled&start=${today}`)
       .then(res => res.ok ? res.json() : [])
-      .then(data => setPendingAppointments(Array.isArray(data) ? data : []))
+      .then(data => {
+        if (Array.isArray(data)) {
+          setPendingAppointments(data.filter(a => a.status === "scheduled"));
+        } else {
+          setPendingAppointments([]);
+        }
+      })
       .catch(() => setPendingAppointments([]));
   }, []);
 
@@ -1436,6 +1442,14 @@ export default function AdminDashboard() {
         onLogout={logout}
         onSubModuleChange={handleSubModuleChange}
         pendingConfirmationsCount={pendingConfirmationsCount}
+        pendingAppointments={pendingAppointments}
+        professionals={professionals}
+        onConfirmAppointment={async (id: string) => {
+          setPendingAppointments(prev => prev.filter(a => a.id !== id));
+          setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: "confirmed" } : a));
+          await handleUpdateAppointmentStatus(id, "confirmed");
+          refreshDashboardData();
+        }}
         profileMenuRef={profileMenuRef}
         setIsNotificationsOpen={setIsNotificationsOpen}
         setIsProfileMenuOpen={setIsProfileMenuOpen}
