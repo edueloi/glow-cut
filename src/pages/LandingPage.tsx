@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiFetch } from "../lib/api";
 import "./LandingPage.css";
 
 import logoImg    from "../images/system/imagem-agendele.png";
@@ -8,6 +9,8 @@ import faviconImg from "../images/system/logo-favicon.png";
 export default function LandingPage() {
   const [menuOpen, setMenuOpen]   = useState(false);
   const [scrolled, setScrolled]   = useState(false);
+  const [plans, setPlans]         = useState<any[]>([]);
+  const [loadingPlans, setLoading] = useState(true);
   const navigate = useNavigate();
 
   /* navbar scroll */
@@ -25,6 +28,17 @@ export default function LandingPage() {
     );
     document.querySelectorAll(".lp-rv").forEach((el) => obs.observe(el));
     return () => obs.disconnect();
+  }, [plans]); // Re-run when plans change to observe new cards
+
+  /* fetch plans */
+  useEffect(() => {
+    apiFetch("/api/auth/plans")
+      .then(r => r.json())
+      .then(data => {
+        setPlans(Array.isArray(data) ? data : []);
+      })
+      .catch(e => console.error("Error fetching plans:", e))
+      .finally(() => setLoading(false));
   }, []);
 
   /* smooth scroll */
@@ -54,7 +68,7 @@ export default function LandingPage() {
             <button className="lp-btn lp-btn-ghost" onClick={() => navigate("/login")}>Entrar</button>
             <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>Falar com vendas →</button>
           </div>
-          <button className="lp-hamburger" onClick={() => setMenuOpen(!menuOpen)}>
+          <button className={`lp-hamburger ${menuOpen ? "lp-active" : ""}`} onClick={() => setMenuOpen(!menuOpen)}>
             <span /><span /><span />
           </button>
         </div>
@@ -83,7 +97,7 @@ export default function LandingPage() {
             <div>
               <div className="lp-hero-badge">
                 <span className="lp-tag">✨ Novo</span>
-                Versão 2.0 com Inteligência Artificial
+                Versão 2.0 com Gestão Inteligente
               </div>
               <h1>
                 A agenda <span className="lp-g">elegante</span><br />
@@ -190,7 +204,7 @@ export default function LandingPage() {
               { ico:"📊", cls:"lp-fi3", title:"Relatórios e Métricas",       desc:"Dashboard completo com faturamento, serviços mais populares, horários de pico e desempenho da equipe em tempo real." },
               { ico:"👥", cls:"lp-fi4", title:"Gestão de Equipe",            desc:"Cada profissional tem sua agenda individual. Defina serviços, comissões e horários por colaborador com facilidade." },
               { ico:"💳", cls:"lp-fi5", title:"Pagamento Online",            desc:"Aceite sinal ou pagamento completo no ato do agendamento. Integração com Pix, cartão de crédito e débito." },
-              { ico:"🤖", cls:"lp-fi6", title:"IA de Atendimento",           desc:"Chatbot com IA que responde dúvidas, confirma horários e faz agendamentos pelo WhatsApp automaticamente." },
+              { ico:"🚀", cls:"lp-fi6", title:"Automação WhatsApp",        desc:"Disparo de mensagens e lembretes automáticos para seus clientes via WhatsApp, integrados diretamente com sua agenda." },
             ].map((f, i) => (
               <div key={f.title} className={`lp-feat-card lp-rv lp-d${i}`}>
                 <div className={`lp-feat-ico ${f.cls}`}>{f.ico}</div>
@@ -339,43 +353,44 @@ export default function LandingPage() {
             <p className="lp-sec-sub lp-rv lp-d2">Faça um teste de 30 dias e comprove o valor. Cancele quando quiser — sem contratos ou surpresas.</p>
           </div>
           <div className="lp-price-grid">
+            {loadingPlans ? (
+              <div className="col-span-full py-12 text-center text-zinc-400 font-medium">Carregando planos...</div>
+            ) : plans.length > 0 ? (
+              plans.map((p, idx) => {
+                let features = [];
+                try { features = JSON.parse(p.features || "[]"); } catch(e) { features = []; }
+                const isHot = p.name === "Pro" || p.is_popular || p.isPopular;
 
-            <div className="lp-price-card lp-rv">
-              <div className="lp-pname">Básico</div>
-              <div className="lp-pamount"><span className="lp-pcur">R$</span><span className="lp-pnum">49,90</span><span className="lp-pper">/mês</span></div>
-              <p className="lp-pdesc">Perfeito para pequenos espaços conhecerem a plataforma.</p>
-              <div className="lp-pdiv" />
-              <ul className="lp-pfeats">
-                {["Agenda, Clientes e Serviços","Até 2 profissionais cadastrados","1 usuário admin"].map(f=><li key={f}><span className="lp-ck lp-ck-y">✓</span>{f}</li>)}
-                {["Comandas e Financeiro","Relatórios"].map(f=><li key={f} style={{color:"#9ca3af"}}><span className="lp-ck lp-ck-n">×</span>{f}</li>)}
-              </ul>
-              <button className="lp-btn lp-btn-ghost" onClick={() => navigate("/login")}>Falar com vendas</button>
-            </div>
-
-            <div className="lp-price-card lp-hot lp-rv lp-d2">
-              <div className="lp-hot-badge">★ Mais popular</div>
-              <div className="lp-pname">Pro</div>
-              <div className="lp-pamount"><span className="lp-pcur">R$</span><span className="lp-pnum lp-g">99,90</span><span className="lp-pper">/mês</span></div>
-              <p className="lp-pdesc">Para negócios estabilizados crescendo com profissionalismo.</p>
-              <div className="lp-pdiv" />
-              <ul className="lp-pfeats">
-                {["Agenda, Clientes e Serviços","Comandas e Fluxo de Caixa","Relatórios de Vendas","Até 5 profissionais","3 usuários admin"].map(f=><li key={f}><span className="lp-ck lp-ck-y">✓</span>{f}</li>)}
-                {["Suporte prioritário 24/7"].map(f=><li key={f} style={{color:"#9ca3af"}}><span className="lp-ck lp-ck-n">×</span>{f}</li>)}
-              </ul>
-              <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>Solicitar Teste →</button>
-            </div>
-
-            <div className="lp-price-card lp-rv lp-d4">
-              <div className="lp-pname">Enterprise</div>
-              <div className="lp-pamount"><span className="lp-pcur">R$</span><span className="lp-pnum">199,90</span><span className="lp-pper">/mês</span></div>
-              <p className="lp-pdesc">Para redes avançadas e operações de alto volume.</p>
-              <div className="lp-pdiv" />
-              <ul className="lp-pfeats">
-                {["Tudo do plano Pro","Profissionais ilimitados","Multi-usuários ilimitados","Suporte VIP prioritário"].map(f=><li key={f}><span className="lp-ck lp-ck-y">✓</span>{f}</li>)}
-              </ul>
-              <button className="lp-btn lp-btn-ghost" onClick={() => navigate("/login")}>Falar com vendas</button>
-            </div>
-
+                return (
+                  <div key={p.id} className={`lp-price-card ${isHot ? "lp-hot" : ""} lp-rv lp-d${idx * 2}`}>
+                    {isHot && <div className="lp-hot-badge">★ Mais popular</div>}
+                    <div className="lp-pname">{p.name}</div>
+                    <div className="lp-pamount">
+                      <span className="lp-pcur">R$</span>
+                      <span className={`lp-pnum ${isHot ? "lp-g" : ""}`}>
+                        {Number(p.price).toFixed(2).replace(".", ",")}
+                      </span>
+                      <span className="lp-pper">/mês</span>
+                    </div>
+                    <p className="lp-pdesc">{p.description || "O plano perfeito para o seu negócio."}</p>
+                    <div className="lp-pdiv" />
+                    <ul className="lp-pfeats">
+                      {features.map((f: string, i: number) => (
+                        <li key={i}><span className="lp-ck lp-ck-y">✓</span>{f}</li>
+                      ))}
+                    </ul>
+                    <button 
+                      className={`lp-btn ${isHot ? "lp-btn-primary" : "lp-btn-ghost"}`} 
+                      onClick={() => navigate("/login")}
+                    >
+                      {isHot ? "Solicitar Teste →" : "Falar com vendas"}
+                    </button>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="col-span-full py-12 text-center text-zinc-400 font-medium">Nenhum plano disponível no momento.</div>
+            )}
           </div>
         </div>
       </section>
@@ -419,14 +434,16 @@ export default function LandingPage() {
             <h2>Pronto para ter a agenda<br />mais elegante do mercado?</h2>
             <p>Faça o teste e comprove você mesmo. Em menos de 5 minutos seu negócio está online, elegante e recebendo agendamentos.</p>
             <div className="lp-cta-acts">
-              <button className="lp-btn lp-btn-white" style={{padding:"16px 36px",fontSize:"1rem"}} onClick={() => navigate("/login")}>
+              <button className="lp-btn lp-btn-white" style={{padding:"12px 28px",fontSize:".95rem"}} onClick={() => navigate("/login")}>
                 ✦ Solicitar teste de 30 dias
               </button>
-              <button className="lp-btn lp-btn-clear" style={{padding:"16px 32px",fontSize:"1rem"}} onClick={() => navigate("/login")}>
+              <button className="lp-btn lp-btn-clear" style={{padding:"12px 28px",fontSize:".95rem"}} onClick={() => navigate("/login")}>
                 Falar com especialista
               </button>
             </div>
-            <p className="lp-cta-note">✓ 30 dias de teste &nbsp;·&nbsp; ✓ Sem cartão &nbsp;·&nbsp; ✓ Cancele quando quiser</p>
+            <div className="lp-cta-note">
+              <span>✓ 30 dias de teste</span> <span>·</span> <span>✓ Sem fidelidade</span> <span>·</span> <span>✓ Cancele quando quiser</span>
+            </div>
           </div>
         </div>
       </section>
@@ -468,16 +485,12 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="lp-foot-bot">
-            <p>© 2026 Agendelle. Todos os direitos reservados. &nbsp;·&nbsp;
+            <p>© 2026 Agendelle. Um produto <a href="https://develoi.com.br/" target="_blank" rel="noopener noreferrer" style={{color:"var(--lp-purple)",fontWeight:"700"}}>Develoi Soluções Digitais</a>.
+              <br className="sm:hidden" />
+              <span className="hidden sm:inline"> &nbsp;·&nbsp; </span>
               <a href="#" style={{color:"var(--lp-text3)"}}>Privacidade</a> &nbsp;·&nbsp;
               <a href="#" style={{color:"var(--lp-text3)"}}>Termos</a>
             </p>
-            <div className="lp-foot-soc">
-              <a href="#" className="lp-soc-btn">📸</a>
-              <a href="#" className="lp-soc-btn">💬</a>
-              <a href="#" className="lp-soc-btn">💼</a>
-              <a href="#" className="lp-soc-btn">▶</a>
-            </div>
           </div>
         </div>
       </footer>

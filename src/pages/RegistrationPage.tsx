@@ -110,7 +110,7 @@ export default function RegistrationPage() {
           </div>
         </div>
         <Button variant="ghost" size="sm" onClick={() => navigate("/")} iconLeft={<ArrowLeft size={14} />}>
-          Voltar ao site
+          <span className="hidden sm:inline">Voltar ao site</span>
         </Button>
       </div>
 

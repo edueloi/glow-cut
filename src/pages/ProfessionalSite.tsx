@@ -370,7 +370,7 @@ export default function ProfessionalSite() {
               <Sparkles size={10} /> Studio Premium
             </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight leading-[1.05] mb-5 whitespace-pre-line">
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tight leading-[1.05] mb-5">
               {tenant.welcomeMessage || `Bem-vindo ao ${tenant.name}`}
             </h1>
             <p className="text-white/70 text-base md:text-lg leading-relaxed mb-8 max-w-xl">

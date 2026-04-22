@@ -891,7 +891,24 @@ async function startServer() {
           .replace(/<meta\s+name=["']google-site-verification["'][^>]*>/gi, "")
           .replace(/<script\s+type=["']application\/ld\+json["']>[\s\S]*?<\/script>/gi, "")
           .replace("</head>", `${seoTags}</head>`);
-        html = injectRootMarkup(html, bodyMarkup);
+        function isBot(userAgent: string = ""): boolean {
+          const bots = [
+            "googlebot", "bingbot", "yandexbot", "duckduckbot", "slurp",
+            "twitterbot", "facebookexternalhit", "linkedinbot", "embedly", 
+            "baiduspider", "pinterest", "slackbot", "vkShare", "facebot", 
+            "outbrain", "whatsapp", "telegrambot", "discordbot"
+          ];
+          const ua = userAgent.toLowerCase();
+          return bots.some(bot => ua.includes(bot));
+        }
+
+        if (isBot(req.headers["user-agent"])) {
+          console.log(`[SEO] Entregando markup para BOT: ${req.headers["user-agent"]}`);
+          html = injectRootMarkup(html, bodyMarkup);
+        } else {
+          // Para usuários normais, removemos o markup mas mantemos as meta-tags para cache/history
+          console.log(`[SEO] Usuário real, mantendo root limpo.`);
+        }
 
         res.setHeader("Content-Language", "pt-BR");
         res.status(statusCode).send(html);
