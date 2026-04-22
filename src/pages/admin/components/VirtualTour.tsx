@@ -74,7 +74,8 @@ export function VirtualTour({ onComplete }: { onComplete: () => void }) {
       if (el) {
         setTargetRect(el.getBoundingClientRect());
         el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.classList.add("ring-4", "ring-amber-500", "ring-offset-4", "transition-all", "duration-500", "z-[10001]");
+        // Apenas eleva o z-index para ficar acima do overlay
+        el.classList.add("relative", "z-[10001]");
       }
     } else {
       setTargetRect(null);
@@ -83,7 +84,7 @@ export function VirtualTour({ onComplete }: { onComplete: () => void }) {
     return () => {
       if (step.targetId) {
         const el = document.getElementById(step.targetId);
-        if (el) el.classList.remove("ring-4", "ring-amber-500", "ring-offset-4", "z-[10001]");
+        if (el) el.classList.remove("relative", "z-[10001]");
       }
     };
   }, [currentStep]);
@@ -107,16 +108,16 @@ export function VirtualTour({ onComplete }: { onComplete: () => void }) {
       {/* Spotlight overlay — escurece tudo exceto o elemento alvo */}
       {targetRect ? (
         <div 
-          className="absolute inset-0 pointer-events-auto transition-all duration-500"
+          className="pointer-events-auto transition-all duration-500"
           style={{
-            boxShadow: "0 0 0 9999px rgba(0,0,0,0.7)",
+            position: "absolute",
             top: targetRect.top - 8,
             left: targetRect.left - 8,
             width: targetRect.width + 16,
             height: targetRect.height + 16,
-            position: "absolute",
             borderRadius: "16px",
             border: "4px solid #f59e0b",
+            boxShadow: "0 0 0 9999px rgba(0,0,0,0.7)",
           }}
         />
       ) : (
