@@ -17,3 +17,5 @@ export { SettingsTab } from "./sistema/configuracoes/SettingsTab";
 export { SiteTab } from "./site/SiteTab";
 export { AdminProfileTab } from "./sistema/perfil/AdminProfileTab";
 export { PermissoesTab } from "./sistema/permissoes/PermissoesTab";
+export { AssinaturaTab } from "./sistema/assinatura/AssinaturaTab";
+

@@ -9,12 +9,17 @@ import {
   DollarSign, CalendarIcon, UserPlus, TrendingUp, Cake,
   Eye, EyeOff, Plus, Receipt, Users, BarChart2, Scissors,
   ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Zap, Trophy, Star, Activity,
-  Lock, Bell, Check, Loader2
+  Lock, Bell, Check, Loader2, Shield, AlertTriangle
 } from "lucide-react";
+
 import { cn } from "@/src/lib/utils";
 import { calculateAge, parseBirthDateParts } from "@/src/lib/masks";
 import { motion, AnimatePresence } from "motion/react";
 import { apiFetch } from "@/src/lib/api";
+import { useAuth } from "@/src/App";
+import { Badge } from "@/src/components/ui/Badge";
+import { parseISO, differenceInDays } from "date-fns";
+
 
 interface DashboardTabProps {
   revenueData: any[];
@@ -210,8 +215,14 @@ export function DashboardTab({
     }
   }, [onAppointmentConfirmed]);
 
+  const { user: adminUser } = useAuth();
+
   return (
     <div className="space-y-5 sm:space-y-6">
+
+
+
+      {/* ── GREETING + TOGGLE ── */}
 
       {/* ── GREETING + TOGGLE ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

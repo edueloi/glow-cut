@@ -186,18 +186,19 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 Textarea.displayName = "Textarea";
 
 // ─── Select ───────────────────────────────────────────────────────────────────
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "size"> {
   label?: string;
   error?: string;
   hint?: string;
   wrapperClassName?: string;
   options?: { value: string | number; label: string; disabled?: boolean }[];
   placeholder?: string;
+  size?: "sm" | "md" | "lg";
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
   (
-    { label, error, hint, wrapperClassName, className, id, options, placeholder, children, ...props },
+    { label, error, hint, wrapperClassName, className, id, options, placeholder, size = "md", children, ...props },
     ref
   ) => {
     const inputId = id ?? `select-${Math.random().toString(36).slice(2, 7)}`;
@@ -216,6 +217,8 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             id={inputId}
             className={cn(
               "ds-input appearance-none pr-8 cursor-pointer",
+              size === "sm" && "h-8 py-0 px-2 text-[11px] font-black uppercase tracking-widest",
+              size === "lg" && "h-14 px-4 text-base",
               error && "border-red-400 focus:border-red-500 focus:ring-red-500/10 bg-red-50/30",
               className
             )}

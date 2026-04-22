@@ -151,8 +151,16 @@ superAdminRouter.get("/plans", async (req, res) => {
 });
 
 superAdminRouter.post("/plans", async (req, res) => {
-  const { name, price, maxProfessionals, maxAdminUsers, canCreateAdminUsers, canDeleteAccount, wppEnabled, features } = req.body;
+  const { 
+    name, price, maxProfessionals, maxAdminUsers, 
+    canCreateAdminUsers, canDeleteAccount, 
+    systemBotEnabled, qrCodeBotEnabled, siteEnabled, agendaExternaEnabled,
+    priceExtraProfessional,
+    features, permissions 
+  } = req.body;
+  
   if (!name) return res.status(400).json({ error: "Nome do plano obrigatório." });
+  
   try {
     const plan = await (prisma as any).plan.create({
       data: {
@@ -161,10 +169,15 @@ superAdminRouter.post("/plans", async (req, res) => {
         price: price || 0,
         maxProfessionals: maxProfessionals || 3,
         maxAdminUsers: maxAdminUsers || 1,
-        canCreateAdminUsers: canCreateAdminUsers || false,
-        canDeleteAccount: canDeleteAccount || false,
-        wppEnabled: wppEnabled || false,
+        canCreateAdminUsers: !!canCreateAdminUsers,
+        canDeleteAccount: !!canDeleteAccount,
+        systemBotEnabled: systemBotEnabled !== undefined ? !!systemBotEnabled : true,
+        qrCodeBotEnabled: !!qrCodeBotEnabled,
+        siteEnabled: siteEnabled !== undefined ? !!siteEnabled : true,
+        agendaExternaEnabled: agendaExternaEnabled !== undefined ? !!agendaExternaEnabled : true,
+        priceExtraProfessional: priceExtraProfessional || 0,
         features: Array.isArray(features) ? JSON.stringify(features) : (features || "[]"),
+        permissions: typeof permissions === "object" ? JSON.stringify(permissions) : (permissions || "{}"),
       },
     });
     res.json(plan);
@@ -174,7 +187,14 @@ superAdminRouter.post("/plans", async (req, res) => {
 });
 
 superAdminRouter.put("/plans/:id", async (req, res) => {
-  const { name, price, maxProfessionals, maxAdminUsers, canCreateAdminUsers, canDeleteAccount, wppEnabled, features, isActive } = req.body;
+  const { 
+    name, price, maxProfessionals, maxAdminUsers, 
+    canCreateAdminUsers, canDeleteAccount, 
+    systemBotEnabled, qrCodeBotEnabled, siteEnabled, agendaExternaEnabled,
+    priceExtraProfessional,
+    features, permissions, isActive 
+  } = req.body;
+  
   try {
     const plan = await (prisma as any).plan.update({
       where: { id: req.params.id },
@@ -183,18 +203,26 @@ superAdminRouter.put("/plans/:id", async (req, res) => {
         ...(price !== undefined && { price }),
         ...(maxProfessionals !== undefined && { maxProfessionals }),
         ...(maxAdminUsers !== undefined && { maxAdminUsers }),
-        ...(canCreateAdminUsers !== undefined && { canCreateAdminUsers }),
-        ...(canDeleteAccount !== undefined && { canDeleteAccount }),
-        ...(wppEnabled !== undefined && { wppEnabled: !!wppEnabled }),
+        ...(canCreateAdminUsers !== undefined && { canCreateAdminUsers: !!canCreateAdminUsers }),
+        ...(canDeleteAccount !== undefined && { canDeleteAccount: !!canDeleteAccount }),
+        ...(systemBotEnabled !== undefined && { systemBotEnabled: !!systemBotEnabled }),
+        ...(qrCodeBotEnabled !== undefined && { qrCodeBotEnabled: !!qrCodeBotEnabled }),
+        ...(siteEnabled !== undefined && { siteEnabled: !!siteEnabled }),
+        ...(agendaExternaEnabled !== undefined && { agendaExternaEnabled: !!agendaExternaEnabled }),
+        ...(priceExtraProfessional !== undefined && { priceExtraProfessional }),
         ...(isActive !== undefined && { isActive }),
         ...(features !== undefined && { features: Array.isArray(features) ? JSON.stringify(features) : features }),
+        ...(permissions !== undefined && { permissions: typeof permissions === "object" ? JSON.stringify(permissions) : permissions }),
       },
     });
+
+
     res.json(plan);
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Erro ao atualizar plano." });
   }
 });
+
 
 superAdminRouter.delete("/plans/:id", async (req, res) => {
   try {

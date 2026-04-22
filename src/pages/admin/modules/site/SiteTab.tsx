@@ -27,6 +27,181 @@ import { PanelCard } from "@/src/components/ui/PanelCard";
 import { Switch } from "@/src/components/ui/Switch";
 import { useToast } from "@/src/components/ui/Toast";
 import { apiFetch } from "@/src/lib/api";
+import { Badge } from "@/src/components/ui/Badge";
+import { cn } from "@/src/lib/utils";
+import { Loader2, CheckCircle2 } from "lucide-react";
+
+// ── Mobile Preview Component ─────────────────────────────────────────────
+function MobileSitePreview({ 
+  data 
+}: { 
+  data: any;
+}) {
+  const themeColor = data.themeColor || "#c9a96e";
+  
+  return (
+    <div className="relative mx-auto w-[280px] h-[580px] bg-zinc-950 rounded-[3rem] border-[8px] border-zinc-900 shadow-2xl overflow-hidden hidden 2xl:block sticky top-8 animate-in slide-in-from-right-4 duration-700">
+
+      {/* Notch */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 bg-zinc-900 rounded-b-2xl z-40" />
+      
+      {/* Status Bar Mock */}
+      <div className="absolute top-0 left-0 w-full h-6 bg-transparent flex items-center justify-between px-6 z-30 pointer-events-none">
+        <span className="text-[10px] font-bold text-white/40">9:41</span>
+        <div className="flex gap-1">
+          <div className="w-3 h-1.5 bg-white/40 rounded-[2px]" />
+          <div className="w-3 h-1.5 bg-white/40 rounded-[2px]" />
+          <div className="w-5 h-1.5 bg-white/40 rounded-[2px]" />
+        </div>
+      </div>
+
+      <div className="h-full w-full bg-white overflow-y-auto overflow-x-hidden pt-0 scrollbar-none">
+        {/* Hero Section */}
+        <div className="relative h-44 w-full bg-zinc-100 overflow-hidden">
+          {data.siteCoverUrl ? (
+            <img src={data.siteCoverUrl} className="w-full h-full object-cover" alt="Cover" />
+          ) : (
+            <div className="w-full h-full bg-zinc-200 flex items-center justify-center">
+              <ImageIcon className="text-zinc-300" size={24} />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          
+          <div className="absolute bottom-4 left-4 right-4 text-white">
+            <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 p-1.5 mb-2 overflow-hidden">
+              {data.logoUrl ? (
+                <img src={data.logoUrl} className="w-full h-full object-contain" alt="Logo" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-white/5 text-[10px] font-black italic">
+                  LOGO
+                </div>
+              )}
+            </div>
+            <h1 className="text-sm font-black leading-tight drop-shadow-md">
+              {data.title || "Seu Negócio"}
+            </h1>
+            <p className="text-[9px] text-white/70 line-clamp-2 mt-0.5 font-medium leading-relaxed">
+              {data.welcomeMessage || "Sua frase de impacto aparecerá aqui."}
+            </p>
+          </div>
+        </div>
+
+        {/* Info Strip */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 bg-zinc-50/50">
+          <div className="flex gap-3">
+             <div className="flex flex-col items-center">
+                <span className="text-[10px] font-black text-zinc-900 leading-none">{data.experienceYears || "10+"}</span>
+                <span className="text-[7px] font-bold text-zinc-400 uppercase tracking-tighter">Anos</span>
+             </div>
+             <div className="w-px h-6 bg-zinc-200" />
+             <div className="flex flex-col items-center">
+                <span className="text-[10px] font-black text-zinc-900 leading-none">4.9</span>
+                <span className="text-[7px] font-bold text-zinc-400 uppercase tracking-tighter">Estrelas</span>
+             </div>
+          </div>
+          <button 
+            className="px-3 py-1.5 rounded-lg text-[9px] font-black text-white shadow-lg shadow-zinc-950/10 transition-transform active:scale-95"
+            style={{ backgroundColor: themeColor }}
+          >
+            AGENDAR
+          </button>
+        </div>
+
+        {/* Features Row */}
+        <div className="p-4 grid grid-cols-3 gap-2">
+          {[
+            { t: data.feature1Title || "Qualidade", d: "Feature 1" },
+            { t: data.feature2Title || "Ambiente", d: "Feature 2" },
+            { t: data.feature3Title || "Equipe", d: "Feature 3" }
+          ].map((f, i) => (
+            <div key={i} className="flex flex-col items-center text-center p-2 rounded-xl bg-zinc-50 border border-zinc-100">
+              <div className="w-6 h-6 rounded-lg bg-white shadow-sm flex items-center justify-center mb-1.5">
+                <CheckCircle size={10} style={{ color: themeColor }} />
+              </div>
+              <span className="text-[8px] font-black text-zinc-800 leading-tight truncate w-full">{f.t}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* About Section */}
+        <div className="p-4 space-y-3">
+          <h2 className="text-[11px] font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
+            <div className="w-1 h-3 rounded-full" style={{ backgroundColor: themeColor }} />
+            {data.aboutTitle || "Quem Somos"}
+          </h2>
+          <div className="flex gap-3 items-start">
+            <div className="w-20 h-24 rounded-xl bg-zinc-100 overflow-hidden shrink-0 border border-zinc-200">
+              {data.coverUrl ? (
+                <img src={data.coverUrl} className="w-full h-full object-cover" alt="About" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ImageIcon size={14} className="text-zinc-300" />
+                </div>
+              )}
+            </div>
+            <p className="text-[9px] text-zinc-500 leading-relaxed font-medium italic line-clamp-5">
+              "{data.description || "Adicione uma breve descrição sobre a sua história e seus diferenciais para seus clientes."}"
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Services Mock */}
+        {data.showServices && (
+          <div className="p-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[11px] font-black text-zinc-900 uppercase tracking-widest">Serviços</h2>
+              <span className="text-[8px] font-bold text-zinc-400">Ver todos</span>
+            </div>
+            <div className="space-y-2">
+              {[1, 2].map(i => (
+                <div key={i} className="flex items-center justify-between p-2 rounded-xl border border-zinc-100 bg-white hover:border-zinc-200 transition-colors">
+                  <div className="flex gap-2.5 items-center">
+                    <div className="w-8 h-8 rounded-lg bg-zinc-50 border border-zinc-100" />
+                    <div className="flex flex-col">
+                      <div className="h-2 w-16 bg-zinc-100 rounded-full mb-1" />
+                      <div className="h-1.5 w-10 bg-zinc-50 rounded-full" />
+                    </div>
+                  </div>
+                  <div className="h-3 w-8 bg-zinc-50 rounded-lg" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Location & Contact */}
+        <div className="p-4 mt-2 bg-zinc-950 text-white space-y-4">
+          <div className="space-y-1.5">
+             <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Endereço</p>
+             <p className="text-[9px] font-medium leading-relaxed flex items-start gap-2">
+                <MapPin size={10} style={{ color: themeColor }} className="mt-0.5 shrink-0" />
+                {data.address || "Rua seu endereço, 123 - Cidade"}
+             </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">WhatsApp</p>
+              <p className="text-[9px] font-bold">{data.phone || "(00) 00000-0000"}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Instagram</p>
+              <p className="text-[9px] font-bold truncate">@{data.instagram?.split('/').pop() || "seuinsta"}</p>
+            </div>
+          </div>
+          <div className="pt-4 border-t border-white/5 flex justify-center pb-8">
+            <div className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-[7px] font-black text-white/40 tracking-[0.2em] uppercase">
+               Agendelle Platform
+            </div>
+          </div>
+        </div>
+
+        {/* Float Accent Line */}
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1 rounded-full bg-white/20 z-50" />
+      </div>
+    </div>
+  );
+}
+
 
 export function SiteTab() {
   const toast = useToast();
@@ -283,8 +458,10 @@ export function SiteTab() {
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_auto] gap-6 lg:gap-8 pb-32">
         <div className="lg:col-span-2 space-y-6">
+
+
           <PanelCard
             title="Identidade & Boas-vindas"
             description="Informações principais e primeira impressão do seu site."
@@ -793,7 +970,44 @@ export function SiteTab() {
             </p>
           </div>
         </div>
+
+        {/* Coluna 3: Preview High Fidelity */}
+        <div className="hidden 2xl:block">
+          <MobileSitePreview data={formData} />
+        </div>
+      </div>
+
+      {/* Action Bar Flutuante — Refined Responsiveness */}
+      <div className="sticky bottom-4 lg:bottom-8 left-0 right-0 z-[100] mt-10">
+        <div className="bg-white/80 backdrop-blur-2xl border border-zinc-200 p-3 md:p-5 rounded-[24px] md:rounded-[28px] shadow-2xl shadow-zinc-950/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+           <div className="hidden lg:block ml-2">
+              <p className="text-xs font-black text-zinc-800 uppercase tracking-widest">Configurações do Site</p>
+              <p className="text-[10px] text-zinc-500 mt-1 font-medium">As alterações serão aplicadas instantaneamente na sua vitrine digital.</p>
+           </div>
+           
+           <div className="flex items-center justify-between w-full lg:hidden px-1">
+              <div className="flex flex-col">
+                 <span className="text-[10px] font-black text-zinc-800 uppercase">Site Admin</span>
+                 <span className="text-[9px] text-zinc-500">Toque para salvar</span>
+              </div>
+              <Badge color="success" className="text-[8px] py-0.5">Online</Badge>
+           </div>
+
+           <Button
+              onClick={handleSave}
+              disabled={saving || uploadingLogo || uploadingCover}
+              className={cn(
+                "w-full sm:w-[240px] md:w-[280px] h-11 md:h-14 rounded-2xl text-sm md:text-base font-black shadow-xl transition-all active:scale-95 group",
+                saving ? "bg-zinc-800" : "bg-zinc-950 hover:bg-black"
+              )}
+              iconLeft={saving ? <Loader2 size={18} className="animate-spin text-zinc-400" /> : <CheckCircle2 size={18} className="group-hover:scale-110 transition-transform" />}
+            >
+              {saving ? "Salvando..." : "Publicar Alterações"}
+            </Button>
+        </div>
       </div>
     </PageWrapper>
   );
 }
+
+

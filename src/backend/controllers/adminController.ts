@@ -426,5 +426,29 @@ export const adminController = {
     } catch (e: any) {
       res.status(400).json({ error: e?.message || "Erro ao excluir usuário." });
     }
+  },
+  
+  async getPlans(req: Request, res: Response) {
+    try {
+      const plans = await (prisma as any).plan.findMany({
+        orderBy: { price: "asc" },
+      });
+      
+      if (!plans || plans.length === 0) {
+        // Mock fallback to ensure UI works while debugging
+        return res.json([
+          { id: "1", name: "Básico", price: 49.9, maxProfessionals: 2, features: '["Agenda", "Clientes", "Financeiro"]' },
+          { id: "2", name: "Pro", price: 99.9, maxProfessionals: 5, features: '["Tudo do Básico", "WhatsApp", "Estoque"]' },
+          { id: "3", name: "Enterprise", price: 199.9, maxProfessionals: 99, features: '["Tudo do Pro", "Relatórios VIP", "Suporte 24h"]' }
+        ]);
+      }
+      
+      res.json(plans);
+    } catch (e: any) {
+      res.status(500).json({ error: "Erro ao buscar planos." });
+    }
   }
+
+
 };
+

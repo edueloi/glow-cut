@@ -3,7 +3,8 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import cors from "cors";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "./src/backend/prisma";
+
 import fs from "fs";
 import { randomUUID } from "crypto";
 
@@ -39,7 +40,8 @@ import { restoreAllSessions } from "./src/backend/wpp/baileys-manager";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -125,15 +127,27 @@ async function initDb() {
     console.warn("[initDb] WppMessageSent:", e?.message);
   }
 
-  // ── Plan.wppEnabled ───────────────────────────────────────────────────────
-  try {
-    const colPlan: any[] = await (prisma as any).$queryRawUnsafe(`SHOW COLUMNS FROM \`Plan\` LIKE 'wppEnabled'`);
-    if (!colPlan.length) {
-      await (prisma as any).$executeRawUnsafe(`ALTER TABLE \`Plan\` ADD COLUMN \`wppEnabled\` TINYINT(1) NOT NULL DEFAULT 0`);
-      console.log("[initDb] Plan.wppEnabled added");
+  // ── Plan Columns (Auto-migration) ─────────────────────────────────────────
+  const planCols = [
+    { name: "wppEnabled",             def: "TINYINT(1) NOT NULL DEFAULT 0" },
+    { name: "systemBotEnabled",      def: "TINYINT(1) NOT NULL DEFAULT 1" },
+    { name: "qrCodeBotEnabled",      def: "TINYINT(1) NOT NULL DEFAULT 0" },
+    { name: "siteEnabled",           def: "TINYINT(1) NOT NULL DEFAULT 1" },
+    { name: "agendaExternaEnabled",  def: "TINYINT(1) NOT NULL DEFAULT 1" },
+    { name: "priceExtraProfessional", def: "DOUBLE NOT NULL DEFAULT 0" },
+    { name: "permissions",           def: "VARCHAR(2000) DEFAULT '[]'" },
+  ];
+
+  for (const col of planCols) {
+    try {
+      const rows: any[] = await (prisma as any).$queryRawUnsafe(`SHOW COLUMNS FROM \`Plan\` LIKE '${col.name}'`);
+      if (!rows.length) {
+        await (prisma as any).$executeRawUnsafe(`ALTER TABLE \`Plan\` ADD COLUMN \`${col.name}\` ${col.def}`);
+        console.log(`[initDb] Plan.${col.name} added`);
+      }
+    } catch (e: any) {
+      console.warn(`[initDb] Plan.${col.name}:`, e?.message);
     }
-  } catch (e: any) {
-    console.warn("[initDb] Plan.wppEnabled:", e?.message);
   }
 
   // ── Tenant.wppOverride ────────────────────────────────────────────────────

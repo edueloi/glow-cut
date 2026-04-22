@@ -40,7 +40,10 @@ export interface AuthUser {
   planName?: string;
   canCreateUsers?: boolean;
   canDeleteAccount?: boolean;
+  tenantCreatedAt?: string;
+  tenantExpiresAt?: string;
   permissions: PermissionSet | null; // null = acesso total (owner)
+
 }
 
 interface AuthContextType {

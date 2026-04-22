@@ -349,12 +349,25 @@ model Plan {
   maxAdminUsers       Int      @default(1)
   canCreateAdminUsers Boolean  @default(false)
   canDeleteAccount    Boolean  @default(false)
-  wppEnabled          Boolean  @default(false)
+  
+  // Features flags
+  systemBotEnabled      Boolean  @default(true)  // Bot Agendelle (Notificações Sistema)
+  qrCodeBotEnabled      Boolean  @default(false) // Bot Próprio (Conectar WhatsApp)
+  siteEnabled           Boolean  @default(true)  // Vitrine Digital / Site
+  agendaExternaEnabled  Boolean  @default(true)  // Link de Agendamento Online
+  
+  // Preços Adicionais
+  priceExtraProfessional Float   @default(0)     // Preço por profissional adicional
+
+  wppEnabled          Boolean  @default(false) // Legado/Geral
   features            String?  @default("[]") @db.VarChar(2000)
+  permissions         String?  @default("[]") @db.VarChar(2000) // Módulos técnicos liberados
   isActive            Boolean  @default(true)
   createdAt           DateTime @default(now()) @db.DateTime(0)
   tenant              Tenant[]
 }
+
+
 
 model Professional {
   id           String         @id @db.VarChar(36)

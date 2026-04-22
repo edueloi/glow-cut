@@ -102,7 +102,9 @@ import {
   AdminProfileTab,
   WppTab,
   ProductsTab,
+  AssinaturaTab,
 } from "@/src/pages/admin/modules";
+
 import { AdminDashboardShell } from "@/src/pages/admin/dashboard/components/AdminDashboardShell";
 import { AdminTabContent } from "@/src/pages/admin/dashboard/components/AdminTabContent";
 import { AdminScheduleAuxModals } from "@/src/pages/admin/dashboard/components/AdminScheduleAuxModals";
@@ -184,10 +186,13 @@ export default function AdminDashboard() {
       window.history.pushState(null, '', '/admin/financeiro/controle');
     } else if (tab === 'site') {
       window.history.pushState(null, '', '/admin/meu-site');
+    } else if (tab === 'assinatura') {
+      window.history.pushState(null, '', '/admin/assinatura');
     } else {
       const slug = ADMIN_TAB_SLUGS[tab] || ADMIN_TAB_SLUGS[ADMIN_DEFAULT_TAB];
       window.history.pushState(null, '', `/admin/${slug}`);
     }
+
     
     if (tab === 'clients') {
       apiFetch("/api/clients").then(res => res.json()).then(d => setClients(Array.isArray(d) ? d : []));

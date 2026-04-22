@@ -138,6 +138,9 @@ authRouter.post("/logout", (_req: Request, res: Response) => {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 function buildAdminPayload(admin: any) {
+  const planAllowedModules = JSON.parse(admin.tenant?.plan?.permissions || "[]");
+  const basePermissions = parsePermissions(admin.permissions);
+  
   return {
     id: admin.id,
     name: admin.name,
@@ -152,10 +155,54 @@ function buildAdminPayload(admin: any) {
     planName: admin.tenant?.plan?.name,
     canCreateUsers: admin.canCreateUsers,
     canDeleteAccount: admin.canDeleteAccount,
+    tenantCreatedAt: admin.tenant?.createdAt,
+    tenantExpiresAt: admin.tenant?.expiresAt,
     type: "admin" as const,
-    permissions: parsePermissions(admin.permissions),
+
+    permissions: restrictPermissionsByPlan(basePermissions, planAllowedModules),
   };
 }
+
+/**
+ * Restringe as permissões do usuário aos módulos permitidos pelo plano da empresa.
+ */
+function restrictPermissionsByPlan(userPerms: Record<string, any> | null, planPermsRaw: any) {
+  let planPerms: Record<string, any> = {};
+  try {
+    planPerms = typeof planPermsRaw === "string" ? JSON.parse(planPermsRaw) : (planPermsRaw || {});
+  } catch {
+    planPerms = {};
+  }
+
+  // Se o plano não definiu permissões (vazio), mantém as permissões do usuário como estão (compatibilidade)
+  if (Object.keys(planPerms).length === 0) return userPerms;
+
+  // Se o usuário tem acesso total (proprietário), liberamos apenas o que o PLANO permite
+  if (userPerms === null) {
+    return planPerms;
+  }
+
+  // Se o usuário tem permissões específicas, filtramos para que ele só tenha 
+  // as ações que o plano TAMBÉM permite para aquele módulo.
+  const restricted: Record<string, any> = {};
+  for (const mod in userPerms) {
+    if (planPerms[mod]) {
+      const actions: Record<string, boolean> = {};
+      for (const action in userPerms[mod]) {
+        // Só mantém a ação se ela estiver liberada no plano
+        if (planPerms[mod][action]) {
+          actions[action] = true;
+        }
+      }
+      if (Object.keys(actions).length > 0) {
+        restricted[mod] = actions;
+      }
+    }
+  }
+  return restricted;
+}
+
+
 
 /**
  * Normaliza permissões do banco para um PermissionSet objeto.

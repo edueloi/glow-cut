@@ -32,6 +32,7 @@ import {
   BarChart2, ArrowUpRight, ArrowLeft, ExternalLink,
   CheckCircle, Clock, Archive,
   Camera,
+  ChevronRight,
 } from "lucide-react";
 import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/permissions";
 
@@ -138,12 +139,21 @@ function PlansTab() {
   const [editing, setEditing] = useState<any>(null);
   const empty = {
     name: "", price: "", maxProfessionals: "3", maxAdminUsers: "1",
-    canCreateAdminUsers: false, canDeleteAccount: false, wppEnabled: false, features: "",
+    canCreateAdminUsers: false, canDeleteAccount: false, 
+    systemBotEnabled: true, qrCodeBotEnabled: false, 
+    siteEnabled: true, agendaExternaEnabled: true,
+    priceExtraProfessional: "0",
+    features: "",
+    permissions: {},
   };
+
+
   const [form, setForm] = useState<any>(empty);
 
+  const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
+
   const load = useCallback(async () => {
-    const r = await apiFetch("/api/super-admin/plans");
+    const r = await apiFetch("/api/super-admin/plans?all=true");
     setPlans(await r.json());
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -151,9 +161,17 @@ function PlansTab() {
   const openCreate = () => { setEditing(null); setForm(empty); setModal(true); };
   const openEdit = (p: any) => {
     setEditing(p);
-    setForm({ ...p, features: JSON.parse(p.features || "[]").join("\n"), price: String(p.price) });
+    setForm({ 
+      ...p, 
+      features: JSON.parse(p.features || "[]").join("\n"), 
+      permissions: JSON.parse(p.permissions || "[]"),
+      price: String(p.price),
+      priceExtraProfessional: String(p.priceExtraProfessional || "0")
+    });
+
     setModal(true);
   };
+
 
   const save = async () => {
     const body = {
@@ -161,17 +179,20 @@ function PlansTab() {
       price: parseFloat(form.price || "0"),
       maxProfessionals: parseInt(form.maxProfessionals || "3"),
       maxAdminUsers: parseInt(form.maxAdminUsers || "1"),
+      priceExtraProfessional: parseFloat(form.priceExtraProfessional || "0"),
       features: form.features.split("\n").map((s: string) => s.trim()).filter(Boolean),
     };
+
     const url = editing ? `/api/super-admin/plans/${editing.id}` : "/api/super-admin/plans";
     await apiFetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setModal(false);
     load();
   };
 
-  const del = async (id: string) => {
-    if (!confirm("Excluir este plano?")) return;
-    await apiFetch(`/api/super-admin/plans/${id}`, { method: "DELETE" });
+  const del = async () => {
+    if (!deleteConfirm) return;
+    await apiFetch(`/api/super-admin/plans/${deleteConfirm.id}`, { method: "DELETE" });
+    setDeleteConfirm(null);
     load();
   };
 
@@ -224,22 +245,29 @@ function PlansTab() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm font-black text-zinc-900">{p.name}</h3>
+                        <h3 className="text-sm font-black text-zinc-900 leading-none">{p.name}</h3>
                         {!p.isActive && <Badge color="default">Inativo</Badge>}
                       </div>
-                      <p className="text-xl font-black text-amber-600 mt-1">
+                      <p className="text-xl font-black text-amber-600 mt-1.5">
                         R$ {Number(p.price).toFixed(2)}
-                        <span className="text-xs text-zinc-400 font-medium">/mês</span>
+                        <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest ml-1">/mês</span>
                       </p>
                     </div>
-                    <div className="flex items-center gap-0.5 shrink-0">
-                      <Switch checked={p.isActive} onCheckedChange={() => toggle(p)} />
-                      <IconButton size="sm" variant="ghost" onClick={() => openEdit(p)}>
-                        <Edit2 size={13} />
-                      </IconButton>
-                      <IconButton size="sm" variant="ghost" onClick={() => del(p.id)} className="hover:text-red-500 hover:bg-red-50">
-                        <Trash2 size={13} />
-                      </IconButton>
+                    <div className="flex flex-col items-end gap-3 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className={cn("text-[9px] font-black uppercase tracking-widest", p.isActive ? "text-emerald-500" : "text-zinc-400")}>
+                          {p.isActive ? "Ativo" : "Inativo"}
+                        </span>
+                        <Switch checked={p.isActive} size="sm" onCheckedChange={() => toggle(p)} />
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        <IconButton size="sm" variant="ghost" onClick={() => openEdit(p)}>
+                          <Edit2 size={13} />
+                        </IconButton>
+                        <IconButton size="sm" variant="ghost" onClick={() => setDeleteConfirm(p)} className="hover:text-red-500 hover:bg-red-50">
+                          <Trash2 size={13} />
+                        </IconButton>
+                      </div>
                     </div>
                   </div>
 
@@ -255,13 +283,22 @@ function PlansTab() {
                   </div>
 
                   <div className="flex gap-1.5 flex-wrap">
-                    {p.canCreateAdminUsers && <Badge color="purple">Criar usuários</Badge>}
-                    {p.canDeleteAccount    && <Badge color="danger">Excluir conta</Badge>}
-                    {p.wppEnabled          && <Badge color="success">WhatsApp</Badge>}
+                    {p.canCreateAdminUsers  && <Badge color="purple">Criar usuários</Badge>}
+                    {p.canDeleteAccount     && <Badge color="danger">Excluir conta</Badge>}
+                    {p.systemBotEnabled     && <Badge color="success">Bot Agendelle</Badge>}
+                    {p.qrCodeBotEnabled     && <Badge color="success">Bot Próprio</Badge>}
+                    {p.siteEnabled          && <Badge color="primary">Site/Vitrine</Badge>}
+                    {p.agendaExternaEnabled && <Badge color="primary">Agenda Online</Badge>}
                   </div>
+                  
+                  {p.priceExtraProfessional > 0 && (
+                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+                       + R$ {Number(p.priceExtraProfessional).toFixed(2)} / Prof. extra
+                    </p>
+                  )}
 
                   {features.length > 0 && (
-                    <ul className="space-y-1.5">
+                    <ul className="space-y-1.5 mt-2">
                       {features.map((f, i) => (
                         <li key={i} className="flex items-center gap-2 text-xs text-zinc-600">
                           <Check size={11} className="text-emerald-500 shrink-0" /> {f}
@@ -285,22 +322,32 @@ function PlansTab() {
             <Input label="Máx. Admin Users" type="number" value={form.maxAdminUsers} onChange={e => setF("maxAdminUsers", e.target.value)} />
           </FormRow>
           <div className="space-y-1.5">
-            <label className="ds-label">Permissões</label>
-            <div className="space-y-3 pt-1">
+            <label className="ds-label">Recursos Rápidos</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               {[
                 { key: "canCreateAdminUsers", label: "Pode criar usuários admin" },
                 { key: "canDeleteAccount",    label: "Pode excluir a conta" },
-                { key: "wppEnabled",          label: "WhatsApp Bot incluso no plano" },
+                { key: "systemBotEnabled",    label: "Bot Agendelle (Sistema)" },
+                { key: "qrCodeBotEnabled",    label: "Bot Próprio (QR Code)" },
+                { key: "siteEnabled",         label: "Site/Vitrine Digital" },
+                { key: "agendaExternaEnabled", label: "Agenda Online Externa" },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2.5 cursor-pointer select-none">
                   <Switch checked={!!form[key]} onCheckedChange={() => setF(key, !form[key])} />
-                  <span className="text-sm font-semibold text-zinc-700">{label}</span>
+                  <span className="text-[11px] font-semibold text-zinc-700">{label}</span>
                 </label>
               ))}
             </div>
           </div>
+          <Input 
+            label="Preço Profissional Extra (R$)" 
+            type="number" 
+            placeholder="29.90" 
+            value={form.priceExtraProfessional} 
+            onChange={e => setF("priceExtraProfessional", e.target.value)} 
+          />
           <Textarea
-            label="Funcionalidades (uma por linha)"
+            label="Benefícios em Destaque (Texto para o Cliente)"
             rows={4}
             placeholder={"Agenda\nClientes\nComandas"}
             value={form.features}
@@ -308,33 +355,44 @@ function PlansTab() {
           />
           <FormRow cols={2}>
             <Button variant="ghost" onClick={() => setModal(false)} fullWidth>Cancelar</Button>
-            <Button onClick={save} fullWidth>Salvar</Button>
+            <Button onClick={save} fullWidth>{editing ? "Salvar" : "Criar Plano"}</Button>
           </FormRow>
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={del}
+        title="Excluir Plano"
+        message={`Tem certeza que deseja excluir o plano "${deleteConfirm?.name}"? Esta ação não afetará os parceiros que já usam este plano, mas ele não poderá mais ser assinado.`}
+        confirmLabel="Sim, excluir"
+        variant="danger"
+      />
     </div>
   );
 }
 
+
 /* ═══════════════════════════════════════════
    ABA: PARCEIROS
 ═══════════════════════════════════════════ */
-function getTenantStatus(t: any): { label: string; color: "success" | "warning" | "danger" | "default" } {
+function getTenantStatus(t: any) {
   const now = new Date();
   if (!t.isActive) {
     if (t.blockedAt) {
       const days = (now.getTime() - new Date(t.blockedAt).getTime()) / (1000 * 60 * 60 * 24);
-      if (days > 90) return { label: "Inativo", color: "danger" };
+      if (days > 90) return { label: "Inativo", color: "danger" as any };
     }
-    return { label: "Bloqueado", color: "default" };
+    return { label: "Bloqueado", color: "default" as any };
   }
   if (t.expiresAt) {
     const diff = (new Date(t.expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-    if (diff < -7)  return { label: "Bloqueado",                           color: "default" };
-    if (diff < 0)   return { label: `Graça: ${7 + Math.ceil(diff)}d`,      color: "warning" };
-    if (diff <= 7)  return { label: `Vence em ${Math.ceil(diff)}d`,        color: "warning" };
+    if (diff < -7)  return { label: "Bloqueado",                           color: "default" as any };
+    if (diff < 0)   return { label: `Graça: ${7 + Math.ceil(diff)}d`,      color: "warning" as any };
+    if (diff <= 7)  return { label: `Vence em ${Math.ceil(diff)}d`,        color: "warning" as any };
   }
-  return { label: "Ativo", color: "success" };
+  return { label: "Ativo", color: "success" as any };
 }
 
 function TenantsTab({ plans }: { plans: any[] }) {
@@ -927,7 +985,10 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 function PermissionsTab({ tenants }: { tenants: any[] }) {
+  const [mode, setMode] = useState<"plans" | "users">("plans");
+  const [plans, setPlans] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [permissions, setPermissions] = useState<Record<string, Record<string, boolean>>>({});
   const [saving, setSaving] = useState(false);
@@ -935,33 +996,39 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
   const [filterTenant, setFilterTenant] = useState("all");
 
   const load = useCallback(async () => {
-    const r = await apiFetch("/api/super-admin/admin-users");
-    setUsers(await r.json());
+    const [rp, ru] = await Promise.all([
+      apiFetch("/api/super-admin/plans"),
+      apiFetch("/api/super-admin/admin-users")
+    ]);
+    setPlans(await rp.json());
+    setUsers(await ru.json());
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const selectUser = (u: any) => {
-    setSelectedUser(u);
-    const roleProfile = DEFAULT_ROLE_PROFILES.find(p => p.id === (u.role as RoleSlug));
-    const base: Record<string, Record<string, boolean>> = {};
-    if (roleProfile) {
-      for (const [mod, actions] of Object.entries(roleProfile.permissions)) {
-        base[mod] = { ...(actions as any) };
-      }
-    }
-    if (u.canCreateUsers) { if (!base.permissoes) base.permissoes = {}; base.permissoes.ver = true; base.permissoes.criar = true; base.permissoes.editar_todos = true; }
-    setPermissions(base);
+  const selectPlan = (p: any) => {
+    setSelectedPlan(p);
+    setSelectedUser(null);
+    let perms = {};
+    try { perms = typeof p.permissions === "string" ? JSON.parse(p.permissions) : (p.permissions || {}); } catch { perms = {}; }
+    setPermissions(perms);
     setSaved(false);
   };
 
-  const applyPreset = (roleId: string) => {
-    const rp = DEFAULT_ROLE_PROFILES.find(p => p.id === roleId);
-    if (!rp) return;
-    const base: Record<string, Record<string, boolean>> = {};
-    for (const [mod, actions] of Object.entries(rp.permissions)) {
-      base[mod] = { ...(actions as any) };
+  const selectUser = (u: any) => {
+    setSelectedUser(u);
+    setSelectedPlan(null);
+    let perms = {};
+    try { perms = typeof u.permissions === "string" ? JSON.parse(u.permissions) : (u.permissions || {}); } catch { perms = {}; }
+    
+    if (Object.keys(perms).length === 0) {
+      const roleProfile = DEFAULT_ROLE_PROFILES.find(p => p.id === (u.role as RoleSlug));
+      if (roleProfile) {
+        for (const [mod, actions] of Object.entries(roleProfile.permissions)) {
+          perms[mod] = { ...(actions as any) };
+        }
+      }
     }
-    setPermissions(base);
+    setPermissions(perms);
     setSaved(false);
   };
 
@@ -969,6 +1036,9 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
     setPermissions(prev => {
       const modPerms = { ...(prev[mod] || {}) };
       modPerms[action] = !modPerms[action];
+      if (action === "ver" && !modPerms[action]) {
+        return { ...prev, [mod]: undefined } as any;
+      }
       if (action === "editar_todos"  && modPerms[action]) modPerms["editar_proprio"]  = true;
       if (action === "excluir_todos" && modPerms[action]) modPerms["excluir_proprio"] = true;
       return { ...prev, [mod]: modPerms };
@@ -977,21 +1047,34 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
   };
 
   const savePermissions = async () => {
-    if (!selectedUser) return;
     setSaving(true);
-    const hasPermMod = permissions["permissoes"];
-    const canCreateUsers = !!(hasPermMod?.ver && hasPermMod?.criar);
-    await apiFetch(`/api/super-admin/admin-users/${selectedUser.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...selectedUser, canCreateUsers }),
-    });
-    await load();
-    setSaving(false); setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      if (mode === "plans" && selectedPlan) {
+        await apiFetch(`/api/super-admin/plans/${selectedPlan.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ permissions }),
+        });
+      } else if (mode === "users" && selectedUser) {
+        await apiFetch(`/api/super-admin/admin-users/${selectedUser.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ permissions }),
+        });
+      }
+      await load();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const filteredUsers = users.filter(u => filterTenant === "all" || u.tenantId === filterTenant);
+  const filteredUsers = users.filter(u => 
+    (filterTenant === "all" || u.tenantId === filterTenant) && u.role !== "owner"
+  );
 
   const grouped = MODULE_META.reduce((acc, m) => {
     if (!acc[m.group]) acc[m.group] = [];
@@ -999,161 +1082,190 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
     return acc;
   }, {} as Record<string, typeof MODULE_META>);
 
+  const isSelected = mode === "plans" ? !!selectedPlan : !!selectedUser;
+  const currentName = mode === "plans" ? selectedPlan?.name : selectedUser?.name;
+
   return (
     <div className="space-y-5">
-      <SectionTitle
-        title="Permissões de Acesso"
-        description="Defina quais módulos cada usuário do parceiro pode acessar"
-        icon={Lock}
-      />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <SectionTitle
+          title="Gestão de Acessos"
+          description="Controle o que cada plano e cada usuário pode acessar"
+          icon={Lock}
+        />
+        <div className="flex bg-zinc-100 p-1 rounded-2xl self-start">
+          <button 
+            onClick={() => { setMode("plans"); setSelectedUser(null); setSelectedPlan(null); setPermissions({}); }}
+            className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", mode === "plans" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700")}
+          >
+            Planos
+          </button>
+          <button 
+            onClick={() => { setMode("users"); setSelectedUser(null); setSelectedPlan(null); setPermissions({}); }}
+            className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", mode === "users" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700")}
+          >
+            Usuários
+          </button>
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Lista de usuários */}
-        <ContentCard padding="none" className="flex flex-col">
-          <div className="px-4 py-3.5 border-b border-zinc-100 shrink-0 space-y-3">
-            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Selecionar Usuário</p>
-            <Select value={filterTenant} onChange={e => setFilterTenant(e.target.value)}>
-              <option value="all">Todos os parceiros</option>
-              {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </Select>
-          </div>
-          <div className="overflow-y-auto flex-1 divide-y divide-zinc-100" style={{ maxHeight: 480 }}>
-            {filteredUsers.length === 0 && (
-              <p className="text-xs text-zinc-400 text-center py-10">Nenhum usuário</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+        {/* Lado Esquerdo: Lista */}
+        <ContentCard padding="none" className="flex flex-col overflow-hidden h-[600px]">
+          <div className="px-4 py-4 border-b border-zinc-100 shrink-0 space-y-3 bg-zinc-50/50">
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+              {mode === "plans" ? "Selecione um Plano" : "Selecione um Usuário"}
+            </p>
+            {mode === "users" && (
+              <Select value={filterTenant} onChange={e => setFilterTenant(e.target.value)} size="sm">
+                <option value="all">Todos os parceiros</option>
+                {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </Select>
             )}
-            {filteredUsers.map(u => (
-              <button
-                key={u.id}
-                onClick={() => selectUser(u)}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-4 py-3.5 text-left transition-colors border-l-2",
-                  selectedUser?.id === u.id ? "bg-amber-50 border-amber-500" : "hover:bg-zinc-50 border-transparent"
-                )}
-              >
-                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-[11px] font-black shrink-0">{u.name.charAt(0).toUpperCase()}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-zinc-800 truncate">{u.name}</p>
-                  <p className="text-[10px] text-zinc-400 truncate">{u.tenant?.name ?? "—"}</p>
-                </div>
-                <Badge color={u.isActive ? "success" : "default"}>{ROLE_LABELS[u.role] ?? u.role}</Badge>
-              </button>
-            ))}
+          </div>
+          <div className="overflow-y-auto flex-1 divide-y divide-zinc-100">
+            {mode === "plans" ? (
+              plans.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => selectPlan(p)}
+                  className={cn(
+                    "w-full flex items-center justify-between px-5 py-4 text-left transition-all border-l-4",
+                    selectedPlan?.id === p.id ? "bg-amber-50/50 border-amber-500" : "hover:bg-zinc-50 border-transparent"
+                  )}
+                >
+                  <div>
+                    <p className="text-sm font-black text-zinc-800">{p.name}</p>
+                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">R$ {p.price.toFixed(2)}/mês</p>
+                  </div>
+                  <ChevronRight size={14} className={cn("transition-transform", selectedPlan?.id === p.id ? "text-amber-500 translate-x-1" : "text-zinc-300")} />
+                </button>
+              ))
+            ) : (
+              filteredUsers.map(u => (
+                <button
+                  key={u.id}
+                  onClick={() => selectUser(u)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-5 py-4 text-left transition-all border-l-4",
+                    selectedUser?.id === u.id ? "bg-amber-50/50 border-amber-500" : "hover:bg-zinc-50 border-transparent"
+                  )}
+                >
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-black shrink-0">{u.name.charAt(0).toUpperCase()}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-zinc-800 truncate">{u.name}</p>
+                    <p className="text-[10px] text-zinc-400 truncate uppercase font-bold tracking-tighter">{u.tenant?.name ?? "—"}</p>
+                  </div>
+                  <Badge color="primary" size="sm" className="text-[8px]">{ROLE_LABELS[u.role] ?? u.role}</Badge>
+                </button>
+              ))
+            )}
           </div>
         </ContentCard>
 
-        {/* Painel de permissões */}
-        <div className="lg:col-span-2">
-          <ContentCard padding="none" className="flex flex-col">
-            {!selectedUser ? (
-              <div className="flex-1 flex flex-col items-center justify-center py-20 text-center px-6">
-                <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center mb-3">
-                  <Lock size={22} className="text-zinc-300" />
-                </div>
-                <p className="text-sm font-bold text-zinc-500">Selecione um usuário</p>
-                <p className="text-xs text-zinc-400 mt-1">para editar suas permissões</p>
+        {/* Lado Direito: Editor */}
+        <ContentCard padding="none" className="lg:col-span-2 flex flex-col overflow-hidden h-[600px]">
+          {!isSelected ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-zinc-300 p-10 text-center space-y-4">
+              <div className="w-16 h-16 rounded-3xl bg-zinc-50 flex items-center justify-center border border-zinc-100">
+                <Lock size={32} />
               </div>
-            ) : (
-              <>
-                <div className="px-5 py-4 border-b border-zinc-100 shrink-0">
-                  <div className="flex items-start justify-between flex-wrap gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-black shrink-0">{selectedUser.name.charAt(0).toUpperCase()}</div>
-                      <div>
-                        <p className="text-sm font-black text-zinc-900">{selectedUser.name}</p>
-                        <p className="text-xs text-zinc-400">{selectedUser.tenant?.name} · {ROLE_LABELS[selectedUser.role]}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mr-1">Preset:</span>
-                      {DEFAULT_ROLE_PROFILES.map(rp => (
-                        <button
-                          key={rp.id}
-                          onClick={() => applyPreset(rp.id)}
-                          className="text-[9px] font-black px-2 py-1 rounded-lg border border-zinc-200 hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700 transition-colors uppercase tracking-wider"
-                        >
-                          {rp.label}
-                        </button>
-                      ))}
-                    </div>
+              <div>
+                <p className="text-sm font-black text-zinc-400 uppercase tracking-widest">Aguardando Seleção</p>
+                <p className="text-[11px] text-zinc-400 mt-1 max-w-[200px]">Selecione um {mode === "plans" ? "plano" : "usuário"} ao lado para editar suas permissões.</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/30 shrink-0">
+                <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-2xl bg-zinc-900 flex items-center justify-center text-white shadow-lg">
+                      {mode === "plans" ? <CreditCard size={18} /> : <UserCircle2 size={18} />}
+                   </div>
+                   <div>
+                      <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest leading-none mb-1">Editando Permissões de</p>
+                      <h3 className="text-base font-black text-zinc-900 leading-none">{currentName}</h3>
+                   </div>
+                </div>
+                <Button onClick={savePermissions} loading={saving} size="sm" variant={saved ? "success" : "primary"} className="min-w-[140px]">
+                  {saved ? <span className="flex items-center gap-1.5"><Check size={14} /> Salvo!</span> : "Salvar Alterações"}
+                </Button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                <div className="flex gap-2">
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1 px-2">Presets Rápidos:</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {DEFAULT_ROLE_PROFILES.map(rp => (
+                      <button key={rp.id} onClick={() => {
+                        const base: any = {};
+                        for (const [mod, actions] of Object.entries(rp.permissions)) { base[mod] = { ...(actions as any) }; }
+                        setPermissions(base);
+                        setSaved(false);
+                      }} className="px-3 py-1 rounded-lg bg-zinc-100 text-zinc-600 text-[10px] font-bold hover:bg-zinc-200 transition-colors">{rp.label}</button>
+                    ))}
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-5 space-y-4" style={{ maxHeight: 460 }}>
-                  {Object.entries(grouped).map(([group, mods]) => (
-                    <div key={group}>
-                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-2.5">{GROUP_LABELS[group]}</p>
-                      <div className="space-y-2">
-                        {mods.map(mod => {
-                          const modPerms = permissions[mod.key] || {};
-                          const hasAny = mod.actions.some(a => modPerms[a]);
-                          return (
-                            <div key={mod.key} className={cn("rounded-xl border p-3.5 transition-all", hasAny ? "bg-amber-50/50 border-amber-200" : "bg-zinc-50 border-zinc-200")}>
-                              <div className="flex items-center justify-between mb-2.5">
-                                <p className={cn("text-xs font-black", hasAny ? "text-amber-900" : "text-zinc-700")}>{mod.label}</p>
-                                <button
-                                  onClick={() => {
-                                    if (hasAny) {
-                                      setPermissions(p => { const n = { ...p }; delete n[mod.key]; return n; });
-                                    } else {
-                                      const all: Record<string, boolean> = {};
-                                      mod.actions.forEach(a => all[a] = true);
-                                      setPermissions(p => ({ ...p, [mod.key]: all }));
-                                    }
-                                    setSaved(false);
-                                  }}
-                                  className={cn("text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg transition-colors", hasAny ? "text-amber-700 hover:bg-amber-100" : "text-zinc-400 hover:bg-zinc-200")}
-                                >
-                                  {hasAny ? "Remover tudo" : "Tudo"}
-                                </button>
-                              </div>
-                              <div className="flex flex-wrap gap-1.5">
-                                {mod.actions.map(action => {
-                                  const active = !!modPerms[action];
-                                  return (
-                                    <button
-                                      key={action}
-                                      onClick={() => toggleAction(mod.key, action)}
-                                      className={cn(
-                                        "flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[9px] font-bold transition-all",
-                                        active ? "bg-amber-500 border-amber-500 text-white" : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-300"
-                                      )}
-                                    >
-                                      {active && <Check size={9} />}
-                                      {ACTION_LABELS[action] ?? action}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                {Object.entries(grouped).map(([group, mods]) => (
+                  <div key={group} className="space-y-4">
+                    <div className="flex items-center gap-3 px-2">
+                       <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em]">{GROUP_LABELS[group] || group}</span>
+                       <div className="h-px bg-zinc-100 flex-1" />
                     </div>
-                  ))}
-                </div>
+                    
+                    <div className="grid grid-cols-1 gap-3">
+                      {mods.map(m => {
+                        const modPerms = permissions[m.key] || {};
+                        const isModActive = !!modPerms.ver;
+                        return (
+                          <div key={m.key} className={cn(
+                            "rounded-[28px] border transition-all p-5",
+                            isModActive ? "bg-white border-amber-100 shadow-md ring-1 ring-amber-50" : "bg-zinc-50/50 border-zinc-100 opacity-60"
+                          )}>
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center transition-all", isModActive ? "bg-amber-500 text-white" : "bg-zinc-200 text-zinc-500")}>
+                                  <Lock size={14} />
+                                </div>
+                                <span className="text-xs font-black text-zinc-800 uppercase tracking-tight">{m.label}</span>
+                              </div>
+                              <Switch checked={isModActive} onCheckedChange={() => toggleAction(m.key, "ver")} />
+                            </div>
 
-                <div className="px-5 py-4 border-t border-zinc-100 shrink-0 flex items-center justify-between gap-3">
-                  <p className="text-xs text-zinc-400">
-                    <span className="font-black text-zinc-700">{Object.values(permissions).reduce((n, m) => n + Object.values(m).filter(Boolean).length, 0)}</span> ações ativas
-                  </p>
-                  <Button
-                    size="sm"
-                    variant={saved ? "success" : "primary"}
-                    onClick={savePermissions}
-                    loading={saving}
-                    iconLeft={saved ? <Check size={13} /> : undefined}
-                  >
-                    {saved ? "Salvo!" : "Salvar Permissões"}
-                  </Button>
-                </div>
-              </>
-            )}
-          </ContentCard>
-        </div>
+                            {isModActive && (
+                              <div className="flex flex-wrap gap-2 pt-4 border-t border-zinc-50">
+                                {m.actions.map(action => (
+                                  <button
+                                    key={action}
+                                    onClick={() => toggleAction(m.key, action)}
+                                    className={cn(
+                                      "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-tight transition-all border",
+                                      modPerms[action] 
+                                        ? "bg-zinc-900 border-zinc-900 text-white shadow-lg" 
+                                        : "bg-white border-zinc-200 text-zinc-400 hover:border-zinc-300"
+                                    )}
+                                  >
+                                    {ACTION_LABELS[action] || action}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </ContentCard>
       </div>
     </div>
   );
 }
+
 
 /* ═══════════════════════════════════════════
    ABA: EQUIPE (STAFF)
@@ -1189,8 +1301,14 @@ function StaffTab({ username }: { username: string }) {
   const isMaster = ["admin", "flavio_sikorsky"].includes(username.toLowerCase());
 
   const load = useCallback(async () => {
-    const r = await apiFetch("/api/super-admin/staff");
-    setUsers(await r.json());
+    try {
+      const r = await apiFetch("/api/super-admin/staff");
+      const data = await r.json();
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Erro ao carregar equipe:", err);
+      setUsers([]);
+    }
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -1223,7 +1341,7 @@ function StaffTab({ username }: { username: string }) {
     <div className="space-y-5">
       <SectionTitle
         title="Minha Equipe"
-        description={`${users.length} usuário(s) com acesso mestre`}
+        description={`${(users || []).length} usuário(s) com acesso mestre`}
         icon={Shield}
         action={
           isMaster ? (
@@ -1234,7 +1352,7 @@ function StaffTab({ username }: { username: string }) {
         }
       />
 
-      {users.length === 0 ? (
+      {(!users || users.length === 0) ? (
         <EmptyState icon={Shield} title="Nenhum usuário na equipe" />
       ) : (
         <ContentCard padding="none">
@@ -1248,7 +1366,7 @@ function StaffTab({ username }: { username: string }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {users.map(u => (
+                {(users || []).map(u => (
                   <tr key={u.id} className="hover:bg-zinc-50/60 transition-colors">
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2.5">

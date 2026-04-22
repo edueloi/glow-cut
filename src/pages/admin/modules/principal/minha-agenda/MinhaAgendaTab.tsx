@@ -28,7 +28,7 @@ const PRESET_COLORS = [
   "#78350f", // Brown
 ];
 
-// ── Mobile Preview Component ─────────────────────────────────────────────
+// ── Mobile Preview Component (High Fidelity) ─────────────────────────────────────────────
 function MobileBookingPreview({ 
   studioName, 
   logo, 
@@ -43,13 +43,23 @@ function MobileBookingPreview({
   welcomeMessage: string;
 }) {
   return (
-    <div className="relative mx-auto w-[280px] h-[580px] bg-zinc-950 rounded-[3rem] border-[8px] border-zinc-900 shadow-2xl overflow-hidden hidden xl:block sticky top-8">
+    <div className="relative mx-auto w-[280px] h-[580px] bg-zinc-950 rounded-[3rem] border-[8px] border-zinc-900 shadow-2xl overflow-hidden hidden 2xl:block sticky top-8 animate-in slide-in-from-right-4 duration-700">
       {/* Notch */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-zinc-900 rounded-b-2xl z-20" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 bg-zinc-900 rounded-b-2xl z-40" />
       
-      <div className="h-full w-full bg-white overflow-y-auto overflow-x-hidden pt-6">
-        {/* Cover */}
-        <div className="relative h-24 w-full bg-zinc-100 overflow-hidden">
+      {/* Status Bar Mock */}
+      <div className="absolute top-0 left-0 w-full h-6 bg-transparent flex items-center justify-between px-6 z-30 pointer-events-none">
+        <span className="text-[10px] font-bold text-white/40">9:41</span>
+        <div className="flex gap-1">
+          <div className="w-3 h-1.5 bg-white/40 rounded-[2px]" />
+          <div className="w-3 h-1.5 bg-white/40 rounded-[2px]" />
+          <div className="w-5 h-1.5 bg-white/40 rounded-[2px]" />
+        </div>
+      </div>
+
+      <div className="h-full w-full bg-white overflow-y-auto overflow-x-hidden pt-0 scrollbar-none">
+        {/* Hero / Cover */}
+        <div className="relative h-32 w-full bg-zinc-100 overflow-hidden">
           {cover ? (
             <img src={cover} className="w-full h-full object-cover" alt="Cover" />
           ) : (
@@ -57,48 +67,86 @@ function MobileBookingPreview({
               <ImageIcon className="text-zinc-300" size={24} />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          
+          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
+            <div className="w-16 h-16 rounded-2xl bg-white shadow-xl flex items-center justify-center p-2 border border-zinc-100 overflow-hidden">
+              {logo ? (
+                <img src={logo} className="w-full h-full object-contain" alt="Logo" />
+              ) : (
+                <div className="w-full h-full bg-zinc-50 rounded-lg flex items-center justify-center text-xs font-black text-zinc-300 italic">
+                  LOGO
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Logo & Info */}
-        <div className="px-4 -mt-8 relative z-10 flex flex-col items-center">
-          <div className="w-16 h-16 rounded-2xl bg-white shadow-xl flex items-center justify-center p-2 border border-zinc-100">
-            {logo ? (
-              <img src={logo} className="w-full h-full object-contain" alt="Logo" />
-            ) : (
-              <div className="w-full h-full bg-zinc-50 rounded-lg flex items-center justify-center text-xs font-bold text-zinc-300">
-                L
-              </div>
-            )}
+        {/* Studio Info */}
+        <div className="pt-8 px-4 flex flex-col items-center">
+          <h3 className="text-sm font-black text-zinc-900 text-center tracking-tight">{studioName}</h3>
+          <div className="flex items-center gap-1 mt-1">
+             <div className="flex gap-0.5">
+                {[1,2,3,4,5].map(s => <span key={s} className="text-[8px]">⭐</span>)}
+             </div>
+             <span className="text-[8px] font-bold text-zinc-400">(4.9)</span>
           </div>
-          <h3 className="mt-3 text-sm font-black text-zinc-900 text-center">{studioName}</h3>
-          <p className="text-[10px] text-zinc-400 text-center px-4 leading-normal mt-1 italic">
+          <p className="text-[9px] text-zinc-500 text-center px-4 leading-relaxed mt-2 italic font-medium">
              "{welcomeMessage || "Desejamos as boas-vindas ao nosso agendamento online."}"
           </p>
         </div>
 
-        {/* Mock Content */}
-        <div className="p-4 mt-4 space-y-4">
-          <div className="h-2 w-20 bg-zinc-100 rounded-full" />
-          <div className="grid grid-cols-2 gap-2">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-16 rounded-xl bg-zinc-50 border border-zinc-100 p-2 flex flex-col justify-end gap-1">
-                <div className="h-1.5 w-10 bg-zinc-200 rounded-full" />
-                <div className="h-1 w-6 bg-zinc-100 rounded-full" />
+        {/* Quick Stats Mock */}
+        <div className="px-4 mt-4 grid grid-cols-3 gap-2">
+           {[
+             { l: 'Local', i: MapPin },
+             { l: 'Serviços', i: Layout },
+             { l: 'Equipe', i: Sparkles }
+           ].map((item, idx) => (
+             <div key={idx} className="flex flex-col items-center p-2 rounded-xl bg-zinc-50 border border-zinc-100">
+                <item.i size={10} className="text-zinc-400 mb-1" />
+                <span className="text-[7px] font-black uppercase tracking-tighter text-zinc-400">{item.l}</span>
+             </div>
+           ))}
+        </div>
+
+        {/* Mock Booking Content */}
+        <div className="p-4 mt-2 space-y-4">
+          <div className="flex items-center justify-between">
+             <div className="h-2 w-20 bg-zinc-100 rounded-full" />
+             <div className="h-1.5 w-8 bg-zinc-50 rounded-full" />
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            {[1, 2].map(i => (
+              <div key={i} className="h-14 rounded-xl bg-white border border-zinc-100 p-3 flex items-center justify-between">
+                <div className="flex gap-3 items-center">
+                   <div className="w-8 h-8 rounded-lg bg-zinc-50 border border-zinc-100" />
+                   <div className="space-y-1">
+                      <div className="h-1.5 w-12 bg-zinc-200 rounded-full" />
+                      <div className="h-1 w-8 bg-zinc-100 rounded-full" />
+                   </div>
+                </div>
+                <div className="h-5 w-12 rounded-lg" style={{ backgroundColor: `${color}15`, border: `1px solid ${color}30` }} />
               </div>
             ))}
           </div>
-          <div className="h-10 rounded-xl bg-zinc-900 flex items-center justify-center">
-            <div className="h-1.5 w-24 bg-white/20 rounded-full" />
-          </div>
+          
+          <button 
+            disabled
+            className="w-full h-10 rounded-xl flex items-center justify-center text-[10px] font-black text-white shadow-lg transition-transform active:scale-95"
+            style={{ backgroundColor: color }}
+          >
+            CONFIRMAR AGENDAMENTO
+          </button>
         </div>
 
-        {/* Theme Accent */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-20 h-1 rounded-full" style={{ backgroundColor: color }} />
+        {/* Theme Accent Line */}
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1 rounded-full bg-zinc-200 z-50" />
       </div>
     </div>
   );
 }
+
 
 export function MinhaAgendaTab({ 
   studioName: propStudioName = "Studio", 
@@ -384,7 +432,8 @@ export function MinhaAgendaTab({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_auto] gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_auto] gap-6 lg:gap-8 pb-32">
+
           {/* Coluna 1: SEO e Links */}
           <div className="space-y-6 lg:space-y-8">
             <PanelCard
@@ -619,21 +668,30 @@ export function MinhaAgendaTab({
           />
         </div>
 
-        {/* Footer Actions */}
+        {/* Footer Actions — Refined Responsiveness */}
         <div className="sticky bottom-4 lg:bottom-8 left-0 right-0 z-[100] mt-10">
-          <div className="bg-white/80 backdrop-blur-2xl border border-zinc-200 p-4 md:p-5 rounded-[28px] shadow-2xl shadow-zinc-950/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="bg-white/80 backdrop-blur-2xl border border-zinc-200 p-3 md:p-5 rounded-[24px] md:rounded-[28px] shadow-2xl shadow-zinc-950/10 flex flex-col sm:flex-row items-center justify-between gap-4">
              <div className="hidden lg:block ml-2">
                 <p className="text-xs font-black text-zinc-800 uppercase tracking-widest">Configurações Públicas</p>
                 <p className="text-[10px] text-zinc-500 mt-1 font-medium">As alterações serão exibidas instantaneamente para seus clientes.</p>
              </div>
+             
+             <div className="flex items-center justify-between w-full lg:hidden px-1">
+                <div className="flex flex-col">
+                   <span className="text-[10px] font-black text-zinc-800 uppercase">Configurações</span>
+                   <span className="text-[9px] text-zinc-500">Toque para publicar</span>
+                </div>
+                <Badge color="success" className="text-[8px] py-0.5">Online</Badge>
+             </div>
+
              <Button
                 onClick={handleSave}
                 disabled={isLoading || isUploadingLogo || isUploadingCover}
                 className={cn(
-                  "w-full sm:w-[280px] h-12 md:h-14 rounded-2xl text-base font-black shadow-xl transition-all active:scale-95 group",
+                  "w-full sm:w-[240px] md:w-[280px] h-11 md:h-14 rounded-2xl text-sm md:text-base font-black shadow-xl transition-all active:scale-95 group",
                   isLoading ? "bg-zinc-800" : "bg-zinc-950 hover:bg-black"
                 )}
-                iconLeft={isLoading ? <Loader2 size={20} className="animate-spin text-zinc-400" /> : <CheckCircle2 size={20} className="group-hover:scale-110 transition-transform" />}
+                iconLeft={isLoading ? <Loader2 size={18} className="animate-spin text-zinc-400" /> : <CheckCircle2 size={18} className="group-hover:scale-110 transition-transform" />}
               >
                 {isLoading ? "Salvando..." : "Publicar Alterações"}
               </Button>
@@ -643,3 +701,4 @@ export function MinhaAgendaTab({
     </PageWrapper>
   );
 }
+

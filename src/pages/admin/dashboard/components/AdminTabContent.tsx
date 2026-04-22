@@ -18,7 +18,9 @@ import {
   ServicesTab,
   SiteTab,
   WppTab,
+  AssinaturaTab,
 } from "@/src/pages/admin/modules";
+
 import { PermissoesTab } from "@/src/pages/admin/modules/sistema/permissoes/PermissoesTab";
 import { usePermissions } from "@/src/hooks/usePermissions";
 import type { Module, Action } from "@/src/lib/permissions";
@@ -387,6 +389,10 @@ export function AdminTabContent(props: any) {
         {activeTab === "site" && (!guard("configuracoes") ? <AccessDenied tabLabel="Configurar Site" /> : (
           <SiteTab />
         ))}
+        {activeTab === "assinatura" && (!guard("configuracoes") ? <AccessDenied tabLabel="Assinatura" /> : (
+          <AssinaturaTab />
+        ))}
+
       </motion.div>
     </AnimatePresence>
   );

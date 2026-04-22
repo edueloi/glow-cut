@@ -13,7 +13,9 @@ import {
   Shield,
   UserCog,
   Users,
+  CreditCard,
 } from "lucide-react";
+
 import type { Module } from "@/src/lib/permissions";
 
 export type AdminTabId =
@@ -33,7 +35,9 @@ export type AdminTabId =
   | "products"
   | "financeiro"
   | "permissoes"
+  | "assinatura"
   | "site";
+
 
 export interface AdminSubNavItem {
   key: string;
@@ -76,8 +80,10 @@ export const ADMIN_TAB_SLUGS: Record<AdminTabId, string> = {
   products: "produtos",
   financeiro: "financeiro",
   permissoes: "permissoes",
+  assinatura: "assinatura",
   site: "meu-site",
 };
+
 
 export const ADMIN_SLUG_TO_TAB = Object.fromEntries(
   Object.entries(ADMIN_TAB_SLUGS).map(([tab, slug]) => [slug, tab as AdminTabId])
@@ -100,8 +106,10 @@ export const ADMIN_TAB_TITLES: Record<AdminTabId, string> = {
   products: "Produtos & Estoque",
   financeiro: "Financeiro",
   permissoes: "Perfis de Permissão",
+  assinatura: "Assinatura & Planos",
   site: "Configurar Site Profissional",
 };
+
 
 export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
   {
@@ -201,6 +209,8 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
       { tab: "wpp",        label: "WhatsApp",    icon: MessageCircle, permModule: "whatsapp" },
       { tab: "settings",   label: "Configurações", icon: Settings,    permModule: "configuracoes" },
       { tab: "permissoes", label: "Permissões",  icon: Shield,        permModule: "permissoes" },
+      { tab: "assinatura", label: "Assinatura", icon: CreditCard,     permModule: "configuracoes" },
     ],
   },
+
 ];
