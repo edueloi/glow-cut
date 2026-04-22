@@ -69,32 +69,34 @@ const LEGEND = [
 ];
 
 function appColor(type: string, status?: string) {
+  if (type === "bloqueio") return "bg-zinc-400";
   if (status === 'confirmed') return "bg-emerald-500";
   if (status === 'noshow') return "bg-red-500";
   if (status === 'cancelled') return "bg-zinc-400";
-  return type === "bloqueio" ? "bg-zinc-400" : type === "pessoal" ? "bg-blue-400" : "bg-amber-400";
+  return type === "pessoal" ? "bg-blue-400" : "bg-amber-400";
 }
 function appBg(type: string, status?: string) {
+  if (type === "bloqueio") return "bg-zinc-100 border-zinc-300";
   if (status === 'confirmed') return "bg-emerald-50 border-emerald-200";
   if (status === 'noshow') return "bg-red-50 border-red-200";
   if (status === 'cancelled') return "bg-zinc-100 border-zinc-200 opacity-60";
-  return type === "bloqueio"
-    ? "bg-zinc-100 border-zinc-300"
-    : type === "pessoal"
+  return type === "pessoal"
     ? "bg-blue-50 border-blue-200"
     : "bg-amber-50 border-amber-200";
 }
 function appText(type: string, status?: string) {
+  if (type === "bloqueio") return "text-zinc-600";
   if (status === 'confirmed') return "text-emerald-700";
   if (status === 'noshow') return "text-red-700";
   if (status === 'cancelled') return "text-zinc-500";
-  return type === "bloqueio" ? "text-zinc-600" : type === "pessoal" ? "text-blue-700" : "text-zinc-900";
+  return type === "pessoal" ? "text-blue-700" : "text-zinc-900";
 }
 function appTimeText(type: string, status?: string) {
+  if (type === "bloqueio") return "text-zinc-400";
   if (status === 'confirmed') return "text-emerald-400";
   if (status === 'noshow') return "text-red-400";
   if (status === 'cancelled') return "text-zinc-400";
-  return type === "bloqueio" ? "text-zinc-400" : type === "pessoal" ? "text-blue-400" : "text-zinc-500";
+  return type === "pessoal" ? "text-blue-400" : "text-zinc-500";
 }
 
 /* ─── Appointment pill (shared) ───────────────────── */
@@ -837,9 +839,16 @@ function MinhaAgendaView({
 
                             {/* Appointment cards — multiple per slot */}
                             {hasApps && (
-                              <div className="flex flex-col gap-0.5 h-full">
-                                {dayApps.map((app) => (
-                                  <div key={app.id} className="relative flex-1">
+                              <div className="absolute inset-0 z-10 flex">
+                                {dayApps.map((app, index) => {
+                                  // Average height: 1 hr = ~73px
+                                  const heightPx = Math.max((app.duration / 60) * 73, 26);
+                                  return (
+                                  <div 
+                                    key={app.id} 
+                                    className="relative flex-1 p-0.5"
+                                    style={{ height: `${heightPx}px` }}
+                                  >
                                     <motion.div
                                       initial={{ opacity: 0, scale: 0.95 }}
                                       animate={{ opacity: 1, scale: 1 }}
@@ -847,7 +856,7 @@ function MinhaAgendaView({
                                       onMouseLeave={() => setHoveredAppointment(null)}
                                       onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(app); }}
                                       className={cn(
-                                        "rounded-lg p-1 sm:p-1.5 flex flex-col justify-between cursor-pointer transition-all border hover:shadow-md",
+                                        "rounded-lg p-1 sm:p-1.5 flex flex-col justify-between cursor-pointer transition-all border hover:shadow-md w-full h-full overflow-hidden",
                                         appBg(app.type, app.status)
                                       )}
                                     >
@@ -892,7 +901,8 @@ function MinhaAgendaView({
                                       </div>
                                     )}
                                   </div>
-                                ))}
+                                    );
+                                  })}
                               </div>
                             )}
                           </div>

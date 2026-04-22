@@ -375,9 +375,9 @@ function DetailModal({ comanda, onClose, onPay, onEdit, fetchComandas }: {
             {appts.map((a: any) => (
               <div key={a.id} className="flex items-center gap-2.5 p-2.5 bg-blue-50/30 rounded-xl border border-blue-100">
                 <div className={cn("p-1.5 rounded-lg shrink-0",
-                  a.status === "done"      ? "bg-emerald-100 text-emerald-600" :
-                  a.status === "scheduled" ? "bg-blue-100 text-blue-600" :
-                  a.status === "cancelled" ? "bg-red-100 text-red-400" : "bg-zinc-100 text-zinc-400"
+                  a.status === "realizado" ? "bg-emerald-100 text-emerald-600" :
+                  (a.status === "agendado" || a.status === "confirmado" || a.status === "reagendado") ? "bg-blue-100 text-blue-600" :
+                  (a.status === "cancelado" || a.status === "faltou") ? "bg-red-100 text-red-400" : "bg-zinc-100 text-zinc-400"
                 )}>
                   <Calendar size={11} />
                 </div>
@@ -388,10 +388,10 @@ function DetailModal({ comanda, onClose, onPay, onEdit, fetchComandas }: {
                   </p>
                 </div>
                 <Badge
-                  color={a.status === "done" ? "success" : a.status === "scheduled" ? "info" : a.status === "cancelled" ? "danger" : "default"}
+                  color={a.status === "realizado" ? "success" : (a.status === "agendado" || a.status === "confirmado" || a.status === "reagendado") ? "info" : (a.status === "cancelado" || a.status === "faltou") ? "danger" : "default"}
                   size="sm"
                 >
-                  {a.status === "done" ? "Concluído" : a.status === "scheduled" ? "Agendado" : a.status === "cancelled" ? "Cancelado" : a.status}
+                  <span className="capitalize">{a.status}</span>
                 </Badge>
               </div>
             ))}

@@ -74,8 +74,8 @@ export const comandaController = {
         }
         const packages = Array.from(pkgMap.values());
 
-        // sessionsCompleted: count appointments with status=done linked to this comanda
-        const doneCount = appointments.filter((a: any) => a.status === "done").length;
+        // sessionsCompleted: count appointments with status=realizado linked to this comanda
+        const doneCount = appointments.filter((a: any) => a.status === "realizado").length;
 
         return {
           ...r,

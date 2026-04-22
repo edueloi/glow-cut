@@ -789,6 +789,11 @@ export default function AdminDashboard() {
       total = subtotal - discountVal;
     }
 
+    let finalSessionCount = parseInt(newComanda.sessionCount || "1");
+    if (comandaAppt.generate && comandaAppt.recurrence.type !== 'none') {
+      finalSessionCount = comandaAppt.recurrence.count || 1;
+    }
+
     const body = {
       clientId,
       discount: discountVal,
@@ -798,11 +803,12 @@ export default function AdminDashboard() {
       items: newComanda.type === 'pacote' ? newComanda.items : [{
         name: newComanda.description || "Atendimento",
         price: parseFloat(newComanda.value || "0"),
-        quantity: parseInt(newComanda.sessionCount || "1"),
-        sessions: parseInt(newComanda.sessionCount || "1")
+        quantity: finalSessionCount,
+        sessions: finalSessionCount
       }],
       professionalId: newComanda.professionalId,
-      date: newComanda.date
+      date: newComanda.date,
+      sessionCount: finalSessionCount
     };
 
     const response = await apiFetch("/api/comandas", {
@@ -2344,7 +2350,7 @@ export default function AdminDashboard() {
                       </div>
                       <div className="flex items-center justify-between text-[10px]">
                         <span className="text-zinc-400 font-medium">Profissional:</span>
-                        <span className="font-bold text-zinc-700">{professionals.find(p => p.id === newComanda.professionalId)?.name || "—"}</span>
+                        <span className="font-bold text-zinc-700">{(newComanda.professionalId ? professionals.find(p => p.id === newComanda.professionalId)?.name : professionals[0]?.name) || "—"}</span>
                       </div>
                       <div className="flex items-center justify-between text-[10px]">
                         <span className="text-zinc-400 font-medium">Serviço/Pacote:</span>
