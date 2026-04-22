@@ -547,97 +547,93 @@ export function DashboardTab({
         onClose={() => setIsConfirmationsModalOpen(false)}
         size="lg"
         hideCloseButton
-        className="p-0"
+        className="p-0 sm:max-w-[550px]"
       >
-        {/* Header Customizado */}
-        <div className="bg-[#f59e0b] text-white px-6 py-7 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="bg-white/20 p-3 rounded-[20px] backdrop-blur-sm shadow-inner">
-              <Bell size={24} className="animate-pulse" />
+        {/* Header Compacto */}
+        <div className="bg-[#f59e0b] text-white px-5 py-5 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm shadow-inner">
+              <Bell size={20} className="animate-pulse" />
             </div>
             <div>
-              <h3 className="text-xl font-black uppercase tracking-tight leading-none">Agendamentos Pendentes</h3>
-              <p className="text-[11px] font-black text-white/90 uppercase tracking-[0.2em] mt-2 flex items-center gap-2">
-                 <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-ping" />
-                 {pendingConfirmations.length} solicitações recebidas
+              <h3 className="text-base font-black uppercase tracking-tight leading-none">Confirmações Pendentes</h3>
+              <p className="text-[9px] font-black text-white/80 uppercase tracking-widest mt-1.5 flex items-center gap-2">
+                 <span className="w-1 h-1 rounded-full bg-white/40 animate-ping" />
+                 {pendingConfirmations.length} novas solicitações
               </p>
             </div>
           </div>
           <button 
             onClick={() => setIsConfirmationsModalOpen(false)}
-            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/20 hover:bg-white/30 transition-all active:scale-90"
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/20 hover:bg-white/30 transition-all active:scale-90"
           >
-            <Plus size={28} className="rotate-45" />
+            <Plus size={22} className="rotate-45" />
           </button>
         </div>
 
-        <div className="p-5 sm:p-7 space-y-5 max-h-[65vh] overflow-y-auto">
+        <div className="p-4 sm:p-5 space-y-3">
           {pendingConfirmations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-[32px] flex items-center justify-center mb-6 shadow-sm">
-                <CheckCircle2 size={40} />
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-3xl flex items-center justify-center mb-4 shadow-sm">
+                <CheckCircle2 size={32} />
               </div>
-              <p className="text-lg font-black text-zinc-800">Tudo em dia!</p>
-              <p className="text-sm text-zinc-500 max-w-[220px] mt-2 font-medium">Nenhum agendamento aguardando confirmação no momento.</p>
+              <p className="text-base font-black text-zinc-800">Tudo em dia!</p>
+              <p className="text-[11px] text-zinc-500 max-w-[180px] mt-1.5 font-medium">Nenhum agendamento aguardando confirmação.</p>
             </div>
           ) : (
             pendingConfirmations.map((appt) => {
               const isRecurrent = appt.repeatGroupId || (appt.totalSessions && appt.totalSessions > 1);
               return (
-                <div key={appt.id} className="group bg-white rounded-[32px] border border-zinc-100 p-6 shadow-md hover:shadow-xl hover:border-amber-200 transition-all duration-300">
-                  <div className="flex flex-col sm:flex-row items-start justify-between gap-6">
-                    <div className="flex gap-5 w-full">
-                      <div className="w-16 h-16 rounded-[24px] bg-zinc-50 border border-zinc-100 flex items-center justify-center text-[#f59e0b] font-black text-2xl shrink-0 shadow-inner group-hover:bg-amber-50 group-hover:border-amber-100 transition-colors">
-                        {appt.client?.name?.charAt(0).toUpperCase() || "?"}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xl font-black text-zinc-900 truncate tracking-tight">
-                          {appt.client?.name || "Cliente sem nome"}
+                <div key={appt.id} className="group bg-zinc-50/50 rounded-3xl border border-zinc-100 p-4 hover:border-amber-300 hover:bg-white transition-all duration-300 shadow-sm hover:shadow-lg">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-white border border-zinc-100 flex items-center justify-center text-[#f59e0b] font-black text-lg shrink-0 shadow-sm group-hover:bg-amber-50 group-hover:border-amber-100 transition-colors">
+                      {appt.client?.name?.charAt(0).toUpperCase() || "?"}
+                    </div>
+                    
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <p className="text-base font-black text-zinc-900 truncate tracking-tight">
+                          {appt.client?.name || "Cliente"}
                         </p>
-                        
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3">
-                           <div className="flex items-center gap-2 text-xs font-bold text-zinc-500">
-                              <Scissors size={14} className="text-zinc-400" />
-                              <span className="truncate">{appt.service?.name || "Serviço"}</span>
-                           </div>
-                           <div className="flex items-center gap-2 text-xs font-black text-emerald-600">
-                              <DollarSign size={14} />
-                              {(appt.service?.price || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                           </div>
-                           <div className="flex items-center gap-2 text-xs font-bold text-zinc-500">
-                              <CalendarIcon size={14} className="text-zinc-400" />
-                              {format(new Date(appt.date), "dd 'de' MMM", { locale: ptBR })}
-                           </div>
-                           <div className="flex items-center gap-2 text-xs font-bold text-zinc-500">
-                              <Clock size={14} className="text-zinc-400" />
-                              {appt.startTime}
-                           </div>
-                        </div>
+                        <p className="text-sm font-black text-emerald-600 shrink-0">
+                          {(appt.service?.price || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </p>
+                      </div>
+                      
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-500">
+                            <Scissors size={12} className="text-zinc-400" />
+                            <span className="truncate">{appt.service?.name || "Serviço"}</span>
+                         </div>
+                         <div className="flex items-center gap-1.5 text-[10px] font-black text-zinc-400">
+                            <CalendarIcon size={12} />
+                            {format(new Date(appt.date), "dd/MM")} • {appt.startTime}
+                         </div>
+                      </div>
 
-                        {isRecurrent && (
-                          <div className="mt-4 flex flex-col items-start">
-                            <span className="bg-amber-100/60 text-amber-700 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-wider flex items-center gap-1.5 border border-amber-200">
-                              <Zap size={11} fill="currentColor" /> Recorrente ({appt.totalSessions}x)
-                            </span>
-                            <p className="text-[9px] text-amber-600 font-bold mt-1.5 uppercase tracking-widest pl-1">Sessão {appt.sessionNumber} de {appt.totalSessions}</p>
-                          </div>
-                        )}
+                      {isRecurrent && (
+                        <div className="mt-2.5 flex items-center gap-2">
+                          <span className="bg-amber-100 text-amber-700 text-[8px] font-black px-2 py-0.5 rounded-lg uppercase tracking-wider flex items-center gap-1 border border-amber-200">
+                            <Zap size={9} fill="currentColor" /> Recorrente
+                          </span>
+                          <p className="text-[8px] text-amber-600 font-bold uppercase tracking-widest opacity-60">Sessão {appt.sessionNumber}/{appt.totalSessions}</p>
+                        </div>
+                      )}
+
+                      <div className="mt-4">
+                        <Button
+                          variant="success"
+                          fullWidth
+                          size="md"
+                          loading={confirmingId === appt.id}
+                          onClick={() => handleConfirm(appt.id)}
+                          className="rounded-xl font-black uppercase tracking-[0.2em] text-[9px] h-9 shadow-md shadow-emerald-500/10"
+                          iconLeft={<Check size={14} strokeWidth={3} />}
+                        >
+                          Confirmar Agendamento
+                        </Button>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="mt-6">
-                    <Button
-                      variant="success"
-                      fullWidth
-                      size="lg"
-                      loading={confirmingId === appt.id}
-                      onClick={() => handleConfirm(appt.id)}
-                      className="rounded-[20px] font-black uppercase tracking-widest text-[11px] h-12 shadow-lg shadow-emerald-500/10"
-                      iconLeft={<Check size={18} strokeWidth={3} />}
-                    >
-                      Confirmar Agendamento
-                    </Button>
                   </div>
                 </div>
               );
@@ -645,11 +641,11 @@ export function DashboardTab({
           )}
         </div>
 
-        {/* Footer com Mensagem de Bot */}
-        <div className="bg-zinc-50 border-t border-zinc-100 px-6 py-5 rounded-b-[2rem]">
-           <p className="text-[10px] sm:text-[11px] font-black text-[#f59e0b] uppercase tracking-widest flex items-center justify-center gap-2 text-center leading-relaxed">
-             <Zap size={12} fill="currentColor" className="animate-pulse shrink-0" />
-             A confirmação disparará uma mensagem via WhatsApp automaticamente.
+        {/* Footer Ultra Compacto */}
+        <div className="bg-zinc-50 border-t border-zinc-100 px-5 py-3.5 rounded-b-[2rem]">
+           <p className="text-[9px] font-black text-[#f59e0b] uppercase tracking-widest flex items-center justify-center gap-2 text-center opacity-70">
+             <Zap size={10} fill="currentColor" className="animate-pulse shrink-0" />
+             Confirmação via WhatsApp automática.
            </p>
         </div>
       </Modal>
