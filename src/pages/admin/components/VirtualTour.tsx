@@ -3,15 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, 
   ChevronRight, 
-  ChevronLeft, 
   Sparkles, 
-  MousePointer2,
   Calendar,
   Users,
   LayoutDashboard,
   Settings,
-  Trophy,
-  CheckCircle2
+  Trophy
 } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
 
@@ -106,34 +103,40 @@ export function VirtualTour({ onComplete }: { onComplete: () => void }) {
   const step = TOUR_STEPS[currentStep];
 
   return (
-    <div className="fixed inset-0 z-[10000] pointer-events-none">
-      {/* Overlay */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className={`absolute inset-0 pointer-events-auto transition-colors duration-500 ${targetRect ? "bg-transparent" : "bg-black/60"}`}
-      />
+    <div className="fixed inset-0 z-[10000]">
+      {/* Spotlight overlay — escurece tudo exceto o elemento alvo */}
+      {targetRect ? (
+        <div 
+          className="absolute inset-0 pointer-events-auto transition-all duration-500"
+          style={{
+            boxShadow: "0 0 0 9999px rgba(0,0,0,0.7)",
+            top: targetRect.top - 8,
+            left: targetRect.left - 8,
+            width: targetRect.width + 16,
+            height: targetRect.height + 16,
+            position: "absolute",
+            borderRadius: "16px",
+            border: "4px solid #f59e0b",
+          }}
+        />
+      ) : (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 pointer-events-auto bg-black/60"
+        />
+      )}
 
-      <div className="relative z-10 w-full h-full flex items-center justify-center">
+      {/* Modal card — SEMPRE centralizado na tela */}
+      <div className="relative z-10 w-full h-full flex items-center justify-center pointer-events-none">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStep}
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: -20 }}
-            className={`
-              pointer-events-auto bg-white rounded-[32px] p-8 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.3)] 
-              border border-zinc-100 max-w-sm w-full relative overflow-hidden
-              ${!targetRect ? "m-auto" : "absolute"}
-            `}
-            style={targetRect ? {
-              top: step.position === "bottom" ? targetRect.bottom + 20 : 
-                   step.position === "top" ? targetRect.top - 320 : 
-                   step.position === "right" ? targetRect.top : "50%",
-              left: step.position === "right" ? targetRect.right + 24 : "50%",
-              transform: step.position === "right" ? "none" : "translate(-50%, -50%)"
-            } : {}}
+            className="pointer-events-auto bg-white rounded-[32px] p-8 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.3)] border border-zinc-100 max-w-sm w-full mx-4 relative overflow-hidden"
           >
             {/* Decoration */}
             <div className="absolute -top-12 -right-12 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
@@ -188,20 +191,6 @@ export function VirtualTour({ onComplete }: { onComplete: () => void }) {
           </motion.div>
         </AnimatePresence>
       </div>
-
-      {/* Spotlight for target element if position is center but has targetId */}
-      {targetRect && (
-        <div 
-          className="absolute border-4 border-amber-500 rounded-2xl transition-all duration-500 pointer-events-none"
-          style={{
-            top: targetRect.top - 8,
-            left: targetRect.left - 8,
-            width: targetRect.width + 16,
-            height: targetRect.height + 16,
-            boxShadow: "0 0 0 9999px rgba(0,0,0,0.7)"
-          }}
-        />
-      )}
     </div>
   );
 }
