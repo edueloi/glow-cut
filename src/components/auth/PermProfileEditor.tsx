@@ -104,6 +104,32 @@ export function PermProfileEditor({
                 const children = mods.filter(c => c.parent === mod.key);
                 const hasExpandableContent = subActions.length > 0 || children.length > 0;
 
+                // Aux: verifica se TUDO está selecionado no módulo (incluindo submenus)
+                const allSelected = isVisible && 
+                  subActions.every(a => !!modPerms[a]) &&
+                  children.every(c => !!perms[c.key]?.ver && c.actions.every(a => !!perms[c.key]?.[a]));
+
+                const toggleAll = (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  const updated: PermissionSet = { ...perms };
+                  if (allSelected) {
+                    // Desativa tudo exceto "ver" (ou desativa tudo se preferir)
+                    updated[mod.key] = { ver: true };
+                    children.forEach(c => { updated[c.key] = {}; });
+                  } else {
+                    // Ativa tudo
+                    const fullMod: any = {};
+                    mod.actions.forEach(a => fullMod[a] = true);
+                    updated[mod.key] = fullMod;
+                    children.forEach(c => {
+                      const fullChild: any = {};
+                      c.actions.forEach(a => fullChild[a] = true);
+                      updated[c.key] = fullChild;
+                    });
+                  }
+                  onChange({ ...value, permissions: updated });
+                };
+
                 return (
                   <div
                     key={mod.key}
@@ -115,42 +141,60 @@ export function PermProfileEditor({
                     )}
                   >
                     {/* Row principal — toggle "ver" */}
-                    <div className="flex items-center justify-between px-4 py-3">
+                    <div 
+                      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-zinc-50/50 transition-colors"
+                      onClick={() => toggleExpand(mod.key)}
+                    >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <p className="text-xs font-black text-zinc-800 truncate">{mod.label}</p>
-                        {isVisible && subActions.length > 0 && (
-                          <Badge color="primary" size="sm">
-                            {Object.entries(modPerms).filter(([k, v]) => k !== "ver" && v).length} ações
-                          </Badge>
-                        )}
-                        {isVisible && children.length > 0 && (
-                          <Badge color="info" size="sm">
-                            {children.filter(c => !!perms[c.key]?.ver).length} submenus
-                          </Badge>
-                        )}
+                        <div className={cn(
+                          "w-1.5 h-6 rounded-full transition-colors",
+                          isVisible ? "bg-amber-400" : "bg-zinc-200"
+                        )} />
+                        <div>
+                          <p className="text-[13px] font-bold text-zinc-800 truncate">{mod.label}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {isVisible && (
+                              <Badge color="success" size="sm" className="px-1 py-0 h-4 text-[9px]">Ativo</Badge>
+                            )}
+                            {isVisible && subActions.length > 0 && (
+                              <span className="text-[9px] font-medium text-zinc-400">
+                                {Object.entries(modPerms).filter(([k, v]) => k !== "ver" && v).length}/{subActions.length} ações
+                              </span>
+                            )}
+                            {isVisible && children.length > 0 && (
+                              <span className="text-[9px] font-medium text-zinc-400">
+                                • {children.filter(c => !!perms[c.key]?.ver).length}/{children.length} submenus
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        {/* Expandir conteúdo */}
-                        {isVisible && hasExpandableContent && (
+                      <div className="flex items-center gap-3 shrink-0">
+                        {/* Botão Selecionar Tudo */}
+                        {isVisible && (hasExpandableContent) && (
                           <button
                             type="button"
-                            onClick={() => toggleExpand(mod.key)}
-                            className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all"
+                            onClick={toggleAll}
+                            className={cn(
+                              "text-[10px] font-black uppercase tracking-tight px-2 py-1 rounded-lg transition-all",
+                              allSelected 
+                                ? "text-amber-600 bg-amber-50" 
+                                : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"
+                            )}
                           >
-                            <ChevronDown
-                              size={14}
-                              className={cn("transition-transform", isExpanded && "rotate-180")}
-                            />
+                            {allSelected ? "Tudo Ativo" : "Ativar Tudo"}
                           </button>
                         )}
+
+                        <div className="w-[1px] h-4 bg-zinc-100 mx-1" />
 
                         {/* Toggle de visibilidade */}
                         <button
                           type="button"
-                          onClick={() => toggle(mod.key, "ver")}
+                          onClick={(e) => { e.stopPropagation(); toggle(mod.key, "ver"); }}
                           aria-label={isVisible ? "Desativar acesso" : "Ativar acesso"}
-                          className="relative w-10 h-5 rounded-full transition-colors duration-200 shrink-0 focus:outline-none focus:ring-2 focus:ring-offset-1"
+                          className="relative w-10 h-5 rounded-full transition-colors duration-200 shrink-0 focus:outline-none"
                           style={{
                             background: isVisible ? themeColor : "#e4e4e7",
                           }}
@@ -165,117 +209,145 @@ export function PermProfileEditor({
 
                     {/* Conteúdo expandido */}
                     {isVisible && hasExpandableContent && isExpanded && (
-                      <div className="border-t border-zinc-100 px-4 pb-3 pt-3 space-y-4">
+                      <div className="bg-zinc-50/30 border-t border-zinc-100 px-4 pb-4 pt-4 space-y-5">
                         
                         {/* Ações do Módulo Pai */}
                         {subActions.length > 0 && (
-                          <div className="space-y-3">
-                            {mod.splitActions ? (
-                              <>
-                                {/* Criar */}
-                                {mod.actions.includes("criar") && (
-                                  <ActionChipRow
-                                    label="Criar"
-                                    chips={[{ action: "criar", label: "Criar" }]}
-                                    modPerms={modPerms}
-                                    onToggle={(a) => toggle(mod.key, a)}
-                                    themeColor={themeColor}
-                                  />
-                                )}
-                                {/* Editar — próprio / todos */}
-                                {mod.splitActions.filter((s) => s.action === "editar").map((split) => (
-                                  <ActionChipRow
-                                    key="editar"
-                                    label="Editar"
-                                    chips={[
-                                      { action: split.own, label: "Próprios" },
-                                      { action: split.all, label: "Todos" },
-                                    ]}
-                                    modPerms={modPerms}
-                                    onToggle={(a) => toggle(mod.key, a)}
-                                    themeColor={themeColor}
-                                  />
-                                ))}
-                                {/* Excluir — próprio / todos */}
-                                {mod.splitActions.filter((s) => s.action === "excluir").map((split) => (
-                                  <ActionChipRow
-                                    key="excluir"
-                                    label="Excluir"
-                                    chips={[
-                                      { action: split.own, label: "Próprios" },
-                                      { action: split.all, label: "Todos" },
-                                    ]}
-                                    modPerms={modPerms}
-                                    onToggle={(a) => toggle(mod.key, a)}
-                                    themeColor={themeColor}
-                                  />
-                                ))}
-                                {/* Demais ações (exportar, financeiro...) */}
-                                {subActions
-                                  .filter(
-                                    (a) =>
-                                      !["criar", "editar_proprio", "editar_todos", "excluir_proprio", "excluir_todos"].includes(a)
-                                  )
-                                  .map((action) => (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                              <div className="h-[1px] flex-1 bg-zinc-200/50" />
+                              <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Ações de {mod.label}</span>
+                              <div className="h-[1px] flex-1 bg-zinc-200/50" />
+                            </div>
+
+                            <div className="space-y-4">
+                              {mod.splitActions ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  {/* Criar */}
+                                  {mod.actions.includes("criar") && (
                                     <ActionChipRow
-                                      key={action}
-                                      label={ACTION_LABELS[action] ?? action}
-                                      chips={[{ action, label: ACTION_LABELS[action] ?? action }]}
+                                      label="Criação"
+                                      chips={[{ action: "criar", label: "Pode Criar" }]}
+                                      modPerms={modPerms}
+                                      onToggle={(a) => toggle(mod.key, a)}
+                                      themeColor={themeColor}
+                                    />
+                                  )}
+                                  {/* Editar — próprio / todos */}
+                                  {mod.splitActions.filter((s) => s.action === "editar").map((split) => (
+                                    <ActionChipRow
+                                      key="editar"
+                                      label="Edição"
+                                      chips={[
+                                        { action: split.own, label: "Próprios" },
+                                        { action: split.all, label: "Todos" },
+                                      ]}
                                       modPerms={modPerms}
                                       onToggle={(a) => toggle(mod.key, a)}
                                       themeColor={themeColor}
                                     />
                                   ))}
-                              </>
-                            ) : (
-                              // Sem divisão — exibe todos como chips individuais
-                              <div className="flex flex-wrap gap-2">
-                                {subActions.map((action) => {
-                                  const active = !!modPerms[action];
-                                  return (
-                                    <ActionChip
-                                      key={action}
-                                      label={ACTION_LABELS[action] ?? action}
-                                      active={active}
-                                      onToggle={() => toggle(mod.key, action)}
+                                  {/* Excluir — próprio / todos */}
+                                  {mod.splitActions.filter((s) => s.action === "excluir").map((split) => (
+                                    <ActionChipRow
+                                      key="excluir"
+                                      label="Exclusão"
+                                      chips={[
+                                        { action: split.own, label: "Próprios" },
+                                        { action: split.all, label: "Todos" },
+                                      ]}
+                                      modPerms={modPerms}
+                                      onToggle={(a) => toggle(mod.key, a)}
                                       themeColor={themeColor}
                                     />
-                                  );
-                                })}
-                              </div>
-                            )}
+                                  ))}
+                                  {/* Demais ações */}
+                                  {subActions
+                                    .filter(
+                                      (a) =>
+                                        !["criar", "editar_proprio", "editar_todos", "excluir_proprio", "excluir_todos"].includes(a)
+                                    )
+                                    .map((action) => (
+                                      <ActionChipRow
+                                        key={action}
+                                        label={ACTION_LABELS[action] ?? action}
+                                        chips={[{ action, label: ACTION_LABELS[action] ?? action }]}
+                                        modPerms={modPerms}
+                                        onToggle={(a) => toggle(mod.key, a)}
+                                        themeColor={themeColor}
+                                      />
+                                    ))}
+                                </div>
+                              ) : (
+                                <div className="flex flex-wrap gap-2">
+                                  {subActions.map((action) => {
+                                    const active = !!modPerms[action];
+                                    return (
+                                      <ActionChip
+                                        key={action}
+                                        label={ACTION_LABELS[action] ?? action}
+                                        active={active}
+                                        onToggle={() => toggle(mod.key, action)}
+                                        themeColor={themeColor}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
 
                         {/* Submódulos */}
                         {children.length > 0 && (
-                          <div className={cn("space-y-2", subActions.length > 0 && "pt-3 mt-3 border-t border-zinc-100")}>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Submenus</p>
-                            <div className="grid grid-cols-1 gap-2">
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                              <div className="h-[1px] flex-1 bg-zinc-200/50" />
+                              <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Submenus de {mod.label}</span>
+                              <div className="h-[1px] flex-1 bg-zinc-200/50" />
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-3">
                               {children.map(child => {
                                 const childPerms = perms[child.key] || {};
                                 const isChildVisible = !!childPerms.ver;
+                                const childSubActions = child.actions.filter(a => a !== "ver");
+                                
                                 return (
-                                  <div key={child.key} className={cn("p-3 rounded-xl border transition-all", isChildVisible ? "bg-white border-zinc-200" : "bg-zinc-50 border-zinc-100 opacity-70")}>
+                                  <div 
+                                    key={child.key} 
+                                    className={cn(
+                                      "p-4 rounded-2xl border transition-all", 
+                                      isChildVisible 
+                                        ? "bg-white border-zinc-200 shadow-sm" 
+                                        : "bg-zinc-100/50 border-zinc-100 opacity-60"
+                                    )}
+                                  >
                                     <div className="flex items-center justify-between">
-                                      <span className="text-[10px] font-black text-zinc-700 uppercase">{child.label}</span>
-                                      {/* Toggle do submenu */}
+                                      <div className="flex items-center gap-2">
+                                        <div className={cn(
+                                          "w-1 h-3 rounded-full",
+                                          isChildVisible ? "bg-amber-500" : "bg-zinc-300"
+                                        )} />
+                                        <span className="text-[11px] font-black text-zinc-700 uppercase tracking-tight">{child.label}</span>
+                                      </div>
+                                      
                                       <button
                                         type="button"
                                         onClick={() => toggle(child.key, "ver")}
-                                        className="relative w-8 h-4 rounded-full transition-colors duration-200 shrink-0 focus:outline-none"
-                                        style={{ background: isChildVisible ? themeColor : "#e4e4e7" }}
+                                        className="relative w-9 h-4.5 rounded-full transition-colors duration-200 shrink-0 focus:outline-none"
+                                        style={{ background: isChildVisible ? themeColor : "#d1d5db" }}
                                       >
                                         <span
-                                          className="absolute top-[2px] h-3 w-3 bg-white rounded-full shadow transition-all duration-200"
-                                          style={{ left: isChildVisible ? "1.1rem" : "0.15rem" }}
+                                          className="absolute top-[2.5px] h-3.5 w-3.5 bg-white rounded-full shadow transition-all duration-200"
+                                          style={{ left: isChildVisible ? "1.2rem" : "0.15rem" }}
                                         />
                                       </button>
                                     </div>
                                     
-                                    {isChildVisible && child.actions.filter(a => a !== "ver").length > 0 && (
-                                      <div className="flex flex-wrap gap-1.5 pt-2 mt-2 border-t border-zinc-50">
-                                        {child.actions.filter(a => a !== "ver").map(action => (
+                                    {isChildVisible && childSubActions.length > 0 && (
+                                      <div className="flex flex-wrap gap-2 pt-3 mt-3 border-t border-zinc-50">
+                                        {childSubActions.map(action => (
                                           <ActionChip
                                             key={action}
                                             label={ACTION_LABELS[action] ?? action}

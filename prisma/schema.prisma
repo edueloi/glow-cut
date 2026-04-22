@@ -16,7 +16,7 @@ model AdminUser {
   jobTitle         String?   @db.VarChar(100)
   bio              String?   @db.VarChar(1000)
   phone            String?   @db.VarChar(30)
-  photo            String?   @db.Text
+  photo            String?   @db.LongText
   canCreateUsers   Boolean   @default(false)
   canDeleteAccount Boolean   @default(false)
   isActive         Boolean   @default(true)
@@ -209,7 +209,7 @@ model Product {
   id              String           @id @db.VarChar(36)
   name            String           @db.VarChar(255)
   description     String?          @db.Text
-  photo           String?          @db.Text
+  photo           String?          @db.LongText
   costPrice       Float            @default(0)
   salePrice       Float            @default(0)
   stock           Int              @default(0)
@@ -382,7 +382,7 @@ model Professional {
   email        String?        @db.VarChar(255)
   instagram    String?        @db.VarChar(255)
   bio          String?        @db.VarChar(1000)
-  photo        String?        @db.Text
+  photo        String?        @db.LongText
   permissions  String?        @default("{}") @db.VarChar(2000)
   accessLevel  String?        @default("no-access") @db.VarChar(20)
   patAccess    Boolean        @default(false)
@@ -406,7 +406,7 @@ model Service {
   discount                                         Float            @default(0)
   discountType                                     String           @default("value") @db.VarChar(20)
   tenantId                                         String?          @db.VarChar(36)
-  photo                                            String?          @db.Text
+  photo                                            String?          @db.LongText
   professionalIds                                  String?          @default("[]") @db.VarChar(2000)
   commissionValue                                  Float            @default(0)
   commissionType                                   String           @default("percentage") @db.VarChar(20)
@@ -481,8 +481,8 @@ model Tenant {
   segment               String?     @db.VarChar(50)
   maxAdminUsersOverride Int?
   themeColor            String?     @db.VarChar(20)
-  logoUrl               String?     @db.Text
-  coverUrl              String?     @db.Text
+  logoUrl               String?     @db.LongText
+  coverUrl              String?     @db.LongText
   address               String?     @db.Text
   instagram             String?     @db.VarChar(100)
   welcomeMessage        String?     @db.Text
@@ -502,7 +502,7 @@ model Tenant {
   showProducts          Boolean     @default(true)
   showServices          Boolean     @default(true)
   showTeam              Boolean     @default(true)
-  siteCoverUrl          String?     @db.Text
+  siteCoverUrl          String?     @db.LongText
   adminuser             AdminUser[]
   plan                  Plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
   salesPersonId         String?     @db.VarChar(36)
@@ -521,7 +521,7 @@ model SuperAdmin {
   birthday    DateTime? @db.Date
   role        String?  @db.VarChar(100)
   bio         String?  @db.Text
-  photo       String?  @db.Text
+  photo       String?  @db.LongText
   createdAt   DateTime @default(now()) @db.DateTime(0)
   tenantsSold Tenant[]
 }
@@ -620,7 +620,7 @@ model BlogAuthor {
   name      String     @db.VarChar(255)
   slug      String     @unique @db.VarChar(120)
   bio       String?    @db.VarChar(1000)
-  photo     String?    @db.Text
+  photo     String?    @db.LongText
   role      String?    @db.VarChar(100)
   instagram String?    @db.VarChar(255)
   isActive  Boolean    @default(true)
@@ -634,7 +634,7 @@ model BlogPost {
   slug            String       @unique @db.VarChar(600)
   excerpt         String?      @db.VarChar(1000)
   content         String       @db.LongText
-  coverImage      String?      @db.Text
+  coverImage      String?      @db.LongText
   status          String       @default("draft") @db.VarChar(20) // draft | published | archived
   featured        Boolean      @default(false)
   categoryId      String?      @db.VarChar(36)

@@ -22,6 +22,8 @@ import { Input, Textarea, Select } from "@/src/components/ui/Input";
 import { FormRow } from "@/src/components/ui/PageWrapper";
 import { useToast } from "@/src/components/ui/Toast";
 
+import { useAuth } from "@/src/App";
+
 type SectionId = "agenda" | "configuracoes";
 
 interface AgendaSettingsData {
@@ -131,6 +133,7 @@ export function SettingsTab({
   professionals,
 }: SettingsTabProps) {
   const { show } = useToast();
+  const { user: adminUser } = useAuth();
 
   const sections = [
     { id: "agenda",       label: "Agenda",        icon: CalendarDays },
@@ -326,7 +329,9 @@ export function SettingsTab({
           <ToggleItem label="Agenda por cliente" desc="Consulta de agendamentos por telefone." checked={agendaSettings.enableClientAgendaView} onChange={v => setAgendaSettings(p => ({ ...p, enableClientAgendaView: v }))} />
           <ToggleItem label="Pesquisa pública" desc="Libera a tela pública de pesquisa." checked={agendaSettings.enableAppointmentSearch} onChange={v => setAgendaSettings(p => ({ ...p, enableAppointmentSearch: v }))} />
           <ToggleItem label="Confirmação automática" desc="Novo agendamento entra confirmado." checked={agendaSettings.autoConfirmAppointments} onChange={v => setAgendaSettings(p => ({ ...p, autoConfirmAppointments: v }))} />
-          <ToggleItem label="Lembretes WhatsApp" desc="Base pronta para lembretes e confirmações." checked={agendaSettings.enableWhatsAppReminders} onChange={v => setAgendaSettings(p => ({ ...p, enableWhatsAppReminders: v }))} />
+          {!!adminUser?.wppEnabled && (
+            <ToggleItem label="Lembretes WhatsApp" desc="Base pronta para lembretes e confirmações." checked={agendaSettings.enableWhatsAppReminders} onChange={v => setAgendaSettings(p => ({ ...p, enableWhatsAppReminders: v }))} />
+          )}
           <ToggleItem label="Terminal profissional (PAT)" desc="Habilita a base do terminal profissional." checked={agendaSettings.enablePatTerminal} onChange={v => setAgendaSettings(p => ({ ...p, enablePatTerminal: v }))} />
           <ToggleItem label="Bloquear feriados nacionais" desc="Fecha a agenda nas datas nacionais do Brasil." checked={agendaSettings.blockNationalHolidays} onChange={v => setAgendaSettings(p => ({ ...p, blockNationalHolidays: v }))} />
         </div>

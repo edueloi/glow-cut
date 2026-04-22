@@ -227,6 +227,7 @@ function buildAdminPayload(admin: any) {
     onboardingStep: admin.tenant?.onboardingStep,
     segment: admin.tenant?.segment,
     themeColor: admin.tenant?.themeColor,
+    wppEnabled: admin.tenant?.wppOverride !== null ? admin.tenant?.wppOverride : admin.tenant?.plan?.wppEnabled,
     type: "admin" as const,
 
     permissions: restrictPermissionsByPlan(basePermissions, planAllowedModules),

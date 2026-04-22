@@ -49,7 +49,7 @@ export interface AuthUser {
   segment?: string;
   themeColor?: string;
   permissions: PermissionSet | null; // null = acesso total (owner)
-
+  wppEnabled?: boolean;
 }
 
 interface AuthContextType {

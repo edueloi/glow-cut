@@ -2075,7 +2075,7 @@ function SystemBotPanel() {
 /* ═══════════════════════════════════════════
    ABA: WHATSAPP
 ═══════════════════════════════════════════ */
-function WppTab({ plans }: { plans: any[] }) {
+function WppTab({ plans, onUpdatePlans }: { plans: any[]; onUpdatePlans?: () => void }) {
   const [instances, setInstances] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -2113,6 +2113,7 @@ function WppTab({ plans }: { plans: any[] }) {
     try {
       await apiFetch(`/api/super-admin/wpp/plan/${planId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ wppEnabled }) });
       await load();
+      if (onUpdatePlans) onUpdatePlans();
     } catch {}
     setSaving(null);
   };
@@ -3588,7 +3589,7 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
           {tab === "users"       && <UsersTab tenants={tenants} />}
           {tab === "permissions" && <PermissionsTab tenants={tenants} />}
           {tab === "blog"        && <BlogTab />}
-          {tab === "wpp"         && <WppTab plans={plans} />}
+          {tab === "wpp"         && <WppTab plans={plans} onUpdatePlans={() => { apiFetch("/api/super-admin/plans").then(r => r.json()).then(setPlans); }} />}
           {tab === "sales"       && <SalesTab user={userData} />}
           {tab === "staff"       && <StaffTab username={username} />}
           {tab === "settings"    && <SettingsTab />}
