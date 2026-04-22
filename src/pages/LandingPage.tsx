@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { 
   Smartphone, 
   Bell, 
@@ -514,8 +514,8 @@ export default function LandingPage() {
                 © 2026 Agendelle. Desenvolvido por <strong>Develoi Soluções Digitais</strong>.
               </p>
               <div className="flex gap-6 text-xs text-zinc-400">
-                <a href="#" className="hover:text-zinc-900">Termos de Uso</a>
-                <a href="#" className="hover:text-zinc-900">Política de Privacidade</a>
+                <Link to="/termos" className="hover:text-zinc-900">Termos de Uso</Link>
+                <Link to="/privacidade" className="hover:text-zinc-900">Política de Privacidade</Link>
               </div>
             </div>
           </div>

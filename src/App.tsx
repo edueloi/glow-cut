@@ -18,6 +18,7 @@ import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
 import RegistrationPage from "./pages/RegistrationPage";
 import OnboardingPage from "./pages/OnboardingPage";
+import PlatformLegalPage from "./pages/PlatformLegalPage";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 
 import logoFavicon from "./images/system/logo-favicon.png";
@@ -486,6 +487,8 @@ function App() {
           <Route path="/:slug/agendar" element={<ClientBooking />} />
           <Route path="/agendar/:slug" element={<ClientBooking />} />
           <Route path="/assinar" element={<RegistrationPage />} />
+          <Route path="/termos" element={<PlatformLegalPage type="terms" />} />
+          <Route path="/privacidade" element={<PlatformLegalPage type="privacy" />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
