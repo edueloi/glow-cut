@@ -15,16 +15,12 @@ import { motion, AnimatePresence } from "motion/react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { apiFetch } from "@/src/lib/api";
 
-const PACKAGES = [
-  { id: "sms_pack", name: "Pacote 500 WhatsApp", price: 49.90, icon: Sparkles, detail: "Disparos de notificações" },
-  { id: "custom_domain", name: "Domínio Próprio (.com.br)", price: 69.00, icon: Gem, detail: "Renovação anual" },
-];
 
 export function AssinaturaTab() {
   const { user: adminUser } = useAuth();
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -67,37 +63,7 @@ export function AssinaturaTab() {
 
   return (
     <PageWrapper className="pb-32">
-      <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in duration-700">
-        
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <SectionTitle 
-            title="Assinatura & Planos" 
-            description="Gerencie sua conta e descubra novos recursos para o seu negócio." 
-            icon={CreditCard}
-          />
-          
-          <div className="flex bg-zinc-100 p-1 rounded-2xl w-fit self-start lg:self-center">
-             <button 
-               onClick={() => setBillingCycle("monthly")}
-               className={cn(
-                 "px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all",
-                 billingCycle === "monthly" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
-               )}
-             >
-               Mensal
-             </button>
-             <button 
-               onClick={() => setBillingCycle("yearly")}
-               className={cn(
-                 "px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                 billingCycle === "yearly" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
-               )}
-             >
-               Anual
-               <span className="bg-emerald-500 text-white text-[8px] px-1.5 py-0.5 rounded-full">-20%</span>
-             </button>
-          </div>
-        </div>
+      <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
 
         {/* ── CARD PLANO ATUAL ── */}
         <div className="relative">
@@ -151,7 +117,7 @@ export function AssinaturaTab() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
            {plans.map((plan, idx) => {
              const isPopular = idx === 1; 
-             const planPrice = billingCycle === "yearly" ? (plan.price * 0.8) : plan.price;
+             const planPrice = plan.price;
              let features: string[] = [];
              try {
                 features = typeof plan.features === "string" ? JSON.parse(plan.features) : (Array.isArray(plan.features) ? plan.features : []);
@@ -166,25 +132,32 @@ export function AssinaturaTab() {
              if (plan.siteEnabled) displayFeatures.unshift("Site / Vitrine Digital");
              if (plan.agendaExternaEnabled) displayFeatures.unshift("Link de Agendamento Online");
              
-             return (
-               <motion.div 
-                 key={plan.id}
-                 whileHover={{ y: -5 }}
-                 className={cn(
-                   "bg-white rounded-[40px] border p-8 relative flex flex-col transition-all",
-                   isPopular ? "border-amber-500 shadow-2xl shadow-amber-200/40" : "border-zinc-200 shadow-xl hover:border-zinc-300"
-                 )}
-               >
-                  {isPopular && (
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-amber-500 text-white text-[10px] font-black uppercase tracking-[0.2em] px-6 py-2 rounded-full shadow-lg">
+              const isCurrentPlan = adminUser?.planName?.toLowerCase() === plan.name.toLowerCase();
+              
+              return (
+                <motion.div 
+                  key={plan.id}
+                  whileHover={{ y: -5 }}
+                  className={cn(
+                    "bg-white rounded-[40px] border p-8 relative flex flex-col transition-all",
+                    isCurrentPlan ? "border-amber-500 shadow-2xl shadow-amber-200/40 scale-[1.02] z-10" : 
+                    isPopular ? "border-zinc-300 shadow-xl" : "border-zinc-200 shadow-xl hover:border-zinc-300"
+                  )}
+                >
+                  {isCurrentPlan ? (
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-amber-500 text-white text-[10px] font-black uppercase tracking-[0.2em] px-6 py-2 rounded-full shadow-lg flex items-center gap-2">
+                      <Star size={12} className="fill-white" /> Seu Plano Atual
+                    </div>
+                  ) : isPopular ? (
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-zinc-800 text-white text-[10px] font-black uppercase tracking-[0.2em] px-6 py-2 rounded-full shadow-lg">
                       Mais Procurado
                     </div>
-                  )}
+                  ) : null}
 
                   <div className="mb-8">
                      <div className={cn(
                        "w-12 h-12 rounded-2xl flex items-center justify-center mb-6 shadow-lg",
-                       isPopular ? "bg-amber-500 text-white" : "bg-zinc-100 text-zinc-900"
+                       isCurrentPlan ? "bg-amber-500 text-white" : isPopular ? "bg-zinc-800 text-white" : "bg-zinc-100 text-zinc-900"
                      )}>
                         {idx === 0 ? <Rocket size={24} /> : (idx === 1 ? <Zap size={24} /> : <Crown size={24} />)}
                      </div>
@@ -202,11 +175,6 @@ export function AssinaturaTab() {
                         </span>
                         <span className="text-sm font-bold text-zinc-400">/mês</span>
                      </div>
-                     {billingCycle === "yearly" && (
-                       <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mt-2">
-                          Economia de R$ {(plan.price * 0.2 * 12).toFixed(0)} no ano
-                       </p>
-                     )}
                   </div>
 
                   <div className="space-y-4 mb-10 flex-1">
@@ -221,90 +189,72 @@ export function AssinaturaTab() {
                   </div>
 
                   <Button 
-                    variant={isPopular ? "primary" : "secondary"}
+                    variant={isCurrentPlan ? "primary" : isPopular ? "outline" : "secondary"}
                     className={cn(
                        "h-14 w-full rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl",
-                       adminUser?.planName?.toLowerCase() === plan.name.toLowerCase() && "opacity-50 pointer-events-none"
+                       isCurrentPlan && "opacity-50 pointer-events-none"
                     )}
                   >
-                    {adminUser?.planName?.toLowerCase() === plan.name.toLowerCase() ? "Plano Atual" : "Selecionar Plano"}
+                    {isCurrentPlan ? "Plano Ativo" : "Selecionar Plano"}
                   </Button>
                </motion.div>
              );
            })}
         </div>
 
-        {/* ── PACOTES ADICIONAIS ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-           <div className="space-y-6">
-              <div className="px-2">
-                 <h3 className="text-2xl font-black text-zinc-900 tracking-tight">Serviços & Upgrades</h3>
-                 <p className="text-[10px] text-zinc-400 font-bold mt-1 uppercase tracking-widest">Potencialize seu estúdio com recursos extras.</p>
-              </div>
-              <div className="space-y-3">
-                 {/* Item Dinâmico: Profissional Adicional */}
-                 {plans.find(p => p.name.toLowerCase() === adminUser?.planName?.toLowerCase())?.priceExtraProfessional > 0 && (
-                   <div className="bg-white rounded-[28px] border border-amber-100 p-5 flex items-center justify-between hover:border-amber-300 hover:shadow-xl transition-all group bg-amber-50/10">
-                      <div className="flex items-center gap-4">
-                         <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-lg shadow-amber-200">
-                            <Building2 size={18} />
-                         </div>
-                         <div>
-                            <p className="text-xs font-black text-zinc-900">Profissional Adicional</p>
-                            <p className="text-[10px] text-zinc-400 font-bold uppercase">Aumente o limite da sua equipe</p>
-                         </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                         <span className="text-sm font-black text-zinc-900">
-                            R$ {plans.find(p => p.name.toLowerCase() === adminUser?.planName?.toLowerCase())?.priceExtraProfessional.toFixed(2)}
-                         </span>
-                         <button className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center text-white hover:bg-amber-600 transition-all border border-transparent">
-                            <ArrowRight size={18} />
-                         </button>
-                      </div>
+        {/* ── PACOTES ADICIONAIS & SEGURANÇA ── */}
+        <div className="flex flex-col gap-8">
+           {/* Item Dinâmico: Profissional Adicional */}
+           {plans.find(p => p.name.toLowerCase() === adminUser?.planName?.toLowerCase())?.priceExtraProfessional > 0 && (
+             <div className="bg-amber-50/50 rounded-[40px] border border-amber-200 p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 hover:shadow-xl transition-all w-full relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[80px] rounded-full pointer-events-none" />
+                <div className="flex items-center gap-6 relative z-10">
+                   <div className="w-16 h-16 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-xl shadow-amber-200">
+                      <Building2 size={28} />
                    </div>
-                 )}
-
-                 {PACKAGES.map((pkg) => (
-                   <div key={pkg.id} className="bg-white rounded-[28px] border border-zinc-100 p-5 flex items-center justify-between hover:border-zinc-300 hover:shadow-xl transition-all group">
-                      <div className="flex items-center gap-4">
-                         <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-400 group-hover:bg-zinc-900 group-hover:text-white transition-all">
-                            <pkg.icon size={18} />
-                         </div>
-                         <div>
-                            <p className="text-xs font-black text-zinc-900">{pkg.name}</p>
-                            <p className="text-[10px] text-zinc-400 font-bold uppercase">{pkg.detail}</p>
-                         </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                         <span className="text-sm font-black text-zinc-900">R$ {pkg.price.toFixed(2)}</span>
-                         <button className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-400 hover:bg-zinc-900 hover:text-white transition-all border border-transparent">
-                            <ArrowRight size={18} />
-                         </button>
-                      </div>
+                   <div>
+                      <h3 className="text-xl font-black text-zinc-900 tracking-tight">Profissionais Adicionais</h3>
+                      <p className="text-[11px] text-zinc-500 font-bold uppercase mt-1 tracking-widest">Aumente o limite da sua equipe sob demanda</p>
                    </div>
-                 ))}
+                </div>
+                <div className="flex items-center gap-6 relative z-10 w-full md:w-auto">
+                   <div className="text-center md:text-right flex-1 md:flex-none">
+                     <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Valor por profissional</p>
+                     <span className="text-2xl font-black text-zinc-900">
+                        R$ {plans.find(p => p.name.toLowerCase() === adminUser?.planName?.toLowerCase())?.priceExtraProfessional.toFixed(2)}
+                     </span>
+                     <span className="text-xs font-bold text-zinc-400">/mês</span>
+                   </div>
+                   <Button variant="primary" className="h-14 px-8 rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl">
+                      Adicionar
+                   </Button>
+                </div>
+             </div>
+           )}
+
+           {/* ── SECURITY BANNER ── */}
+           <div className="bg-zinc-900 rounded-[40px] p-8 md:p-12 text-white relative overflow-hidden w-full flex flex-col md:flex-row items-center justify-between gap-8">
+              <div className="absolute top-0 left-0 w-96 h-96 bg-amber-500/10 blur-[120px] rounded-full pointer-events-none" />
+              <div className="absolute bottom-0 right-0 w-96 h-96 bg-violet-500/10 blur-[120px] rounded-full pointer-events-none" />
+              
+              <div className="relative z-10 flex items-start md:items-center gap-6 md:gap-8 max-w-3xl">
+                 <div className="w-16 h-16 rounded-3xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 shrink-0">
+                    <Shield size={32} className="text-amber-500" />
+                 </div>
+                 <div>
+                   <h3 className="text-2xl md:text-3xl font-black tracking-tight leading-tight mb-3">Transações 100% Seguras</h3>
+                   <p className="text-zinc-400 text-sm leading-relaxed font-medium">
+                      Suas informações de pagamento são processadas com criptografia militar de ponta a ponta via Stripe®.
+                      Faturamento automatizado e relatórios transparentes para o seu negócio.
+                   </p>
+                 </div>
               </div>
-           </div>
-
-
-           <div className="bg-zinc-900 rounded-[40px] p-8 md:p-12 text-white relative overflow-hidden flex flex-col justify-center">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[100px] rounded-full" />
-              <div className="relative z-10 space-y-6">
-                 <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center mb-6 border border-white/10">
-                    <Shield size={28} className="text-amber-500" />
-                 </div>
-                 <h3 className="text-3xl font-black tracking-tight leading-tight">Transações 100% Seguras</h3>
-                 <p className="text-zinc-500 text-sm leading-relaxed font-medium">
-                    Suas informações de pagamento são processadas com criptografia de ponta a ponta via Stripe®.
-                    Gerencie faturas e cartões com total transparência.
-                 </p>
-                 <div className="pt-6 flex flex-wrap gap-4 items-center opacity-40 grayscale invert">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" className="h-6" alt="Stripe" />
-                    <div className="w-px h-6 bg-white/20 mx-2" />
-                    <CreditCard size={24} />
-                    <Lock size={24} />
-                 </div>
+              
+              <div className="relative z-10 flex flex-wrap gap-6 items-center opacity-50 grayscale invert md:justify-end">
+                 <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" className="h-8" alt="Stripe" />
+                 <div className="w-px h-8 bg-white/20" />
+                 <CreditCard size={28} />
+                 <Lock size={28} />
               </div>
            </div>
         </div>
