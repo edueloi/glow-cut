@@ -49,7 +49,7 @@ export function InventarioView() {
     const adjustments = products
       .filter(p => p.isDirty && p.counted !== "" && p.counted !== undefined)
       .map(p => ({ productId: p.id, newQty: Number(p.counted) }));
-    if (adjustments.length === 0) { toast.show("Nenhuma contagem alterada para salvar.", "info"); return; }
+    if (adjustments.length === 0) { toast.info("Nenhuma contagem alterada para salvar."); return; }
     setSaving(true);
     try {
       await apiFetch("/api/inventory/inventory-adjust", {

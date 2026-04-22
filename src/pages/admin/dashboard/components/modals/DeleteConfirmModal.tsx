@@ -22,7 +22,14 @@ export function DeleteConfirmModal({
             <Trash2 size={16} className="text-red-500" />
           </div>
           <div>
-            <p className="text-sm font-black text-zinc-900">Excluir profissional</p>
+            <p className="text-sm font-black text-zinc-900">
+              {deleteConfirm?.type === 'professional' ? 'Excluir Profissional' :
+               deleteConfirm?.type === 'service' ? 'Excluir Serviço' :
+               deleteConfirm?.type === 'comanda' ? 'Excluir Comanda' :
+               deleteConfirm?.type === 'client' ? 'Excluir Cliente' :
+               deleteConfirm?.type === 'appointment' ? 'Excluir Agendamento' :
+               'Confirmar Exclusão'}
+            </p>
             <p className="text-xs text-zinc-500 mt-0.5">
               Tem certeza que deseja excluir <span className="font-bold text-zinc-800">{deleteConfirm?.name}</span>? Esta ação não pode ser desfeita.
             </p>

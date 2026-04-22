@@ -16,6 +16,7 @@ import ProfessionalSite from "./pages/ProfessionalSite";
 import SiteLegalPage from "./pages/SiteLegalPage";
 import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
+import RegistrationPage from "./pages/RegistrationPage";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 
 import logoFavicon from "./images/system/logo-favicon.png";
@@ -468,6 +469,7 @@ function App() {
           <Route path="/:slug/termos" element={<SiteLegalPage type="terms" />} />
           <Route path="/:slug/agendar" element={<ClientBooking />} />
           <Route path="/agendar/:slug" element={<ClientBooking />} />
+          <Route path="/assinar" element={<RegistrationPage />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

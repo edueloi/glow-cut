@@ -33,6 +33,6 @@ agendaRouter.get("/settings/working-hours", agendaController.getWorkingHours);
 agendaRouter.put("/settings/working-hours", agendaController.updateWorkingHours);
 
 // Closed Days
-agendaRouter.get("/closed-days", agendaController.getClosedDays);
-agendaRouter.post("/closed-days", agendaController.createClosedDay);
-agendaRouter.delete("/closed-days/:id", agendaController.deleteClosedDay);
+agendaRouter.get("/settings/closed-days", agendaController.getClosedDays);
+agendaRouter.post("/settings/closed-days", agendaController.createClosedDay);
+agendaRouter.delete("/settings/closed-days/:id", agendaController.deleteClosedDay);

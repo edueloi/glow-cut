@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../prisma";
 import { signToken, requireAuth, type JwtPayload } from "../middleware/auth";
+import { randomUUID } from "crypto";
 
 export const authRouter = Router();
 
@@ -77,6 +78,72 @@ authRouter.post("/login", async (req: Request, res: Response) => {
   }
 
   return res.status(401).json({ error: "Usuário ou senha inválidos." });
+});
+
+// ─── REGISTRO PÚBLICO DE PARCEIROS (VENDAS) ───────────────────
+authRouter.get("/plans", async (req, res) => {
+  try {
+    const plans = await (prisma as any).plan.findMany({ where: { isActive: true } });
+    res.json(plans);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+authRouter.post("/register-tenant", async (req, res) => {
+  const { name, slug, ownerName, ownerEmail, ownerPhone, planId, adminPassword, salesPersonId } = req.body;
+
+  if (!name || !slug || !ownerName || !ownerEmail || !planId || !adminPassword) {
+    return res.status(400).json({ error: "Preencha todos os campos obrigatórios." });
+  }
+
+  try {
+    const existing = await (prisma as any).tenant.findFirst({ where: { slug } });
+    if (existing) return res.status(400).json({ error: "Este endereço (slug) já está em uso." });
+
+    const existingEmail = await (prisma as any).adminUser.findFirst({ where: { email: ownerEmail } });
+    if (existingEmail) return res.status(400).json({ error: "Este e-mail já está cadastrado." });
+
+    const plan = await (prisma as any).plan.findUnique({ where: { id: planId } });
+    if (!plan) return res.status(400).json({ error: "Plano inválido." });
+
+    const tenantId = randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30 dias de teste ou ciclo inicial
+
+    const tenant = await (prisma as any).tenant.create({
+      data: {
+        id: tenantId,
+        name,
+        slug,
+        ownerName,
+        ownerEmail,
+        ownerPhone,
+        planId,
+        isActive: true,
+        expiresAt,
+        salesPersonId: salesPersonId || null,
+        themeColor: "#c9a96e",
+      }
+    });
+
+    await (prisma as any).adminUser.create({
+      data: {
+        id: randomUUID(),
+        name: ownerName,
+        email: ownerEmail,
+        password: adminPassword,
+        role: "owner",
+        tenantId,
+        isActive: true,
+        permissions: JSON.stringify(["all"]),
+      }
+    });
+
+    res.json({ success: true, tenantId });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

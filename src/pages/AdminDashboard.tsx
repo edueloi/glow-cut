@@ -1956,31 +1956,38 @@ export default function AdminDashboard() {
                       onChange={e => setNewAppointment((p: any) => ({...p, date: new Date(e.target.value+'T12:00:00')}))}
                     />
 
-                    {!newAppointment.isFullDay && (
-                      <>
-                        <Input
-                          label="Início"
-                          type="time"
-                          value={newAppointment.startTime}
-                          onChange={e => setNewAppointment((p: any) => ({...p, startTime: e.target.value}))}
-                        />
-                        <Input
-                          label="Término"
-                          type="time"
-                          value={endTime}
-                          onChange={e => {
-                            const [hS, mS] = newAppointment.startTime.split(':').map(Number);
-                            const [hE, mE] = e.target.value.split(':').map(Number);
-                            const startMins = hS * 60 + mS;
-                            const endMins = hE * 60 + mE;
-                            const diff = endMins - startMins;
-                            if (diff > 0) {
-                              setNewAppointment(p => ({...p, duration: diff}));
-                            }
-                          }}
-                        />
-                      </>
-                    )}
+                    <div className="flex flex-col gap-4">
+                      {!newAppointment.isFullDay ? (
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input
+                            label="Início"
+                            type="time"
+                            value={newAppointment.startTime}
+                            onChange={e => setNewAppointment((p: any) => ({...p, startTime: e.target.value}))}
+                          />
+                          <Input
+                            label="Término"
+                            type="time"
+                            value={endTime}
+                            onChange={e => {
+                              const [hS, mS] = newAppointment.startTime.split(':').map(Number);
+                              const [hE, mE] = e.target.value.split(':').map(Number);
+                              const startMins = hS * 60 + mS;
+                              const endMins = hE * 60 + mE;
+                              const diff = endMins - startMins;
+                              if (diff > 0) {
+                                setNewAppointment(p => ({...p, duration: diff}));
+                              }
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl bg-zinc-100 border border-zinc-200 text-center">
+                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Horário Automático</p>
+                          <p className="text-xs font-bold text-zinc-700 mt-0.5">00:00 às 23:59 (Dia Inteiro)</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-1.5 pt-1">
@@ -1999,7 +2006,7 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {newAppointment.type === 'atendimento' && (
+              {(newAppointment.type === 'atendimento' || newAppointment.type === 'bloqueio' || newAppointment.type === 'pessoal') && (
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-4 rounded-full bg-violet-400" />

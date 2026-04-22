@@ -39,7 +39,7 @@ import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/per
 /* ═══════════════════════════════════════════
    TIPOS
 ═══════════════════════════════════════════ */
-type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp" | "blog";
+type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp" | "blog" | "sales";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
@@ -1260,6 +1260,139 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
               </div>
             </>
           )}
+        </ContentCard>
+      </div>
+    </div>
+  );
+}
+
+
+/* ═══════════════════════════════════════════
+   ABA: VENDAS E AFILIADOS
+═══════════════════════════════════════════ */
+function SalesTab({ user }: { user: any }) {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+
+  useEffect(() => {
+    if (user?.id) {
+      apiFetch("/api/super-admin/sales-stats")
+        .then(r => r.json())
+        .then(data => {
+          // Garante que stats sempre tem a estrutura esperada
+          setStats({
+            totalSales: data?.totalSales ?? 0,
+            totalActive: data?.totalActive ?? 0,
+            totalRecurring: Number(data?.totalRecurring ?? 0),
+            history: Array.isArray(data?.history) ? data.history : [],
+          });
+        })
+        .catch(() => {
+          setStats({ totalSales: 0, totalActive: 0, totalRecurring: 0, history: [] });
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [user]);
+
+  const salesLink = user ? `${window.location.origin}/assinar?ref=${user.id}` : "";
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(salesLink);
+    toast.success("O seu link de vendas foi copiado para a área de transferência.");
+  };
+
+  if (loading || !stats) return <div className="p-8 text-center text-sm text-zinc-400">Carregando estatísticas...</div>;
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle
+        title="Vendas e Afiliados"
+        description="Acompanhe seu desempenho e compartilhe seu link de vendas"
+        icon={TrendingUp}
+      />
+
+      <ContentCard className="bg-gradient-to-br from-amber-500 to-amber-600 border-none shadow-xl shadow-amber-500/20">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-2">
+          <div className="space-y-2">
+            <h3 className="text-lg font-black text-white">Seu Link de Vendas</h3>
+            <p className="text-amber-100 text-sm font-medium">Use este link para cadastrar novos parceiros e receber atribuição direta.</p>
+          </div>
+          <div className="flex items-center gap-2 bg-white/10 p-1.5 rounded-2xl backdrop-blur-sm border border-white/20">
+            <code className="px-4 py-2 text-white font-bold text-sm truncate max-w-[200px] md:max-w-xs">{salesLink}</code>
+            <Button size="sm" variant="secondary" onClick={copyLink} iconLeft={<FileText size={14} />} className="bg-white text-amber-600 hover:bg-amber-50 border-none shadow-lg">
+              Copiar Link
+            </Button>
+          </div>
+        </div>
+      </ContentCard>
+
+      <StatGrid cols={3}>
+        <StatCard icon={Crown} title="Total de Vendas" value={stats.totalSales ?? 0} color="info" delay={0} />
+        <StatCard icon={CheckCircle} title="Assinaturas Ativas" value={stats.totalActive ?? 0} color="success" delay={0.1} />
+        <StatCard icon={CreditCard} title="Receita Recorrente (MRR)" value={`R$ ${Number(stats.totalRecurring ?? 0).toFixed(2)}`} color="purple" delay={0.2} />
+      </StatGrid>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <ContentCard className="lg:col-span-2" padding="none">
+          <div className="px-5 py-4 border-b border-zinc-100 flex items-center justify-between">
+            <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Histórico de Vendas</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-zinc-50 border-b border-zinc-100">
+                <tr>
+                  <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Parceiro</th>
+                  <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Plano</th>
+                  <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Valor</th>
+                  <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Data</th>
+                  <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {stats.history.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-10 text-center text-sm text-zinc-400">Nenhuma venda realizada ainda.</td>
+                  </tr>
+                ) : (
+                  stats.history.map((h: any) => (
+                    <tr key={h.id} className="hover:bg-zinc-50/50 transition-colors">
+                      <td className="px-5 py-4 text-sm font-bold text-zinc-800">{h.name}</td>
+                      <td className="px-5 py-4"><Badge color="info">{h.planName}</Badge></td>
+                      <td className="px-5 py-4 text-sm font-black text-zinc-700">R$ {h.value.toFixed(2)}</td>
+                      <td className="px-5 py-4 text-xs text-zinc-500">{new Date(h.date).toLocaleDateString("pt-BR")}</td>
+                      <td className="px-5 py-4">
+                        <Badge color={h.status === "Ativo" ? "success" : "default"} dot>{h.status}</Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </ContentCard>
+
+        <ContentCard>
+          <div className="space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
+              <TrendingUp size={24} />
+            </div>
+            <h3 className="text-base font-black text-zinc-900 leading-tight">Como aumentar suas vendas?</h3>
+            <p className="text-sm text-zinc-500 leading-relaxed">
+              Compartilhe seu link exclusivo em suas redes sociais, grupos de WhatsApp e e-mails. Cada parceiro que assinar através do seu link será automaticamente vinculado ao seu perfil.
+            </p>
+            <div className="pt-2 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-zinc-600">
+                <CheckCircle size={14} className="text-emerald-500" /> Atribuição vitalícia
+              </div>
+              <div className="flex items-center gap-2 text-xs font-bold text-zinc-600">
+                <CheckCircle size={14} className="text-emerald-500" /> Relatórios em tempo real
+              </div>
+              <div className="flex items-center gap-2 text-xs font-bold text-zinc-600">
+                <CheckCircle size={14} className="text-emerald-500" /> Suporte dedicado
+              </div>
+            </div>
+          </div>
         </ContentCard>
       </div>
     </div>
@@ -3040,6 +3173,7 @@ const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: stri
   { key: "permissions", icon: <Lock size={17} />,            label: "Permissões",     path: "/super-admin/permissoes" },
   { key: "blog",        icon: <BookOpen size={17} />,        label: "Blog",           path: "/super-admin/blog" },
   { key: "wpp",         icon: <MessageCircle size={17} />,   label: "WhatsApp",       path: "/super-admin/whatsapp" },
+  { key: "sales",       icon: <TrendingUp size={17} />,      label: "Vendas e Afiliados", path: "/super-admin/vendas" },
   { key: "staff",       icon: <Shield size={17} />,          label: "Minha Equipe",   path: "/super-admin/equipe" },
   { key: "profile",     icon: <User size={17} />,            label: "Meu Perfil",     path: "/super-admin/perfil" },
 ];
@@ -3052,6 +3186,7 @@ function pathToTab(pathname: string): TabKey {
   if (pathname.includes("/permissoes"))  return "permissions";
   if (pathname.includes("/blog"))        return "blog";
   if (pathname.includes("/whatsapp"))    return "wpp";
+  if (pathname.includes("/vendas"))      return "sales";
   if (pathname.includes("/equipe"))      return "staff";
   if (pathname.includes("/perfil"))      return "profile";
   return "dash";
@@ -3134,11 +3269,13 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
   const [plans, setPlans] = useState<any[]>([]);
   const [tenants, setTenants] = useState<any[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
 
   useEffect(() => {
     apiFetch("/api/super-admin/plans").then(r => r.json()).then(setPlans);
     apiFetch("/api/super-admin/tenants").then(r => r.json()).then(setTenants);
-  }, []);
+    apiFetch(`/api/super-admin/profile/${username}`).then(r => r.json()).then(setUserData);
+  }, [username]);
 
   const currentNav = NAV_ITEMS.find(n => n.key === tab);
 
@@ -3201,6 +3338,7 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
           {tab === "permissions" && <PermissionsTab tenants={tenants} />}
           {tab === "blog"        && <BlogTab />}
           {tab === "wpp"         && <WppTab plans={plans} />}
+          {tab === "sales"       && <SalesTab user={userData} />}
           {tab === "staff"       && <StaffTab username={username} />}
           {tab === "profile"     && <ProfileTab username={username} />}
         </div>

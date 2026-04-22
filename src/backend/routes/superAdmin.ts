@@ -9,6 +9,45 @@ import {
 
 export const superAdminRouter = Router();
 
+// ─── ESTATÍSTICAS DE VENDAS ───────────────────────────────────
+superAdminRouter.get("/sales-stats", async (req, res) => {
+  try {
+    const userId = (req as any).auth?.sub;
+    if (!userId) return res.status(401).json({ error: "Usuário não identificado" });
+
+    let tenants: any[] = [];
+    try {
+      tenants = await (prisma as any).tenant.findMany({
+        where: { salesPersonId: userId },
+        include: { plan: { select: { name: true, price: true } } },
+        orderBy: { createdAt: "desc" }
+      });
+    } catch (dbErr: any) {
+      // Se a coluna salesPersonId não existir ou outro erro de DB, retorna stats vazios
+      console.warn("[sales-stats] DB query failed:", dbErr?.message);
+    }
+
+    const stats = {
+      totalSales: tenants.length,
+      totalActive: tenants.filter((t: any) => t.isActive).length,
+      totalRecurring: tenants.reduce((acc: number, t: any) => acc + (t.isActive ? Number(t.plan?.price || 0) : 0), 0),
+      history: tenants.map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        planName: t.plan?.name || "N/A",
+        value: Number(t.plan?.price || 0),
+        date: t.createdAt,
+        status: t.isActive ? "Ativo" : "Inativo"
+      }))
+    };
+
+    res.json(stats);
+  } catch (e: any) {
+    // Fallback absoluto — nunca retornar 500
+    res.json({ totalSales: 0, totalActive: 0, totalRecurring: 0, history: [] });
+  }
+});
+
 // ═════════════════════════════════════════════════════════════
 //  SUPER-ADMIN — LOGIN (Movel to global auth later, keeping for mapping)
 // ═════════════════════════════════════════════════════════════
@@ -268,7 +307,7 @@ superAdminRouter.get("/tenants", async (req, res) => {
 });
 
 superAdminRouter.post("/tenants", async (req, res) => {
-  const { name, slug, ownerName, ownerEmail, ownerPhone, planId, notes, adminPassword, expiresAt } = req.body;
+  const { name, slug, ownerName, ownerEmail, ownerPhone, planId, notes, adminPassword, expiresAt, salesPersonId } = req.body;
 
   if (!name || !slug || !ownerName || !ownerEmail || !planId || !adminPassword) {
     return res.status(400).json({ error: "Campos obrigatórios: name, slug, ownerName, ownerEmail, planId, adminPassword." });
@@ -301,6 +340,7 @@ superAdminRouter.post("/tenants", async (req, res) => {
         isActive: true,
         expiresAt: expiresAt ? new Date(expiresAt) : defaultExpires,
         themeColor: "#c9a96e",
+        salesPersonId: salesPersonId || null,
       },
     });
 

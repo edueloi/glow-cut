@@ -72,7 +72,7 @@ export function LiberacoesHorarios({
 
   const handleCreateBlock = async () => {
     if (!newBlock.date || !newBlock.startTime || !newBlock.endTime) {
-      toast.show("Preencha data, hora início e hora fim.", "warning");
+      toast.warning("Preencha data, hora início e hora fim.");
       return;
     }
     setSavingBlock(true);
@@ -84,7 +84,7 @@ export function LiberacoesHorarios({
         endTime: newBlock.endTime,
         professionalId: newBlock.professionalId,
       });
-      toast.show("Bloqueio criado com sucesso.", "success");
+      toast.success("Bloqueio criado com sucesso.");
       setNewBlock((prev) => ({ ...prev, notes: "" }));
     } finally {
       setSavingBlock(false);
@@ -117,7 +117,7 @@ export function LiberacoesHorarios({
 
   const handleSaveRelease = async () => {
     if (!newRelease.date || !newRelease.startTime || !newRelease.endTime) {
-      toast.show("Preencha todos os campos.", "warning");
+      toast.warning("Preencha todos os campos.");
       return;
     }
     setSavingRelease(true);
@@ -128,11 +128,11 @@ export function LiberacoesHorarios({
         body: JSON.stringify(newRelease),
       });
       if (res.ok) {
-        toast.show("Liberação salva com sucesso.", "success");
+        toast.success("Liberação salva com sucesso.");
         fetchReleases();
         setNewRelease((prev) => ({ ...prev, notes: "" }));
       } else {
-        toast.show("Erro ao salvar liberação.", "error");
+        toast.error("Erro ao salvar liberação.");
       }
     } finally {
       setSavingRelease(false);
@@ -141,7 +141,7 @@ export function LiberacoesHorarios({
 
   const handleDeleteRelease = async (id: string) => {
     await apiFetch(`/api/settings/agenda/releases/${id}`, { method: "DELETE" });
-    toast.show("Liberação removida.", "success");
+    toast.success("Liberação removida.");
     fetchReleases();
   };
 
@@ -165,7 +165,7 @@ export function LiberacoesHorarios({
 
   const handleCreateClosedDay = async () => {
     if (!newClosed.date || !newClosed.name.trim()) {
-      toast.show("Preencha a data e o motivo do fechamento.", "warning");
+      toast.warning("Preencha a data e o motivo do fechamento.");
       return;
     }
     setSavingClosed(true);
@@ -175,7 +175,7 @@ export function LiberacoesHorarios({
         body: JSON.stringify(newClosed),
       });
       if (res.ok) {
-        toast.show("Dia fechado com sucesso.", "success");
+        toast.success("Dia fechado com sucesso.");
         fetchClosedDays();
         setNewClosed({ date: format(new Date(), "yyyy-MM-dd"), name: "" });
       }
@@ -186,7 +186,7 @@ export function LiberacoesHorarios({
 
   const handleDeleteClosedDay = async (id: string) => {
     await apiFetch(`/api/settings/closed-days/${id}`, { method: "DELETE" });
-    toast.show("Fechamento removido.", "success");
+    toast.success("Fechamento removido.");
     fetchClosedDays();
   };
 

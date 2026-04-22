@@ -55,144 +55,213 @@ export function AdminScheduleAuxModals(props: any) {
       >
         {selectedAppointment && (
           <div className="space-y-6">
-            <div className="flex items-center gap-4 rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                <CalendarDays size={24} />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black text-zinc-900">{selectedAppointment.client?.name || "Cliente não identificado"}</p>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-500">
-                  {format(new Date(selectedAppointment.date), "EEEE, d 'de' MMMM", { locale: ptBR })} • {selectedAppointment.startTime}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-xl border border-zinc-100 bg-white p-3">
-                <p className="mb-1 text-[9px] font-black uppercase tracking-widest text-zinc-400">Serviço/Pacote</p>
-                <p className="truncate text-xs font-bold text-zinc-800">{selectedAppointment.service?.name || "-"}</p>
-              </div>
-              <div className="rounded-xl border border-zinc-100 bg-white p-3">
-                <p className="mb-1 text-[9px] font-black uppercase tracking-widest text-zinc-400">Profissional</p>
-                <p className="truncate text-xs font-bold text-zinc-800">{selectedAppointment.professional?.name || "-"}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-4">
-              <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-                    selectedAppointment.comanda
-                      ? selectedAppointment.comanda.status === "paid"
-                        ? "bg-emerald-100 text-emerald-600"
-                        : "bg-amber-100 text-amber-600"
-                      : "bg-zinc-100 text-zinc-400"
-                  )}
-                >
-                  <Banknote size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-zinc-900">Status Financeiro</p>
-                  <p className="text-[10px] font-medium text-zinc-500">
-                    {selectedAppointment.comanda
-                      ? selectedAppointment.comanda.status === "paid"
-                        ? "Comanda Paga"
-                        : "Comanda Aberta"
-                      : "Sem comanda vinculada"}
+            {selectedAppointment.type === 'bloqueio' ? (
+              /* Visual Estilizado para Bloqueio */
+              <div className="space-y-5">
+                <div className="p-5 rounded-3xl border-2 border-dashed border-red-200 bg-red-50/50 flex flex-col items-center text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-white border border-red-100 flex items-center justify-center text-red-500 shadow-sm mb-4">
+                    <AlertTriangle size={32} />
+                  </div>
+                  <h3 className="text-lg font-black text-red-900 leading-tight">Horário Bloqueado</h3>
+                  <p className="text-sm font-bold text-red-600/70 mt-1 uppercase tracking-widest">
+                    {selectedAppointment.isFullDay ? "Dia Inteiro" : "Indisponibilidade Local"}
                   </p>
+                  
+                  <div className="mt-6 w-full grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-2xl bg-white border border-red-50 text-left">
+                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Data</p>
+                      <p className="text-xs font-bold text-zinc-800">
+                        {format(new Date(selectedAppointment.date), "dd/MM/yyyy")}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-white border border-red-50 text-left">
+                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Horário</p>
+                      <p className="text-xs font-bold text-zinc-800">
+                        {selectedAppointment.isFullDay ? "00:00 - 23:59" : `${selectedAppointment.startTime}h - ${selectedAppointment.endTime}h`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedAppointment.notes && (
+                    <div className="mt-4 w-full p-4 rounded-2xl bg-white border border-red-50 text-left">
+                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Motivo / Observação</p>
+                      <p className="text-xs font-medium text-zinc-600 italic">"{selectedAppointment.notes}"</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button 
+                    onClick={() => {
+                      setNewAppointment({
+                        ...selectedAppointment,
+                        date: new Date(selectedAppointment.date),
+                        serviceIds: [],
+                        recurrence: { type: "none", count: 1, interval: 7 },
+                      });
+                      setIsViewAppointmentModalOpen(false);
+                      setIsAppointmentModalOpen(true);
+                    }}
+                    className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-zinc-200 bg-white hover:bg-zinc-50 transition-all group"
+                  >
+                    <Clock size={20} className="text-zinc-400 group-hover:text-zinc-600" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Editar Bloqueio</span>
+                  </button>
+                  <button 
+                    onClick={() => {
+                      handleDeleteAppointment(selectedAppointment);
+                      setIsViewAppointmentModalOpen(false);
+                    }}
+                    className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-red-100 bg-red-50/30 hover:bg-red-50 text-red-500 transition-all"
+                  >
+                    <Trash2 size={20} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Remover</span>
+                  </button>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {selectedAppointment.comanda ? (
-                  <Button variant="outline" size="sm" onClick={() => { setIsViewAppointmentModalOpen(false); handleTabChange("comandas"); }}>
-                    Ver Comanda
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    className="bg-amber-500 text-white hover:bg-amber-600"
-                    onClick={() => {
-                      setLinkComandaAppt(selectedAppointment);
-                      setIsLinkComandaModalOpen(true);
-                    }}
-                  >
-                    Importar Comanda
-                  </Button>
-                )}
-              </div>
-            </div>
+            ) : (
+              /* UI Original para Atendimentos */
+              <>
+                <div className="flex items-center gap-4 rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                    <CalendarDays size={24} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-zinc-900">{selectedAppointment.client?.name || "Cliente não identificado"}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-500">
+                      {format(new Date(selectedAppointment.date), "EEEE, d 'de' MMMM", { locale: ptBR })} • {selectedAppointment.startTime}
+                    </p>
+                  </div>
+                </div>
 
-            <div className="pt-2">
-              <p className="mb-3 ml-1 text-[10px] font-black uppercase tracking-widest text-zinc-400">Gerenciar Status</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                <button onClick={() => handleUpdateAppointmentStatus(selectedAppointment.id, "confirmed")} className="group flex flex-col items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 text-emerald-600 transition-all hover:bg-emerald-100">
-                  <CheckCircle size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Confirmar</span>
-                </button>
-                <button onClick={() => handleMarkRealizado(selectedAppointment)} className="group flex flex-col items-center gap-2 rounded-xl border border-zinc-300 bg-zinc-900 p-3 text-white transition-all hover:bg-zinc-800">
-                  <CheckCircle size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Realizado</span>
-                </button>
-                <button onClick={() => handleUpdateAppointmentStatus(selectedAppointment.id, "noshow")} className="group flex flex-col items-center gap-2 rounded-xl border border-red-100 bg-red-50/50 p-3 text-red-600 transition-all hover:bg-red-100">
-                  <AlertTriangle size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Falta</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setNewAppointment({
-                      id: selectedAppointment.id,
-                      date: new Date(selectedAppointment.date),
-                      startTime: selectedAppointment.startTime,
-                      duration: selectedAppointment.duration || 60,
-                      clientId: selectedAppointment.clientId || "",
-                      clientPhone: selectedAppointment.client?.phone || "",
-                      clientName: selectedAppointment.client?.name || "",
-                      serviceId: selectedAppointment.serviceId || "",
-                      packageId: selectedAppointment.packageId || "",
-                      serviceIds: [selectedAppointment.serviceId, selectedAppointment.packageId].filter(Boolean) as string[],
-                      professionalId: selectedAppointment.professionalId || "",
-                      status: selectedAppointment.status || "agendado",
-                      notes: selectedAppointment.notes || "",
-                      type: selectedAppointment.type || "atendimento",
-                      recurrence: { type: "none", count: 1, interval: 7 },
-                      comandaId: selectedAppointment.comandaId || "",
-                    });
-                    setIsViewAppointmentModalOpen(false);
-                    setIsAppointmentModalOpen(true);
-                  }}
-                  className="group flex flex-col items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/50 p-3 text-blue-600 transition-all hover:bg-blue-100"
-                >
-                  <Clock size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Reagendar</span>
-                </button>
-                <button onClick={() => handleUpdateAppointmentStatus(selectedAppointment.id, "cancelled")} className="group flex flex-col items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-zinc-500 transition-all hover:bg-zinc-100">
-                  <XCircle size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Cancelar</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setChangeProfAppt(selectedAppointment);
-                    setChangeProfId(selectedAppointment.professionalId || "");
-                    setIsChangeProfModalOpen(true);
-                  }}
-                  className="group flex flex-col items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/50 p-3 text-violet-600 transition-all hover:bg-violet-100"
-                >
-                  <UserCog size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Trocar Prof.</span>
-                </button>
-                <button
-                  onClick={() => {
-                    handleDeleteAppointment(selectedAppointment);
-                    setIsViewAppointmentModalOpen(false);
-                  }}
-                  className="group flex flex-col items-center gap-2 rounded-xl border border-red-200 bg-white p-3 text-red-400 transition-all hover:bg-red-50"
-                >
-                  <Trash2 size={20} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Excluir</span>
-                </button>
-              </div>
-            </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-xl border border-zinc-100 bg-white p-3">
+                    <p className="mb-1 text-[9px] font-black uppercase tracking-widest text-zinc-400">Serviço/Pacote</p>
+                    <p className="truncate text-xs font-bold text-zinc-800">{selectedAppointment.service?.name || "-"}</p>
+                  </div>
+                  <div className="rounded-xl border border-zinc-100 bg-white p-3">
+                    <p className="mb-1 text-[9px] font-black uppercase tracking-widest text-zinc-400">Profissional</p>
+                    <p className="truncate text-xs font-bold text-zinc-800">{selectedAppointment.professional?.name || "-"}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                        selectedAppointment.comanda
+                          ? selectedAppointment.comanda.status === "paid"
+                            ? "bg-emerald-100 text-emerald-600"
+                            : "bg-amber-100 text-amber-600"
+                          : "bg-zinc-100 text-zinc-400"
+                      )}
+                    >
+                      <Banknote size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-zinc-900">Status Financeiro</p>
+                      <p className="text-[10px] font-medium text-zinc-500">
+                        {selectedAppointment.comanda
+                          ? selectedAppointment.comanda.status === "paid"
+                            ? "Comanda Paga"
+                            : "Comanda Aberta"
+                          : "Sem comanda vinculada"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedAppointment.comanda ? (
+                      <Button variant="outline" size="sm" onClick={() => { setIsViewAppointmentModalOpen(false); handleTabChange("comandas"); }}>
+                        Ver Comanda
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="bg-amber-500 text-white hover:bg-amber-600"
+                        onClick={() => {
+                          setLinkComandaAppt(selectedAppointment);
+                          setIsLinkComandaModalOpen(true);
+                        }}
+                      >
+                        Importar Comanda
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <p className="mb-3 ml-1 text-[10px] font-black uppercase tracking-widest text-zinc-400">Gerenciar Status</p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <button onClick={() => handleUpdateAppointmentStatus(selectedAppointment.id, "confirmed")} className="group flex flex-col items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 text-emerald-600 transition-all hover:bg-emerald-100">
+                      <CheckCircle size={20} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Confirmar</span>
+                    </button>
+                    <button onClick={() => handleMarkRealizado(selectedAppointment)} className="group flex flex-col items-center gap-2 rounded-xl border border-zinc-300 bg-zinc-900 p-3 text-white transition-all hover:bg-zinc-800">
+                      <CheckCircle size={20} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Realizado</span>
+                    </button>
+                    <button onClick={() => handleUpdateAppointmentStatus(selectedAppointment.id, "noshow")} className="group flex flex-col items-center gap-2 rounded-xl border border-red-100 bg-red-50/50 p-3 text-red-600 transition-all hover:bg-red-100">
+                      <AlertTriangle size={20} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Falta</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setNewAppointment({
+                          id: selectedAppointment.id,
+                          date: new Date(selectedAppointment.date),
+                          startTime: selectedAppointment.startTime,
+                          duration: selectedAppointment.duration || 60,
+                          clientId: selectedAppointment.clientId || "",
+                          clientPhone: selectedAppointment.client?.phone || "",
+                          clientName: selectedAppointment.client?.name || "",
+                          serviceId: selectedAppointment.serviceId || "",
+                          packageId: selectedAppointment.packageId || "",
+                          serviceIds: [selectedAppointment.serviceId, selectedAppointment.packageId].filter(Boolean) as string[],
+                          professionalId: selectedAppointment.professionalId || "",
+                          status: selectedAppointment.status || "agendado",
+                          notes: selectedAppointment.notes || "",
+                          type: selectedAppointment.type || "atendimento",
+                          recurrence: { type: "none", count: 1, interval: 7 },
+                          comandaId: selectedAppointment.comandaId || "",
+                        });
+                        setIsViewAppointmentModalOpen(false);
+                        setIsAppointmentModalOpen(true);
+                      }}
+                      className="group flex flex-col items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/50 p-3 text-blue-600 transition-all hover:bg-blue-100"
+                    >
+                      <Clock size={20} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Reagendar</span>
+                    </button>
+                    <button onClick={() => handleUpdateAppointmentStatus(selectedAppointment.id, "cancelled")} className="group flex flex-col items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-zinc-500 transition-all hover:bg-zinc-100">
+                      <XCircle size={20} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Cancelar</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setChangeProfAppt(selectedAppointment);
+                        setChangeProfId(selectedAppointment.professionalId || "");
+                        setIsChangeProfModalOpen(true);
+                      }}
+                      className="group flex flex-col items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/50 p-3 text-violet-600 transition-all hover:bg-violet-100"
+                    >
+                      <UserCog size={20} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Trocar Prof.</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleDeleteAppointment(selectedAppointment);
+                        setIsViewAppointmentModalOpen(false);
+                      }}
+                      className="group flex flex-col items-center gap-2 rounded-xl border border-red-200 bg-white p-3 text-red-400 transition-all hover:bg-red-50"
+                    >
+                      <Trash2 size={20} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Excluir</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </Modal>

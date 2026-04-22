@@ -503,6 +503,8 @@ model Tenant {
   siteCoverUrl          String?     @db.Text
   adminuser             AdminUser[]
   plan                  Plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
+  salesPersonId         String?     @db.VarChar(36)
+  salesPerson           SuperAdmin? @relation(fields: [salesPersonId], references: [id], map: "fk_tenant_salesperson")
 
   @@index([planId], map: "fk_tenant_plan")
 }
@@ -519,6 +521,7 @@ model SuperAdmin {
   bio         String?  @db.Text
   photo       String?  @db.Text
   createdAt   DateTime @default(now()) @db.DateTime(0)
+  tenantsSold Tenant[]
 }
 
 model WppBotConfig {
