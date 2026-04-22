@@ -845,3 +845,233 @@ superAdminRouter.get("/wpp/stats", async (req, res) => {
     res.json({ total24h: 0, total60min: 0, totalToday: 0 });
   }
 });
+
+// ─── FINANCEIRO DA PLATAFORMA ──────────────────────────────────────────────
+
+// Resumo financeiro geral
+superAdminRouter.get("/finance/summary", async (req, res) => {
+  try {
+    const { from, to } = req.query as any;
+    const dateFilter: any = {};
+    if (from) dateFilter.gte = new Date(from);
+    if (to) dateFilter.lte = new Date(to);
+    const where = Object.keys(dateFilter).length ? { date: dateFilter } : {};
+
+    // Total de receitas do banco
+    const incomeRows: any[] = await (prisma as any).$queryRawUnsafe(`
+      SELECT COALESCE(SUM(amount),0) as total FROM PlatformFinance WHERE type='income'
+      ${from ? `AND date >= '${from}'` : ""}
+      ${to ? `AND date <= '${to}'` : ""}
+    `);
+    const totalIncome = Number(incomeRows[0]?.total || 0);
+
+    // Total de despesas do banco
+    const expenseRows: any[] = await (prisma as any).$queryRawUnsafe(`
+      SELECT COALESCE(SUM(amount),0) as total FROM PlatformFinance WHERE type='expense'
+      ${from ? `AND date >= '${from}'` : ""}
+      ${to ? `AND date <= '${to}'` : ""}
+    `);
+    const totalExpense = Number(expenseRows[0]?.total || 0);
+
+    // MRR = soma dos preços dos planos de tenants ativos
+    const tenants = await (prisma as any).tenant.findMany({
+      where: { isActive: true },
+      include: { plan: { select: { price: true } } }
+    });
+    const mrr = tenants.reduce((s: number, t: any) => s + (t.plan?.price || 0), 0);
+
+    // Total assinantes ativos
+    const totalSubscribers = tenants.length;
+
+    // Receita por categoria
+    const byCategory: any[] = await (prisma as any).$queryRawUnsafe(`
+      SELECT category, type, COALESCE(SUM(amount),0) as total, COUNT(*) as count
+      FROM PlatformFinance
+      WHERE 1=1
+      ${from ? `AND date >= '${from}'` : ""}
+      ${to ? `AND date <= '${to}'` : ""}
+      GROUP BY category, type ORDER BY total DESC
+    `);
+
+    // Receita mensal (últimos 12 meses)
+    const monthlyRows: any[] = await (prisma as any).$queryRawUnsafe(`
+      SELECT 
+        DATE_FORMAT(date, '%Y-%m') as month,
+        type,
+        COALESCE(SUM(amount),0) as total
+      FROM PlatformFinance
+      WHERE date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+      GROUP BY month, type ORDER BY month ASC
+    `);
+
+    res.json({
+      totalIncome,
+      totalExpense,
+      netBalance: totalIncome - totalExpense,
+      mrr,
+      totalSubscribers,
+      byCategory: byCategory.map(r => ({ ...r, total: Number(r.total), count: Number(r.count) })),
+      monthly: monthlyRows.map(r => ({ ...r, total: Number(r.total) })),
+    });
+  } catch (e: any) {
+    console.error("[finance/summary]", e);
+    res.json({ totalIncome: 0, totalExpense: 0, netBalance: 0, mrr: 0, totalSubscribers: 0, byCategory: [], monthly: [] });
+  }
+});
+
+// Listar lançamentos financeiros
+superAdminRouter.get("/finance/entries", async (req, res) => {
+  try {
+    const { type, category, from, to, page = "1", limit = "50" } = req.query as any;
+    const conditions: string[] = ["1=1"];
+    if (type) conditions.push(`type='${type}'`);
+    if (category) conditions.push(`category='${category}'`);
+    if (from) conditions.push(`date >= '${from}'`);
+    if (to) conditions.push(`date <= '${to}'`);
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    const rows: any[] = await (prisma as any).$queryRawUnsafe(`
+      SELECT * FROM PlatformFinance
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY date DESC, createdAt DESC
+      LIMIT ${parseInt(limit)} OFFSET ${offset}
+    `);
+
+    const countRows: any[] = await (prisma as any).$queryRawUnsafe(`
+      SELECT COUNT(*) as total FROM PlatformFinance WHERE ${conditions.join(" AND ")}
+    `);
+
+    res.json({
+      entries: rows.map(r => ({ ...r, amount: Number(r.amount) })),
+      total: Number(countRows[0]?.total || 0),
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
+  } catch (e: any) {
+    console.error("[finance/entries]", e);
+    res.json({ entries: [], total: 0, page: 1, limit: 50 });
+  }
+});
+
+// Criar lançamento financeiro
+superAdminRouter.post("/finance/entries", async (req, res) => {
+  try {
+    const { type, category, description, amount, date, recurrence, tenantId, planId, notes } = req.body;
+    if (!category || !amount || !date) return res.status(400).json({ error: "Categoria, valor e data são obrigatórios" });
+
+    const id = randomUUID();
+    const createdBy = (req as any).auth?.sub || null;
+
+    await (prisma as any).$executeRawUnsafe(`
+      INSERT INTO PlatformFinance (id, type, category, description, amount, date, recurrence, tenantId, planId, notes, createdBy)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, id, type || "income", category, description || null, amount, date, recurrence || "once", tenantId || null, planId || null, notes || null, createdBy);
+
+    res.json({ id, ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Atualizar lançamento financeiro
+superAdminRouter.put("/finance/entries/:id", async (req, res) => {
+  try {
+    const { type, category, description, amount, date, recurrence, tenantId, planId, notes } = req.body;
+
+    await (prisma as any).$executeRawUnsafe(`
+      UPDATE PlatformFinance SET
+        type=?, category=?, description=?, amount=?, date=?, recurrence=?, tenantId=?, planId=?, notes=?
+      WHERE id=?
+    `, type || "income", category, description || null, amount, date, recurrence || "once", tenantId || null, planId || null, notes || null, req.params.id);
+
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Deletar lançamento financeiro
+superAdminRouter.delete("/finance/entries/:id", async (req, res) => {
+  try {
+    await (prisma as any).$executeRawUnsafe(`DELETE FROM PlatformFinance WHERE id=?`, req.params.id);
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── ALOCAÇÕES DE % ──────────────────────────────────────────────────────────
+
+superAdminRouter.get("/finance/allocations", async (req, res) => {
+  try {
+    const rows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT * FROM PlatformAllocation ORDER BY percentage DESC`);
+    res.json(rows.map(r => ({ ...r, percentage: Number(r.percentage), isActive: !!r.isActive })));
+  } catch (e: any) {
+    res.json([]);
+  }
+});
+
+superAdminRouter.post("/finance/allocations", async (req, res) => {
+  try {
+    const { name, percentage, color } = req.body;
+    if (!name || percentage == null) return res.status(400).json({ error: "Nome e porcentagem são obrigatórios" });
+    const id = randomUUID();
+    await (prisma as any).$executeRawUnsafe(`
+      INSERT INTO PlatformAllocation (id, name, percentage, color) VALUES (?, ?, ?, ?)
+    `, id, name, percentage, color || "#f59e0b");
+    res.json({ id, ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+superAdminRouter.put("/finance/allocations/:id", async (req, res) => {
+  try {
+    const { name, percentage, color, isActive } = req.body;
+    await (prisma as any).$executeRawUnsafe(`
+      UPDATE PlatformAllocation SET name=?, percentage=?, color=?, isActive=? WHERE id=?
+    `, name, percentage, color || "#f59e0b", isActive ? 1 : 0, req.params.id);
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+superAdminRouter.delete("/finance/allocations/:id", async (req, res) => {
+  try {
+    await (prisma as any).$executeRawUnsafe(`DELETE FROM PlatformAllocation WHERE id=?`, req.params.id);
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Categorias de lançamento disponíveis
+superAdminRouter.get("/finance/categories", async (_req, res) => {
+  res.json({
+    income: [
+      "Assinatura de Plano",
+      "Upgrade de Plano",
+      "Taxa de Setup",
+      "Personalização",
+      "Consultoria",
+      "Suporte Premium",
+      "Comissão / Indicação",
+      "Outros Receitas"
+    ],
+    expense: [
+      "Hospedagem / Servidor",
+      "Domínio",
+      "APIs Externas",
+      "WhatsApp (Baileys/API)",
+      "Marketing / Ads",
+      "Equipe / Salários",
+      "Ferramentas / SaaS",
+      "Impostos",
+      "Contabilidade",
+      "Outros Custos"
+    ]
+  });
+});
+

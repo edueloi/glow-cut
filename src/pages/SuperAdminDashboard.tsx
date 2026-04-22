@@ -39,7 +39,7 @@ import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/per
 /* ═══════════════════════════════════════════
    TIPOS
 ═══════════════════════════════════════════ */
-type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp" | "blog" | "sales" | "settings";
+type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp" | "blog" | "sales" | "settings" | "finance";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
@@ -1433,6 +1433,373 @@ function SalesTab({ user }: { user: any }) {
 
 
 /* ═══════════════════════════════════════════
+   ABA: FINANCEIRO DA PLATAFORMA
+═══════════════════════════════════════════ */
+const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+function FinanceTab() {
+  const toast = useToast();
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState<any>(null);
+  const [entries, setEntries] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [allocations, setAllocations] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any>({ income: [], expense: [] });
+  const [modal, setModal] = useState(false);
+  const [allocModal, setAllocModal] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [activeView, setActiveView] = useState<"overview" | "entries" | "allocations">("overview");
+  const [filterType, setFilterType] = useState<string>("");
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
+  const [form, setForm] = useState<any>({
+    type: "income", category: "", description: "", amount: "", date: new Date().toISOString().split("T")[0], recurrence: "once", notes: ""
+  });
+  const [allocForm, setAllocForm] = useState<any>({ name: "", percentage: "", color: "#f59e0b" });
+  const [editingAlloc, setEditingAlloc] = useState<any>(null);
+
+  const loadSummary = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (filterFrom) params.set("from", filterFrom);
+    if (filterTo) params.set("to", filterTo);
+    const r = await apiFetch(`/api/super-admin/finance/summary?${params}`);
+    setSummary(await r.json());
+  }, [filterFrom, filterTo]);
+
+  const loadEntries = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (filterType) params.set("type", filterType);
+    if (filterFrom) params.set("from", filterFrom);
+    if (filterTo) params.set("to", filterTo);
+    params.set("limit", "100");
+    const r = await apiFetch(`/api/super-admin/finance/entries?${params}`);
+    const data = await r.json();
+    setEntries(data.entries || []);
+    setTotal(data.total || 0);
+  }, [filterType, filterFrom, filterTo]);
+
+  const loadAllocations = useCallback(async () => {
+    const r = await apiFetch("/api/super-admin/finance/allocations");
+    setAllocations(await r.json());
+  }, []);
+
+  const loadCategories = useCallback(async () => {
+    const r = await apiFetch("/api/super-admin/finance/categories");
+    setCategories(await r.json());
+  }, []);
+
+  useEffect(() => {
+    Promise.all([loadSummary(), loadEntries(), loadAllocations(), loadCategories()]).finally(() => setLoading(false));
+  }, [loadSummary, loadEntries, loadAllocations, loadCategories]);
+
+  const saveEntry = async () => {
+    if (!form.category || !form.amount || !form.date) { toast.error("Preencha categoria, valor e data"); return; }
+    const url = editing ? `/api/super-admin/finance/entries/${editing.id}` : "/api/super-admin/finance/entries";
+    const r = await apiFetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, amount: parseFloat(form.amount) }) });
+    if (r.ok) { toast.success(editing ? "Lançamento atualizado!" : "Lançamento criado!"); setModal(false); setEditing(null); loadSummary(); loadEntries(); }
+    else toast.error("Erro ao salvar lançamento");
+  };
+
+  const deleteEntry = async (id: string) => {
+    if (!confirm("Excluir este lançamento?")) return;
+    const r = await apiFetch(`/api/super-admin/finance/entries/${id}`, { method: "DELETE" });
+    if (r.ok) { toast.success("Excluído!"); loadSummary(); loadEntries(); }
+  };
+
+  const openForm = (entry?: any) => {
+    setEditing(entry || null);
+    setForm({
+      type: entry?.type || "income", category: entry?.category || "", description: entry?.description || "",
+      amount: entry?.amount?.toString() || "", date: entry?.date ? new Date(entry.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      recurrence: entry?.recurrence || "once", notes: entry?.notes || ""
+    });
+    setModal(true);
+  };
+
+  const saveAlloc = async () => {
+    if (!allocForm.name || !allocForm.percentage) { toast.error("Preencha nome e porcentagem"); return; }
+    const url = editingAlloc ? `/api/super-admin/finance/allocations/${editingAlloc.id}` : "/api/super-admin/finance/allocations";
+    const r = await apiFetch(url, { method: editingAlloc ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...allocForm, percentage: parseFloat(allocForm.percentage), isActive: true }) });
+    if (r.ok) { toast.success("Alocação salva!"); setAllocModal(false); setEditingAlloc(null); loadAllocations(); }
+  };
+
+  const deleteAlloc = async (id: string) => {
+    if (!confirm("Excluir esta alocação?")) return;
+    await apiFetch(`/api/super-admin/finance/allocations/${id}`, { method: "DELETE" });
+    loadAllocations();
+  };
+
+  const totalAllocPct = allocations.reduce((s: number, a: any) => s + (a.percentage || 0), 0);
+
+  const chartData = (() => {
+    if (!summary?.monthly) return [];
+    const months: Record<string, { income: number; expense: number }> = {};
+    summary.monthly.forEach((r: any) => {
+      if (!months[r.month]) months[r.month] = { income: 0, expense: 0 };
+      months[r.month][r.type as "income" | "expense"] += r.total;
+    });
+    return Object.entries(months).map(([m, v]) => {
+      const [y, mo] = m.split("-");
+      return { label: `${MONTH_NAMES[parseInt(mo) - 1]}/${y.slice(2)}`, ...v };
+    });
+  })();
+  const maxChartVal = Math.max(...chartData.map(d => Math.max(d.income, d.expense)), 1);
+
+  if (loading) return <div className="flex items-center justify-center h-40 text-zinc-400 text-sm font-semibold">Carregando financeiro...</div>;
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle
+        title="Financeiro da Plataforma"
+        description="Controle completo de receitas, despesas e alocações"
+        icon={BarChart2}
+        action={<Button size="sm" iconLeft={<Plus size={14} />} onClick={() => openForm()}>Novo Lançamento</Button>}
+      />
+
+      {/* Sub-tabs */}
+      <div className="flex gap-2 flex-wrap">
+        {([
+          { key: "overview" as const, label: "Visão Geral", icon: LayoutDashboard },
+          { key: "entries" as const, label: "Lançamentos", icon: FileText },
+          { key: "allocations" as const, label: "Alocações (%)", icon: CreditCard },
+        ]).map(t => (
+          <button key={t.key} onClick={() => setActiveView(t.key)} className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-wide transition-all border",
+            activeView === t.key ? "bg-zinc-900 text-white border-zinc-900 shadow-lg shadow-zinc-900/20" : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+          )}>
+            <t.icon size={14} />{t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── VISÃO GERAL ── */}
+      {activeView === "overview" && (<>
+        <ContentCard>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[140px]"><Input label="De" type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} /></div>
+            <div className="flex-1 min-w-[140px]"><Input label="Até" type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} /></div>
+            <Button size="sm" variant="ghost" onClick={() => { setFilterFrom(""); setFilterTo(""); }} className="mb-1">Limpar</Button>
+          </div>
+        </ContentCard>
+
+        <StatGrid cols={4}>
+          <StatCard icon={TrendingUp} title="Receita Total" value={`R$ ${(summary?.totalIncome || 0).toFixed(2)}`} color="success" delay={0} />
+          <StatCard icon={CreditCard} title="Despesas Total" value={`R$ ${(summary?.totalExpense || 0).toFixed(2)}`} color="danger" delay={0.05} />
+          <StatCard icon={BarChart2} title="Saldo Líquido" value={`R$ ${(summary?.netBalance || 0).toFixed(2)}`} color={summary?.netBalance >= 0 ? "success" : "danger"} delay={0.1} />
+          <StatCard icon={Crown} title="MRR Estimado" value={`R$ ${(summary?.mrr || 0).toFixed(2)}`} description={`${summary?.totalSubscribers || 0} assinantes`} color="purple" delay={0.15} />
+        </StatGrid>
+
+        {/* Gráfico mensal */}
+        <ContentCard padding="none">
+          <div className="px-5 py-4 border-b border-zinc-100"><h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Receitas × Despesas (12 meses)</h3></div>
+          <div className="p-5">
+            {chartData.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-zinc-400 text-sm">Registre lançamentos para ver o gráfico.</div>
+            ) : (
+              <div className="flex items-end gap-2 h-48 overflow-x-auto">
+                {chartData.map((d, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-[48px]">
+                    <div className="flex items-end gap-[2px] h-36 w-full justify-center">
+                      <div className="w-4 rounded-t-lg bg-emerald-400 hover:bg-emerald-500 transition-all" style={{ height: `${(d.income / maxChartVal) * 100}%`, minHeight: d.income > 0 ? 4 : 0 }} title={`Receita: R$ ${d.income.toFixed(2)}`} />
+                      <div className="w-4 rounded-t-lg bg-red-400 hover:bg-red-500 transition-all" style={{ height: `${(d.expense / maxChartVal) * 100}%`, minHeight: d.expense > 0 ? 4 : 0 }} title={`Despesa: R$ ${d.expense.toFixed(2)}`} />
+                    </div>
+                    <span className="text-[9px] font-bold text-zinc-400">{d.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-6 mt-4 justify-center">
+              <div className="flex items-center gap-2 text-xs font-bold text-zinc-500"><div className="w-3 h-3 rounded bg-emerald-400" /> Receita</div>
+              <div className="flex items-center gap-2 text-xs font-bold text-zinc-500"><div className="w-3 h-3 rounded bg-red-400" /> Despesa</div>
+            </div>
+          </div>
+        </ContentCard>
+
+        {/* Por categoria */}
+        {summary?.byCategory?.length > 0 && (
+          <ContentCard padding="none">
+            <div className="px-5 py-4 border-b border-zinc-100"><h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Por Categoria</h3></div>
+            <div className="divide-y divide-zinc-100">
+              {summary.byCategory.map((c: any, i: number) => (
+                <div key={i} className="flex items-center justify-between px-5 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-2 h-2 rounded-full", c.type === "income" ? "bg-emerald-400" : "bg-red-400")} />
+                    <span className="text-xs font-bold text-zinc-700">{c.category}</span>
+                    <Badge color={c.type === "income" ? "success" : "danger"}>{c.type === "income" ? "Receita" : "Despesa"}</Badge>
+                  </div>
+                  <div className="text-right">
+                    <span className={cn("text-sm font-black", c.type === "income" ? "text-emerald-600" : "text-red-600")}>R$ {c.total.toFixed(2)}</span>
+                    <span className="text-[10px] text-zinc-400 ml-2">({c.count}x)</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ContentCard>
+        )}
+      </>)}
+
+      {/* ── LANÇAMENTOS ── */}
+      {activeView === "entries" && (<>
+        <ContentCard>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[140px]">
+              <Select label="Tipo" value={filterType} onChange={e => setFilterType(e.target.value)}>
+                <option value="">Todos</option>
+                <option value="income">Receitas</option>
+                <option value="expense">Despesas</option>
+              </Select>
+            </div>
+            <div className="flex-1 min-w-[140px]"><Input label="De" type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} /></div>
+            <div className="flex-1 min-w-[140px]"><Input label="Até" type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} /></div>
+            <Button size="sm" variant="ghost" onClick={() => { setFilterType(""); setFilterFrom(""); setFilterTo(""); }} className="mb-1">Limpar</Button>
+          </div>
+        </ContentCard>
+
+        {entries.length === 0 ? (
+          <EmptyState icon={FileText} title="Nenhum lançamento encontrado" />
+        ) : (
+          <ContentCard padding="none">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-zinc-50 border-b border-zinc-100">
+                  <tr>
+                    {["Data","Tipo","Categoria","Descrição","Valor","Recorrência",""].map(h => (
+                      <th key={h} className={cn("text-left px-4 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest", h === "" && "text-right")}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {entries.map(e => (
+                    <tr key={e.id} className="hover:bg-zinc-50/60 transition-colors">
+                      <td className="px-4 py-3 text-xs font-bold text-zinc-600">{new Date(e.date).toLocaleDateString("pt-BR")}</td>
+                      <td className="px-4 py-3"><Badge color={e.type === "income" ? "success" : "danger"} dot>{e.type === "income" ? "Receita" : "Despesa"}</Badge></td>
+                      <td className="px-4 py-3 text-xs font-bold text-zinc-700">{e.category}</td>
+                      <td className="px-4 py-3 text-xs text-zinc-500 max-w-[200px] truncate">{e.description || "—"}</td>
+                      <td className={cn("px-4 py-3 text-sm font-black", e.type === "income" ? "text-emerald-600" : "text-red-600")}>
+                        {e.type === "income" ? "+" : "−"} R$ {e.amount.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-[10px] text-zinc-400 uppercase font-bold">
+                        {{ once: "Único", monthly: "Mensal", yearly: "Anual" }[e.recurrence as string] || e.recurrence}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          <IconButton variant="ghost" size="xs" onClick={() => openForm(e)}><Edit2 size={13} /></IconButton>
+                          <IconButton variant="danger" size="xs" onClick={() => deleteEntry(e.id)}><Trash2 size={13} /></IconButton>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-5 py-3 border-t border-zinc-100 text-xs text-zinc-400 font-bold">{total} lançamento(s)</div>
+          </ContentCard>
+        )}
+      </>)}
+
+      {/* ── ALOCAÇÕES ── */}
+      {activeView === "allocations" && (<>
+        <ContentCard>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Distribuição do Faturamento</h3>
+              <p className="text-xs text-zinc-400 mt-1">Defina percentuais para separar automaticamente o faturamento</p>
+            </div>
+            <Button size="sm" iconLeft={<Plus size={14} />} onClick={() => { setEditingAlloc(null); setAllocForm({ name: "", percentage: "", color: "#f59e0b" }); setAllocModal(true); }}>Nova Alocação</Button>
+          </div>
+
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Total Alocado</span>
+              <span className={cn("text-sm font-black", totalAllocPct > 100 ? "text-red-500" : totalAllocPct === 100 ? "text-emerald-600" : "text-amber-600")}>{totalAllocPct.toFixed(1)}%</span>
+            </div>
+            <div className="w-full h-3 rounded-full bg-zinc-100 overflow-hidden flex">
+              {allocations.map((a: any, i: number) => (
+                <div key={i} style={{ width: `${Math.min(a.percentage, 100 - allocations.slice(0, i).reduce((s: number, x: any) => s + x.percentage, 0))}%`, background: a.color }} className="h-full transition-all" title={`${a.name}: ${a.percentage}%`} />
+              ))}
+            </div>
+          </div>
+
+          {allocations.length === 0 ? (
+            <EmptyState icon={CreditCard} title="Nenhuma alocação criada" />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {allocations.map((a: any) => (
+                <div key={a.id} className="p-4 rounded-2xl border border-zinc-100 bg-white hover:shadow-md transition-all group">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 rounded-full" style={{ background: a.color }} />
+                      <span className="text-xs font-black text-zinc-800 uppercase tracking-tight">{a.name}</span>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <IconButton variant="ghost" size="xs" onClick={() => { setEditingAlloc(a); setAllocForm({ name: a.name, percentage: a.percentage.toString(), color: a.color }); setAllocModal(true); }}><Edit2 size={12} /></IconButton>
+                      <IconButton variant="danger" size="xs" onClick={() => deleteAlloc(a.id)}><Trash2 size={12} /></IconButton>
+                    </div>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <span className="text-2xl font-black text-zinc-900">{a.percentage}%</span>
+                    {summary?.totalIncome > 0 && <span className="text-xs text-zinc-400 font-bold mb-1">≈ R$ {((summary.totalIncome * a.percentage) / 100).toFixed(2)}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </ContentCard>
+      </>)}
+
+      {/* Modal Lançamento */}
+      <Modal isOpen={modal} onClose={() => { setModal(false); setEditing(null); }} title={editing ? "Editar Lançamento" : "Novo Lançamento"} size="md"
+        footer={<div className="flex justify-end gap-3 w-full">
+          <Button variant="ghost" onClick={() => { setModal(false); setEditing(null); }}>Cancelar</Button>
+          <Button onClick={saveEntry} disabled={!form.category || !form.amount || !form.date} className="bg-zinc-900 text-white hover:bg-black px-6">{editing ? "Atualizar" : "Criar Lançamento"}</Button>
+        </div>}
+      >
+        <div className="space-y-5">
+          <div className="flex gap-2">
+            {[{ v: "income", label: "Receita", color: "bg-emerald-500" }, { v: "expense", label: "Despesa", color: "bg-red-500" }].map(t => (
+              <button key={t.v} onClick={() => setForm((f: any) => ({ ...f, type: t.v, category: "" }))}
+                className={cn("flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-wide transition-all border",
+                  form.type === t.v ? `${t.color} text-white border-transparent shadow-lg` : "bg-zinc-50 text-zinc-500 border-zinc-200"
+                )}>{t.label}</button>
+            ))}
+          </div>
+          <Select label="Categoria *" value={form.category} onChange={e => setForm((f: any) => ({ ...f, category: e.target.value }))}>
+            <option value="">Selecionar...</option>
+            {(form.type === "income" ? categories.income : categories.expense).map((c: string) => <option key={c} value={c}>{c}</option>)}
+          </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Valor (R$) *" type="number" step="0.01" value={form.amount} onChange={e => setForm((f: any) => ({ ...f, amount: e.target.value }))} placeholder="0.00" />
+            <Input label="Data *" type="date" value={form.date} onChange={e => setForm((f: any) => ({ ...f, date: e.target.value }))} />
+          </div>
+          <Select label="Recorrência" value={form.recurrence} onChange={e => setForm((f: any) => ({ ...f, recurrence: e.target.value }))}>
+            <option value="once">Único</option><option value="monthly">Mensal</option><option value="yearly">Anual</option>
+          </Select>
+          <Input label="Descrição" value={form.description} onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))} placeholder="Detalhes..." />
+          <Textarea label="Observações" value={form.notes} onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))} rows={2} placeholder="Notas internas..." />
+        </div>
+      </Modal>
+
+      {/* Modal Alocação */}
+      <Modal isOpen={allocModal} onClose={() => { setAllocModal(false); setEditingAlloc(null); }} title={editingAlloc ? "Editar Alocação" : "Nova Alocação"} size="sm"
+        footer={<div className="flex justify-end gap-3 w-full">
+          <Button variant="ghost" onClick={() => { setAllocModal(false); setEditingAlloc(null); }}>Cancelar</Button>
+          <Button onClick={saveAlloc} disabled={!allocForm.name || !allocForm.percentage} className="bg-zinc-900 text-white hover:bg-black px-6">{editingAlloc ? "Atualizar" : "Criar"}</Button>
+        </div>}
+      >
+        <div className="space-y-4">
+          <Input label="Nome da Alocação *" value={allocForm.name} onChange={e => setAllocForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="Ex: Reserva Fiscal..." />
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Porcentagem (%) *" type="number" step="0.1" value={allocForm.percentage} onChange={e => setAllocForm((f: any) => ({ ...f, percentage: e.target.value }))} placeholder="25" />
+            <Input label="Cor" type="color" value={allocForm.color} onChange={e => setAllocForm((f: any) => ({ ...f, color: e.target.value }))} />
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+
+/* ═══════════════════════════════════════════
    ABA: EQUIPE (STAFF)
 ═══════════════════════════════════════════ */
 function StaffTab({ username, userPermissions }: { username: string; userPermissions: any }) {
@@ -1456,6 +1823,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
     { key: "blog", label: "Blog" },
     { key: "wpp", label: "WhatsApp" },
     { key: "sales", label: "Vendas e Afiliados" },
+    { key: "finance", label: "Financeiro" },
     { key: "staff", label: "Minha Equipe" },
     { key: "settings", label: "Configurações" },
     { key: "profile", label: "Meu Perfil" },
@@ -1762,6 +2130,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
                   blog: BookOpen,
                   wpp: MessageCircle,
                   sales: TrendingUp,
+                  finance: BarChart2,
                   staff: Shield,
                   settings: Globe,
                   profile: User
@@ -3600,6 +3969,7 @@ const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: stri
   { key: "blog",        icon: <BookOpen size={17} />,        label: "Blog",           path: "/super-admin/blog" },
   { key: "wpp",         icon: <MessageCircle size={17} />,   label: "WhatsApp",       path: "/super-admin/whatsapp" },
   { key: "sales",       icon: <TrendingUp size={17} />,      label: "Vendas e Afiliados", path: "/super-admin/vendas" },
+  { key: "finance",     icon: <BarChart2 size={17} />,        label: "Financeiro",     path: "/super-admin/financeiro" },
   { key: "staff",       icon: <Shield size={17} />,          label: "Minha Equipe",   path: "/super-admin/equipe" },
   { key: "settings",    icon: <Globe size={17} />,           label: "Configurações",   path: "/super-admin/configuracoes" },
   { key: "profile",     icon: <User size={17} />,            label: "Meu Perfil",     path: "/super-admin/perfil" },
@@ -3614,6 +3984,7 @@ function pathToTab(pathname: string): TabKey {
   if (pathname.includes("/blog"))        return "blog";
   if (pathname.includes("/whatsapp"))    return "wpp";
   if (pathname.includes("/vendas"))      return "sales";
+  if (pathname.includes("/financeiro"))  return "finance";
   if (pathname.includes("/equipe"))      return "staff";
   if (pathname.includes("/configuracoes")) return "settings";
   return "dash";
@@ -3774,6 +4145,7 @@ export default function SuperAdminDashboard({ username, onLogout, permissions }:
           {tab === "blog"        && <BlogTab />}
           {tab === "wpp"         && <WppTab plans={plans} onUpdatePlans={() => { apiFetch("/api/super-admin/plans").then(r => r.json()).then(setPlans); }} />}
           {tab === "sales"       && <SalesTab user={userData} />}
+          {tab === "finance"     && <FinanceTab />}
           {tab === "staff"       && <StaffTab username={username} userPermissions={permissions} />}
           {tab === "settings"    && <SettingsTab />}
           {tab === "profile"     && <ProfileTab username={username} />}

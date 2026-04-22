@@ -313,6 +313,44 @@ async function initDb() {
     `);
   } catch (e: any) { console.warn("[initDb] BlogSubscriber:", e?.message); }
 
+  // ── PlatformFinance (Entradas e Saídas da plataforma) ─────────────────────
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS PlatformFinance (
+        id          VARCHAR(36)   NOT NULL PRIMARY KEY,
+        type        VARCHAR(20)   NOT NULL DEFAULT 'income',
+        category    VARCHAR(100)  NOT NULL,
+        description VARCHAR(500)  NULL,
+        amount      DOUBLE        NOT NULL DEFAULT 0,
+        date        DATE          NOT NULL,
+        recurrence  VARCHAR(20)   NULL DEFAULT 'once',
+        tenantId    VARCHAR(36)   NULL,
+        planId      VARCHAR(36)   NULL,
+        notes       TEXT          NULL,
+        createdBy   VARCHAR(36)   NULL,
+        createdAt   DATETIME(0)   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt   DATETIME(0)   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        KEY idx_pf_type (type),
+        KEY idx_pf_date (date),
+        KEY idx_pf_category (category)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+  } catch (e: any) { console.warn("[initDb] PlatformFinance:", e?.message); }
+
+  // ── PlatformAllocation (Alocações % do faturamento) ───────────────────────
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS PlatformAllocation (
+        id          VARCHAR(36)   NOT NULL PRIMARY KEY,
+        name        VARCHAR(100)  NOT NULL,
+        percentage  DOUBLE        NOT NULL DEFAULT 0,
+        color       VARCHAR(20)   NOT NULL DEFAULT '#f59e0b',
+        isActive    TINYINT(1)    NOT NULL DEFAULT 1,
+        createdAt   DATETIME(0)   NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+  } catch (e: any) { console.warn("[initDb] PlatformAllocation:", e?.message); }
+
   try {
     const sa = await (prisma as any).superAdmin.findFirst({ where: { username: "Admin" } });
     if (!sa) await (prisma as any).superAdmin.create({ data: { id: randomUUID(), username: "Admin", password: "super123" } });
