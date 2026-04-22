@@ -83,6 +83,7 @@ export function DashboardTab({
   const [profitability, setProfitability] = useState<any>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set());
+  const [isConfirmationsModalOpen, setIsConfirmationsModalOpen] = useState(false);
 
   const currentMonthNum = new Date().getMonth() + 1;
   const todayDay = new Date().getDate();
@@ -193,11 +194,6 @@ export function DashboardTab({
 
   // Agendamentos do dia com status "scheduled" (pendentes de confirmação)
   const today = new Date().toISOString().slice(0, 10);
-  const pendingConfirmations = useMemo(() =>
-    appointments.filter(a => a.date === today && a.status === "scheduled" && !confirmedIds.has(a.id))
-      .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || "")),
-    [appointments, today, confirmedIds]
-  );
 
   const handleConfirm = useCallback(async (apptId: string) => {
     setConfirmingId(apptId);
@@ -209,11 +205,23 @@ export function DashboardTab({
       setConfirmedIds(prev => new Set([...prev, apptId]));
       onAppointmentConfirmed?.();
     } catch {
-      // silently ignore — user will see the button re-enable
+      // silently ignore
     } finally {
       setConfirmingId(null);
     }
   }, [onAppointmentConfirmed]);
+
+  const pendingConfirmations = useMemo(() =>
+    appointments.filter(a => 
+      a.status === "scheduled" && 
+      !confirmedIds.has(a.id) &&
+      (a.date >= today || a.date === today)
+    ).sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return (a.startTime || "").localeCompare(b.startTime || "");
+    }),
+    [appointments, today, confirmedIds]
+  );
 
   const { user: adminUser } = useAuth();
 
@@ -222,9 +230,6 @@ export function DashboardTab({
 
 
 
-      {/* ── GREETING + TOGGLE ── */}
-
-      {/* ── GREETING + TOGGLE ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg sm:text-xl font-black text-zinc-900">{greeting}! 👋</h2>
@@ -477,81 +482,158 @@ export function DashboardTab({
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
-        </div>
       )}
 
-      {/* ── CONFIRMAÇÕES PENDENTES ── */}
-      {pendingConfirmations.length > 0 && (
-        <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-amber-100 bg-amber-50">
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Bell size={16} className="text-amber-600" />
-                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
-                  {pendingConfirmations.length}
-                </span>
-              </div>
-              <h3 className="text-sm font-bold text-zinc-900">Confirmações Pendentes</h3>
-              <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Hoje</span>
+      {/* ── LOGICA DE CONFIRMAÇÕES ── */}
+      <AnimatePresence>
+        {pendingConfirmations.length > 0 && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            onClick={() => setIsConfirmationsModalOpen(true)}
+            className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-5 py-3.5 rounded-2xl shadow-[0_10px_40px_rgb(245,158,11,0.5)] hover:shadow-[0_10px_40px_rgb(245,158,11,0.7)] hover:scale-105 transition-all active:scale-95 group border-2 border-white/20"
+          >
+            <div className="bg-white/20 p-1.5 rounded-lg group-hover:rotate-12 transition-transform">
+              <AlertTriangle size={18} className="text-white" />
             </div>
-            <button onClick={() => handleTabChange("agenda")} className="text-[10px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 transition-colors">
-              Ver Agenda <ArrowUpRight size={11} />
-            </button>
-          </div>
-          <div className="divide-y divide-zinc-100">
-            {pendingConfirmations.map((appt) => (
-              <div key={appt.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-zinc-50/60 transition-colors">
-                {/* Avatar */}
-                <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700 font-black text-sm shrink-0">
-                  {appt.client?.name?.charAt(0).toUpperCase() || "?"}
-                </div>
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-zinc-900 truncate">{appt.client?.name || "—"}</p>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className="text-[10px] text-zinc-500 font-bold">{appt.service?.name || "Serviço"}</span>
-                    {appt.professional?.name && (
-                      <>
-                        <span className="text-zinc-300">·</span>
-                        <span className="text-[10px] text-zinc-400 font-bold">{appt.professional.name}</span>
-                      </>
-                    )}
+            <span className="font-black text-xs sm:text-sm uppercase tracking-widest">Confirmações</span>
+            <div className="w-6 h-6 bg-white text-orange-600 rounded-full flex items-center justify-center text-[11px] font-black shadow-lg animate-bounce sm:animate-none group-hover:animate-pulse">
+              {pendingConfirmations.length}
+            </div>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isConfirmationsModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsConfirmationsModalOpen(false)}
+              className="absolute inset-0 bg-zinc-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-[#f59e0b] text-white">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/20 p-2 rounded-xl">
+                    <Bell size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black uppercase tracking-tight">Agendamentos Pendentes</h3>
+                    <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest mt-0.5">
+                      {pendingConfirmations.length} solicitações recebidas
+                    </p>
                   </div>
                 </div>
-                {/* Horário */}
-                <div className="text-right shrink-0 mr-2">
-                  <p className="text-sm font-black text-zinc-800">{appt.startTime}</p>
-                  <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">hoje</p>
-                </div>
-                {/* Botão confirmar */}
-                <button
-                  onClick={() => handleConfirm(appt.id)}
-                  disabled={confirmingId === appt.id}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-black border transition-all shrink-0",
-                    confirmingId === appt.id
-                      ? "bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed"
-                      : "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent shadow-sm active:scale-95"
-                  )}
+                <button 
+                  onClick={() => setIsConfirmationsModalOpen(false)}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/20 hover:bg-white/30 transition-colors"
                 >
-                  {confirmingId === appt.id
-                    ? <Loader2 size={12} className="animate-spin" />
-                    : <Check size={12} />
-                  }
-                  <span className="hidden sm:inline">{confirmingId === appt.id ? "Confirmando..." : "Confirmar"}</span>
+                  <Plus size={24} className="rotate-45" />
                 </button>
               </div>
-            ))}
+
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                {pendingConfirmations.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-3xl flex items-center justify-center mb-4">
+                      <CheckCircle2 size={32} />
+                    </div>
+                    <p className="text-base font-black text-zinc-800">Tudo em dia!</p>
+                    <p className="text-xs text-zinc-500 max-w-[200px] mt-1">Nenhum agendamento aguardando confirmação no momento.</p>
+                  </div>
+                ) : (
+                  pendingConfirmations.map((appt) => {
+                    const isRecurrent = appt.repeatGroupId || (appt.totalSessions && appt.totalSessions > 1);
+                    return (
+                      <div key={appt.id} className="group bg-zinc-50 rounded-2xl border border-zinc-200 p-4 hover:border-amber-300 hover:bg-amber-50/30 transition-all">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                          <div className="flex gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-white border border-zinc-200 flex items-center justify-center text-[#f59e0b] font-black text-lg shrink-0 shadow-sm">
+                              {appt.client?.name?.charAt(0).toUpperCase() || "?"}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-base font-black text-zinc-900 truncate">
+                                {appt.client?.name || "Cliente sem nome"}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                                <span className="flex items-center gap-1 text-[11px] text-zinc-600 font-bold">
+                                  <Scissors size={12} className="text-zinc-400" />
+                                  {appt.service?.name || "Serviço não informado"}
+                                </span>
+                                <span className="flex items-center gap-1 text-[11px] text-emerald-600 font-black">
+                                  <DollarSign size={12} />
+                                  {(appt.service?.price || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                                <span className="flex items-center gap-1 text-[10px] text-zinc-500 font-bold">
+                                  <CalendarIcon size={12} />
+                                  {format(new Date(appt.date), "dd 'de' MMM", { locale: ptBR })}
+                                </span>
+                                <span className="flex items-center gap-1 text-[10px] text-zinc-500 font-bold">
+                                  <Clock size={12} />
+                                  {appt.startTime}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-3">
+                            {isRecurrent && (
+                              <div className="flex flex-col items-end">
+                                <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-wider flex items-center gap-1">
+                                  <Zap size={10} /> Recorrente ({appt.totalSessions}x)
+                                </span>
+                                <p className="text-[8px] text-amber-600 font-bold mt-1 uppercase">Sessão {appt.sessionNumber} de {appt.totalSessions}</p>
+                              </div>
+                            )}
+                            <button
+                              onClick={() => handleConfirm(appt.id)}
+                              disabled={confirmingId === appt.id}
+                              className={cn(
+                                "w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-black border transition-all shadow-sm active:scale-95",
+                                confirmingId === appt.id
+                                  ? "bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed"
+                                  : "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
+                              )}
+                            >
+                              {confirmingId === appt.id ? (
+                                <Loader2 size={16} className="animate-spin" />
+                              ) : (
+                                <Check size={16} />
+                              )}
+                              {confirmingId === appt.id ? "Confirmando..." : "Confirmar Agendamento"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-100">
+                <div className="flex items-center gap-2 text-[#f59e0b]">
+                  <Zap size={14} />
+                  <p className="text-[10px] font-black uppercase tracking-widest">
+                    A confirmação disparará uma mensagem via WhatsApp automaticamente.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
           </div>
-          <div className="px-5 py-2.5 bg-amber-50/50 border-t border-amber-100">
-            <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">
-              Ao confirmar, o cliente recebe notificação via WhatsApp
-            </p>
-          </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* ── BOTTOM ROW ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
