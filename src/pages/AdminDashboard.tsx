@@ -150,11 +150,12 @@ export default function AdminDashboard() {
   const [showTour, setShowTour] = useState(false);
   
   useEffect(() => {
-    // Se o usuário acabou de completar o onboarding (passo 3), mostramos o tour
-    if (adminUser?.onboardingStep === 3) {
+    // Mostra o tour para quem acabou o onboarding mas ainda não fez o tour
+    // onboardingStep 3 = onboarding OK, < 100 = tour ainda não finalizado
+    if (adminUser?.onboardingStep != null && adminUser.onboardingStep >= 3 && adminUser.onboardingStep < 100) {
       const timer = setTimeout(() => {
         setShowTour(true);
-      }, 2000);
+      }, 800);
       return () => clearTimeout(timer);
     }
   }, [adminUser]);
