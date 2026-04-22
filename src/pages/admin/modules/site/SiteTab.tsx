@@ -65,12 +65,14 @@ export function SiteTab() {
     experienceYears: "10+",
     logoUrl: "",
     siteCoverUrl: "",
+    coverUrl: "",
   });
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const aboutInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -103,6 +105,7 @@ export function SiteTab() {
             experienceYears: data.experienceYears || "10+",
             logoUrl: data.logoUrl || "",
             siteCoverUrl: data.siteCoverUrl || "",
+            coverUrl: data.coverUrl || "",
           });
           initialSlugRef.current = data.slug || "";
         }
@@ -148,7 +151,7 @@ export function SiteTab() {
 
   const handleImageUpload = async (
     file: File,
-    field: "logoUrl" | "siteCoverUrl",
+    field: "logoUrl" | "siteCoverUrl" | "coverUrl",
     setUploading: (v: boolean) => void
   ) => {
     if (!file) return;
@@ -381,6 +384,64 @@ export function SiteTab() {
                 placeholder="Conte a trajetória do seu negócio..."
                 maxLength={800}
               />
+
+              <div className="pt-4 border-t border-zinc-100">
+                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Foto da Seção (Opcional)</p>
+                <div className="flex items-center gap-4">
+                  <div 
+                    className="relative w-32 h-40 rounded-2xl border-2 border-dashed border-zinc-200 overflow-hidden bg-zinc-50 flex items-center justify-center cursor-pointer hover:bg-zinc-100 transition-colors"
+                    onClick={() => aboutInputRef.current?.click()}
+                  >
+                    {formData.coverUrl ? (
+                      <>
+                        <img src={formData.coverUrl} alt="Sobre nós" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Camera size={20} className="text-white" />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-zinc-400 text-center px-2">
+                        <ImageIcon size={20} />
+                        <span className="text-[9px] font-bold uppercase tracking-tight">Upload Foto</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <p className="text-[11px] text-zinc-500 leading-relaxed">
+                      Esta foto aparece ao lado do texto "Quem Somos". Recomendamos uma foto sua ou da sua equipe em formato vertical.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => aboutInputRef.current?.click()}
+                      >
+                        {formData.coverUrl ? "Trocar Foto" : "Escolher Foto"}
+                      </Button>
+                      {formData.coverUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, coverUrl: "" }))}
+                          className="text-[11px] font-bold text-red-500 hover:text-red-600 transition-colors"
+                        >
+                          Remover
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <input
+                  ref={aboutInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) handleImageUpload(f, "coverUrl", (v) => setSaving(v)); // reutiliza o estado de saving ou cria um novo se preferir
+                    e.target.value = "";
+                  }}
+                />
+              </div>
             </div>
           </PanelCard>
 

@@ -437,8 +437,8 @@ export default function ProfessionalSite() {
               className="relative"
             >
               <div className="aspect-[4/5] rounded-3xl overflow-hidden shadow-xl">
-                {heroImage ? (
-                  <img src={heroImage} alt="Sobre nós" className="w-full h-full object-cover" />
+                {tenant.coverUrl || tenant.siteCoverUrl ? (
+                  <img src={tenant.coverUrl || tenant.siteCoverUrl || ""} alt="Sobre nós" className="w-full h-full object-cover" />
                 ) : (
                   <div
                     className="w-full h-full flex flex-col items-center justify-center gap-4 text-white"

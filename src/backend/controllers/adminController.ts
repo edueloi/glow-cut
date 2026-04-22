@@ -165,11 +165,12 @@ export const adminController = {
 
     try {
       // Remove imagens antigas do disco ao trocar
-      if (logoUrl !== undefined || coverUrl !== undefined) {
-        const cur = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { logoUrl: true, coverUrl: true } });
+      if (logoUrl !== undefined || coverUrl !== undefined || req.body.siteCoverUrl !== undefined) {
+        const cur = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { logoUrl: true, coverUrl: true, siteCoverUrl: true } });
         if (cur) {
           if (logoUrl !== undefined && cur.logoUrl && cur.logoUrl !== logoUrl) deleteLocalFile(cur.logoUrl);
           if (coverUrl !== undefined && cur.coverUrl && cur.coverUrl !== coverUrl) deleteLocalFile(cur.coverUrl);
+          if (req.body.siteCoverUrl !== undefined && cur.siteCoverUrl && cur.siteCoverUrl !== req.body.siteCoverUrl) deleteLocalFile(cur.siteCoverUrl);
         }
       }
 
@@ -177,6 +178,7 @@ export const adminController = {
       if (themeColor !== undefined) data.themeColor = themeColor;
       if (logoUrl !== undefined) data.logoUrl = logoUrl;
       if (coverUrl !== undefined) data.coverUrl = coverUrl;
+      if (req.body.siteCoverUrl !== undefined) data.siteCoverUrl = req.body.siteCoverUrl;
       if (address !== undefined) data.address = address;
       if (instagram !== undefined) data.instagram = instagram;
       if (welcomeMessage !== undefined) data.welcomeMessage = welcomeMessage;
@@ -285,7 +287,7 @@ export const adminController = {
     const tenant = await (prisma as any).tenant.findFirst({
       where: { slug: req.params.slug, isActive: true },
       select: { 
-        id: true, name: true, slug: true, themeColor: true, logoUrl: true, coverUrl: true,
+        id: true, name: true, slug: true, themeColor: true, logoUrl: true, coverUrl: true, siteCoverUrl: true,
         address: true, instagram: true, welcomeMessage: true, description: true,
         mission: true, vision: true, values: true, phone: true,
         showProducts: true, showServices: true, showTeam: true,
