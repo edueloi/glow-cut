@@ -530,9 +530,9 @@ async function startServer() {
         const isBlogIndex = canonicalPath === "/blog";
         const isHome = canonicalPath === "/";
 
-        let title = "Agendelle | Agendamentos Inteligentes para Sal\u00f5es e Barbearias";
-        let description = "Agendelle une organiza\u00e7\u00e3o inteligente com eleg\u00e2ncia e praticidade para sal\u00f5es, barbearias e neg\u00f3cios de beleza.";
-        let keywords = "agendamento online, sistema para sal\u00e3o de beleza, barbearia, gest\u00e3o de est\u00e9tica, agendelle, blog agendelle";
+        let title = "Agendelle | A sua Agenda Inteligente para Salões e Barbearias";
+        let description = "Agendelle é a agenda inteligente que une organização com elegância. O sistema perfeito de agendamento online para salões, barbearias e negócios de beleza.";
+        let keywords = "agenda inteligente, agendamento online, sistema para salão de beleza, barbearia, gestão de estética, agendelle, blog agendelle, sistema de agendamento";
         let ogImage = DEFAULT_OG_IMAGE;
         let ogType = "website";
         let robots = "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1";
@@ -942,9 +942,9 @@ async function startServer() {
       console.log(`[SEO] Processando meta-tags para: ${url}`);
       let html = fs.readFileSync(indexPath, "utf-8");
 
-      let title = "Agendelle | Agendamentos Inteligentes para Salões e Barbearias";
-      let description = "Agendelle une organização inteligente com elegância — o sistema perfeito para salões e barbearias que querem crescer com profissionalismo.";
-      let keywords = "agendamento online, sistema para salão de beleza, barbearia, gestão de estética, agendelle";
+      let title = "Agendelle | A sua Agenda Inteligente para Salões e Barbearias";
+      let description = "Agendelle é a agenda inteligente que une organização com elegância. O sistema perfeito de agendamento online para salões, barbearias e negócios de beleza.";
+      let keywords = "agenda inteligente, agendamento online, sistema para salão de beleza, barbearia, gestão de estética, agendelle";
       let ogImage = `${SITE_URL}/og-default.jpg`;
       const canonical = `https://agendelle.com.br${url}`;
 

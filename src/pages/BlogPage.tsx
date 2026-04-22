@@ -371,7 +371,7 @@ export default function BlogPage() {
                 Conteúdo para fazer seu<br /><span style={{ color: "#f59e0b" }}>negócio crescer</span>
               </h1>
               <p style={{ fontSize: 15, color: "#6b7280", maxWidth: 520, margin: "0 auto" }}>
-                Dicas de gestão, marketing digital, atendimento e muito mais para salões, barbearias e clínicas de beleza.
+                Dicas de gestão, marketing digital e tudo sobre a sua agenda inteligente para salões, barbearias e clínicas de beleza.
               </p>
             </div>
 

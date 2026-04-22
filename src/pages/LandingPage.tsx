@@ -136,8 +136,8 @@ export default function LandingPage() {
                 Versão 2.0 com Gestão Inteligente
               </div>
               <h1>
-                A agenda <span className="lp-g">elegante</span><br />
-                para o seu negócio<br />de beleza
+                A sua <span className="lp-g">agenda inteligente</span><br />
+                e elegante para o seu<br />negócio de beleza
               </h1>
               <p className="lp-hero-sub">
                 Agendelle une organização inteligente com elegância — o sistema perfeito para salões e barbearias que querem crescer com profissionalismo.
