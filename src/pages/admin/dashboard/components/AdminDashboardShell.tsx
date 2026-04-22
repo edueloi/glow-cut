@@ -212,7 +212,7 @@ export function AdminDashboardShell({
                     icon={item.icon}
                     label={item.label}
                     collapsed={sidebarCollapsed}
-                    subItems={item.subItems}
+                    subItems={item.subItems?.filter(sub => isItemPermitted(sub.permModule))}
                     activeSubKey={activeTab === item.tab ? activeSubModule : undefined}
                     onSubItemClick={(key) => {
                       if (activeTab !== item.tab) handleTabChange(item.tab);

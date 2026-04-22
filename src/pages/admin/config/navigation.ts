@@ -42,6 +42,7 @@ export type AdminTabId =
 export interface AdminSubNavItem {
   key: string;
   label: string;
+  permModule?: Module;
 }
 
 export interface AdminNavItem {
@@ -123,13 +124,13 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
         icon: Calendar,
         permModule: "agenda",
         subItems: [
-          { key: "minha_agenda",    label: "Calendário Principal" },
-          { key: "por_cliente",     label: "Agenda por cliente" },
-          { key: "consultar",       label: "Consultar agendamentos" },
-          { key: "liberacoes",      label: "Bloqueios e Fechamentos" },
-          { key: "horario-semanal",  label: "Grade Semanal de Horários" },
-          { key: "pat",             label: "PAT - Ativar terminal de atendimento profissional" },
-          { key: "autoatendimento", label: "Autoatendimento" },
+          { key: "minha_agenda",    label: "Calendário Principal", permModule: "agenda_calendario" },
+          { key: "por_cliente",     label: "Agenda por cliente", permModule: "agenda_cliente" },
+          { key: "consultar",       label: "Consultar agendamentos", permModule: "agenda_consultar" },
+          { key: "liberacoes",      label: "Bloqueios e Fechamentos", permModule: "agenda_bloqueios" },
+          { key: "horario-semanal",  label: "Grade Semanal de Horários", permModule: "agenda_horarios" },
+          { key: "pat",             label: "PAT - Ativar terminal de atendimento profissional", permModule: "agenda_pat" },
+          { key: "autoatendimento", label: "Autoatendimento", permModule: "agenda_autoatendimento" },
         ],
       },
       { tab: "minha-agenda", label: "Minha Agenda Online", icon: Globe, permModule: "minha_agenda" },
@@ -147,18 +148,18 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
         icon: Banknote,
         permModule: "financeiro",
         subItems: [
-          { key: "controle",              label: "Controle de entrada e saída" },
-          { key: "caixa",                 label: "Financeiro – Caixa" },
-          { key: "pagamentos",            label: "Pagamento de Profissionais" },
-          { key: "formas_pagamento",      label: "Fluxo financeiro por forma de pagamento" },
-          { key: "despesas",              label: "Despesas/Contas a Pagar" },
-          { key: "clientes_debito",       label: "Clientes em débito" },
-          { key: "credito_cliente",       label: "Crédito de cliente" },
-          { key: "contas",                label: "Contas financeiras" },
-          { key: "exportacao",            label: "Exportação Lançamentos Financeiros" },
-          { key: "antecipacao",           label: "Lançamento de antecipação" },
-          { key: "motivos_desconto",      label: "Motivos de desconto" },
-          { key: "relatorio_profissionais", label: "Relatório financeiro por profissional" },
+          { key: "controle",              label: "Controle de entrada e saída", permModule: "fin_controle" },
+          { key: "caixa",                 label: "Financeiro – Caixa", permModule: "fin_caixa" },
+          { key: "pagamentos",            label: "Pagamento de Profissionais", permModule: "fin_pagamentos" },
+          { key: "formas_pagamento",      label: "Fluxo financeiro por forma de pagamento", permModule: "fin_formas" },
+          { key: "despesas",              label: "Despesas/Contas a Pagar", permModule: "fin_despesas" },
+          { key: "clientes_debito",       label: "Clientes em débito", permModule: "fin_debito" },
+          { key: "credito_cliente",       label: "Crédito de cliente", permModule: "fin_credito" },
+          { key: "contas",                label: "Contas financeiras", permModule: "fin_contas" },
+          { key: "exportacao",            label: "Exportação Lançamentos Financeiros", permModule: "fin_exportacao" },
+          { key: "antecipacao",           label: "Lançamento de antecipação", permModule: "fin_antecipacao" },
+          { key: "motivos_desconto",      label: "Motivos de desconto", permModule: "fin_motivos" },
+          { key: "relatorio_profissionais", label: "Relatório financeiro por profissional", permModule: "fin_relatorio" },
         ],
       },
       {
