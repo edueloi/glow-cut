@@ -16,6 +16,15 @@ interface PublicAgendaSettings {
   enableClientAgendaView: boolean;
   allowClientRecurrence: boolean;
   autoConfirmAppointments: boolean;
+  selfServiceShowProfessional: boolean;
+  selfServiceShowPrices: boolean;
+  selfServiceRequireLogin: boolean;
+  selfServiceWelcomeMessage: string;
+  allowClientCancellation: boolean;
+  allowClientReschedule: boolean;
+  minAdvanceMinutes: number;
+  maxAdvanceDays: number;
+  slotIntervalMinutes: number;
 }
 
 function toDateInputValue(value: string | null | undefined) {
@@ -33,6 +42,15 @@ const DEFAULT_PUBLIC_AGENDA_SETTINGS: PublicAgendaSettings = {
   enableClientAgendaView: true,
   allowClientRecurrence: false,
   autoConfirmAppointments: false,
+  selfServiceShowProfessional: true,
+  selfServiceShowPrices: true,
+  selfServiceRequireLogin: false,
+  selfServiceWelcomeMessage: "",
+  allowClientCancellation: true,
+  allowClientReschedule: false,
+  minAdvanceMinutes: 30,
+  maxAdvanceDays: 60,
+  slotIntervalMinutes: 30,
 };
 
 export default function ClientBooking() {
@@ -133,14 +151,16 @@ export default function ClientBooking() {
     } catch { return professionals; }
   };
 
-  // Se só tem 1 profissional (ou nenhum), pula a seleção
+  // Se só tem 1 profissional (ou nenhum), ou se a config esconde profissional, pula a seleção
+  const showProfessionalChoice = publicAgendaSettings.selfServiceShowProfessional;
   const onlyOneProfessional = professionals.length <= 1;
-  const getDefaultProfessional = () => professionals.length === 1 ? professionals[0] : null;
+  const skipProfessionalStep = onlyOneProfessional || !showProfessionalChoice;
+  const getDefaultProfessional = () => professionals.length === 1 ? professionals[0] : (professionals.length > 0 ? professionals[0] : null);
 
-  // Ao clicar "Agendar" na home: se só 1 prof → vai direto para serviços
+  // Ao clicar "Agendar" na home: se só 1 prof ou escondido → vai direto para serviços
   const handleStartBooking = () => {
     if (!canBookOnline) return;
-    if (onlyOneProfessional) {
+    if (skipProfessionalStep) {
       setSelectedProfessional(getDefaultProfessional());
       setStep("by-service");
     } else {
@@ -148,10 +168,10 @@ export default function ClientBooking() {
     }
   };
 
-  // Após escolher serviço (no by-service): se só 1 prof → vai direto para data
+  // Após escolher serviço (no by-service): se só 1 prof ou escondido → vai direto para data
   const handleServiceSelected = (s: any) => {
     setSelectedService(s);
-    if (onlyOneProfessional) {
+    if (skipProfessionalStep) {
       const prof = getDefaultProfessional();
       setSelectedProfessional(prof);
       setStep("date");
@@ -543,6 +563,12 @@ export default function ClientBooking() {
                     <h3 className="text-xl font-black text-zinc-900 tracking-tight">O que deseja fazer?</h3>
                   </div>
 
+                  {publicAgendaSettings.selfServiceWelcomeMessage && (
+                    <div className="mb-4 p-4 rounded-2xl bg-zinc-50 border border-zinc-100 text-[13px] leading-relaxed text-zinc-600 font-medium whitespace-pre-wrap">
+                      {publicAgendaSettings.selfServiceWelcomeMessage}
+                    </div>
+                  )}
+
                   <button
                     disabled={!canBookOnline}
                     className={cn(
@@ -785,7 +811,7 @@ export default function ClientBooking() {
                           </p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-sm font-black" style={{ color: customColor }}>R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</p>
+                          {publicAgendaSettings.selfServiceShowPrices && <p className="text-sm font-black" style={{ color: customColor }}>R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</p>}
                         </div>
                       </button>
                     ))}
@@ -826,7 +852,7 @@ export default function ClientBooking() {
                             </p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-sm font-black" style={{ color: customColor }}>R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</p>
+                            {publicAgendaSettings.selfServiceShowPrices && <p className="text-sm font-black" style={{ color: customColor }}>R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</p>}
                           </div>
                         </button>
                       );
@@ -843,7 +869,7 @@ export default function ClientBooking() {
                     <h3 className="text-2xl font-black text-zinc-900 tracking-tight">Profissional</h3>
                     <p className="text-xs text-zinc-400 font-medium mt-1">Quem vai te atender?</p>
                   </div>
-                  {selectedService && <SelectionChip label={selectedService.name} sub={`${selectedService.duration} min · R$ ${parseFloat(selectedService.price).toFixed(2).replace(".", ",")}`} />}
+                  {selectedService && <SelectionChip label={selectedService.name} sub={`${selectedService.duration} min${publicAgendaSettings.selfServiceShowPrices ? ` · R$ ${parseFloat(selectedService.price).toFixed(2).replace(".", ",")}` : ""}`} />}
                   <div className="space-y-3">
                     {/* Sem preferência */}
                     <button
@@ -967,7 +993,11 @@ export default function ClientBooking() {
                           if (isBlocked) dayStatus = "closed";
                           else if (calendarStatus[dateString]) dayStatus = calendarStatus[dateString] as any;
                           else if (dayOfWeek === 0) dayStatus = "closed";
-                          const isDisabled = isPastDay || !isCurrentMonth || dayStatus === "closed";
+                          
+                          const maxAdvanceDate = addDays(today, publicAgendaSettings.maxAdvanceDays);
+                          const isBeyondMaxAdvance = isBefore(maxAdvanceDate, day);
+                          const isDisabled = isPastDay || !isCurrentMonth || dayStatus === "closed" || isBeyondMaxAdvance;
+                          
                           days.push(
                             <button key={day.toISOString()} disabled={isDisabled}
                               onClick={() => { setSelectedDate(cloneDay); setSelectedSlot(null); fetchAvailability(cloneDay, selectedService.id, selectedProfessional.id); }}
@@ -1085,24 +1115,32 @@ export default function ClientBooking() {
                             animate={{ opacity: 1, y: 0 }}
                             className="space-y-5"
                           >
-                            <Input
-                              label={isExistingClient ? "Confirmar Nome" : "Seu nome completo"}
-                              value={clientData.name}
-                              onChange={(e: any) => setClientData({ ...clientData, name: e.target.value })}
-                              readOnly={isExistingClient}
-                              placeholder="Como devemos te chamar?"
-                              iconLeft={<User size={16} />}
-                            />
+                            {(!isExistingClient && publicAgendaSettings.selfServiceRequireLogin) ? (
+                              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11px] font-bold text-rose-600">
+                                Este estúdio exige cadastro prévio para agendamento online. Por favor, entre em contato via WhatsApp.
+                              </div>
+                            ) : (
+                              <>
+                                <Input
+                                  label={isExistingClient ? "Confirmar Nome" : "Seu nome completo"}
+                                  value={clientData.name}
+                                  onChange={(e: any) => setClientData({ ...clientData, name: e.target.value })}
+                                  readOnly={isExistingClient}
+                                  placeholder="Como devemos te chamar?"
+                                  iconLeft={<User size={16} />}
+                                />
 
-                            {!isExistingClient && (
-                              <Input
-                                label="Data de Aniversário"
-                                type="date"
-                                value={clientData.birthDate}
-                                onChange={(e: any) => setClientData({ ...clientData, birthDate: e.target.value })}
-                                hint="Opcional. Adoraríamos te dar um parabéns!"
-                                iconLeft={<CalendarIcon size={16} />}
-                              />
+                                {!isExistingClient && (
+                                  <Input
+                                    label="Data de Aniversário"
+                                    type="date"
+                                    value={clientData.birthDate}
+                                    onChange={(e: any) => setClientData({ ...clientData, birthDate: e.target.value })}
+                                    hint="Opcional. Adoraríamos te dar um parabéns!"
+                                    iconLeft={<CalendarIcon size={16} />}
+                                  />
+                                )}
+                              </>
                             )}
                           </motion.div>
                         )}
@@ -1140,7 +1178,7 @@ export default function ClientBooking() {
 
                   <Button
                     onClick={() => handleBooking()}
-                    disabled={!clientData.name || phone.replace(/\D/g,"").length < 10 || isLoading}
+                    disabled={!clientData.name || phone.replace(/\D/g,"").length < 10 || isLoading || (!isExistingClient && publicAgendaSettings.selfServiceRequireLogin)}
                     className="w-full h-14 rounded-2xl text-white font-black text-base shadow-2xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
                     style={{ backgroundColor: customColor }}
                     iconLeft={isLoading ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}

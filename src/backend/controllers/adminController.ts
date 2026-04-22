@@ -42,6 +42,7 @@ const DEFAULT_AGENDA_SETTINGS = {
   minAdvanceMinutes: 30,
   maxAdvanceDays: 60,
   allowClientRecurrence: false,
+  selfServiceRequireLogin: false,
   notes: "",
 };
 
@@ -62,6 +63,7 @@ function normalizeAgendaSettings(row: any, tenantId: string) {
     blockNationalHolidays: asBool(row?.blockNationalHolidays, DEFAULT_AGENDA_SETTINGS.blockNationalHolidays),
     selfServiceShowProfessional: asBool(row?.selfServiceShowProfessional, DEFAULT_AGENDA_SETTINGS.selfServiceShowProfessional),
     selfServiceShowPrices: asBool(row?.selfServiceShowPrices, DEFAULT_AGENDA_SETTINGS.selfServiceShowPrices),
+    selfServiceRequireLogin: asBool(row?.selfServiceRequireLogin, DEFAULT_AGENDA_SETTINGS.selfServiceRequireLogin),
     selfServiceWelcomeMessage: row?.selfServiceWelcomeMessage || DEFAULT_AGENDA_SETTINGS.selfServiceWelcomeMessage,
     minAdvanceMinutes: Number(row?.minAdvanceMinutes) || DEFAULT_AGENDA_SETTINGS.minAdvanceMinutes,
     maxAdvanceDays: Number(row?.maxAdvanceDays) || DEFAULT_AGENDA_SETTINGS.maxAdvanceDays,
@@ -298,7 +300,7 @@ export const adminController = {
       }
     });
     if (!tenant) return res.status(404).json({ error: "Estúdio não encontrado." });
-    let agendaSettings: any = { onlineBookingEnabled: true, enableSelfService: true, enableAppointmentSearch: true, enableClientAgendaView: true, selfServiceShowProfessional: true, selfServiceShowPrices: true, selfServiceWelcomeMessage: "", allowClientCancellation: true, allowClientReschedule: false, allowClientRecurrence: false, minAdvanceMinutes: 30, maxAdvanceDays: 60, slotIntervalMinutes: 30 };
+    let agendaSettings: any = { onlineBookingEnabled: true, enableSelfService: true, enableAppointmentSearch: true, enableClientAgendaView: true, selfServiceShowProfessional: true, selfServiceShowPrices: true, selfServiceRequireLogin: false, selfServiceWelcomeMessage: "", allowClientCancellation: true, allowClientReschedule: false, allowClientRecurrence: false, minAdvanceMinutes: 30, maxAdvanceDays: 60, slotIntervalMinutes: 30 };
     try {
       const settings = await ensureAgendaSettingsRecord(tenant.id);
       agendaSettings = {
@@ -308,6 +310,7 @@ export const adminController = {
         enableClientAgendaView: settings.enableClientAgendaView,
         selfServiceShowProfessional: settings.selfServiceShowProfessional,
         selfServiceShowPrices: settings.selfServiceShowPrices,
+        selfServiceRequireLogin: settings.selfServiceRequireLogin,
         selfServiceWelcomeMessage: settings.selfServiceWelcomeMessage || "",
         allowClientCancellation: settings.allowClientCancellation,
         allowClientReschedule: settings.allowClientReschedule,
