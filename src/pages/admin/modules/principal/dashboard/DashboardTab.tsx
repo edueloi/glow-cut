@@ -19,7 +19,8 @@ import { apiFetch } from "@/src/lib/api";
 import { useAuth } from "@/src/App";
 import { Badge } from "@/src/components/ui/Badge";
 import { parseISO, differenceInDays } from "date-fns";
-import { ConfirmModal } from "@/src/components/ui/Modal";
+import { Modal, ConfirmModal } from "@/src/components/ui/Modal";
+import { Button } from "@/src/components/ui/Button";
 
 
 interface DashboardTabProps {
@@ -541,133 +542,117 @@ export function DashboardTab({
           </motion.button>
         )}
       </AnimatePresence>
-
-      <AnimatePresence>
-        {isConfirmationsModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsConfirmationsModalOpen(false)}
-              className="absolute inset-0 bg-zinc-900/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
-            >
-              <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-[#f59e0b] text-white">
-                <div className="flex items-center gap-3">
-                  <div className="bg-white/20 p-2 rounded-xl">
-                    <Bell size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black uppercase tracking-tight">Agendamentos Pendentes</h3>
-                    <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest mt-0.5">
-                      {pendingConfirmations.length} solicitações recebidas
-                    </p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setIsConfirmationsModalOpen(false)}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/20 hover:bg-white/30 transition-colors"
-                >
-                  <Plus size={24} className="rotate-45" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-                {pendingConfirmations.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-3xl flex items-center justify-center mb-4">
-                      <CheckCircle2 size={32} />
-                    </div>
-                    <p className="text-base font-black text-zinc-800">Tudo em dia!</p>
-                    <p className="text-xs text-zinc-500 max-w-[200px] mt-1">Nenhum agendamento aguardando confirmação no momento.</p>
-                  </div>
-                ) : (
-                  pendingConfirmations.map((appt) => {
-                    const isRecurrent = appt.repeatGroupId || (appt.totalSessions && appt.totalSessions > 1);
-                    return (
-                      <div key={appt.id} className="group bg-zinc-50 rounded-2xl border border-zinc-200 p-4 hover:border-amber-300 hover:bg-amber-50/30 transition-all">
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                          <div className="flex gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-white border border-zinc-200 flex items-center justify-center text-[#f59e0b] font-black text-lg shrink-0 shadow-sm">
-                              {appt.client?.name?.charAt(0).toUpperCase() || "?"}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-base font-black text-zinc-900 truncate">
-                                {appt.client?.name || "Cliente sem nome"}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-                                <span className="flex items-center gap-1 text-[11px] text-zinc-600 font-bold">
-                                  <Scissors size={12} className="text-zinc-400" />
-                                  {appt.service?.name || "Serviço não informado"}
-                                </span>
-                                <span className="flex items-center gap-1 text-[11px] text-emerald-600 font-black">
-                                  <DollarSign size={12} />
-                                  {(appt.service?.price || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
-                                <span className="flex items-center gap-1 text-[10px] text-zinc-500 font-bold">
-                                  <CalendarIcon size={12} />
-                                  {format(new Date(appt.date), "dd 'de' MMM", { locale: ptBR })}
-                                </span>
-                                <span className="flex items-center gap-1 text-[10px] text-zinc-500 font-bold">
-                                  <Clock size={12} />
-                                  {appt.startTime}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-3">
-                            {isRecurrent && (
-                              <div className="flex flex-col items-end">
-                                <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-wider flex items-center gap-1">
-                                  <Zap size={10} /> Recorrente ({appt.totalSessions}x)
-                                </span>
-                                <p className="text-[8px] text-amber-600 font-bold mt-1 uppercase">Sessão {appt.sessionNumber} de {appt.totalSessions}</p>
-                              </div>
-                            )}
-                            <button
-                              onClick={() => handleConfirm(appt.id)}
-                              disabled={confirmingId === appt.id}
-                              className={cn(
-                                "w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-black border transition-all shadow-sm active:scale-95",
-                                confirmingId === appt.id
-                                  ? "bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed"
-                                  : "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
-                              )}
-                            >
-                              {confirmingId === appt.id ? (
-                                <Loader2 size={16} className="animate-spin" />
-                              ) : (
-                                <Check size={16} />
-                              )}
-                              {confirmingId === appt.id ? "Confirmando..." : "Confirmar Agendamento"}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-100">
-                <div className="flex items-center gap-2 text-[#f59e0b]">
-                  <Zap size={14} />
-                  <p className="text-[10px] font-black uppercase tracking-widest">
-                    A confirmação disparará uma mensagem via WhatsApp automaticamente.
-                  </p>
-                </div>
-              </div>
-            </motion.div>
+      <Modal
+        isOpen={isConfirmationsModalOpen}
+        onClose={() => setIsConfirmationsModalOpen(false)}
+        size="lg"
+        hideCloseButton
+        className="p-0"
+      >
+        {/* Header Customizado */}
+        <div className="bg-[#f59e0b] text-white px-6 py-7 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 p-3 rounded-[20px] backdrop-blur-sm shadow-inner">
+              <Bell size={24} className="animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black uppercase tracking-tight leading-none">Agendamentos Pendentes</h3>
+              <p className="text-[11px] font-black text-white/90 uppercase tracking-[0.2em] mt-2 flex items-center gap-2">
+                 <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-ping" />
+                 {pendingConfirmations.length} solicitações recebidas
+              </p>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+          <button 
+            onClick={() => setIsConfirmationsModalOpen(false)}
+            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/20 hover:bg-white/30 transition-all active:scale-90"
+          >
+            <Plus size={28} className="rotate-45" />
+          </button>
+        </div>
+
+        <div className="p-5 sm:p-7 space-y-5 max-h-[65vh] overflow-y-auto">
+          {pendingConfirmations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-[32px] flex items-center justify-center mb-6 shadow-sm">
+                <CheckCircle2 size={40} />
+              </div>
+              <p className="text-lg font-black text-zinc-800">Tudo em dia!</p>
+              <p className="text-sm text-zinc-500 max-w-[220px] mt-2 font-medium">Nenhum agendamento aguardando confirmação no momento.</p>
+            </div>
+          ) : (
+            pendingConfirmations.map((appt) => {
+              const isRecurrent = appt.repeatGroupId || (appt.totalSessions && appt.totalSessions > 1);
+              return (
+                <div key={appt.id} className="group bg-white rounded-[32px] border border-zinc-100 p-6 shadow-md hover:shadow-xl hover:border-amber-200 transition-all duration-300">
+                  <div className="flex flex-col sm:flex-row items-start justify-between gap-6">
+                    <div className="flex gap-5 w-full">
+                      <div className="w-16 h-16 rounded-[24px] bg-zinc-50 border border-zinc-100 flex items-center justify-center text-[#f59e0b] font-black text-2xl shrink-0 shadow-inner group-hover:bg-amber-50 group-hover:border-amber-100 transition-colors">
+                        {appt.client?.name?.charAt(0).toUpperCase() || "?"}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xl font-black text-zinc-900 truncate tracking-tight">
+                          {appt.client?.name || "Cliente sem nome"}
+                        </p>
+                        
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3">
+                           <div className="flex items-center gap-2 text-xs font-bold text-zinc-500">
+                              <Scissors size={14} className="text-zinc-400" />
+                              <span className="truncate">{appt.service?.name || "Serviço"}</span>
+                           </div>
+                           <div className="flex items-center gap-2 text-xs font-black text-emerald-600">
+                              <DollarSign size={14} />
+                              {(appt.service?.price || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                           </div>
+                           <div className="flex items-center gap-2 text-xs font-bold text-zinc-500">
+                              <CalendarIcon size={14} className="text-zinc-400" />
+                              {format(new Date(appt.date), "dd 'de' MMM", { locale: ptBR })}
+                           </div>
+                           <div className="flex items-center gap-2 text-xs font-bold text-zinc-500">
+                              <Clock size={14} className="text-zinc-400" />
+                              {appt.startTime}
+                           </div>
+                        </div>
+
+                        {isRecurrent && (
+                          <div className="mt-4 flex flex-col items-start">
+                            <span className="bg-amber-100/60 text-amber-700 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-wider flex items-center gap-1.5 border border-amber-200">
+                              <Zap size={11} fill="currentColor" /> Recorrente ({appt.totalSessions}x)
+                            </span>
+                            <p className="text-[9px] text-amber-600 font-bold mt-1.5 uppercase tracking-widest pl-1">Sessão {appt.sessionNumber} de {appt.totalSessions}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <Button
+                      variant="success"
+                      fullWidth
+                      size="lg"
+                      loading={confirmingId === appt.id}
+                      onClick={() => handleConfirm(appt.id)}
+                      className="rounded-[20px] font-black uppercase tracking-widest text-[11px] h-12 shadow-lg shadow-emerald-500/10"
+                      iconLeft={<Check size={18} strokeWidth={3} />}
+                    >
+                      Confirmar Agendamento
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer com Mensagem de Bot */}
+        <div className="bg-zinc-50 border-t border-zinc-100 px-6 py-5 rounded-b-[2rem]">
+           <p className="text-[10px] sm:text-[11px] font-black text-[#f59e0b] uppercase tracking-widest flex items-center justify-center gap-2 text-center leading-relaxed">
+             <Zap size={12} fill="currentColor" className="animate-pulse shrink-0" />
+             A confirmação disparará uma mensagem via WhatsApp automaticamente.
+           </p>
+        </div>
+      </Modal>
 
       {/* ── BOTTOM ROW ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">

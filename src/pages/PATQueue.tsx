@@ -189,20 +189,19 @@ function AppointmentCard({
                     >
                       <Check size={20} strokeWidth={3} />
                     </button>
-                    {!isFirst && (
-                        <button
-                          onClick={() => onStatusChange(item.id, "missed")}
-                          className={cn(
-                            "h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-2xl transition-all active:scale-95 border",
-                            darkMode 
-                              ? "bg-zinc-900 text-zinc-500 border-zinc-700 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30"
-                              : "bg-zinc-50 text-zinc-400 border-zinc-100 hover:bg-red-50 hover:text-red-500 hover:border-red-100"
-                          )}
-                          title="Marcar falta"
-                        >
-                          <UserMinus size={20} />
-                        </button>
-                    )}
+                     <button
+                       onClick={() => onStatusChange(item.id, "missed")}
+                       className={cn(
+                         "h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-2xl transition-all active:scale-95 border",
+                         darkMode 
+                           ? "bg-zinc-900 text-zinc-500 border-zinc-700 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30"
+                           : "bg-zinc-50 text-zinc-400 border-zinc-100 hover:bg-red-50 hover:text-red-500 hover:border-red-100",
+                         isFirst && (darkMode ? "bg-red-500/10 border-red-500/20" : "bg-red-50 border-red-100")
+                       )}
+                       title="Marcar falta"
+                     >
+                       <X size={20} strokeWidth={2.5} />
+                     </button>
                  </div>
                )}
              </div>
