@@ -522,6 +522,7 @@ model SuperAdmin {
   role        String?  @db.VarChar(100)
   bio         String?  @db.Text
   photo       String?  @db.LongText
+  permissions String?  @default("{}") @db.Text
   createdAt   DateTime @default(now()) @db.DateTime(0)
   tenantsSold Tenant[]
 }

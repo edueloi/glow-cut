@@ -1435,13 +1435,31 @@ function SalesTab({ user }: { user: any }) {
 /* ═══════════════════════════════════════════
    ABA: EQUIPE (STAFF)
 ═══════════════════════════════════════════ */
-function StaffTab({ username }: { username: string }) {
+function StaffTab({ username, userPermissions }: { username: string; userPermissions: any }) {
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [showPass, setShowPass] = useState(false);
-  const [form, setForm] = useState({ username: "", password: "", name: "", email: "", phone: "", birthday: "", role: "", bio: "", photo: "" });
-  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [form, setForm] = useState<any>({ 
+    username: "", password: "", name: "", email: "", phone: "", 
+    birthday: "", role: "", bio: "", photo: "",
+    permissions: {}
+  });
+
+  const SA_MODULES = [
+    { key: "dash", label: "Dashboard" },
+    { key: "plans", label: "Planos" },
+    { key: "tenants", label: "Parceiros" },
+    { key: "users", label: "Usuários Admin" },
+    { key: "permissions", label: "Permissões" },
+    { key: "blog", label: "Blog" },
+    { key: "wpp", label: "WhatsApp" },
+    { key: "sales", label: "Vendas e Afiliados" },
+    { key: "staff", label: "Minha Equipe" },
+    { key: "settings", label: "Configurações" },
+    { key: "profile", label: "Meu Perfil" },
+  ];
 
   const handlePhotoUpload = (file: File) => {
     const reader = new FileReader();
@@ -1463,7 +1481,7 @@ function StaffTab({ username }: { username: string }) {
     };
     reader.readAsDataURL(file);
   };
-  const isMaster = ["admin", "flavio_sikorsky"].includes(username.toLowerCase());
+  const isMaster = ["admin", "flavio_sikorsky"].includes(username.toLowerCase()) || (userPermissions === null) || (userPermissions?.staff?.ver);
 
   const load = useCallback(async () => {
     try {
@@ -1497,7 +1515,8 @@ function StaffTab({ username }: { username: string }) {
       birthday: u?.birthday ? u.birthday.split("T")[0] : "",
       role: u?.role || "",
       bio: u?.bio || "",
-      photo: u?.photo || ""
+      photo: u?.photo || "",
+      permissions: typeof u?.permissions === 'string' ? JSON.parse(u.permissions || '{}') : (u?.permissions || {})
     });
     setModal(true);
   };
@@ -1574,71 +1593,227 @@ function StaffTab({ username }: { username: string }) {
         </ContentCard>
       )}
 
-      <Modal isOpen={modal} onClose={() => setModal(false)} title={editing ? "Editar Perfil da Equipe" : "Novo Acesso Equipe"} size="lg">
-        <div className="p-5 space-y-5">
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="w-full md:w-40 shrink-0">
-              <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-3 text-center">Foto de Perfil</p>
-              <input ref={photoInputRef} type="file" accept="image/*" className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }} />
-              <div className="flex flex-col items-center gap-3">
-                {form.photo ? (
-                  <div className="relative group">
-                    <img src={form.photo} alt="preview" className="w-32 h-32 rounded-3xl object-cover border-4 border-zinc-50 shadow-sm" />
-                    <button type="button" onClick={() => photoInputRef.current?.click()} className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                      <Camera size={20} />
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => photoInputRef.current?.click()} className="w-32 h-32 rounded-3xl bg-zinc-50 border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center gap-2 text-zinc-400 hover:border-amber-400 hover:text-amber-500 hover:bg-amber-50/50 transition-all">
-                    <Camera size={24} />
-                    <span className="text-[10px] font-bold">Adicionar foto</span>
+      <Modal 
+        isOpen={modal} 
+        onClose={() => setModal(false)} 
+        title={editing ? "Editar Perfil da Equipe" : "Novo Acesso Equipe"} 
+        size="lg"
+        footer={
+          <div className="flex justify-end gap-3 w-full">
+            <Button variant="ghost" onClick={() => setModal(false)} className="text-zinc-500 hover:bg-zinc-100">
+              Descartar
+            </Button>
+            <Button 
+              onClick={save} 
+              disabled={!form.username || (!editing && !form.password)}
+              className="bg-zinc-900 text-white hover:bg-black px-8 shadow-xl shadow-zinc-900/20"
+            >
+              {editing ? "Atualizar Membro" : "Criar Acesso"}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-8">
+          {/* Seção 1: Informações Básicas e Foto */}
+          <div className="flex flex-col md:flex-row gap-8">
+            <div className="w-full md:w-40 shrink-0 flex flex-col items-center">
+              <div className="relative group mb-4">
+                <input ref={photoInputRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }} />
+                
+                <div className="w-32 h-32 rounded-[2rem] border-4 border-zinc-50 shadow-xl overflow-hidden bg-zinc-100 relative transition-transform group-hover:scale-105 duration-300">
+                  {form.photo ? (
+                    <img src={form.photo} alt="preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-zinc-400 bg-zinc-50">
+                      <Camera size={32} strokeWidth={1.5} />
+                      <span className="text-[10px] font-bold mt-2 uppercase tracking-widest">Sem foto</span>
+                    </div>
+                  )}
+                  
+                  <button 
+                    type="button" 
+                    onClick={() => photoInputRef.current?.click()} 
+                    className="absolute inset-0 bg-zinc-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-2 backdrop-blur-[2px]"
+                  >
+                    <Camera size={20} />
+                    <span className="text-[9px] font-black uppercase tracking-tighter">Alterar</span>
+                  </button>
+                </div>
+
+                {form.photo && (
+                  <button 
+                    type="button" 
+                    onClick={() => setForm(f => ({ ...f, photo: "" }))} 
+                    className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-white shadow-lg border border-zinc-100 flex items-center justify-center text-red-500 hover:text-red-600 hover:scale-110 transition-all z-10"
+                  >
+                    <Trash2 size={14} />
                   </button>
                 )}
-                {form.photo && (
-                  <button type="button" onClick={() => setForm(f => ({ ...f, photo: "" }))} className="text-[10px] font-bold text-red-400 hover:text-red-500">Remover foto</button>
-                )}
               </div>
+              <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] text-center">Foto de Perfil</p>
             </div>
 
-            <div className="flex-1 space-y-4">
-              <FormRow cols={2}>
-                <Input label="Nome Completo" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Amanda Silva" />
-                <Input label="Cargo / Função" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} placeholder="Ex: Suporte, Vendas..." />
-              </FormRow>
-
-              <FormRow cols={2}>
-                <Input label="E-mail" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="email@agendelle.com" />
-                <Input label="Telefone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="(00) 00000-0000" />
-              </FormRow>
-
-              <FormRow cols={2}>
-                <Input label="Nome de Usuário (Login) *" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} placeholder="amanda_admin" />
-                <Input label="Data de Aniversário" type="date" value={form.birthday} onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} />
-              </FormRow>
-
-              <FormRow cols={2}>
-                <Input
-                  label={editing ? "Alterar Senha (em branco = manter)" : "Senha *"}
-                  type={showPass ? "text" : "password"}
-                  value={form.password}
-                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                  placeholder="••••••"
-                  iconRight={
-                    <button type="button" onClick={() => setShowPass(!showPass)} className="text-zinc-400 hover:text-zinc-600">
-                      {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  }
+            <div className="flex-1 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input 
+                  label="Nome Completo" 
+                  value={form.name} 
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))} 
+                  placeholder="Ex: Amanda Silva" 
+                  className="bg-zinc-50/50 border-zinc-100 focus:bg-white"
                 />
-              </FormRow>
+                <Input 
+                  label="Cargo / Função" 
+                  value={form.role} 
+                  onChange={e => setForm(f => ({ ...f, role: e.target.value }))} 
+                  placeholder="Ex: Suporte, Vendas..." 
+                  className="bg-zinc-50/50 border-zinc-100 focus:bg-white"
+                />
+              </div>
 
-              <Textarea label="Biografia / Notas" value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={3} placeholder="Breve descrição sobre o membro da equipe..." />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input 
+                  label="E-mail" 
+                  type="email" 
+                  value={form.email} 
+                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))} 
+                  placeholder="email@agendelle.com" 
+                  iconLeft={<Mail size={14} className="text-zinc-400" />}
+                  className="bg-zinc-50/50 border-zinc-100 focus:bg-white"
+                />
+                <Input 
+                  label="Telefone" 
+                  value={form.phone} 
+                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} 
+                  placeholder="(00) 00000-0000" 
+                  className="bg-zinc-50/50 border-zinc-100 focus:bg-white"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4 border-t border-zinc-100">
-            <Button variant="ghost" onClick={() => setModal(false)}>Cancelar</Button>
-            <Button onClick={save} disabled={!form.username || (!editing && !form.password)}>Salvar Alterações</Button>
+          {/* Seção 2: Credenciais de Acesso */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <h4 className="text-[11px] font-black text-zinc-800 uppercase tracking-widest">Acesso ao Sistema</h4>
+              <div className="flex-1 h-px bg-zinc-100" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <Input 
+                label="Usuário (Login) *" 
+                value={form.username} 
+                onChange={e => setForm(f => ({ ...f, username: e.target.value }))} 
+                placeholder="amanda_admin" 
+                disabled={editing && form.username === "admin"}
+                className="bg-zinc-50/50 border-zinc-100 focus:bg-white font-bold"
+              />
+              <Input 
+                label={editing ? "Alterar Senha" : "Senha *"} 
+                type={showPass ? "text" : "password"}
+                value={form.password}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                placeholder={editing ? "Manter atual" : "••••••"}
+                className="bg-zinc-50/50 border-zinc-100 focus:bg-white"
+                iconRight={
+                  <button type="button" onClick={() => setShowPass(!showPass)} className="text-zinc-400 hover:text-zinc-600 transition-colors">
+                    {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                }
+              />
+              <Input 
+                label="Data de Aniversário" 
+                type="date" 
+                value={form.birthday} 
+                onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} 
+                className="bg-zinc-50/50 border-zinc-100 focus:bg-white"
+              />
+            </div>
+            
+            <Textarea 
+              label="Biografia ou Observações Internas" 
+              value={form.bio} 
+              onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} 
+              rows={2} 
+              placeholder="Breve descrição sobre o membro da equipe..." 
+              className="bg-zinc-50/50 border-zinc-100 focus:bg-white text-sm"
+            />
+          </div>
+
+          {/* Seção 3: Permissões de Módulo */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <h4 className="text-[11px] font-black text-zinc-800 uppercase tracking-widest">Módulos Permitidos</h4>
+              <div className="flex-1 h-px bg-zinc-100" />
+            </div>
+
+            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {SA_MODULES.map(m => {
+                const has = form.permissions === "all" || (form.permissions[m.key]?.ver);
+                const Icon = {
+                  dash: LayoutDashboard,
+                  plans: CreditCard,
+                  tenants: Building2,
+                  users: Users,
+                  permissions: Lock,
+                  blog: BookOpen,
+                  wpp: MessageCircle,
+                  sales: TrendingUp,
+                  staff: Shield,
+                  settings: Globe,
+                  profile: User
+                }[m.key as string] || Lock;
+
+                return (
+                  <label key={m.key} className={cn(
+                    "flex flex-col gap-3 p-4 rounded-[1.25rem] border transition-all cursor-pointer group relative overflow-hidden",
+                    has 
+                      ? "bg-white border-amber-500 shadow-[0_8px_30px_rgb(245,158,11,0.08)] ring-1 ring-amber-500/10" 
+                      : "bg-zinc-50/50 border-zinc-100 hover:border-zinc-200 grayscale opacity-70"
+                  )}>
+                    <div className="flex items-start justify-between">
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500",
+                        has ? "bg-amber-500 text-white rotate-6" : "bg-zinc-200 text-zinc-500 group-hover:rotate-6"
+                      )}>
+                        <Icon size={18} />
+                      </div>
+                      <div className={cn(
+                        "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                        has ? "bg-amber-500 border-amber-500" : "bg-white border-zinc-200"
+                      )}>
+                        {has && <Check size={10} className="text-white" />}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <p className={cn("text-[11px] font-black uppercase tracking-tight", has ? "text-zinc-900" : "text-zinc-500")}>
+                        {m.label}
+                      </p>
+                      <p className="text-[9px] text-zinc-400 font-medium leading-none mt-1">Acesso ao módulo</p>
+                    </div>
+
+                    <input
+                      type="checkbox"
+                      checked={!!has}
+                      onChange={e => {
+                        const newPerms = typeof form.permissions === 'object' ? { ...form.permissions } : {};
+                        if (e.target.checked) {
+                          newPerms[m.key] = { ver: true };
+                        } else {
+                          delete newPerms[m.key];
+                        }
+                        setForm(f => ({ ...f, permissions: newPerms }));
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                );
+              })}
+            </div>
           </div>
         </div>
       </Modal>
@@ -3444,10 +3619,18 @@ function pathToTab(pathname: string): TabKey {
   return "dash";
 }
 
-function Sidebar({ tab, setTab, username, onLogout, onClose }: {
-  tab: TabKey; setTab: (t: TabKey) => void; username: string; onLogout: () => void; onClose?: () => void;
+function Sidebar({ tab, setTab, username, onLogout, onClose, permissions }: {
+  tab: TabKey; setTab: (t: TabKey) => void; username: string; onLogout: () => void; onClose?: () => void; permissions: any;
 }) {
   const navigate = useNavigate();
+
+  const filteredItems = NAV_ITEMS.filter(item => {
+    if (username.toLowerCase() === "admin") return true; // Permanent Master access
+    if (!permissions) return true; // Master access (legacy or explicitly set)
+    if (item.key === "profile") return true; // Everyone can see profile
+    return !!permissions[item.key]?.ver;
+  });
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#fff", borderRight: "1px solid #f3f4f6", width: "100%" }}>
       {/* Logo */}
@@ -3465,7 +3648,7 @@ function Sidebar({ tab, setTab, username, onLogout, onClose }: {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: "10px 8px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
-        {NAV_ITEMS.map(item => (
+        {filteredItems.map(item => (
           <button
             key={item.key}
             onClick={() => { setTab(item.key); navigate(item.path); onClose?.(); }}
@@ -3513,7 +3696,7 @@ function Sidebar({ tab, setTab, username, onLogout, onClose }: {
 /* ═══════════════════════════════════════════
    MAIN
 ═══════════════════════════════════════════ */
-export default function SuperAdminDashboard({ username, onLogout }: { username: string; onLogout: () => void }) {
+export default function SuperAdminDashboard({ username, onLogout, permissions }: { username: string; onLogout: () => void; permissions: any }) {
   const location = useLocation();
   const [tab, setTab] = useState<TabKey>(() => pathToTab(location.pathname));
   useEffect(() => { setTab(pathToTab(location.pathname)); }, [location.pathname]);
@@ -3535,7 +3718,7 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
     <div style={{ display: "flex", height: "100vh", background: "#f8f9fa", overflow: "hidden", fontFamily: "'Inter', sans-serif" }}>
       {/* ── Sidebar desktop ── */}
       <aside className="hidden md:block" style={{ width: 220, flexShrink: 0 }}>
-        <Sidebar tab={tab} setTab={setTab} username={username} onLogout={onLogout} />
+        <Sidebar tab={tab} setTab={setTab} username={username} onLogout={onLogout} permissions={permissions} />
       </aside>
 
       {/* ── Sidebar mobile overlay ── */}
@@ -3543,7 +3726,7 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
         <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex" }} className="md:hidden">
           <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }} onClick={() => setMobileOpen(false)} />
           <aside style={{ position: "relative", width: 240, boxShadow: "4px 0 24px rgba(0,0,0,0.15)" }}>
-            <Sidebar tab={tab} setTab={setTab} username={username} onLogout={onLogout} onClose={() => setMobileOpen(false)} />
+            <Sidebar tab={tab} setTab={setTab} username={username} onLogout={onLogout} onClose={() => setMobileOpen(false)} permissions={permissions} />
           </aside>
           <button
             style={{ position: "absolute", top: 12, right: 12, background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", color: "#fff", borderRadius: 8, padding: 6, display: "flex" }}
@@ -3591,7 +3774,7 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
           {tab === "blog"        && <BlogTab />}
           {tab === "wpp"         && <WppTab plans={plans} onUpdatePlans={() => { apiFetch("/api/super-admin/plans").then(r => r.json()).then(setPlans); }} />}
           {tab === "sales"       && <SalesTab user={userData} />}
-          {tab === "staff"       && <StaffTab username={username} />}
+          {tab === "staff"       && <StaffTab username={username} userPermissions={permissions} />}
           {tab === "settings"    && <SettingsTab />}
           {tab === "profile"     && <ProfileTab username={username} />}
         </div>

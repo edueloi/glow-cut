@@ -22,7 +22,7 @@ authRouter.post("/login", async (req: Request, res: Response) => {
     const token = signToken({ sub: sa.id, type: "superadmin" });
     return res.json({
       token,
-      user: { id: sa.id, username: sa.username, type: "superadmin", role: "superadmin" },
+      user: { id: sa.id, username: sa.username, type: "superadmin", role: "superadmin", permissions: parsePermissions(sa.permissions) },
     });
   }
 
@@ -161,6 +161,7 @@ authRouter.get("/me", requireAuth, async (req: Request, res: Response) => {
       username: sa.username,
       type: "superadmin",
       role: "superadmin",
+      permissions: parsePermissions(sa.permissions),
     });
   }
 

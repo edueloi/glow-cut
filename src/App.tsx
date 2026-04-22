@@ -424,6 +424,7 @@ function SuperAdminWrapper() {
     <SuperAdminDashboard
       username={user?.username || "Admin"}
       onLogout={logout}
+      permissions={user?.permissions}
     />
   );
 }

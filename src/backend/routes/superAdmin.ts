@@ -6,6 +6,7 @@ import {
   disconnectSession,
   getSessionInfo,
 } from "../wpp/baileys-manager";
+import { requireSuperPermission } from "../middleware/auth";
 
 export const superAdminRouter = Router();
 
@@ -180,7 +181,7 @@ superAdminRouter.get("/staff", async (req, res) => {
       select: { 
         id: true, username: true, createdAt: true, 
         name: true, email: true, phone: true, birthday: true, 
-        role: true, bio: true, photo: true 
+        role: true, bio: true, photo: true, permissions: true
       }
     });
     res.json(staff);
@@ -190,7 +191,7 @@ superAdminRouter.get("/staff", async (req, res) => {
 });
 
 superAdminRouter.post("/staff", async (req, res) => {
-  const { username, password, name, email, phone, birthday, role, bio, photo } = req.body;
+  const { username, password, name, email, phone, birthday, role, bio, photo, permissions } = req.body;
   if (!username || !password) return res.status(400).json({ error: "Username e senha obrigatórios" });
   try {
     const existing = await (prisma as any).superAdmin.findUnique({ where: { username } });
@@ -207,7 +208,8 @@ superAdminRouter.post("/staff", async (req, res) => {
         birthday: birthday ? new Date(birthday) : null,
         role,
         bio,
-        photo
+        photo,
+        permissions: permissions ? (typeof permissions === 'string' ? permissions : JSON.stringify(permissions)) : "{}"
       }
     });
     res.json({ id: newUser.id, username: newUser.username });
@@ -217,7 +219,7 @@ superAdminRouter.post("/staff", async (req, res) => {
 });
 
 superAdminRouter.put("/staff/:id", async (req, res) => {
-  const { username, password, name, email, phone, birthday, role, bio, photo } = req.body;
+  const { username, password, name, email, phone, birthday, role, bio, photo, permissions } = req.body;
   try {
     const data: any = { 
       username,
@@ -227,7 +229,8 @@ superAdminRouter.put("/staff/:id", async (req, res) => {
       birthday: birthday ? new Date(birthday) : null,
       role,
       bio,
-      photo
+      photo,
+      permissions: permissions ? (typeof permissions === 'string' ? permissions : JSON.stringify(permissions)) : undefined
     };
     if (password) data.password = password;
 

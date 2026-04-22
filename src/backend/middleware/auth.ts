@@ -58,3 +58,29 @@ export function requireSuperAdmin(req: Request, res: Response, next: NextFunctio
     next();
   });
 }
+
+/** Middleware: exige uma permissão específica de super-admin */
+export function requireSuperPermission(module: string) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    requireSuperAdmin(req, res, async () => {
+      const auth = (req as any).auth;
+      const { prisma } = await import("../prisma");
+      
+      const sa = await (prisma as any).superAdmin.findUnique({ where: { id: auth.sub } });
+      if (!sa) return res.status(401).json({ error: "Super-admin não encontrado." });
+
+      // Admin mestre sempre tem acesso
+      if (sa.username.toLowerCase() === "admin") return next();
+
+      try {
+        const perms = JSON.parse(sa.permissions || "{}");
+        if (perms === "all" || perms[module]?.ver) {
+          return next();
+        }
+      } catch (e) {}
+
+      return res.status(403).json({ error: `Sem permissão para o módulo: ${module}` });
+    });
+  };
+}
+
