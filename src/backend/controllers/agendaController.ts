@@ -775,35 +775,56 @@ export const agendaController = {
     for (const key of allowed) {
       if (req.body[key] !== undefined) data[key] = key === "date" ? new Date(req.body[key]) : req.body[key];
     }
+
     try {
-      const oldAppt = await (prisma as any).appointment.findUnique({ where: { id: req.params.id } });
-      await (prisma as any).appointment.updateMany({ where: { id: req.params.id, tenantId: tenantId || undefined }, data });
+      const oldAppt = await (prisma as any).appointment.findUnique({ 
+        where: { id: req.params.id },
+        include: { service: true }
+      });
+      if (!oldAppt) return res.status(404).json({ error: "Agendamento não encontrado." });
+
+      const where: any = { id: req.params.id, tenantId: tenantId || undefined };
+      const confirmAll = req.body.confirmAllRecurrences && oldAppt.repeatGroupId;
+      
+      if (confirmAll) {
+        where.repeatGroupId = oldAppt.repeatGroupId;
+        delete where.id;
+        where.status = "scheduled";
+      }
+
+      await (prisma as any).appointment.updateMany({ where, data });
+      
       const appt = await (prisma as any).appointment.findFirst({
         where: { id: req.params.id },
-        include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true, phone: true } } }
+        include: { 
+          client: { select: { id: true, name: true, phone: true } }, 
+          service: { select: { id: true, name: true, price: true } }, 
+          professional: { select: { id: true, name: true, phone: true } } 
+        }
       });
 
-      if (oldAppt) {
-        const statusToUse = req.body.status !== undefined ? req.body.status : oldAppt.status;
-        const svcToUse = req.body.serviceId !== undefined ? req.body.serviceId : oldAppt.serviceId;
-        const oldIsActive = oldAppt.status === "scheduled" || oldAppt.status === "confirmed";
-        const newIsActive = statusToUse === "scheduled" || statusToUse === "confirmed";
+      // Lógica de Estoque e Notificações
+      const statusToUse = req.body.status !== undefined ? req.body.status : oldAppt.status;
+      const svcToUse = req.body.serviceId !== undefined ? req.body.serviceId : oldAppt.serviceId;
+      const oldIsActive = oldAppt.status === "scheduled" || oldAppt.status === "confirmed";
+      const newIsActive = statusToUse === "scheduled" || statusToUse === "confirmed";
 
-        if (statusToUse === "done" && oldAppt.status !== "done") {
-          await handleAppointmentDone(oldAppt.serviceId, tenantId, req.params.id);
-        } else if (oldIsActive && !newIsActive) {
-          await handleAppointmentStockReservation(oldAppt.serviceId, "release");
-        } else if (!oldIsActive && newIsActive) {
-          await handleAppointmentStockReservation(svcToUse, "reserve");
-        } else if (oldIsActive && newIsActive && oldAppt.serviceId !== svcToUse) {
-          await handleAppointmentStockReservation(oldAppt.serviceId, "release");
-          await handleAppointmentStockReservation(svcToUse, "reserve");
-        }
+      if (statusToUse === "done" && oldAppt.status !== "done") {
+        await handleAppointmentDone(oldAppt.serviceId, tenantId, req.params.id);
+      } else if (oldIsActive && !newIsActive) {
+        await handleAppointmentStockReservation(oldAppt.serviceId, "release");
+      } else if (!oldIsActive && newIsActive) {
+        await handleAppointmentStockReservation(svcToUse, "reserve");
+      } else if (oldIsActive && newIsActive && oldAppt.serviceId !== svcToUse) {
+        await handleAppointmentStockReservation(oldAppt.serviceId, "release");
+        await handleAppointmentStockReservation(svcToUse, "reserve");
       }
 
-      if (req.body.status === "confirmed" && oldAppt?.status !== "confirmed" && appt?.client?.phone && appt.tenantId) {
+      // Notificação via WPP
+      if (statusToUse === "confirmed" && oldAppt.status !== "confirmed" && appt?.client?.phone && appt.tenantId) {
         fireWppConfirmation(appt.tenantId, appt).catch(() => {});
       }
+
       res.json(appt);
     } catch (e: any) {
       res.status(400).json({ error: e.message || "Erro." });

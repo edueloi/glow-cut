@@ -19,6 +19,7 @@ import { apiFetch } from "@/src/lib/api";
 import { useAuth } from "@/src/App";
 import { Badge } from "@/src/components/ui/Badge";
 import { parseISO, differenceInDays } from "date-fns";
+import { ConfirmModal } from "@/src/components/ui/Modal";
 
 
 interface DashboardTabProps {
@@ -84,6 +85,7 @@ export function DashboardTab({
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set());
   const [isConfirmationsModalOpen, setIsConfirmationsModalOpen] = useState(false);
+  const [recurringToConfirm, setRecurringToConfirm] = useState<any | null>(null);
 
   const currentMonthNum = new Date().getMonth() + 1;
   const todayDay = new Date().getDate();
@@ -195,21 +197,46 @@ export function DashboardTab({
   // Agendamentos do dia com status "scheduled" (pendentes de confirmação)
   const today = new Date().toISOString().slice(0, 10);
 
-  const handleConfirm = useCallback(async (apptId: string) => {
+  const handleConfirm = useCallback(async (apptId: string, confirmAll = false) => {
+    const appt = appointments.find(a => a.id === apptId);
+    
+    // Se for recorrente e ainda não estamos no fluxo de confirmar tudo, perguntar
+    if (!confirmAll && appt?.repeatGroupId && !confirmedIds.has(apptId)) {
+      setRecurringToConfirm(appt);
+      return;
+    }
+
     setConfirmingId(apptId);
     try {
       await apiFetch(`/api/appointments/${apptId}`, {
         method: "PATCH",
-        body: JSON.stringify({ status: "confirmed" }),
+        body: JSON.stringify({ 
+          status: "confirmed",
+          confirmAllRecurrences: confirmAll
+        }),
       });
-      setConfirmedIds(prev => new Set([...prev, apptId]));
+
+      if (confirmAll && appt?.repeatGroupId) {
+        const groupIds = appointments
+          .filter(a => a.repeatGroupId === appt.repeatGroupId)
+          .map(a => a.id);
+        setConfirmedIds(prev => {
+          const next = new Set(prev);
+          groupIds.forEach(id => next.add(id));
+          return next;
+        });
+      } else {
+        setConfirmedIds(prev => new Set([...prev, apptId]));
+      }
+
       onAppointmentConfirmed?.();
+      setRecurringToConfirm(null);
     } catch {
       // silently ignore
     } finally {
       setConfirmingId(null);
     }
-  }, [onAppointmentConfirmed]);
+  }, [appointments, confirmedIds, onAppointmentConfirmed]);
 
   const pendingConfirmations = useMemo(() =>
     appointments.filter(a => 
@@ -765,6 +792,23 @@ export function DashboardTab({
           )}
         </div>
       </div>
+      <ConfirmModal
+        isOpen={!!recurringToConfirm}
+        onClose={() => setRecurringToConfirm(null)}
+        onConfirm={() => recurringToConfirm && handleConfirm(recurringToConfirm.id, true)}
+        title="Confirmar Recorrência"
+        message={
+          <div className="space-y-2">
+            <p>Este agendamento faz parte de uma série recorrente.</p>
+            <p className="font-bold text-zinc-900">Deseja confirmar todas as sessões futuras deste grupo?</p>
+            <p className="text-[11px] text-zinc-400 italic">Isso marcará todos os agendamentos desta série como confirmados e notificará o cliente.</p>
+          </div>
+        }
+        confirmLabel="Confirmar Todas"
+        cancelLabel="Apenas esta"
+        variant="primary"
+        loading={confirmingId === recurringToConfirm?.id}
+      />
     </div>
   );
 }
