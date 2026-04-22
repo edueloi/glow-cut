@@ -96,12 +96,13 @@ export function PermProfileEditor({
             </p>
 
             <div className="space-y-2">
-              {mods.map((mod) => {
+              {mods.filter(m => !m.parent).map((mod) => {
                 const modPerms = perms[mod.key] || {};
                 const isVisible = !!modPerms.ver;
                 const isExpanded = expandedModules.has(mod.key);
                 const subActions = mod.actions.filter((a) => a !== "ver");
-                const hasSubActions = subActions.length > 0;
+                const children = mods.filter(c => c.parent === mod.key);
+                const hasExpandableContent = subActions.length > 0 || children.length > 0;
 
                 return (
                   <div
@@ -117,16 +118,21 @@ export function PermProfileEditor({
                     <div className="flex items-center justify-between px-4 py-3">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <p className="text-xs font-black text-zinc-800 truncate">{mod.label}</p>
-                        {isVisible && hasSubActions && (
+                        {isVisible && subActions.length > 0 && (
                           <Badge color="primary" size="sm">
                             {Object.entries(modPerms).filter(([k, v]) => k !== "ver" && v).length} ações
+                          </Badge>
+                        )}
+                        {isVisible && children.length > 0 && (
+                          <Badge color="info" size="sm">
+                            {children.filter(c => !!perms[c.key]?.ver).length} submenus
                           </Badge>
                         )}
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        {/* Expandir sub-ações */}
-                        {isVisible && hasSubActions && (
+                        {/* Expandir conteúdo */}
+                        {isVisible && hasExpandableContent && (
                           <button
                             type="button"
                             onClick={() => toggleExpand(mod.key)}
@@ -157,82 +163,133 @@ export function PermProfileEditor({
                       </div>
                     </div>
 
-                    {/* Sub-ações expandidas */}
-                    {isVisible && hasSubActions && isExpanded && (
-                      <div className="border-t border-zinc-100 px-4 pb-3 pt-3 space-y-3">
-                        {/* Ações sem divisão próprio/todos */}
-                        {mod.splitActions ? (
-                          <>
-                            {/* Criar */}
-                            {mod.actions.includes("criar") && (
-                              <ActionChipRow
-                                label="Criar"
-                                chips={[{ action: "criar", label: "Criar" }]}
-                                modPerms={modPerms}
-                                onToggle={(a) => toggle(mod.key, a)}
-                                themeColor={themeColor}
-                              />
+                    {/* Conteúdo expandido */}
+                    {isVisible && hasExpandableContent && isExpanded && (
+                      <div className="border-t border-zinc-100 px-4 pb-3 pt-3 space-y-4">
+                        
+                        {/* Ações do Módulo Pai */}
+                        {subActions.length > 0 && (
+                          <div className="space-y-3">
+                            {mod.splitActions ? (
+                              <>
+                                {/* Criar */}
+                                {mod.actions.includes("criar") && (
+                                  <ActionChipRow
+                                    label="Criar"
+                                    chips={[{ action: "criar", label: "Criar" }]}
+                                    modPerms={modPerms}
+                                    onToggle={(a) => toggle(mod.key, a)}
+                                    themeColor={themeColor}
+                                  />
+                                )}
+                                {/* Editar — próprio / todos */}
+                                {mod.splitActions.filter((s) => s.action === "editar").map((split) => (
+                                  <ActionChipRow
+                                    key="editar"
+                                    label="Editar"
+                                    chips={[
+                                      { action: split.own, label: "Próprios" },
+                                      { action: split.all, label: "Todos" },
+                                    ]}
+                                    modPerms={modPerms}
+                                    onToggle={(a) => toggle(mod.key, a)}
+                                    themeColor={themeColor}
+                                  />
+                                ))}
+                                {/* Excluir — próprio / todos */}
+                                {mod.splitActions.filter((s) => s.action === "excluir").map((split) => (
+                                  <ActionChipRow
+                                    key="excluir"
+                                    label="Excluir"
+                                    chips={[
+                                      { action: split.own, label: "Próprios" },
+                                      { action: split.all, label: "Todos" },
+                                    ]}
+                                    modPerms={modPerms}
+                                    onToggle={(a) => toggle(mod.key, a)}
+                                    themeColor={themeColor}
+                                  />
+                                ))}
+                                {/* Demais ações (exportar, financeiro...) */}
+                                {subActions
+                                  .filter(
+                                    (a) =>
+                                      !["criar", "editar_proprio", "editar_todos", "excluir_proprio", "excluir_todos"].includes(a)
+                                  )
+                                  .map((action) => (
+                                    <ActionChipRow
+                                      key={action}
+                                      label={ACTION_LABELS[action] ?? action}
+                                      chips={[{ action, label: ACTION_LABELS[action] ?? action }]}
+                                      modPerms={modPerms}
+                                      onToggle={(a) => toggle(mod.key, a)}
+                                      themeColor={themeColor}
+                                    />
+                                  ))}
+                              </>
+                            ) : (
+                              // Sem divisão — exibe todos como chips individuais
+                              <div className="flex flex-wrap gap-2">
+                                {subActions.map((action) => {
+                                  const active = !!modPerms[action];
+                                  return (
+                                    <ActionChip
+                                      key={action}
+                                      label={ACTION_LABELS[action] ?? action}
+                                      active={active}
+                                      onToggle={() => toggle(mod.key, action)}
+                                      themeColor={themeColor}
+                                    />
+                                  );
+                                })}
+                              </div>
                             )}
-                            {/* Editar — próprio / todos */}
-                            {mod.splitActions.filter((s) => s.action === "editar").map((split) => (
-                              <ActionChipRow
-                                key="editar"
-                                label="Editar"
-                                chips={[
-                                  { action: split.own, label: "Próprios" },
-                                  { action: split.all, label: "Todos" },
-                                ]}
-                                modPerms={modPerms}
-                                onToggle={(a) => toggle(mod.key, a)}
-                                themeColor={themeColor}
-                              />
-                            ))}
-                            {/* Excluir — próprio / todos */}
-                            {mod.splitActions.filter((s) => s.action === "excluir").map((split) => (
-                              <ActionChipRow
-                                key="excluir"
-                                label="Excluir"
-                                chips={[
-                                  { action: split.own, label: "Próprios" },
-                                  { action: split.all, label: "Todos" },
-                                ]}
-                                modPerms={modPerms}
-                                onToggle={(a) => toggle(mod.key, a)}
-                                themeColor={themeColor}
-                              />
-                            ))}
-                            {/* Demais ações (exportar, financeiro...) */}
-                            {subActions
-                              .filter(
-                                (a) =>
-                                  !["criar", "editar_proprio", "editar_todos", "excluir_proprio", "excluir_todos"].includes(a)
-                              )
-                              .map((action) => (
-                                <ActionChipRow
-                                  key={action}
-                                  label={ACTION_LABELS[action] ?? action}
-                                  chips={[{ action, label: ACTION_LABELS[action] ?? action }]}
-                                  modPerms={modPerms}
-                                  onToggle={(a) => toggle(mod.key, a)}
-                                  themeColor={themeColor}
-                                />
-                              ))}
-                          </>
-                        ) : (
-                          // Sem divisão — exibe todos como chips individuais
-                          <div className="flex flex-wrap gap-2">
-                            {subActions.map((action) => {
-                              const active = !!modPerms[action];
-                              return (
-                                <ActionChip
-                                  key={action}
-                                  label={ACTION_LABELS[action] ?? action}
-                                  active={active}
-                                  onToggle={() => toggle(mod.key, action)}
-                                  themeColor={themeColor}
-                                />
-                              );
-                            })}
+                          </div>
+                        )}
+
+                        {/* Submódulos */}
+                        {children.length > 0 && (
+                          <div className={cn("space-y-2", subActions.length > 0 && "pt-3 mt-3 border-t border-zinc-100")}>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Submenus</p>
+                            <div className="grid grid-cols-1 gap-2">
+                              {children.map(child => {
+                                const childPerms = perms[child.key] || {};
+                                const isChildVisible = !!childPerms.ver;
+                                return (
+                                  <div key={child.key} className={cn("p-3 rounded-xl border transition-all", isChildVisible ? "bg-white border-zinc-200" : "bg-zinc-50 border-zinc-100 opacity-70")}>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] font-black text-zinc-700 uppercase">{child.label}</span>
+                                      {/* Toggle do submenu */}
+                                      <button
+                                        type="button"
+                                        onClick={() => toggle(child.key, "ver")}
+                                        className="relative w-8 h-4 rounded-full transition-colors duration-200 shrink-0 focus:outline-none"
+                                        style={{ background: isChildVisible ? themeColor : "#e4e4e7" }}
+                                      >
+                                        <span
+                                          className="absolute top-[2px] h-3 w-3 bg-white rounded-full shadow transition-all duration-200"
+                                          style={{ left: isChildVisible ? "1.1rem" : "0.15rem" }}
+                                        />
+                                      </button>
+                                    </div>
+                                    
+                                    {isChildVisible && child.actions.filter(a => a !== "ver").length > 0 && (
+                                      <div className="flex flex-wrap gap-1.5 pt-2 mt-2 border-t border-zinc-50">
+                                        {child.actions.filter(a => a !== "ver").map(action => (
+                                          <ActionChip
+                                            key={action}
+                                            label={ACTION_LABELS[action] ?? action}
+                                            active={!!childPerms[action]}
+                                            onToggle={() => toggle(child.key, action)}
+                                            themeColor={themeColor}
+                                          />
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
                       </div>

@@ -1215,9 +1215,11 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
                     </div>
                     
                     <div className="grid grid-cols-1 gap-3">
-                      {mods.map(m => {
+                      {mods.filter(m => !m.parent).map(m => {
                         const modPerms = permissions[m.key] || {};
                         const isModActive = !!modPerms.ver;
+                        const children = mods.filter(c => c.parent === m.key);
+                        
                         return (
                           <div key={m.key} className={cn(
                             "rounded-[28px] border transition-all p-5",
@@ -1249,6 +1251,36 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
                                     {ACTION_LABELS[action] || action}
                                   </button>
                                 ))}
+                              </div>
+                            )}
+
+                            {isModActive && children.length > 0 && (
+                              <div className="mt-5 pt-5 border-t border-zinc-100 space-y-3 pl-4 border-l-2 border-amber-100">
+                                {children.map(child => {
+                                   const childPerms = permissions[child.key] || {};
+                                   const isChildActive = !!childPerms.ver;
+                                   return (
+                                     <div key={child.key} className={cn("p-4 rounded-2xl border transition-all", isChildActive ? "bg-white border-amber-200/50 shadow-sm" : "bg-zinc-50/50 border-zinc-100 opacity-60")}>
+                                       <div className="flex items-center justify-between">
+                                         <span className="text-[11px] font-black text-zinc-700 uppercase tracking-tight">{child.label}</span>
+                                         <Switch checked={isChildActive} onCheckedChange={() => toggleAction(child.key, "ver")} size="sm" />
+                                       </div>
+                                       {isChildActive && child.actions.filter(a => a !== "ver").length > 0 && (
+                                         <div className="flex flex-wrap gap-1.5 pt-3 mt-3 border-t border-zinc-50">
+                                            {child.actions.filter(a => a !== "ver").map(action => (
+                                              <button 
+                                                key={action} 
+                                                onClick={() => toggleAction(child.key, action)} 
+                                                className={cn("px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all border", childPerms[action] ? "bg-zinc-800 border-zinc-800 text-white" : "bg-white border-zinc-200 text-zinc-400 hover:border-zinc-300")}
+                                              >
+                                                {ACTION_LABELS[action] || action}
+                                              </button>
+                                            ))}
+                                         </div>
+                                       )}
+                                     </div>
+                                   );
+                                })}
                               </div>
                             )}
                           </div>

@@ -85,6 +85,7 @@ export interface ModuleMeta {
   actions: Action[];
   /** Ações que precisam de sub-opções próprio/todos */
   splitActions?: Array<{ action: "editar" | "excluir"; own: Action; all: Action }>;
+  parent?: Module;
 }
 
 export const MODULE_META: ModuleMeta[] = [
@@ -97,13 +98,13 @@ export const MODULE_META: ModuleMeta[] = [
     ],
   },
   { key: "minha_agenda", label: "Minha Agenda",   group: "principal", actions: ["ver"] },
-  { key: "agenda_calendario",      label: "Agenda - Calendário Principal", group: "principal", actions: ["ver"] },
-  { key: "agenda_cliente",         label: "Agenda - Por cliente",          group: "principal", actions: ["ver"] },
-  { key: "agenda_consultar",       label: "Agenda - Consultar agend.",     group: "principal", actions: ["ver"] },
-  { key: "agenda_bloqueios",       label: "Agenda - Bloqueios e Fecham.",  group: "principal", actions: ["ver"] },
-  { key: "agenda_horarios",        label: "Agenda - Grade Semanal",        group: "principal", actions: ["ver"] },
-  { key: "agenda_pat",             label: "Agenda - PAT Terminal",         group: "principal", actions: ["ver"] },
-  { key: "agenda_autoatendimento", label: "Agenda - Autoatendimento",      group: "principal", actions: ["ver"] },
+  { key: "agenda_calendario",      label: "Calendário Principal", group: "principal", actions: ["ver"], parent: "agenda" },
+  { key: "agenda_cliente",         label: "Por cliente",          group: "principal", actions: ["ver"], parent: "agenda" },
+  { key: "agenda_consultar",       label: "Consultar agendamentos", group: "principal", actions: ["ver"], parent: "agenda" },
+  { key: "agenda_bloqueios",       label: "Bloqueios e Fechamentos", group: "principal", actions: ["ver"], parent: "agenda" },
+  { key: "agenda_horarios",        label: "Grade Semanal",        group: "principal", actions: ["ver"], parent: "agenda" },
+  { key: "agenda_pat",             label: "PAT Terminal",         group: "principal", actions: ["ver"], parent: "agenda" },
+  { key: "agenda_autoatendimento", label: "Autoatendimento",      group: "principal", actions: ["ver"], parent: "agenda" },
 
   // ── Operacional
   { key: "clientes",     label: "Clientes",       group: "operacional", actions: ["ver", "criar", "editar_proprio", "editar_todos", "excluir_proprio", "excluir_todos"],
@@ -124,18 +125,18 @@ export const MODULE_META: ModuleMeta[] = [
   },
   { key: "fluxo",        label: "Fluxo de Caixa", group: "operacional", actions: ["ver", "financeiro"] },
   { key: "financeiro",   label: "Financeiro",     group: "operacional", actions: ["ver", "exportar", "financeiro"] },
-  { key: "fin_controle",   label: "Fin. - Controle de Entradas", group: "operacional", actions: ["ver"] },
-  { key: "fin_caixa",      label: "Fin. - Caixa",                group: "operacional", actions: ["ver"] },
-  { key: "fin_pagamentos", label: "Fin. - Pag. Profissionais",   group: "operacional", actions: ["ver"] },
-  { key: "fin_formas",     label: "Fin. - Fluxo p/ Forma Pag.",  group: "operacional", actions: ["ver"] },
-  { key: "fin_despesas",   label: "Fin. - Despesas/Contas",      group: "operacional", actions: ["ver"] },
-  { key: "fin_debito",     label: "Fin. - Clientes em Débito",   group: "operacional", actions: ["ver"] },
-  { key: "fin_credito",    label: "Fin. - Crédito de Cliente",   group: "operacional", actions: ["ver"] },
-  { key: "fin_contas",     label: "Fin. - Contas Financeiras",   group: "operacional", actions: ["ver"] },
-  { key: "fin_exportacao", label: "Fin. - Exportação Fin.",      group: "operacional", actions: ["ver"] },
-  { key: "fin_antecipacao",label: "Fin. - Lanç. Antecipação",    group: "operacional", actions: ["ver"] },
-  { key: "fin_motivos",    label: "Fin. - Motivos de Desconto",  group: "operacional", actions: ["ver"] },
-  { key: "fin_relatorio",  label: "Fin. - Rel. por Prof.",       group: "operacional", actions: ["ver"] },
+  { key: "fin_controle",   label: "Controle de Entradas", group: "operacional", actions: ["ver"], parent: "financeiro" },
+  { key: "fin_caixa",      label: "Caixa",                group: "operacional", actions: ["ver"], parent: "financeiro" },
+  { key: "fin_pagamentos", label: "Pagamento de Profissionais", group: "operacional", actions: ["ver"], parent: "financeiro" },
+  { key: "fin_formas",     label: "Fluxo p/ Forma Pag.",  group: "operacional", actions: ["ver"], parent: "financeiro" },
+  { key: "fin_despesas",   label: "Despesas/Contas a Pagar", group: "operacional", actions: ["ver"], parent: "financeiro" },
+  { key: "fin_debito",     label: "Clientes em Débito",   group: "operacional", actions: ["ver"], parent: "financeiro" },
+  { key: "fin_credito",    label: "Crédito de Cliente",   group: "operacional", actions: ["ver"], parent: "financeiro" },
+  { key: "fin_contas",     label: "Contas Financeiras",   group: "operacional", actions: ["ver"], parent: "financeiro" },
+  { key: "fin_exportacao", label: "Exportação Fin.",      group: "operacional", actions: ["ver"], parent: "financeiro" },
+  { key: "fin_antecipacao",label: "Lanç. de Antecipação", group: "operacional", actions: ["ver"], parent: "financeiro" },
+  { key: "fin_motivos",    label: "Motivos de Desconto",  group: "operacional", actions: ["ver"], parent: "financeiro" },
+  { key: "fin_relatorio",  label: "Relatório por Prof.",  group: "operacional", actions: ["ver"], parent: "financeiro" },
 
   // ── Sistema
   { key: "horarios",     label: "Horários",       group: "sistema", actions: ["ver", "editar_todos"] },
