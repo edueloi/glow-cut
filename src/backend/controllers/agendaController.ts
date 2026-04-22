@@ -510,6 +510,7 @@ export const agendaController = {
     }
 
     try {
+      console.log("[checkRecurrence] Body:", req.body);
       let endTime = rawEndTime;
       if (!endTime && serviceId) {
         const svc = await (prisma as any).service.findUnique({ where: { id: serviceId } });
@@ -524,10 +525,17 @@ export const agendaController = {
       
       const closedDays = await (prisma as any).closedDay.findMany({ where: { tenantId } });
       const specialDays = await (prisma as any).specialScheduleDay.findMany({ 
-        where: { tenantId, professionalId: { in: [null, professionalId] }, isClosed: true } 
+        where: { 
+          tenantId, 
+          OR: [
+            { professionalId: null },
+            { professionalId: professionalId }
+          ],
+          isClosed: true 
+        } 
       });
 
-      const parsedDates = dates.map((d: string) => parse(d, "yyyy-MM-dd", new Date()));
+      const parsedDates = dates.map((d: string) => toDateOnly(d));
 
       const existingAppts = await (prisma as any).appointment.findMany({
         where: {
@@ -541,7 +549,8 @@ export const agendaController = {
       const conflicts: any[] = [];
       
       for (const d of dates) {
-        const dateObj = parse(d, "yyyy-MM-dd", new Date());
+        const dateObj = toDateOnly(d);
+        const dateStr = formatDateOnly(dateObj);
         
         // 1. National holiday
         if (settings.blockNationalHolidays && isNationalHoliday(dateObj)) {
@@ -550,21 +559,21 @@ export const agendaController = {
         }
 
         // 2. Closed Day
-        const closed = closedDays.find((cd: any) => format(cd.date, "yyyy-MM-dd") === d);
+        const closed = closedDays.find((cd: any) => formatDateOnly(cd.date) === dateStr);
         if (closed) {
           conflicts.push({ date: d, reason: "closed", message: closed.description || "Dia Fechado" });
           continue;
         }
 
         // 3. Special Schedule Closed
-        const special = specialDays.find((sd: any) => format(sd.date, "yyyy-MM-dd") === d);
+        const special = specialDays.find((sd: any) => formatDateOnly(sd.date) === dateStr);
         if (special) {
           conflicts.push({ date: d, reason: "special_closed", message: special.description || "Profissional Ausente" });
           continue;
         }
 
         // 4. Existing Appointment Overlap
-        const dayAppts = existingAppts.filter((a: any) => format(a.date, "yyyy-MM-dd") === d);
+        const dayAppts = existingAppts.filter((a: any) => formatDateOnly(a.date) === dateStr);
         if (hasSlotOverlap(startTime, endTime, dayAppts)) {
           conflicts.push({ date: d, reason: "booked", message: "Horário Indisponível" });
           continue;
@@ -573,7 +582,8 @@ export const agendaController = {
 
       res.json({ conflicts });
     } catch (e: any) {
-      res.status(400).json({ error: e.message || "Erro." });
+      console.error("[checkRecurrence] Error:", e);
+      res.status(400).json({ error: e.message || "Erro.", details: e.stack });
     }
   },
 
