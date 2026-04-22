@@ -3987,6 +3987,7 @@ function pathToTab(pathname: string): TabKey {
   if (pathname.includes("/financeiro"))  return "finance";
   if (pathname.includes("/equipe"))      return "staff";
   if (pathname.includes("/configuracoes")) return "settings";
+  if (pathname.includes("/perfil"))      return "profile";
   return "dash";
 }
 

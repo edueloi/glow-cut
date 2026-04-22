@@ -848,14 +848,86 @@ superAdminRouter.get("/wpp/stats", async (req, res) => {
 
 // ─── FINANCEIRO DA PLATAFORMA ──────────────────────────────────────────────
 
+// Helper para gerar entradas virtuais das assinaturas ativas
+async function getVirtualSubscriptionEntries(from?: string, to?: string) {
+  const tenants = await (prisma as any).tenant.findMany({
+    where: { isActive: true },
+    include: { plan: true }
+  });
+  const virtualEntries: any[] = [];
+  const fromDate = from ? new Date(from) : new Date("2000-01-01T00:00:00.000Z");
+  const toDate = to ? new Date(to + "T23:59:59.999Z") : new Date();
+  const now = new Date();
+
+  for (const t of tenants) {
+    if (!t.plan || !t.plan.price) continue;
+    let currentDate = new Date(t.createdAt);
+    if (isNaN(currentDate.getTime())) currentDate = new Date();
+    
+    while (currentDate <= now) {
+      if (currentDate >= fromDate && currentDate <= toDate) {
+        // Receita: Assinatura
+        virtualEntries.push({
+          id: `virt-inc-${t.id}-${currentDate.getTime()}`,
+          type: "income",
+          category: "Assinatura de Plano",
+          description: `Assinatura: ${t.name} (${t.plan.name})`,
+          amount: t.plan.price,
+          date: new Date(currentDate).toISOString(),
+          recurrence: "monthly",
+          tenantId: t.id,
+          planId: t.plan.id,
+          createdAt: t.createdAt
+        });
+
+        // Despesa: Taxas de Gateway (Stripe / Pagar.me) -> ~4.9% + R$0.39
+        const gatewayFee = (t.plan.price * 0.049) + 0.39;
+        virtualEntries.push({
+          id: `virt-fee-${t.id}-${currentDate.getTime()}`,
+          type: "expense",
+          category: "Impostos e Taxas",
+          description: `Taxa Gateway (Assinatura): ${t.name}`,
+          amount: gatewayFee,
+          date: new Date(currentDate).toISOString(),
+          recurrence: "monthly",
+          tenantId: t.id,
+          planId: t.plan.id,
+          createdAt: t.createdAt
+        });
+
+        // Despesa: Comissão Parceiro/Vendedor (Ex: 30%)
+        if (t.salesPersonId) {
+          const commissionFee = t.plan.price * 0.30;
+          virtualEntries.push({
+            id: `virt-com-${t.id}-${currentDate.getTime()}`,
+            type: "expense",
+            category: "Comissões e Parceiros",
+            description: `Comissão Venda (${t.plan.name}): ${t.name}`,
+            amount: commissionFee,
+            date: new Date(currentDate).toISOString(),
+            recurrence: "monthly",
+            tenantId: t.id,
+            planId: t.plan.id,
+            createdAt: t.createdAt
+          });
+        }
+      }
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+  }
+  return virtualEntries;
+}
+
 // Resumo financeiro geral
 superAdminRouter.get("/finance/summary", async (req, res) => {
   try {
     const { from, to } = req.query as any;
-    const dateFilter: any = {};
-    if (from) dateFilter.gte = new Date(from);
-    if (to) dateFilter.lte = new Date(to);
-    const where = Object.keys(dateFilter).length ? { date: dateFilter } : {};
+    
+    // Obter entradas virtuais
+    const virtEntries = await getVirtualSubscriptionEntries(from, to);
+
+    const virtIncomeTotal = virtEntries.filter(e => e.type === "income").reduce((acc, cur) => acc + cur.amount, 0);
+    const virtExpenseTotal = virtEntries.filter(e => e.type === "expense").reduce((acc, cur) => acc + cur.amount, 0);
 
     // Total de receitas do banco
     const incomeRows: any[] = await (prisma as any).$queryRawUnsafe(`
@@ -863,7 +935,8 @@ superAdminRouter.get("/finance/summary", async (req, res) => {
       ${from ? `AND date >= '${from}'` : ""}
       ${to ? `AND date <= '${to}'` : ""}
     `);
-    const totalIncome = Number(incomeRows[0]?.total || 0);
+    const dbIncome = Number(incomeRows[0]?.total || 0);
+    const totalIncome = dbIncome + virtIncomeTotal;
 
     // Total de despesas do banco
     const expenseRows: any[] = await (prisma as any).$queryRawUnsafe(`
@@ -871,7 +944,8 @@ superAdminRouter.get("/finance/summary", async (req, res) => {
       ${from ? `AND date >= '${from}'` : ""}
       ${to ? `AND date <= '${to}'` : ""}
     `);
-    const totalExpense = Number(expenseRows[0]?.total || 0);
+    const dbExpense = Number(expenseRows[0]?.total || 0);
+    const totalExpense = dbExpense + virtExpenseTotal;
 
     // MRR = soma dos preços dos planos de tenants ativos
     const tenants = await (prisma as any).tenant.findMany({
@@ -879,12 +953,10 @@ superAdminRouter.get("/finance/summary", async (req, res) => {
       include: { plan: { select: { price: true } } }
     });
     const mrr = tenants.reduce((s: number, t: any) => s + (t.plan?.price || 0), 0);
-
-    // Total assinantes ativos
     const totalSubscribers = tenants.length;
 
     // Receita por categoria
-    const byCategory: any[] = await (prisma as any).$queryRawUnsafe(`
+    const byCategoryRows: any[] = await (prisma as any).$queryRawUnsafe(`
       SELECT category, type, COALESCE(SUM(amount),0) as total, COUNT(*) as count
       FROM PlatformFinance
       WHERE 1=1
@@ -892,8 +964,21 @@ superAdminRouter.get("/finance/summary", async (req, res) => {
       ${to ? `AND date <= '${to}'` : ""}
       GROUP BY category, type ORDER BY total DESC
     `);
+    const byCategory = byCategoryRows.map(r => ({ ...r, total: Number(r.total), count: Number(r.count) }));
+    
+    // Adicionar virtual às categorias
+    virtEntries.forEach(virt => {
+      let subCat = byCategory.find(c => c.category === virt.category && c.type === virt.type);
+      if (!subCat) {
+        subCat = { category: virt.category, type: virt.type, total: 0, count: 0 };
+        byCategory.push(subCat);
+      }
+      subCat.total += virt.amount;
+      subCat.count += 1;
+    });
+    byCategory.sort((a, b) => b.total - a.total);
 
-    // Receita mensal (últimos 12 meses)
+    // Receita mensal (últimos 12 meses) do DB
     const monthlyRows: any[] = await (prisma as any).$queryRawUnsafe(`
       SELECT 
         DATE_FORMAT(date, '%Y-%m') as month,
@@ -903,6 +988,26 @@ superAdminRouter.get("/finance/summary", async (req, res) => {
       WHERE date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
       GROUP BY month, type ORDER BY month ASC
     `);
+    const monthly = monthlyRows.map(r => ({ ...r, total: Number(r.total) }));
+
+    // Adicionar virtual ao mensal (apenas os últimos 12 meses virtuais)
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    twelveMonthsAgo.setDate(1);
+    
+    virtEntries.forEach(e => {
+      const d = new Date(e.date);
+      if (d >= twelveMonthsAgo) {
+        const m = d.toISOString().slice(0, 7);
+        let mRow = monthly.find(r => r.month === m && r.type === e.type);
+        if (!mRow) {
+          mRow = { month: m, type: e.type, total: 0 };
+          monthly.push(mRow);
+        }
+        mRow.total += e.amount;
+      }
+    });
+    monthly.sort((a, b) => a.month.localeCompare(b.month));
 
     res.json({
       totalIncome,
@@ -910,8 +1015,8 @@ superAdminRouter.get("/finance/summary", async (req, res) => {
       netBalance: totalIncome - totalExpense,
       mrr,
       totalSubscribers,
-      byCategory: byCategory.map(r => ({ ...r, total: Number(r.total), count: Number(r.count) })),
-      monthly: monthlyRows.map(r => ({ ...r, total: Number(r.total) })),
+      byCategory,
+      monthly,
     });
   } catch (e: any) {
     console.error("[finance/summary]", e);
@@ -923,28 +1028,38 @@ superAdminRouter.get("/finance/summary", async (req, res) => {
 superAdminRouter.get("/finance/entries", async (req, res) => {
   try {
     const { type, category, from, to, page = "1", limit = "50" } = req.query as any;
+    
+    // DB Entries
     const conditions: string[] = ["1=1"];
     if (type) conditions.push(`type='${type}'`);
     if (category) conditions.push(`category='${category}'`);
     if (from) conditions.push(`date >= '${from}'`);
     if (to) conditions.push(`date <= '${to}'`);
 
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-
-    const rows: any[] = await (prisma as any).$queryRawUnsafe(`
+    const dbRows: any[] = await (prisma as any).$queryRawUnsafe(`
       SELECT * FROM PlatformFinance
       WHERE ${conditions.join(" AND ")}
       ORDER BY date DESC, createdAt DESC
-      LIMIT ${parseInt(limit)} OFFSET ${offset}
     `);
+    let allEntries = dbRows.map(r => ({ ...r, amount: Number(r.amount) }));
 
-    const countRows: any[] = await (prisma as any).$queryRawUnsafe(`
-      SELECT COUNT(*) as total FROM PlatformFinance WHERE ${conditions.join(" AND ")}
-    `);
+    // Virtual Entries
+    const virtEntries = await getVirtualSubscriptionEntries(from, to);
+    let filteredVirt = virtEntries;
+    if (type) filteredVirt = filteredVirt.filter(e => e.type === type);
+    if (category) filteredVirt = filteredVirt.filter(e => e.category === category);
+    
+    allEntries = [...allEntries, ...filteredVirt];
+
+    // Sort e Paginate em JS
+    allEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const paginated = allEntries.slice(offset, offset + parseInt(limit));
 
     res.json({
-      entries: rows.map(r => ({ ...r, amount: Number(r.amount) })),
-      total: Number(countRows[0]?.total || 0),
+      entries: paginated,
+      total: allEntries.length,
       page: parseInt(page),
       limit: parseInt(limit),
     });
