@@ -186,6 +186,7 @@ export function AdminDashboardShell({
                       setIsSidebarOpen(false);
                     }}
                     permitted={permitted}
+                    id={`nav-${item.tab}`}
                   />
                 );
               })}

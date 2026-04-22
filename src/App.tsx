@@ -17,6 +17,7 @@ import SiteLegalPage from "./pages/SiteLegalPage";
 import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
 import RegistrationPage from "./pages/RegistrationPage";
+import OnboardingPage from "./pages/OnboardingPage";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 
 import logoFavicon from "./images/system/logo-favicon.png";
@@ -43,6 +44,9 @@ export interface AuthUser {
   canDeleteAccount?: boolean;
   tenantCreatedAt?: string;
   tenantExpiresAt?: string;
+  onboardingStep: number;
+  segment?: string;
+  themeColor?: string;
   permissions: PermissionSet | null; // null = acesso total (owner)
 
 }
@@ -350,6 +354,12 @@ function RequireAdmin({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
   if (!user || user.type !== "admin") return <Navigate to="/login" replace />;
+  
+  // Redireciona para onboarding se não completou (e não estiver já na página de onboarding)
+  if ((user.onboardingStep || 0) < 3 && window.location.pathname !== "/onboarding") {
+    return <Navigate to="/onboarding" replace />;
+  }
+  
   return <>{children}</>;
 }
 
@@ -397,6 +407,10 @@ function HomeRedirect() {
   if (!user) return <LandingPage />;
   if (user.type === "superadmin") return <Navigate to="/super-admin" replace />;
   if (user.type === "professional") return <Navigate to="/pro" replace />;
+  
+  // Para admins, verifica onboarding
+  if ((user.onboardingStep || 0) < 3) return <Navigate to="/onboarding" replace />;
+
   return <Navigate to="/admin" replace />;
 }
 
@@ -423,6 +437,8 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/pro/login" element={<Navigate to="/login" replace />} />
+
+          <Route path="/onboarding" element={<RequireAdmin><OnboardingPage /></RequireAdmin>} />
 
           <Route
             path="/pro"

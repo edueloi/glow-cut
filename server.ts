@@ -48,6 +48,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
 
+// ── ONBOARDING FIX ────────────────────────────────────────────────────────────
+app.post("/api/admin/onboarding/update", requireAuth, adminController.updateOnboarding);
+
 // ── TERMINAL PAT (Bypass absoluto de autenticação) ────────────────────────────
 app.get("/terminal/pat/:professionalId", agendaController.getPatQueue);
 app.get("/terminal/pat-general/:slug", agendaController.getPatGeneral);

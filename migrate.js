@@ -733,6 +733,13 @@ const MIGRATIONS = [
     `,
   },
 
+  // 040 - Tenant: onboarding
+  {
+    name: '040_tenant_add_onboarding',
+    sql: `ALTER TABLE Tenant ADD COLUMN onboardingStep INT NOT NULL DEFAULT 0, ADD COLUMN segment VARCHAR(50) NULL`,
+    ignoreIfExists: true,
+  },
+
 ];
 
 // ─────────────────────────────────────────────────────────────

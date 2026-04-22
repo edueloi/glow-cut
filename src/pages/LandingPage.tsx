@@ -1,5 +1,20 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { 
+  Smartphone, 
+  Bell, 
+  BarChart3, 
+  Users, 
+  CreditCard, 
+  Zap, 
+  Check, 
+  ArrowRight,
+  Clock,
+  TrendingUp,
+  Sparkles,
+  Play,
+  Globe
+} from "lucide-react";
 import { apiFetch } from "../lib/api";
 import "./LandingPage.css";
 
@@ -107,11 +122,11 @@ export default function LandingPage() {
                 Agendelle une organização inteligente com elegância — o sistema perfeito para salões e barbearias que querem crescer com profissionalismo.
               </p>
               <div className="lp-hero-actions">
-                <button className="lp-btn lp-btn-primary" style={{padding:"15px 30px",fontSize:"1rem"}} onClick={() => navigate("/login")}>
-                  ✦ Solicitar teste de 30 dias
+                <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>
+                  <Sparkles size={18} /> Solicitar teste de 30 dias
                 </button>
-                <button className="lp-btn lp-btn-ghost" style={{padding:"15px 26px",fontSize:"1rem"}} onClick={() => scrollTo("#como-funciona")}>
-                  ▷ Ver como funciona
+                <button className="lp-btn lp-btn-ghost" onClick={() => scrollTo("#como-funciona")}>
+                  <Play size={18} /> Ver como funciona
                 </button>
               </div>
               <div className="lp-hero-trust">
@@ -160,7 +175,7 @@ export default function LandingPage() {
         <div className="lp-container">
           <p className="lp-logos-label">Usado por profissionais de todo o Brasil</p>
           <div className="lp-logos-inner">
-            {["✂️ Barbearias","💅 Salões","💇 Studios de Beleza","💆 Spas","💈 Barbearia Premium","🌟 Estéticas"].map((item, i, arr) => (
+            {["Barbearias","Salões","Studios de Beleza","Spas","Barbearia Premium","Estéticas"].map((item, i, arr) => (
               <span key={item} style={{display:"flex",alignItems:"center"}}>
                 <span className="lp-logo-pill">{item}</span>
                 {i < arr.length - 1 && <span className="lp-logo-sep">·</span>}
@@ -199,12 +214,12 @@ export default function LandingPage() {
           </div>
           <div className="lp-feat-grid">
             {[
-              { ico:"📱", cls:"lp-fi1", title:"Agendamento Online 24/7",    desc:"Seus clientes agendam pelo celular a qualquer hora, sem precisar ligar. Link personalizado da sua marca, pronto para compartilhar." },
-              { ico:"🔔", cls:"lp-fi2", title:"Lembretes Automáticos",       desc:"WhatsApp e SMS automáticos reduzem faltas em até 70%. Os clientes recebem lembretes inteligentes antes do horário." },
-              { ico:"📊", cls:"lp-fi3", title:"Relatórios e Métricas",       desc:"Dashboard completo com faturamento, serviços mais populares, horários de pico e desempenho da equipe em tempo real." },
-              { ico:"👥", cls:"lp-fi4", title:"Gestão de Equipe",            desc:"Cada profissional tem sua agenda individual. Defina serviços, comissões e horários por colaborador com facilidade." },
-              { ico:"💳", cls:"lp-fi5", title:"Pagamento Online",            desc:"Aceite sinal ou pagamento completo no ato do agendamento. Integração com Pix, cartão de crédito e débito." },
-              { ico:"🚀", cls:"lp-fi6", title:"Automação WhatsApp",        desc:"Disparo de mensagens e lembretes automáticos para seus clientes via WhatsApp, integrados diretamente com sua agenda." },
+              { ico:<Smartphone />, cls:"lp-fi1", title:"Agendamento Online 24/7",    desc:"Seus clientes agendam pelo celular a qualquer hora, sem precisar ligar. Link personalizado da sua marca, pronto para compartilhar." },
+              { ico:<Bell />,       cls:"lp-fi2", title:"Lembretes Automáticos",       desc:"WhatsApp e SMS automáticos reduzem faltas em até 70%. Os clientes recebem lembretes inteligentes antes do horário." },
+              { ico:<BarChart3 />,  cls:"lp-fi3", title:"Relatórios e Métricas",       desc:"Dashboard completo com faturamento, serviços mais populares, horários de pico e desempenho da equipe em tempo real." },
+              { ico:<Users />,      cls:"lp-fi4", title:"Gestão de Equipe",            desc:"Cada profissional tem sua agenda individual. Defina serviços, comissões e horários por colaborador com facilidade." },
+              { ico:<CreditCard />, cls:"lp-fi5", title:"Pagamento Online",            desc:"Aceite sinal ou pagamento completo no ato do agendamento. Integração com Pix, cartão de crédito e débito." },
+              { ico:<Zap />,        cls:"lp-fi6", title:"Automação WhatsApp",        desc:"Disparo de mensagens e lembretes automáticos para seus clientes via WhatsApp, integrados diretamente com sua agenda." },
             ].map((f, i) => (
               <div key={f.title} className={`lp-feat-card lp-rv lp-d${i}`}>
                 <div className={`lp-feat-ico ${f.cls}`}>{f.ico}</div>
@@ -324,10 +339,10 @@ export default function LandingPage() {
               <p className="lp-sec-sub">Deixe de usar papel ou grupos de WhatsApp para agendar. Com a Agendelle, tudo é automático, profissional e elegante.</p>
               <ul className="lp-ben-list">
                 {[
-                  { ico:"📉", cls:"lp-bi1", title:"Reduza faltas em até 70%",    desc:"Lembretes automáticos via WhatsApp, SMS e e-mail garantem que seus clientes apareçam." },
-                  { ico:"⏱️", cls:"lp-bi2", title:"Economize 3h por dia",         desc:"Chega de responder mensagem para confirmar horário. Tudo acontece automaticamente." },
-                  { ico:"📈", cls:"lp-bi3", title:"Aumente o ticket médio",        desc:"Sugira serviços complementares no momento do agendamento e venda mais sem esforço." },
-                  { ico:"✨", cls:"lp-bi4", title:"Imagem profissional imediata",  desc:"Seu cliente percebe a diferença na hora — confirmação bonita, elegante e confiável." },
+                  { ico:<TrendingUp size={20} />, cls:"lp-bi1", title:"Reduza faltas em até 70%",    desc:"Lembretes automáticos via WhatsApp, SMS e e-mail garantem que seus clientes apareçam." },
+                  { ico:<Clock size={20} />,      cls:"lp-bi2", title:"Economize 3h por dia",         desc:"Chega de responder mensagem para confirmar horário. Tudo acontece automaticamente." },
+                  { ico:<TrendingUp size={20} />, cls:"lp-bi3", title:"Aumente o ticket médio",        desc:"Sugira serviços complementares no momento do agendamento e venda mais sem esforço." },
+                  { ico:<Sparkles size={20} />,   cls:"lp-bi4", title:"Imagem profissional imediata",  desc:"Seu cliente percebe a diferença na hora — confirmação bonita, elegante e confiável." },
                 ].map(b => (
                   <li key={b.title} className="lp-ben-item">
                     <div className={`lp-ben-ico ${b.cls}`}>{b.ico}</div>
@@ -434,15 +449,19 @@ export default function LandingPage() {
             <h2>Pronto para ter a agenda<br />mais elegante do mercado?</h2>
             <p>Faça o teste e comprove você mesmo. Em menos de 5 minutos seu negócio está online, elegante e recebendo agendamentos.</p>
             <div className="lp-cta-acts">
-              <button className="lp-btn lp-btn-white" style={{padding:"12px 28px",fontSize:".95rem"}} onClick={() => navigate("/login")}>
-                ✦ Solicitar teste de 30 dias
+              <button className="lp-btn lp-btn-white" onClick={() => navigate("/login")}>
+                <Sparkles size={18} /> Solicitar teste de 30 dias
               </button>
-              <button className="lp-btn lp-btn-clear" style={{padding:"12px 28px",fontSize:".95rem"}} onClick={() => navigate("/login")}>
+              <button className="lp-btn lp-btn-clear" onClick={() => navigate("/login")}>
                 Falar com especialista
               </button>
             </div>
             <div className="lp-cta-note">
-              <span>✓ 30 dias de teste</span> <span>·</span> <span>✓ Sem fidelidade</span> <span>·</span> <span>✓ Cancele quando quiser</span>
+              <span><Check size={16} /> 30 dias de teste</span> 
+              <span>·</span> 
+              <span><Check size={16} /> Sem fidelidade</span> 
+              <span>·</span> 
+              <span><Check size={16} /> Cancele quando quiser</span>
             </div>
           </div>
         </div>
@@ -453,44 +472,50 @@ export default function LandingPage() {
         <div className="lp-container">
           <div className="lp-foot-top">
             <div className="lp-foot-brand">
-              <img src={logoImg} alt="Agendelle" />
-              <p>A agenda elegante para salões e barbearias. Tecnologia inteligente com sofisticação para o seu negócio crescer.</p>
+              <img src={logoImg} alt="Agendelle" className="mb-6 h-10 w-auto" />
+              <p className="text-zinc-500 text-sm leading-relaxed max-w-xs">
+                A agenda elegante para salões e barbearias. 
+                Tecnologia inteligente com sofisticação para o seu negócio crescer.
+              </p>
             </div>
             <div className="lp-foot-col">
               <h5>Produto</h5>
               <ul>
-                <li><a href="#recursos"      onClick={e=>{e.preventDefault();scrollTo("#recursos")}}>Recursos</a></li>
-                <li><a href="#precos"        onClick={e=>{e.preventDefault();scrollTo("#precos")}}>Preços</a></li>
-                <li><a href="#como-funciona" onClick={e=>{e.preventDefault();scrollTo("#como-funciona")}}>Como Funciona</a></li>
-                <li><a href="#depoimentos"   onClick={e=>{e.preventDefault();scrollTo("#depoimentos")}}>Depoimentos</a></li>
+                <li><a href="#recursos">Recursos</a></li>
+                <li><a href="#precos">Preços</a></li>
+                <li><a href="#como-funciona">Como Funciona</a></li>
               </ul>
             </div>
             <div className="lp-foot-col">
               <h5>Empresa</h5>
               <ul>
-                <li><a href="#">Sobre nós</a></li>
-                <li><a href="/blog" onClick={e => { e.preventDefault(); navigate("/blog"); }}>Blog</a></li>
-                <li><a href="#">Parceiros</a></li>
-                <li><a href="#">Carreiras</a></li>
+                <li><a href="https://develoi.com.br/" target="_blank" rel="noopener noreferrer">Develoi Soluções Digitais</a></li>
+                <li><a href="/blog">Nosso Blog</a></li>
+                <li><a href="#">Privacidade</a></li>
               </ul>
             </div>
             <div className="lp-foot-col">
-              <h5>Suporte</h5>
-              <ul>
-                <li><a href="#">Central de ajuda</a></li>
-                <li><a href="#">Contato</a></li>
-                <li><a href="#">WhatsApp</a></li>
-                <li><a href="#">Status</a></li>
-              </ul>
+              <h5>Conecte-se</h5>
+              <div className="flex gap-3 mt-2">
+                <a href="#" className="w-10 h-10 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-400 hover:bg-zinc-900 hover:text-white transition-all">
+                  <Smartphone size={18} />
+                </a>
+                <a href="#" className="w-10 h-10 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-400 hover:bg-zinc-900 hover:text-white transition-all">
+                  <Globe size={18} />
+                </a>
+              </div>
             </div>
           </div>
           <div className="lp-foot-bot">
-            <p>© 2026 Agendelle. Um produto <a href="https://develoi.com.br/" target="_blank" rel="noopener noreferrer" style={{color:"var(--lp-purple)",fontWeight:"700"}}>Develoi Soluções Digitais</a>.
-              <br className="sm:hidden" />
-              <span className="hidden sm:inline"> &nbsp;·&nbsp; </span>
-              <a href="#" style={{color:"var(--lp-text3)"}}>Privacidade</a> &nbsp;·&nbsp;
-              <a href="#" style={{color:"var(--lp-text3)"}}>Termos</a>
-            </p>
+            <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t border-zinc-100">
+              <p className="text-xs text-zinc-400">
+                © 2026 Agendelle. Desenvolvido por <strong>Develoi Soluções Digitais</strong>.
+              </p>
+              <div className="flex gap-6 text-xs text-zinc-400">
+                <a href="#" className="hover:text-zinc-900">Termos de Uso</a>
+                <a href="#" className="hover:text-zinc-900">Política de Privacidade</a>
+              </div>
+            </div>
           </div>
         </div>
       </footer>

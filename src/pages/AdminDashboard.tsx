@@ -104,6 +104,8 @@ import {
   ProductsTab,
   AssinaturaTab,
 } from "@/src/pages/admin/modules";
+import { VirtualTour } from "./admin/components/VirtualTour";
+import { AnimatePresence } from "framer-motion";
 
 import { AdminDashboardShell } from "@/src/pages/admin/dashboard/components/AdminDashboardShell";
 import { AdminTabContent } from "@/src/pages/admin/dashboard/components/AdminTabContent";
@@ -138,11 +140,38 @@ import {
 
 // ── Componente de item de navegação da sidebar ──────────────────────────────
 export default function AdminDashboard() {
-  const { user: adminUser, logout } = useAuth();
+  const { user: adminUser, logout, refreshUser } = useAuth();
   const toast = useToast();
   const [tenantName, setTenantName] = useState<string>(adminUser?.tenantName || "Studio Admin");
   const [tenantSlug, setTenantSlug] = useState<string>(adminUser?.tenantSlug || "");
   const location = useLocation();
+
+  // Virtual Tour Logic
+  const [showTour, setShowTour] = useState(false);
+  
+  useEffect(() => {
+    // Se o usuário acabou de completar o onboarding (passo 3), mostramos o tour
+    if (adminUser?.onboardingStep === 3) {
+      const timer = setTimeout(() => {
+        setShowTour(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [adminUser]);
+
+  const handleCompleteTour = async () => {
+    setShowTour(false);
+    try {
+      await apiFetch("/api/admin/onboarding/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ onboardingStep: 100 }) // 100 = Finalizado
+      });
+      await refreshUser();
+    } catch (e) {
+      console.error("Erro ao finalizar tour:", e);
+    }
+  };
 
   // Sub-aba de profissionais
   const [profSubTab, setProfSubTab] = useState<"lista" | "permissoes">(() => {
@@ -1044,8 +1073,10 @@ export default function AdminDashboard() {
     localStorage.setItem(userPrefsKey, JSON.stringify(prefs));
   };
 
-  // Theme color — lê da preferência do usuário, fallback para chave legada
-  const [themeColor, setThemeColor] = useState<string>(() => loadUserPrefs().themeColor || localStorage.getItem('themeColor') || 'amber');
+  // Theme color — lê da preferência do usuário, fallback para dado do banco, fallback para chave legada
+  const [themeColor, setThemeColor] = useState<string>(() => 
+    loadUserPrefs().themeColor || adminUser?.themeColor || localStorage.getItem('themeColor') || 'amber'
+  );
 
   const themeColors = [
     { value: 'amber',   label: 'Âmbar',     hex: '#f59e0b', light: '#fffbeb', border: '#fcd34d',
@@ -1508,6 +1539,10 @@ export default function AdminDashboard() {
           agendaSpecialDays={agendaSpecialDays}
         />
       </AdminDashboardShell>
+
+      <AnimatePresence>
+        {showTour && <VirtualTour onComplete={handleCompleteTour} />}
+      </AnimatePresence>
 
       {/* Modals */}
       <AdminScheduleAuxModals

@@ -450,7 +450,31 @@ export const adminController = {
     } catch (e: any) {
       res.status(500).json({ error: "Erro ao buscar planos." });
     }
-  }
+  },
+
+  async updateOnboarding(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+
+    const { onboardingStep, segment, themeColor, name } = req.body;
+
+    try {
+      const data: any = {};
+      if (onboardingStep !== undefined) data.onboardingStep = Number(onboardingStep);
+      if (segment !== undefined) data.segment = segment;
+      if (themeColor !== undefined) data.themeColor = themeColor;
+      if (name !== undefined) data.name = name;
+
+      const tenant = await (prisma as any).tenant.update({
+        where: { id: tenantId },
+        data
+      });
+      res.json(tenant);
+    } catch (e: any) {
+      console.error("[Onboarding] Erro ao atualizar:", e.message);
+      res.status(400).json({ error: "Erro ao salvar progresso." });
+    }
+  },
 
 
 };

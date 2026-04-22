@@ -1,0 +1,645 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model adminuser {
+  id               String    @id @db.VarChar(36)
+  name             String    @db.VarChar(255)
+  email            String    @unique(map: "AdminUser_email_key") @db.VarChar(255)
+  password         String    @db.VarChar(255)
+  role             String    @default("admin") @db.VarChar(20)
+  jobTitle         String?   @db.VarChar(100)
+  bio              String?   @db.VarChar(1000)
+  phone            String?   @db.VarChar(30)
+  canCreateUsers   Boolean   @default(false)
+  canDeleteAccount Boolean   @default(false)
+  isActive         Boolean   @default(true)
+  tenantId         String    @db.VarChar(36)
+  createdAt        DateTime  @default(now()) @db.DateTime(0)
+  lastLogin        DateTime? @db.DateTime(0)
+  permissions      String?   @db.Text
+  photo            String?   @db.Text
+  tenant           tenant    @relation(fields: [tenantId], references: [id], map: "fk_admin_tenant")
+
+  @@index([tenantId], map: "fk_admin_tenant")
+}
+
+model agendasettings {
+  id                          String   @id @db.VarChar(36)
+  tenantId                    String   @unique(map: "AgendaSettings_tenantId_key") @db.VarChar(36)
+  onlineBookingEnabled        Boolean  @default(true)
+  enablePatTerminal           Boolean  @default(false)
+  patShowClientName           Boolean  @default(true)
+  patShowService              Boolean  @default(true)
+  patShowTime                 Boolean  @default(true)
+  patAutoAdvance              Boolean  @default(false)
+  patAutoAdvanceMinutes       Int      @default(5)
+  enableSelfService           Boolean  @default(true)
+  selfServiceRequireLogin     Boolean  @default(false)
+  selfServiceShowProfessional Boolean  @default(true)
+  selfServiceShowPrices       Boolean  @default(true)
+  selfServiceWelcomeMessage   String?  @db.VarChar(500)
+  enableClientAgendaView      Boolean  @default(true)
+  enableAppointmentSearch     Boolean  @default(true)
+  enableWhatsAppReminders     Boolean  @default(true)
+  autoConfirmAppointments     Boolean  @default(false)
+  allowClientCancellation     Boolean  @default(true)
+  allowClientReschedule       Boolean  @default(false)
+  blockNationalHolidays       Boolean  @default(false)
+  slotIntervalMinutes         Int      @default(30)
+  minAdvanceMinutes           Int      @default(30)
+  maxAdvanceDays              Int      @default(60)
+  notes                       String?  @db.Text
+  createdAt                   DateTime @default(now()) @db.DateTime(0)
+  updatedAt                   DateTime @db.DateTime(0)
+  allowClientRecurrence       Boolean  @default(false)
+}
+
+model appointment {
+  id             String       @id @db.VarChar(36)
+  date           DateTime     @db.DateTime(0)
+  startTime      String       @db.VarChar(5)
+  endTime        String       @db.VarChar(5)
+  status         String       @default("scheduled") @db.VarChar(20)
+  type           String       @default("atendimento") @db.VarChar(20)
+  clientId       String?      @db.VarChar(36)
+  serviceId      String?      @db.VarChar(36)
+  professionalId String       @db.VarChar(36)
+  comandaId      String?      @db.VarChar(36)
+  sessionNumber  Int?         @default(1)
+  totalSessions  Int?         @default(1)
+  duration       Int?         @default(60)
+  notes          String?      @db.VarChar(2000)
+  tenantId       String?      @db.VarChar(36)
+  createdAt      DateTime     @default(now()) @db.DateTime(0)
+  repeatGroupId  String?      @db.VarChar(36)
+  client         client?      @relation(fields: [clientId], references: [id], map: "fk_appt_client")
+  comanda        comanda?     @relation(fields: [comandaId], references: [id], map: "fk_appt_comanda")
+  professional   professional @relation(fields: [professionalId], references: [id], map: "fk_appt_professional")
+  service        service?     @relation(fields: [serviceId], references: [id], map: "fk_appt_service")
+
+  @@index([clientId], map: "fk_appt_client")
+  @@index([comandaId], map: "fk_appt_comanda")
+  @@index([professionalId], map: "fk_appt_professional")
+  @@index([serviceId], map: "fk_appt_service")
+}
+
+model bloganalytics {
+  id     String   @id @db.VarChar(36)
+  postId String   @db.VarChar(36)
+  date   DateTime @db.Date
+  views  Int      @default(0)
+
+  @@unique([postId, date], map: "uq_bloganalytics")
+  @@index([date], map: "idx_bloganalytics_date")
+  @@index([postId], map: "idx_bloganalytics_post")
+}
+
+model blogauthor {
+  id        String   @id @db.VarChar(36)
+  name      String   @db.VarChar(255)
+  slug      String   @unique(map: "uq_blogauthor_slug") @db.VarChar(120)
+  bio       String?  @db.VarChar(1000)
+  photo     String?  @db.Text
+  role      String?  @db.VarChar(100)
+  instagram String?  @db.VarChar(255)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+}
+
+model blogcategory {
+  id          String   @id @db.VarChar(36)
+  name        String   @db.VarChar(100)
+  slug        String   @unique(map: "uq_blogcategory_slug") @db.VarChar(120)
+  description String?  @db.VarChar(500)
+  color       String   @default("#f59e0b") @db.VarChar(20)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now()) @db.DateTime(0)
+}
+
+model blogpost {
+  id              String    @id @db.VarChar(36)
+  title           String    @db.VarChar(500)
+  slug            String    @unique(map: "uq_blogpost_slug") @db.VarChar(600)
+  excerpt         String?   @db.VarChar(1000)
+  content         String    @db.LongText
+  coverImage      String?   @db.Text
+  status          String    @default("draft") @db.VarChar(20)
+  featured        Boolean   @default(false)
+  categoryId      String?   @db.VarChar(36)
+  authorId        String?   @db.VarChar(36)
+  tags            String?   @default("[]") @db.VarChar(2000)
+  seoTitle        String?   @db.VarChar(500)
+  seoDescription  String?   @db.VarChar(500)
+  seoKeywords     String?   @db.VarChar(500)
+  views           Int       @default(0)
+  readTimeMinutes Int       @default(5)
+  publishedAt     DateTime? @db.DateTime(0)
+  createdAt       DateTime  @default(now()) @db.DateTime(0)
+  updatedAt       DateTime  @db.DateTime(0)
+
+  @@index([authorId], map: "idx_blogpost_author")
+  @@index([categoryId], map: "idx_blogpost_category")
+  @@index([slug], map: "idx_blogpost_slug")
+  @@index([status, publishedAt], map: "idx_blogpost_status_pub")
+}
+
+model blogsubscriber {
+  id          String    @id @db.VarChar(36)
+  email       String    @unique(map: "uq_blogsubscriber_email") @db.VarChar(255)
+  name        String?   @db.VarChar(255)
+  isActive    Boolean   @default(true)
+  confirmedAt DateTime? @db.DateTime(0)
+  createdAt   DateTime  @default(now()) @db.DateTime(0)
+}
+
+model cashentry {
+  id          String   @id @db.VarChar(36)
+  tenantId    String   @db.VarChar(36)
+  type        String   @default("income") @db.VarChar(20)
+  category    String?  @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  amount      Float    @default(0)
+  date        DateTime @default(now())
+  comandaId   String?  @db.VarChar(36)
+  createdAt   DateTime @default(now())
+
+  @@index([comandaId], map: "idx_cashentry_comanda")
+  @@index([tenantId], map: "idx_cashentry_tenant")
+  @@index([tenantId, date], map: "idx_cashentry_tenant_date")
+}
+
+model client {
+  id            String        @id @db.VarChar(36)
+  name          String        @db.VarChar(255)
+  phone         String        @db.VarChar(30)
+  age           Int?
+  email         String?       @db.VarChar(255)
+  cpf           String?       @db.VarChar(20)
+  birthDate     String?       @db.VarChar(10)
+  gender        String?       @db.VarChar(30)
+  whatsapp      Boolean       @default(true)
+  cep           String?       @db.VarChar(10)
+  street        String?       @db.VarChar(255)
+  number        String?       @db.VarChar(30)
+  complement    String?       @db.VarChar(255)
+  neighborhood  String?       @db.VarChar(255)
+  city          String?       @db.VarChar(100)
+  state         String?       @db.VarChar(10)
+  hasChildren   Boolean       @default(false)
+  isMarried     Boolean       @default(false)
+  spouseName    String?       @db.VarChar(255)
+  maritalStatus String?       @db.VarChar(50)
+  education     String?       @db.VarChar(50)
+  notes         String?       @db.Text
+  createdAt     DateTime      @default(now()) @db.DateTime(0)
+  tenantId      String?       @db.VarChar(36)
+  appointment   appointment[]
+  comanda       comanda[]
+
+  @@unique([phone, tenantId], map: "Client_phone_tenantId_key")
+  @@index([tenantId], map: "Client_tenantId_idx")
+  @@index([tenantId], map: "idx_client_tenant")
+}
+
+model closedday {
+  id          String   @id @db.VarChar(36)
+  date        DateTime @db.DateTime(0)
+  description String?  @db.VarChar(255)
+  tenantId    String?  @db.VarChar(36)
+
+  @@unique([date, tenantId], map: "ClosedDay_date_tenantId_key")
+  @@index([tenantId], map: "ClosedDay_tenantId_idx")
+  @@index([tenantId], map: "idx_closedday_tenant")
+}
+
+model comanda {
+  id                String        @id @db.VarChar(36)
+  status            String        @default("open") @db.VarChar(20)
+  total             Float         @default(0)
+  discount          Float         @default(0)
+  discountType      String        @default("value") @db.VarChar(20)
+  clientId          String?       @db.VarChar(36)
+  tenantId          String?       @db.VarChar(36)
+  professionalId    String?       @db.VarChar(36)
+  description       String?       @db.VarChar(1000)
+  paymentMethod     String?       @db.VarChar(30)
+  sessionCount      Int?          @default(1)
+  type              String?       @default("normal") @db.VarChar(20)
+  createdAt         DateTime      @default(now()) @db.DateTime(0)
+  paymentDetails    String?       @db.Text
+  sessionsCompleted Int?          @default(0)
+  appointment       appointment[]
+  client            client?       @relation(fields: [clientId], references: [id], map: "fk_comanda_client")
+  comandaitem       comandaitem[]
+
+  @@index([clientId], map: "fk_comanda_client")
+  @@index([professionalId], map: "idx_comanda_prof")
+  @@index([professionalId], map: "idx_comanda_professional")
+  @@index([tenantId], map: "idx_comanda_tenant")
+}
+
+model comandaitem {
+  id          String   @id @db.VarChar(36)
+  comandaId   String   @db.VarChar(36)
+  productId   String?  @db.VarChar(36)
+  serviceId   String?  @db.VarChar(36)
+  name        String   @db.VarChar(255)
+  price       Float    @default(0)
+  quantity    Int      @default(1)
+  total       Float    @default(0)
+  createdAt   DateTime @default(now()) @db.DateTime(0)
+  packageId   String?  @db.VarChar(36)
+  packageName String?  @db.VarChar(255)
+  comanda     comanda  @relation(fields: [comandaId], references: [id], onDelete: Cascade, map: "ComandaItem_comandaId_fkey")
+  product     product? @relation(fields: [productId], references: [id], map: "ComandaItem_productId_fkey")
+  service     service? @relation(fields: [serviceId], references: [id], map: "ComandaItem_serviceId_fkey")
+
+  @@index([comandaId], map: "idx_comandaitem_comanda")
+  @@index([productId], map: "idx_comandaitem_product")
+  @@index([serviceId], map: "idx_comandaitem_service")
+}
+
+model manufacturer {
+  id        String   @id @db.VarChar(36)
+  tenantId  String   @db.VarChar(36)
+  name      String   @db.VarChar(255)
+  cnpj      String?  @db.VarChar(20)
+  phone     String?  @db.VarChar(30)
+  email     String?  @db.VarChar(255)
+  website   String?  @db.VarChar(500)
+  notes     String?  @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+
+  @@index([tenantId], map: "idx_manufacturer_tenant")
+}
+
+model packageservice {
+  id                                        String  @id @db.VarChar(36)
+  packageId                                 String  @db.VarChar(36)
+  serviceId                                 String  @db.VarChar(36)
+  quantity                                  Int     @default(1)
+  service_packageservice_packageIdToservice service @relation("packageservice_packageIdToservice", fields: [packageId], references: [id], onDelete: Cascade, map: "fk_pkg_package")
+  service_packageservice_serviceIdToservice service @relation("packageservice_serviceIdToservice", fields: [serviceId], references: [id], onDelete: Cascade, map: "fk_pkg_service")
+
+  @@index([packageId], map: "fk_pkg_package")
+  @@index([serviceId], map: "fk_pkg_service")
+}
+
+model plan {
+  id                     String   @id @db.VarChar(36)
+  name                   String   @db.VarChar(100)
+  price                  Float    @default(0)
+  maxProfessionals       Int      @default(3)
+  maxAdminUsers          Int      @default(1)
+  canCreateAdminUsers    Boolean  @default(false)
+  canDeleteAccount       Boolean  @default(false)
+  features               String?  @default("[]") @db.VarChar(2000)
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now()) @db.DateTime(0)
+  wppEnabled             Boolean  @default(false)
+  systemBotEnabled       Boolean  @default(true)
+  qrCodeBotEnabled       Boolean  @default(false)
+  siteEnabled            Boolean  @default(true)
+  agendaExternaEnabled   Boolean  @default(true)
+  priceExtraProfessional Float    @default(0)
+  permissions            String?  @default("[]") @db.VarChar(2000)
+  tenant                 tenant[]
+}
+
+model product {
+  id             String           @id @db.VarChar(36)
+  name           String           @db.VarChar(255)
+  description    String?          @db.Text
+  photo          String?          @db.Text
+  costPrice      Float            @default(0)
+  salePrice      Float            @default(0)
+  stock          Int              @default(0)
+  minStock       Int              @default(0)
+  validUntil     DateTime?        @db.DateTime(0)
+  code           String?          @db.VarChar(100)
+  isForSale      Boolean          @default(true)
+  tenantId       String?          @db.VarChar(36)
+  sectorId       String?          @db.VarChar(36)
+  metadata       String?          @db.Text
+  createdAt      DateTime         @default(now()) @db.DateTime(0)
+  reservedStock  Int              @default(0)
+  unit           String           @default("un") @db.VarChar(20)
+  supplierId     String?          @db.VarChar(36)
+  manufacturerId String?          @db.VarChar(36)
+  showOnSite     Boolean          @default(false)
+  brand          String?          @db.VarChar(150)
+  comandaitem    comandaitem[]
+  sector         sector?          @relation(fields: [sectorId], references: [id], map: "Product_sectorId_fkey")
+  serviceproduct serviceproduct[]
+
+  @@index([sectorId], map: "Product_sectorId_fkey")
+  @@index([tenantId], map: "idx_product_tenant")
+}
+
+model professional {
+  id                  String         @id @db.VarChar(36)
+  name                String         @db.VarChar(255)
+  nickname            String?        @db.VarChar(100)
+  role                String?        @db.VarChar(100)
+  password            String?        @db.VarChar(255)
+  cpf                 String?        @db.VarChar(20)
+  gender              String?        @db.VarChar(20)
+  birthDate           String?        @db.VarChar(10)
+  phone               String?        @db.VarChar(30)
+  email               String?        @db.VarChar(255)
+  instagram           String?        @db.VarChar(255)
+  bio                 String?        @db.VarChar(1000)
+  photo               String?        @db.Text
+  permissions         String?        @default("{}") @db.VarChar(2000)
+  accessLevel         String?        @default("no-access") @db.VarChar(20)
+  patAccess           Boolean        @default(false)
+  canAddServicePhotos Boolean        @default(false)
+  isActive            Boolean        @default(true)
+  tenantId            String?        @db.VarChar(36)
+  appointment         appointment[]
+  workinghours        workinghours[]
+
+  @@index([tenantId], map: "Professional_tenantId_idx")
+  @@index([tenantId], map: "idx_professional_tenant")
+}
+
+model schedulerelease {
+  id             String   @id @db.VarChar(36)
+  tenantId       String   @db.VarChar(36)
+  professionalId String?  @db.VarChar(36)
+  date           DateTime @db.DateTime(0)
+  startTime      String   @db.VarChar(5)
+  endTime        String   @db.VarChar(5)
+  description    String?  @db.VarChar(255)
+  createdAt      DateTime @default(now()) @db.DateTime(0)
+
+  @@index([professionalId], map: "ScheduleRelease_professionalId_idx")
+  @@index([tenantId, date], map: "ScheduleRelease_tenantId_date_idx")
+  @@index([tenantId], map: "ScheduleRelease_tenantId_idx")
+}
+
+model sector {
+  id        String    @id @db.VarChar(36)
+  tenantId  String    @db.VarChar(36)
+  name      String    @db.VarChar(100)
+  color     String    @default("#6b7280") @db.VarChar(20)
+  createdAt DateTime  @default(now())
+  product   product[]
+
+  @@index([tenantId], map: "idx_sector_tenant")
+}
+
+model service {
+  id                                               String           @id @db.VarChar(36)
+  name                                             String           @db.VarChar(255)
+  description                                      String?          @db.Text
+  price                                            Float
+  duration                                         Int
+  type                                             String           @default("service") @db.VarChar(20)
+  discount                                         Float            @default(0)
+  discountType                                     String           @default("value") @db.VarChar(20)
+  tenantId                                         String?          @db.VarChar(36)
+  professionalIds                                  String?          @default("[]") @db.VarChar(2000)
+  photo                                            String?          @db.Text
+  createdAt                                        DateTime         @default(now()) @db.DateTime(0)
+  commissionValue                                  Float            @default(0)
+  commissionType                                   String           @default("percentage") @db.VarChar(20)
+  taxRate                                          Float            @default(0)
+  appointment                                      appointment[]
+  comandaitem                                      comandaitem[]
+  packageservice_packageservice_packageIdToservice packageservice[] @relation("packageservice_packageIdToservice")
+  packageservice_packageservice_serviceIdToservice packageservice[] @relation("packageservice_serviceIdToservice")
+  serviceproduct                                   serviceproduct[]
+
+  @@index([tenantId], map: "Service_tenantId_idx")
+  @@index([tenantId], map: "idx_service_tenant")
+}
+
+model serviceconsumption {
+  id        String @id @db.VarChar(36)
+  serviceId String @db.VarChar(36)
+  productId String @db.VarChar(36)
+  quantity  Float  @default(1)
+  tenantId  String @db.VarChar(36)
+
+  @@index([productId], map: "idx_svccons_product")
+  @@index([serviceId], map: "idx_svccons_service")
+  @@index([tenantId], map: "idx_svccons_tenant")
+}
+
+model serviceproduct {
+  id        String  @id @db.VarChar(36)
+  serviceId String  @db.VarChar(36)
+  productId String  @db.VarChar(36)
+  quantity  Float   @default(1)
+  product   product @relation(fields: [productId], references: [id], onDelete: Cascade, map: "ServiceProduct_productId_fkey")
+  service   service @relation(fields: [serviceId], references: [id], onDelete: Cascade, map: "ServiceProduct_serviceId_fkey")
+
+  @@index([productId], map: "idx_svcprod_product")
+  @@index([serviceId], map: "idx_svcprod_service")
+}
+
+model specialscheduleday {
+  id             String   @id @db.VarChar(36)
+  tenantId       String   @db.VarChar(36)
+  professionalId String?  @db.VarChar(36)
+  date           DateTime @db.DateTime(0)
+  isClosed       Boolean  @default(true)
+  startTime      String?  @db.VarChar(5)
+  endTime        String?  @db.VarChar(5)
+  description    String?  @db.VarChar(255)
+  createdAt      DateTime @default(now()) @db.DateTime(0)
+
+  @@index([professionalId], map: "SpecialScheduleDay_professionalId_idx")
+  @@index([tenantId, date], map: "SpecialScheduleDay_tenantId_date_idx")
+  @@index([tenantId], map: "SpecialScheduleDay_tenantId_idx")
+}
+
+model stockmovement {
+  id          String   @id @db.VarChar(36)
+  tenantId    String   @db.VarChar(36)
+  productId   String   @db.VarChar(36)
+  type        String   @db.VarChar(20)
+  quantity    Int
+  previousQty Int      @default(0)
+  newQty      Int      @default(0)
+  reason      String?  @db.VarChar(500)
+  reference   String?  @db.VarChar(255)
+  createdBy   String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @db.DateTime(0)
+
+  @@index([productId], map: "idx_stockmov_product")
+  @@index([tenantId], map: "idx_stockmov_tenant")
+  @@index([tenantId, createdAt], map: "idx_stockmov_tenant_date")
+}
+
+model superadmin {
+  id        String    @id @db.VarChar(36)
+  username  String    @unique(map: "SuperAdmin_username_key") @db.VarChar(100)
+  password  String    @db.VarChar(255)
+  createdAt DateTime  @default(now()) @db.DateTime(0)
+  bio       String?   @db.Text
+  birthday  DateTime? @db.Date
+  email     String?   @unique(map: "SuperAdmin_email_key") @db.VarChar(255)
+  name      String?   @db.VarChar(255)
+  phone     String?   @db.VarChar(20)
+  photo     String?   @db.Text
+  role      String?   @db.VarChar(100)
+}
+
+model supplier {
+  id        String   @id @db.VarChar(36)
+  tenantId  String   @db.VarChar(36)
+  name      String   @db.VarChar(255)
+  cnpj      String?  @db.VarChar(20)
+  phone     String?  @db.VarChar(30)
+  email     String?  @db.VarChar(255)
+  contact   String?  @db.VarChar(255)
+  address   String?  @db.Text
+  notes     String?  @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+
+  @@index([tenantId], map: "idx_supplier_tenant")
+}
+
+model tenant {
+  id                    String      @id @db.VarChar(36)
+  name                  String      @db.VarChar(255)
+  slug                  String      @unique(map: "Tenant_slug_key") @db.VarChar(100)
+  ownerName             String      @db.VarChar(255)
+  ownerEmail            String      @db.VarChar(255)
+  ownerPhone            String?     @db.VarChar(30)
+  planId                String      @db.VarChar(36)
+  isActive              Boolean     @default(true)
+  expiresAt             DateTime?   @db.DateTime(0)
+  blockedAt             DateTime?   @db.DateTime(0)
+  maxAdminUsersOverride Int?
+  notes                 String?     @db.Text
+  createdAt             DateTime    @default(now()) @db.DateTime(0)
+  address               String?     @db.Text
+  coverUrl              String?     @db.Text
+  instagram             String?     @db.VarChar(100)
+  logoUrl               String?     @db.Text
+  themeColor            String?     @db.VarChar(20)
+  welcomeMessage        String?     @db.Text
+  description           String?     @db.Text
+  wppOverride           Boolean?
+  aboutTitle            String?     @db.Text
+  experienceYears       String?     @default("10+") @db.VarChar(20)
+  feature1Description   String?     @db.Text
+  feature1Title         String?     @db.VarChar(100)
+  feature2Description   String?     @db.Text
+  feature2Title         String?     @db.VarChar(100)
+  feature3Description   String?     @db.Text
+  feature3Title         String?     @db.VarChar(100)
+  mission               String?     @db.Text
+  phone                 String?     @db.VarChar(30)
+  showProducts          Boolean     @default(true)
+  showServices          Boolean     @default(true)
+  showTeam              Boolean     @default(true)
+  values                String?     @db.Text
+  vision                String?     @db.Text
+  siteCoverUrl          String?     @db.Text
+  onboardingStep        Int         @default(0)
+  segment               String?     @db.VarChar(50)
+  salesPersonId         String?     @db.VarChar(36)
+  adminuser             adminuser[]
+  plan                  plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
+
+  @@index([planId], map: "fk_tenant_plan")
+}
+
+model userpreferences {
+  id          String   @id @db.VarChar(36)
+  userId      String   @db.VarChar(36)
+  userType    String   @default("admin") @db.VarChar(20)
+  tenantId    String   @db.VarChar(36)
+  preferences String   @db.Text
+  updatedAt   DateTime @db.DateTime(0)
+
+  @@unique([userId, userType], map: "uq_userprefs_user")
+  @@index([tenantId], map: "idx_userprefs_tenant")
+}
+
+model workinghours {
+  id             String        @id @db.VarChar(36)
+  dayOfWeek      Int
+  isOpen         Boolean       @default(true)
+  startTime      String        @default("09:00") @db.VarChar(5)
+  endTime        String        @default("19:00") @db.VarChar(5)
+  breakStart     String        @default("12:00") @db.VarChar(5)
+  breakEnd       String        @default("13:00") @db.VarChar(5)
+  professionalId String?       @db.VarChar(36)
+  professional   professional? @relation(fields: [professionalId], references: [id], map: "fk_wh_professional")
+
+  @@index([professionalId], map: "fk_wh_professional")
+}
+
+model wppbotconfig {
+  id                    String   @id @db.VarChar(36)
+  tenantId              String   @unique(map: "WppBotConfig_tenantId_key") @db.VarChar(36)
+  botEnabled            Boolean  @default(false)
+  sendConfirmation      Boolean  @default(true)
+  sendReminder24h       Boolean  @default(true)
+  sendBirthday          Boolean  @default(true)
+  sendCobranca          Boolean  @default(false)
+  sendWelcome           Boolean  @default(true)
+  menuEnabled           Boolean  @default(false)
+  menuWelcomeMsg        String?  @db.Text
+  menuOptions           String?  @db.Text
+  createdAt             DateTime @default(now()) @db.DateTime(0)
+  updatedAt             DateTime @db.DateTime(0)
+  sendReminder60min     Boolean  @default(true)
+  sendProfNewBooking    Boolean  @default(true)
+  sendProfReminder24h   Boolean  @default(true)
+  sendProfReminder60min Boolean  @default(false)
+}
+
+model wppinstance {
+  id           String   @id @db.VarChar(36)
+  tenantId     String   @unique(map: "tenantId") @db.VarChar(36)
+  instanceName String   @db.VarChar(120)
+  apiUrl       String   @db.VarChar(500)
+  apiKey       String?  @db.VarChar(255)
+  phone        String?  @db.VarChar(30)
+  status       String   @default("not_configured") @db.VarChar(30)
+  qrCode       String?  @db.Text
+  isActive     Boolean  @default(false)
+  createdAt    DateTime @default(now()) @db.DateTime(0)
+  updatedAt    DateTime @db.DateTime(0)
+}
+
+model wppmessagesent {
+  id            String   @id @db.VarChar(36)
+  appointmentId String   @db.VarChar(36)
+  type          String   @db.VarChar(50)
+  tenantId      String   @db.VarChar(36)
+  sentAt        DateTime @default(now()) @db.DateTime(0)
+
+  @@unique([appointmentId, type], map: "uq_wpp_sent")
+  @@index([sentAt], map: "idx_wpp_sent_at")
+  @@index([tenantId], map: "idx_wpp_sent_tenant")
+}
+
+model wppmessagetemplate {
+  id        String   @id @db.VarChar(36)
+  tenantId  String   @db.VarChar(36)
+  type      String   @db.VarChar(50)
+  name      String   @db.VarChar(255)
+  body      String   @db.Text
+  isActive  Boolean  @default(true)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @db.DateTime(0)
+
+  @@unique([tenantId, type], map: "WppMessageTemplate_tenantId_type_key")
+}

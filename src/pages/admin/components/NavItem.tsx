@@ -16,6 +16,7 @@ interface NavItemProps {
   onSubItemClick?: (key: string) => void;
   /** Se false, o item aparece desabilitado com cadeado */
   permitted?: boolean;
+  id?: string;
 }
 
 export function NavItem({
@@ -28,6 +29,7 @@ export function NavItem({
   activeSubKey,
   onSubItemClick,
   permitted = true,
+  id,
 }: NavItemProps) {
   const [expanded, setExpanded] = useState(active && !!subItems?.length);
 
@@ -57,6 +59,7 @@ export function NavItem({
   return (
     <div>
       <button
+        id={id}
         onClick={handleClick}
         title={collapsed ? label : undefined}
         style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}

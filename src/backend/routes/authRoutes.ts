@@ -224,6 +224,9 @@ function buildAdminPayload(admin: any) {
     canDeleteAccount: admin.canDeleteAccount,
     tenantCreatedAt: admin.tenant?.createdAt,
     tenantExpiresAt: admin.tenant?.expiresAt,
+    onboardingStep: admin.tenant?.onboardingStep,
+    segment: admin.tenant?.segment,
+    themeColor: admin.tenant?.themeColor,
     type: "admin" as const,
 
     permissions: restrictPermissionsByPlan(basePermissions, planAllowedModules),
