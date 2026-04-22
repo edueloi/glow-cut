@@ -856,25 +856,34 @@ function MinhaAgendaView({
                                       onMouseLeave={() => setHoveredAppointment(null)}
                                       onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(app); }}
                                       className={cn(
-                                        "rounded-lg p-1 sm:p-1.5 flex flex-col justify-between cursor-pointer transition-all border hover:shadow-md w-full h-full overflow-hidden",
+                                        "rounded-lg p-0.5 sm:p-1 flex flex-col justify-between cursor-pointer transition-all border hover:shadow-md w-full h-full overflow-hidden",
                                         appBg(app.type, app.status)
                                       )}
                                     >
-                                      <p className={cn("text-[9px] font-black leading-tight truncate", appText(app.type, app.status))}>
-                                        {app.type === "bloqueio"
-                                          ? "🚫 Bloq."
-                                          : app.type === "pessoal"
-                                          ? "👤 Pessoal"
-                                          : app.client?.name}
-                                      </p>
-                                      {app.type === "atendimento" && app.service && (
-                                        <p className="text-[8px] font-bold text-amber-600 truncate hidden sm:block">
-                                          {app.service.name}
+                                      <div className="flex flex-col gap-0 min-w-0 flex-1">
+                                        <p className={cn("text-[9px] font-black leading-[1] break-words line-clamp-2", appText(app.type, app.status))}>
+                                          {app.type === "bloqueio"
+                                            ? "🚫 Bloq."
+                                            : app.type === "pessoal"
+                                            ? "👤 Pessoal"
+                                            : app.client?.name}
                                         </p>
-                                      )}
-                                      <span className={cn("text-[8px] font-bold", appTimeText(app.type))}>
-                                        {app.startTime}
-                                      </span>
+                                        {app.type === "atendimento" && app.service && app.duration >= 45 && (
+                                          <p className="text-[8px] font-bold text-amber-600/80 line-clamp-1 leading-none mt-0.5">
+                                            {app.service.name}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <div className="mt-1 pt-0.5 border-t border-black/5 flex items-center justify-between gap-1 flex-wrap">
+                                        <span className={cn("text-[8px] font-bold whitespace-nowrap", appTimeText(app.type))}>
+                                          {app.startTime}
+                                        </span>
+                                        {app.totalSessions > 1 && (
+                                          <span className="text-[7px] font-black text-amber-700 bg-amber-100/80 px-0.5 rounded-sm">
+                                            {app.sessionNumber}/{app.totalSessions}
+                                          </span>
+                                        )}
+                                      </div>
                                     </motion.div>
 
                                     {/* Tooltip */}
