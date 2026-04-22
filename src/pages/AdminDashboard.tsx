@@ -243,6 +243,7 @@ export default function AdminDashboard() {
   };
 
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [pendingAppointments, setPendingAppointments] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -413,11 +414,10 @@ export default function AdminDashboard() {
     lockOrientation();
   }, []);
 
-  // Agendamentos pendentes de confirmação (hoje, status scheduled)
+  // Agendamentos pendentes de confirmação (todos os scheduled do futuro)
   const pendingConfirmationsCount = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    return appointments.filter(a => a.date === today && a.status === "scheduled").length;
-  }, [appointments]);
+    return pendingAppointments.length;
+  }, [pendingAppointments]);
 
   // Notificações reais calculadas a partir do estado local
   const notifications = useMemo(() => {
@@ -635,15 +635,29 @@ export default function AdminDashboard() {
       });
   }, [currentMonth, selectedProfessional]);
 
+  const fetchPendingAppointments = React.useCallback(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    apiFetch(`/api/appointments?status=scheduled&start=${today}`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setPendingAppointments(Array.isArray(data) ? data : []))
+      .catch(() => setPendingAppointments([]));
+  }, []);
+
+  const refreshDashboardData = React.useCallback(() => {
+    fetchAppointments();
+    fetchPendingAppointments();
+  }, [fetchAppointments, fetchPendingAppointments]);
+
   // Recarrega agendamentos quando mês, profissional ou aba muda
   useEffect(() => {
     if (activeTab === 'agenda' || activeTab === 'dash') {
       fetchAppointments();
+      fetchPendingAppointments();
     }
     if (activeTab === 'agenda') {
       fetchAgendaBlockingData();
     }
-  }, [fetchAppointments, fetchAgendaBlockingData, activeTab]);
+  }, [fetchAppointments, fetchPendingAppointments, fetchAgendaBlockingData, activeTab]);
 
   const handleAddServiceToComanda = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
@@ -1403,6 +1417,7 @@ export default function AdminDashboard() {
           activeSubModule={activeSubModule}
           setActiveSubModule={handleSubModuleChange}
           appointments={appointments}
+          pendingAppointments={pendingAppointments}
           calculateAge={calculateAge}
           clients={clients}
           clientView={clientView}
@@ -1487,6 +1502,7 @@ export default function AdminDashboard() {
           handleDeleteAppointment={handleDeleteAppointment}
           handleCreateBlockAppointment={handleCreateBlockAppointment}
           fetchAppointments={fetchAppointments}
+          onAppointmentConfirmed={refreshDashboardData}
           blockNationalHolidays={blockNationalHolidays}
           agendaClosedDays={agendaClosedDays}
           agendaSpecialDays={agendaSpecialDays}

@@ -139,6 +139,8 @@ export function AdminTabContent(props: any) {
     blockNationalHolidays,
     agendaClosedDays,
     agendaSpecialDays,
+    pendingAppointments,
+    onAppointmentConfirmed,
   } = props;
 
   const renderDashboardTab = () => {
@@ -189,7 +191,8 @@ export function AdminTabContent(props: any) {
         setIsAppointmentModalOpen={setIsAppointmentModalOpen}
         setIsComandaModalOpen={setIsComandaModalOpen}
         setIsClientModalOpen={setIsClientModalOpen}
-        onAppointmentConfirmed={fetchAppointments}
+        onAppointmentConfirmed={onAppointmentConfirmed || fetchAppointments}
+        pendingAppointments={pendingAppointments}
       />
     );
   };

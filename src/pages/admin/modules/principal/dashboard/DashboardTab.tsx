@@ -33,6 +33,7 @@ interface DashboardTabProps {
   setIsComandaModalOpen?: (v: boolean) => void;
   setIsClientModalOpen?: (v: boolean) => void;
   onAppointmentConfirmed?: () => void;
+  pendingAppointments?: any[];
 }
 
 const QUICK_ACTIONS = [
@@ -76,7 +77,8 @@ function StatCard({ title, value, icon: Icon, description, hidden, accent = "amb
 
 export function DashboardTab({
   revenueData, servicesData, appointments, comandas, clients, handleTabChange,
-  setIsAppointmentModalOpen, setIsComandaModalOpen, setIsClientModalOpen, onAppointmentConfirmed
+  setIsAppointmentModalOpen, setIsComandaModalOpen, setIsClientModalOpen, onAppointmentConfirmed,
+  pendingAppointments = []
 }: DashboardTabProps) {
   const [showFinancials, setShowFinancials] = useState(true);
   const [statPeriod, setStatPeriod] = useState<StatPeriod>("today");
@@ -238,17 +240,22 @@ export function DashboardTab({
     }
   }, [appointments, confirmedIds, onAppointmentConfirmed]);
 
-  const pendingConfirmations = useMemo(() =>
-    appointments.filter(a => 
+  const pendingConfirmations = useMemo(() => {
+    // Mesclar appointments (que podem ter o que está no calendário) com pendingAppointments (que tem todos os scheduled do futuro)
+    const all = [...appointments];
+    pendingAppointments.forEach(p => {
+      if (!all.find(a => a.id === p.id)) all.push(p);
+    });
+
+    return all.filter(a => 
       a.status === "scheduled" && 
       !confirmedIds.has(a.id) &&
       (a.date >= today || a.date === today)
     ).sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return (a.startTime || "").localeCompare(b.startTime || "");
-    }),
-    [appointments, today, confirmedIds]
-  );
+    });
+  }, [appointments, pendingAppointments, today, confirmedIds]);
 
   const { user: adminUser } = useAuth();
 
