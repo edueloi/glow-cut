@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface CalendarProps {
   blockedDates?: string[];
+  closedDates?: string[];
   selectedDate?: string | null;
   onDateToggle?: (date: string) => void;
   onDateSelect?: (date: string) => void;
@@ -17,6 +18,7 @@ const toIsoDate = (year: number, month: number, day: number) => {
 
 export const Calendar: React.FC<CalendarProps> = ({
   blockedDates = [],
+  closedDates = [],
   selectedDate,
   onDateToggle,
   onDateSelect,
@@ -25,6 +27,7 @@ export const Calendar: React.FC<CalendarProps> = ({
   const [currentDate, setCurrentDate] = useState(() => new Date());
 
   const blockedDatesSet = useMemo(() => new Set(blockedDates), [blockedDates]);
+  const closedDatesSet = useMemo(() => new Set(closedDates), [closedDates]);
 
   const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
   const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
@@ -96,14 +99,18 @@ export const Calendar: React.FC<CalendarProps> = ({
           const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), dayNumber);
           const dateString = toIsoDate(currentDate.getFullYear(), currentDate.getMonth(), dayNumber);
           const isBlocked = blockedDatesSet.has(dateString);
+          const isClosed = closedDatesSet.has(dateString);
           const isSelected = selectedDate === dateString;
           const isPast = date < today;
           const isToday = date.getTime() === today.getTime();
 
           let className = 'h-10 rounded-xl text-sm font-bold transition-all ';
 
-          if (isPast) {
+          if (isPast && !isClosed) {
             className += 'text-zinc-300 cursor-default';
+          } else if (isClosed) {
+            // Dias fechados/feriados — destaque rosado
+            className += 'border border-rose-300 bg-rose-100 text-rose-600 cursor-default';
           } else if (mode === 'block' && isBlocked) {
             className += 'border border-zinc-900 bg-zinc-900 text-white shadow-sm hover:bg-zinc-800 cursor-pointer';
           } else if (mode === 'select' && isSelected) {
@@ -118,13 +125,14 @@ export const Calendar: React.FC<CalendarProps> = ({
             <button
               key={dateString}
               type="button"
-              disabled={isPast}
+              disabled={isPast && !isClosed}
               onClick={() => {
+                if (isClosed) return; // Não permite interagir com dias fechados
                 if (mode === 'block') onDateToggle?.(dateString);
                 else onDateSelect?.(dateString);
               }}
               className={className}
-              title={isBlocked ? 'Dia bloqueado' : 'Dia disponível'}
+              title={isClosed ? 'Estúdio fechado' : isBlocked ? 'Dia bloqueado' : 'Dia disponível'}
             >
               {dayNumber}
             </button>
@@ -132,12 +140,16 @@ export const Calendar: React.FC<CalendarProps> = ({
         })}
       </div>
 
-      {mode === 'block' && (
-        <div className="mt-4 flex items-center justify-between gap-2 rounded-xl bg-zinc-100 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">
-          <span>Branco: livre</span>
-          <span>Escuro: fechado</span>
-        </div>
-      )}
+      {/* Legenda */}
+      <div className="mt-4 flex items-center justify-between gap-2 rounded-xl bg-zinc-100 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+        <span>Branco: livre</span>
+        {closedDates.length > 0 && (
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-2.5 h-2.5 rounded bg-rose-300" /> Fechado
+          </span>
+        )}
+        {mode === 'block' && <span>Escuro: bloqueado</span>}
+      </div>
     </div>
   );
 };

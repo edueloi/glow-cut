@@ -256,6 +256,7 @@ export function LiberacoesHorarios({
                   selectedDate={newBlock.date}
                   onDateSelect={(d) => setNewBlock(p => ({ ...p, date: d }))}
                   blockedDates={bloqueios.map(b => b.date.split('T')[0])}
+                  closedDates={closedDays.map(d => d.date.split('T')[0])}
                 />
 
                 <div className="space-y-4">
@@ -349,7 +350,8 @@ export function LiberacoesHorarios({
                   mode="select"
                   selectedDate={newClosed.date}
                   onDateSelect={(d) => setNewClosed(p => ({ ...p, date: d }))}
-                  blockedDates={closedDays.map(d => d.date.split('T')[0])}
+                  closedDates={closedDays.map(d => d.date.split('T')[0])}
+                  blockedDates={bloqueios.map(b => b.date.split('T')[0])}
                 />
 
                 <div className="space-y-4">
@@ -421,6 +423,7 @@ export function LiberacoesHorarios({
                   selectedDate={newRelease.date}
                   onDateSelect={(d) => setNewRelease(p => ({ ...p, date: d }))}
                   blockedDates={releases.map(r => r.date.split('T')[0])}
+                  closedDates={closedDays.map(d => d.date.split('T')[0])}
                 />
 
                 <div className="space-y-4">
