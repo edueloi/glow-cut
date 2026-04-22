@@ -39,7 +39,7 @@ import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/per
 /* ═══════════════════════════════════════════
    TIPOS
 ═══════════════════════════════════════════ */
-type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp" | "blog" | "sales";
+type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp" | "blog" | "sales" | "settings";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
@@ -3162,6 +3162,224 @@ function BlogSubscribersView({ onNav }: { onNav: (v: BlogView) => void }) {
   );
 }
 
+
+// ── Settings ───────────────────────────────────────────────────────────────
+function SettingsTab() {
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<{ open: boolean; item: any | null }>({ open: false, item: null });
+  const [form, setForm] = useState({ name: "", phone: "", type: "sales", isPrimary: false, isActive: true });
+  const [saving, setSaving] = useState(false);
+  const toast = useToast();
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await apiFetch("/api/super-admin/platform-contacts").then(r => r.json());
+      setContacts(Array.isArray(r) ? r : []);
+    } catch (err) {
+      console.error("Erro ao carregar contatos:", err);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const openNew = () => {
+    setForm({ name: "", phone: "", type: "sales", isPrimary: false, isActive: true });
+    setModal({ open: true, item: null });
+  };
+
+  const openEdit = (c: any) => {
+    setForm({ name: c.name, phone: c.phone, type: c.type, isPrimary: c.isPrimary, isActive: c.isActive });
+    setModal({ open: true, item: c });
+  };
+
+  const handleSave = async () => {
+    if (!form.name || !form.phone) return;
+    setSaving(true);
+    try {
+      const url = modal.item ? `/api/super-admin/platform-contacts/${modal.item.id}` : "/api/super-admin/platform-contacts";
+      const method = modal.item ? "PUT" : "POST";
+      const r = await apiFetch(url, { method, body: JSON.stringify(form) });
+      if (r.ok) {
+        toast.success(modal.item ? "Contato atualizado!" : "Contato criado!");
+        setModal({ open: false, item: null });
+        load();
+      } else {
+        toast.error("Erro ao salvar contato.");
+      }
+    } catch (err) {
+      toast.error("Erro de conexão.");
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Excluir este contato?")) return;
+    try {
+      const r = await apiFetch(`/api/super-admin/platform-contacts/${id}`, { method: "DELETE" });
+      if (r.ok) {
+        toast.success("Contato removido.");
+        load();
+      }
+    } catch (err) {
+      toast.error("Erro ao excluir.");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle
+        title="Configurações da Plataforma"
+        description="Gerencie os canais de atendimento e vendas do Agendelle"
+        icon={Globe}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Canais de Atendimento (WhatsApp)</h3>
+            <Button onClick={openNew} size="sm" iconLeft={<Plus size={14} />}>Novo Canal</Button>
+          </div>
+
+          <ContentCard padding="none">
+            {loading ? (
+              <div className="p-8 text-center text-sm text-zinc-400">Carregando...</div>
+            ) : contacts.length === 0 ? (
+              <EmptyState
+                icon={MessageCircle}
+                title="Sem canais"
+                description="Cadastre números de WhatsApp para Vendas e Suporte."
+                action={<Button onClick={openNew} size="sm">Adicionar Canal</Button>}
+              />
+            ) : (
+              <div className="divide-y divide-zinc-100">
+                {contacts.map(c => (
+                  <div key={c.id} className="flex items-center gap-4 px-5 py-4 hover:bg-zinc-50/50 transition-colors">
+                    <div className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
+                      c.type === "sales" ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"
+                    )}>
+                      {c.type === "sales" ? <TrendingUp size={18} /> : <Shield size={18} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-black text-zinc-800">{c.name}</p>
+                        {c.isPrimary && <Badge color="success" size="sm">Principal</Badge>}
+                        {c.type === "sales" ? <Badge color="warning" size="sm">Vendas</Badge> : <Badge color="info" size="sm">Suporte</Badge>}
+                      </div>
+                      <p className="text-xs text-zinc-500 font-mono mt-0.5">{c.phone}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "text-[9px] font-bold px-2 py-1 rounded-full",
+                        c.isActive ? "bg-green-100 text-green-700" : "bg-zinc-100 text-zinc-500"
+                      )}>
+                        {c.isActive ? "Ativo" : "Inativo"}
+                      </span>
+                      <div className="flex gap-1">
+                        <IconButton onClick={() => openEdit(c)} variant="ghost" size="sm"><Edit2 size={13} /></IconButton>
+                        <IconButton onClick={() => handleDelete(c.id)} variant="ghost" size="sm" className="text-red-400 hover:text-red-600"><Trash2 size={13} /></IconButton>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ContentCard>
+        </div>
+
+        <div className="space-y-6">
+          <ContentCard>
+            <div className="space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
+                <Globe size={24} />
+              </div>
+              <h3 className="text-base font-black text-zinc-900 leading-tight">Como funciona?</h3>
+              <p className="text-sm text-zinc-500 leading-relaxed">
+                Os contatos marcados como <strong>Principal</strong> serão exibidos nos botões de "Falar com Vendas" e "Suporte" na Landing Page e no Dashboard dos parceiros.
+              </p>
+              <div className="pt-2 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <Check size={12} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-zinc-700">Landing Page</p>
+                    <p className="text-[10px] text-zinc-500">CTA de vendas direciona para o número principal de vendas.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <Check size={12} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-zinc-700">Dashboard Parceiro</p>
+                    <p className="text-[10px] text-zinc-500">O botão de ajuda no painel do parceiro abre o WhatsApp de suporte.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ContentCard>
+        </div>
+      </div>
+
+      <Modal
+        isOpen={modal.open}
+        onClose={() => setModal({ open: false, item: null })}
+        title={modal.item ? "Editar Canal" : "Novo Canal de Atendimento"}
+      >
+        <div className="p-6 space-y-4">
+          <Input
+            label="Nome de exibição *"
+            value={form.name}
+            onChange={e => setForm({ ...form, name: e.target.value })}
+            placeholder="Ex: WhatsApp Vendas Principal"
+          />
+          <Input
+            label="Número (com DDD e DDI) *"
+            value={form.phone}
+            onChange={e => setForm({ ...form, phone: e.target.value })}
+            placeholder="Ex: 5511999998888"
+          />
+          
+          <Select
+            label="Tipo de canal"
+            value={form.type}
+            onChange={e => setForm({ ...form, type: e.target.value })}
+          >
+            <option value="sales">Vendas</option>
+            <option value="support">Suporte / Atendimento</option>
+          </Select>
+
+          <div className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100">
+            <div>
+              <p className="text-xs font-bold text-zinc-700">Canal Principal</p>
+              <p className="text-[10px] text-zinc-400">Define como o número padrão para este tipo.</p>
+            </div>
+            <Switch checked={form.isPrimary} onCheckedChange={v => setForm({ ...form, isPrimary: v })} />
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100">
+            <div>
+              <p className="text-xs font-bold text-zinc-700">Ativo</p>
+              <p className="text-[10px] text-zinc-400">Se desativado, não será usado em nenhum lugar.</p>
+            </div>
+            <Switch checked={form.isActive} onCheckedChange={v => setForm({ ...form, isActive: v })} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 pb-6">
+          <Button variant="ghost" onClick={() => setModal({ open: false, item: null })}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving || !form.name || !form.phone}>
+            {saving ? "Salvando..." : "Salvar Canal"}
+          </Button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════
    SIDEBAR
 ═══════════════════════════════════════════ */
@@ -3175,6 +3393,7 @@ const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: stri
   { key: "wpp",         icon: <MessageCircle size={17} />,   label: "WhatsApp",       path: "/super-admin/whatsapp" },
   { key: "sales",       icon: <TrendingUp size={17} />,      label: "Vendas e Afiliados", path: "/super-admin/vendas" },
   { key: "staff",       icon: <Shield size={17} />,          label: "Minha Equipe",   path: "/super-admin/equipe" },
+  { key: "settings",    icon: <Globe size={17} />,           label: "Configurações",   path: "/super-admin/configuracoes" },
   { key: "profile",     icon: <User size={17} />,            label: "Meu Perfil",     path: "/super-admin/perfil" },
 ];
 
@@ -3188,7 +3407,7 @@ function pathToTab(pathname: string): TabKey {
   if (pathname.includes("/whatsapp"))    return "wpp";
   if (pathname.includes("/vendas"))      return "sales";
   if (pathname.includes("/equipe"))      return "staff";
-  if (pathname.includes("/perfil"))      return "profile";
+  if (pathname.includes("/configuracoes")) return "settings";
   return "dash";
 }
 
@@ -3340,6 +3559,7 @@ export default function SuperAdminDashboard({ username, onLogout }: { username: 
           {tab === "wpp"         && <WppTab plans={plans} />}
           {tab === "sales"       && <SalesTab user={userData} />}
           {tab === "staff"       && <StaffTab username={username} />}
+          {tab === "settings"    && <SettingsTab />}
           {tab === "profile"     && <ProfileTab username={username} />}
         </div>
       </main>

@@ -59,6 +59,17 @@ app.get("/terminal/availability", agendaController.getAvailability);
 
 // ── Autenticação (público — sem requireAuth) ──────────────────────────────────
 app.use("/api/auth", authRouter);
+app.get("/api/public/platform-contacts", async (req, res) => {
+  try {
+    const contacts = await (prisma as any).platformContact.findMany({
+      where: { isActive: true },
+      select: { type: true, phone: true, isPrimary: true }
+    });
+    res.json(contacts);
+  } catch (e) {
+    res.json([]);
+  }
+});
 // Manter compatibilidade com clientes antigos (remove após deploy estável)
 app.post("/api/login", adminController.unifiedLogin);
 app.get("/api/tenant-by-slug/:slug", adminController.getTenantBySlug);

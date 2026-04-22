@@ -26,6 +26,7 @@ export default function LandingPage() {
   const [scrolled, setScrolled]   = useState(false);
   const [plans, setPlans]         = useState<any[]>([]);
   const [loadingPlans, setLoading] = useState(true);
+  const [contacts, setContacts]   = useState<any[]>([]);
   const navigate = useNavigate();
 
   /* navbar scroll */
@@ -54,6 +55,11 @@ export default function LandingPage() {
       })
       .catch(e => console.error("Error fetching plans:", e))
       .finally(() => setLoading(false));
+
+    apiFetch("/api/public/platform-contacts")
+      .then(r => r.json())
+      .then(data => setContacts(data))
+      .catch(() => {});
   }, []);
 
   /* smooth scroll */
@@ -61,6 +67,21 @@ export default function LandingPage() {
     setMenuOpen(false);
     const el = document.querySelector(id);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const getContact = (type: "sales" | "support") => {
+    const primary = contacts.find(c => c.type === type && c.isPrimary);
+    if (primary) return primary.phone;
+    const first = contacts.find(c => c.type === type);
+    return first?.phone || "5511999999999"; // Fallback
+  };
+
+  const openWpp = (type: "sales" | "support") => {
+    const phone = getContact(type);
+    const msg = type === "sales" 
+      ? "Olá! Gostaria de saber mais informações sobre as assinaturas do Agendelle e como funciona o sistema."
+      : "Olá! Gostaria de suporte técnico para minha conta no Agendelle.";
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
   return (
@@ -81,7 +102,7 @@ export default function LandingPage() {
           </ul>
           <div className="lp-nav-cta">
             <button className="lp-btn lp-btn-ghost" onClick={() => navigate("/login")}>Entrar</button>
-            <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>Falar com vendas →</button>
+            <button className="lp-btn lp-btn-primary" onClick={() => openWpp("sales")}>Falar com vendas →</button>
           </div>
           <button className={`lp-hamburger ${menuOpen ? "lp-active" : ""}`} onClick={() => setMenuOpen(!menuOpen)}>
             <span /><span /><span />
@@ -97,7 +118,7 @@ export default function LandingPage() {
         <a href="#depoimentos"   onClick={() => scrollTo("#depoimentos")}>Depoimentos</a>
         <a href="/blog"          onClick={() => navigate("/blog")}>Blog</a>
         <button className="lp-btn lp-btn-ghost"   onClick={() => navigate("/login")}>Entrar</button>
-        <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>Falar com vendas →</button>
+        <button className="lp-btn lp-btn-primary" onClick={() => openWpp("sales")}>Falar com vendas →</button>
       </div>
 
       {/* ══ HERO ════════════════════════════════════ */}
@@ -486,6 +507,8 @@ export default function LandingPage() {
                 <li><a href="#recursos">Recursos</a></li>
                 <li><a href="#precos">Preços</a></li>
                 <li><a href="#como-funciona">Como Funciona</a></li>
+                <li><button onClick={() => openWpp("sales")} className="lp-footer-link-btn">Falar com Vendas</button></li>
+                <li><button onClick={() => openWpp("support")} className="lp-footer-link-btn">Suporte Técnico</button></li>
               </ul>
             </div>
             <div className="lp-foot-col">

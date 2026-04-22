@@ -231,7 +231,7 @@ model Product {
   serviceProducts     ServiceProduct[]
   serviceConsumptions ServiceConsumption[]
   stockMovements      StockMovement[]
-  sector          Sector?          @relation(fields: [sectorId], references: [id])
+    sector          Sector?          @relation(fields: [sectorId], references: [id])
   supplier        Supplier?        @relation(fields: [supplierId], references: [id])
   manufacturer    Manufacturer?    @relation(fields: [manufacturerId], references: [id])
 
@@ -244,7 +244,7 @@ model Sector {
   name      String    @db.VarChar(100)
   color     String    @default("#6b7280") @db.VarChar(20)
   createdAt DateTime  @default(now()) @db.DateTime(3)
-  products  Product[]
+    products  Product[]
 
   @@index([tenantId], map: "idx_sector_tenant")
 }
@@ -679,4 +679,17 @@ model BlogSubscriber {
   isActive    Boolean  @default(true)
   confirmedAt DateTime? @db.DateTime(0)
   createdAt   DateTime @default(now()) @db.DateTime(0)
+}
+
+model PlatformContact {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  name      String   @db.VarChar(255) // Ex: Vendas, Suporte
+  phone     String   @db.VarChar(30)
+  isPrimary Boolean  @default(false)
+  type      String   @default("sales") // sales, support
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @updatedAt @db.DateTime(0)
+
+  @@map("platform_contacts")
 }

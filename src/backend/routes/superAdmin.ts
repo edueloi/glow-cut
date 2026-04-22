@@ -9,6 +9,84 @@ import {
 
 export const superAdminRouter = Router();
 
+// ─── CONTATOS GLOBAIS (WHATSAPP) ───────────────────────────────
+superAdminRouter.get("/platform-contacts", async (req, res) => {
+  try {
+    const contacts = await (prisma as any).platformContact.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(contacts);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+superAdminRouter.post("/platform-contacts", async (req, res) => {
+  const { name, phone, type, isPrimary, isActive } = req.body;
+  if (!name || !phone) return res.status(400).json({ error: "Nome e telefone são obrigatórios" });
+  try {
+    // Se for primário, remove primário de outros do mesmo tipo
+    if (isPrimary) {
+      await (prisma as any).platformContact.updateMany({
+        where: { type: type || "sales" },
+        data: { isPrimary: false }
+      });
+    }
+
+    const contact = await (prisma as any).platformContact.create({
+      data: {
+        id: randomUUID(),
+        name,
+        phone,
+        type: type || "sales",
+        isPrimary: !!isPrimary,
+        isActive: isActive !== undefined ? !!isActive : true
+      }
+    });
+    res.json(contact);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+superAdminRouter.put("/platform-contacts/:id", async (req, res) => {
+  const { name, phone, type, isPrimary, isActive } = req.body;
+  try {
+    // Se for primário, remove primário de outros do mesmo tipo
+    if (isPrimary) {
+      const current = await (prisma as any).platformContact.findUnique({ where: { id: req.params.id } });
+      await (prisma as any).platformContact.updateMany({
+        where: { type: type || current?.type || "sales" },
+        data: { isPrimary: false }
+      });
+    }
+
+    const contact = await (prisma as any).platformContact.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(phone !== undefined && { phone }),
+        ...(type !== undefined && { type }),
+        ...(isPrimary !== undefined && { isPrimary: !!isPrimary }),
+        ...(isActive !== undefined && { isActive: !!isActive })
+      }
+    });
+    res.json(contact);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+superAdminRouter.delete("/platform-contacts/:id", async (req, res) => {
+  try {
+    await (prisma as any).platformContact.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 // ─── ESTATÍSTICAS DE VENDAS ───────────────────────────────────
 superAdminRouter.get("/sales-stats", async (req, res) => {
   try {
