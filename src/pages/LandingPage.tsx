@@ -371,10 +371,12 @@ export default function LandingPage() {
             {loadingPlans ? (
               <div className="col-span-full py-12 text-center text-zinc-400 font-medium">Carregando planos...</div>
             ) : plans.length > 0 ? (
-              plans.map((p, idx) => {
-                let features = [];
-                try { features = JSON.parse(p.features || "[]"); } catch(e) { features = []; }
-                const isHot = p.name === "Pro" || p.is_popular || p.isPopular;
+              plans
+                .sort((a, b) => Number(a.price) - Number(b.price))
+                .map((p, idx) => {
+                  let features = [];
+                  try { features = JSON.parse(p.features || "[]"); } catch(e) { features = []; }
+                  const isHot = p.name === "Pro" || p.is_popular || p.isPopular;
 
                 return (
                   <div key={p.id} className={`lp-price-card ${isHot ? "lp-hot" : ""} lp-rv lp-d${idx * 2}`}>
@@ -398,7 +400,7 @@ export default function LandingPage() {
                       className={`lp-btn ${isHot ? "lp-btn-primary" : "lp-btn-ghost"}`} 
                       onClick={() => navigate("/login")}
                     >
-                      {isHot ? "Solicitar Teste →" : "Falar com vendas"}
+                      Assinar Agora
                     </button>
                   </div>
                 );
