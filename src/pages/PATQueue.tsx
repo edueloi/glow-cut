@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -8,13 +8,12 @@ import {
   Loader2, AlertCircle, Calendar, ChevronRight,
   Package, Sparkles, Users, Timer, ArrowLeft,
   Check, X, UserMinus, Monitor, AppWindow, LayoutGrid,
-  MoreVertical, ChevronDown, CheckCircle2,
+  MoreVertical, ChevronDown, CheckCircle2, Moon, Sun,
+  Filter, Grid, List, Search
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { Button } from "@/src/components/ui/Button";
 import { Badge } from "@/src/components/ui/Badge";
-import { StatCard } from "@/src/components/ui/StatCard";
-import { PanelCard } from "@/src/components/ui/PanelCard";
 import { useToast } from "@/src/components/ui/Toast";
 
 // ── types ─────────────────────────────────────────────────────────────────────
@@ -46,10 +45,8 @@ interface PatData {
   showTime: boolean;
   studio: { name: string; slug: string };
   date: string;
-  // Para visão exclusiva
   professional?: { id: string; name: string; role: string; photo: string | null };
   queue?: QueueItem[];
-  // Para visão geral
   professionals?: ProfWithQueue[];
 }
 
@@ -69,11 +66,13 @@ function AppointmentCard({
   index,
   onStatusChange,
   isGeneral = false,
+  darkMode = false,
 }: {
   item: QueueItem;
   index: number;
   onStatusChange?: (id: string, status: string) => void;
   isGeneral?: boolean;
+  darkMode?: boolean;
 }) {
   const isFirst = item.isNext;
   const isCompleted = item.status === "performed";
@@ -82,31 +81,47 @@ function AppointmentCard({
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ delay: index * 0.03 }}
+      transition={{ delay: index * 0.05, type: "spring", stiffness: 300, damping: 30 }}
       className={cn(
         "group relative rounded-2xl border overflow-hidden transition-all duration-300",
         isFirst
-          ? "bg-amber-50/50 border-amber-200 shadow-lg shadow-amber-500/5 ring-1 ring-amber-500/10"
+          ? darkMode 
+            ? "bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)] ring-1 ring-amber-500/20"
+            : "bg-amber-50/80 border-amber-200 shadow-lg shadow-amber-500/5 ring-1 ring-amber-500/10"
           : isCompleted
-          ? "bg-emerald-50/30 border-emerald-100 opacity-60"
+          ? darkMode ? "bg-emerald-500/5 border-emerald-500/20 opacity-60" : "bg-emerald-50/30 border-emerald-100 opacity-60"
           : isMissed
-          ? "bg-red-50/30 border-red-100 opacity-60"
-          : "bg-white border-zinc-100 shadow-sm hover:shadow-md hover:border-zinc-200",
+          ? darkMode ? "bg-red-500/5 border-red-500/20 opacity-60" : "bg-red-50/30 border-red-100 opacity-60"
+          : darkMode 
+            ? "bg-zinc-800/50 border-zinc-700/50 hover:bg-zinc-800 hover:border-zinc-600 shadow-sm"
+            : "bg-white border-zinc-100 shadow-sm hover:shadow-md hover:border-zinc-200",
       )}
     >
-      <div className="flex items-center gap-3 p-4">
+      <div className="flex items-center gap-4 p-4 sm:p-5">
         {/* Time info */}
-        <div className="flex flex-col items-center justify-center min-w-[56px] shrink-0 h-14 bg-zinc-50 rounded-xl border border-zinc-100 group-hover:bg-white transition-colors">
+        <div className={cn(
+          "flex flex-col items-center justify-center min-w-[64px] shrink-0 h-16 rounded-xl border transition-colors",
+          darkMode 
+            ? isFirst ? "bg-amber-500/20 border-amber-500/30" : "bg-zinc-900 border-zinc-700 group-hover:bg-zinc-800"
+            : isFirst ? "bg-amber-100 border-amber-200" : "bg-zinc-50 border-zinc-100 group-hover:bg-white"
+        )}>
           <p className={cn(
-            "text-sm font-black tabular-nums",
-            isFirst ? "text-amber-600" : "text-zinc-900"
+            "text-base font-black tabular-nums tracking-tight",
+            isFirst 
+              ? darkMode ? "text-amber-400" : "text-amber-600"
+              : darkMode ? "text-zinc-100" : "text-zinc-900"
           )}>
             {item.startTime}
           </p>
-          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">
+          <p className={cn(
+            "text-[9px] font-black uppercase tracking-widest mt-0.5",
+            isFirst 
+              ? darkMode ? "text-amber-500/70" : "text-amber-500"
+              : "text-zinc-400"
+          )}>
             {isFirst ? "Agora" : "Início"}
           </p>
         </div>
@@ -115,27 +130,34 @@ function AppointmentCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className={cn(
-              "text-[15px] font-black truncate",
-              isFirst ? "text-zinc-900" : "text-zinc-700"
+              "text-base sm:text-lg font-black truncate tracking-tight",
+              darkMode ? "text-zinc-100" : "text-zinc-900",
+              (isCompleted || isMissed) && "line-through opacity-50"
             )}>
               {item.clientName}
             </h3>
-            {isFirst && (
-                <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            {isFirst && !isCompleted && !isMissed && (
+              <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse shrink-0 ring-4 ring-amber-500/20" />
             )}
           </div>
           
-          <div className="flex items-center gap-3 mt-0.5">
+          <div className="flex items-center gap-3 mt-1">
             {item.serviceName && (
-              <p className="text-xs text-zinc-400 font-bold flex items-center gap-1.5 truncate">
-                <Scissors size={11} className={isFirst ? "text-amber-500" : "text-zinc-300"} />
+              <p className={cn(
+                "text-xs font-bold flex items-center gap-2 truncate",
+                darkMode ? "text-zinc-400" : "text-zinc-500"
+              )}>
+                <Scissors size={12} className={isFirst ? "text-amber-500" : darkMode ? "text-zinc-500" : "text-zinc-400"} />
                 {item.serviceName}
               </p>
             )}
             {item.serviceDuration && !isGeneral && (
-              <p className="text-[10px] text-zinc-300 font-bold flex items-center gap-1">
+              <p className={cn(
+                "text-[10px] font-bold flex items-center gap-1 px-2 py-0.5 rounded-full border",
+                darkMode ? "text-zinc-500 border-zinc-700 bg-zinc-900/50" : "text-zinc-400 border-zinc-100 bg-zinc-50"
+              )}>
                 <Clock size={10} />
-                {item.serviceDuration}m
+                {item.serviceDuration} min
               </p>
             )}
           </div>
@@ -144,36 +166,46 @@ function AppointmentCard({
         {/* Status / Actions */}
         <div className="shrink-0 flex items-center gap-2">
            {isCompleted ? (
-              <Badge color="success" size="sm" icon={<Check size={12} />}>Finalizado</Badge>
+              <Badge color="success" size="md" icon={<Check size={14} />}>Finalizado</Badge>
            ) : isMissed ? (
-              <Badge color="danger" size="sm" icon={<X size={12} />}>Falta</Badge>
+              <Badge color="danger" size="md" icon={<X size={14} />}>Falta</Badge>
            ) : (
-             <>
+             <div className="flex items-center gap-2">
                {isFirst && !isGeneral && (
-                 <Badge color="warning" size="sm" className="hidden sm:flex animate-bounce">A Seguir</Badge>
+                 <Badge color="warning" size="md" className="hidden sm:flex animate-bounce ring-4 ring-amber-500/10">Em Fila</Badge>
                )}
                
                {onStatusChange && (
-                 <div className="flex items-center gap-1.5">
+                 <div className="flex items-center gap-2">
                     <button
                       onClick={() => onStatusChange(item.id, "performed")}
-                      className="h-9 w-9 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all border border-emerald-100 hover:border-emerald-500 shadow-sm shadow-emerald-500/5"
+                      className={cn(
+                        "h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-2xl transition-all active:scale-95 shadow-lg",
+                        darkMode 
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-white shadow-emerald-500/10" 
+                          : "bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white border border-emerald-100 hover:border-emerald-500 shadow-emerald-500/5"
+                      )}
                       title="Finalizar atendimento"
                     >
-                      <Check size={18} strokeWidth={3} />
+                      <Check size={20} strokeWidth={3} />
                     </button>
                     {!isFirst && (
                         <button
                           onClick={() => onStatusChange(item.id, "missed")}
-                          className="h-9 w-9 flex items-center justify-center rounded-xl bg-zinc-50 text-zinc-400 hover:bg-red-50 hover:text-red-500 transition-all border border-zinc-100 hover:border-red-100"
+                          className={cn(
+                            "h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-2xl transition-all active:scale-95 border",
+                            darkMode 
+                              ? "bg-zinc-900 text-zinc-500 border-zinc-700 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30"
+                              : "bg-zinc-50 text-zinc-400 border-zinc-100 hover:bg-red-50 hover:text-red-500 hover:border-red-100"
+                          )}
                           title="Marcar falta"
                         >
-                          <UserMinus size={18} />
+                          <UserMinus size={20} />
                         </button>
                     )}
                  </div>
                )}
-             </>
+             </div>
            )}
         </div>
       </div>
@@ -186,12 +218,29 @@ function AppointmentCard({
 export default function PATQueue() {
   const { professionalId, slug } = useParams<{ professionalId?: string; slug?: string }>();
   const isGeneralView = !!slug || professionalId === "all";
+  
   const [data, setData] = useState<PatData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem("pat-theme");
+    return saved === "dark";
+  });
+  const [filterProf, setFilterProf] = useState<string>("all");
+  const [currentTime, setCurrentTime] = useState(new Date());
+
   const toast = useToast();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const clockRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const toggleTheme = () => {
+    setDarkMode(prev => {
+      const newVal = !prev;
+      localStorage.setItem("pat-theme", newVal ? "dark" : "light");
+      return newVal;
+    });
+  };
 
   const fetchQueue = useCallback(async (isAuto = false) => {
     if (!isAuto) setLoading(true);
@@ -235,28 +284,63 @@ export default function PATQueue() {
 
   useEffect(() => {
     fetchQueue();
-    // Refresh every 15 seconds for "real-time" feel as requested
-    timerRef.current = setInterval(() => fetchQueue(true), 15_000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    // Refresh every 30 seconds for "real-time" feel
+    timerRef.current = setInterval(() => fetchQueue(true), 30_000);
+    // Local clock update
+    clockRef.current = setInterval(() => setCurrentTime(new Date()), 1000);
+    
+    return () => { 
+      if (timerRef.current) clearInterval(timerRef.current); 
+      if (clockRef.current) clearInterval(clockRef.current);
+    };
   }, [fetchQueue]);
+
+  const filteredProfessionals = useMemo(() => {
+    if (!data?.professionals) return [];
+    if (filterProf === "all") return data.professionals;
+    return data.professionals.filter(p => p.id === filterProf);
+  }, [data?.professionals, filterProf]);
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#FDFDFF]">
-          <Loader2 size={40} className="animate-spin text-amber-500 mb-4" />
-          <p className="text-sm font-black text-zinc-400 uppercase tracking-widest">Sincronizando Terminal PAT...</p>
+      <div className={cn(
+        "flex flex-col items-center justify-center min-h-screen transition-colors duration-500",
+        darkMode ? "bg-zinc-950" : "bg-[#FDFDFF]"
+      )}>
+          <div className="relative">
+            <Loader2 size={48} className="animate-spin text-amber-500 mb-6" />
+            <div className="absolute inset-0 blur-2xl bg-amber-500/20 animate-pulse" />
+          </div>
+          <p className={cn(
+            "text-sm font-black uppercase tracking-[0.3em] animate-pulse",
+            darkMode ? "text-zinc-500" : "text-zinc-400"
+          )}>
+            Sincronizando Terminal Agendelle...
+          </p>
       </div>
     );
   }
 
   if (!data?.patEnabled) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-[#FDFDFF] p-6 text-center">
-            <div className="w-20 h-20 bg-zinc-100 rounded-[32px] flex items-center justify-center mb-6 border border-zinc-200 shadow-inner">
-                <Monitor size={32} className="text-zinc-400" />
+        <div className={cn(
+          "flex flex-col items-center justify-center min-h-screen p-6 text-center transition-colors duration-500",
+          darkMode ? "bg-zinc-950 text-white" : "bg-[#FDFDFF] text-zinc-900"
+        )}>
+            <div className={cn(
+              "w-24 h-24 rounded-[40px] flex items-center justify-center mb-8 border shadow-xl",
+              darkMode ? "bg-zinc-900 border-zinc-800 text-zinc-500" : "bg-white border-zinc-100 text-zinc-400"
+            )}>
+                <Monitor size={40} className="animate-bounce" />
             </div>
-            <h1 className="text-xl font-black text-zinc-900 mb-2">{data?.studio.name || "Estúdio"}</h1>
-            <p className="text-sm text-zinc-400 font-medium max-w-xs">{data ? "O Terminal PAT está desativado para este estúdio." : "Terminal não encontrado."}</p>
+            <h1 className="text-2xl font-black mb-3 tracking-tight">{data?.studio.name || "Terminal PAT"}</h1>
+            <p className={cn(
+              "text-sm font-medium max-w-xs leading-relaxed opacity-60",
+              darkMode ? "text-zinc-400" : "text-zinc-500"
+            )}>
+              {data ? "O Terminal PAT está desativado nas configurações." : "Terminal não encontrado ou link expirado."}
+            </p>
+            <Button variant="outline" className="mt-8" onClick={() => window.location.reload()}>Tentar Novamente</Button>
         </div>
       );
   }
@@ -264,203 +348,420 @@ export default function PATQueue() {
   const todayLabel = format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR });
 
   return (
-    <div className="min-h-screen bg-[#FDFDFF] text-zinc-900 font-sans pb-10">
+    <div className={cn(
+      "min-h-screen font-sans pb-24 transition-colors duration-500",
+      darkMode ? "bg-zinc-950 text-zinc-100" : "bg-[#FDFDFF] text-zinc-900"
+    )}>
       
       {/* ── Top Header ── */}
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-zinc-100 px-4 sm:px-8 py-4">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 sm:gap-5">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-zinc-950 rounded-2xl flex items-center justify-center shadow-lg shadow-zinc-900/10">
-              <Scissors size={20} className="text-white" />
+      <header className={cn(
+        "sticky top-0 z-50 backdrop-blur-xl border-b px-4 sm:px-8 py-4 transition-all duration-300",
+        darkMode ? "bg-zinc-950/80 border-zinc-800/50 shadow-2xl shadow-black/20" : "bg-white/80 border-zinc-100 shadow-sm"
+      )}>
+        <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-6">
+            <div className={cn(
+              "w-12 h-12 rounded-2xl flex items-center justify-center shadow-2xl transition-transform active:scale-90",
+              darkMode ? "bg-amber-500 text-zinc-950 shadow-amber-500/20" : "bg-zinc-950 text-white shadow-zinc-900/10"
+            )}>
+              <Scissors size={24} strokeWidth={2.5} />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-black tracking-tight truncate">{data.studio.name}</h1>
-              <div className="flex items-center gap-2 mt-0.5">
-                <p className="text-[10px] sm:text-[11px] font-black text-zinc-400 uppercase tracking-widest">{todayLabel}</p>
-                <div className="h-1 w-1 rounded-full bg-zinc-300" />
-                <div className="flex items-center gap-1">
-                  <span className={cn("h-1.5 w-1.5 rounded-full", refreshing ? "bg-amber-500 animate-pulse" : "bg-emerald-500")} />
-                  <p className="text-[10px] sm:text-[11px] font-bold text-zinc-400">
-                    {refreshing ? "Sincronizando..." : `Atualizado ${format(lastUpdate, "HH:mm:ss")}`}
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight truncate leading-none">{data.studio.name}</h1>
+              <div className="flex items-center gap-2 mt-1.5 overflow-hidden">
+                <p className={cn(
+                  "text-[10px] sm:text-[11px] font-black uppercase tracking-widest whitespace-nowrap",
+                  darkMode ? "text-zinc-500" : "text-zinc-400"
+                )}>
+                  {todayLabel}
+                </p>
+                <div className={cn("h-1 w-1 rounded-full shrink-0", darkMode ? "bg-zinc-700" : "bg-zinc-300")} />
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", refreshing ? "bg-amber-500 animate-pulse" : "bg-emerald-500")} />
+                  <p className={cn(
+                    "text-[10px] font-bold truncate",
+                    darkMode ? "text-zinc-500" : "text-zinc-400"
+                  )}>
+                    {refreshing ? "Sincronizando..." : `Sync: ${format(lastUpdate, "HH:mm:ss")}`}
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
-            <div className="hidden md:flex flex-col items-end mr-2">
-                <p className="text-2xl font-black tabular-nums leading-none">{format(new Date(), "HH:mm")}</p>
-                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mt-1">Terminal Ativo</p>
+          <div className="flex items-center gap-3 sm:gap-6">
+            <div className="hidden lg:flex flex-col items-end mr-4">
+                <p className="text-3xl font-black tabular-nums leading-none tracking-tighter">{format(currentTime, "HH:mm:ss")}</p>
+                <p className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] mt-1.5 flex items-center gap-2">
+                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                   Terminal Ativo
+                </p>
             </div>
-            <button 
-              onClick={() => fetchQueue(true)}
-              className="p-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 transition-all active:scale-95 shadow-sm"
-              title="Atualizar agora"
-            >
-              <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
-            </button>
+            
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={toggleTheme}
+                className={cn(
+                  "p-3 rounded-2xl border transition-all active:scale-95 shadow-sm",
+                  darkMode ? "bg-zinc-900 border-zinc-800 text-amber-400 hover:bg-zinc-800" : "bg-zinc-50 border-zinc-100 text-zinc-500 hover:bg-zinc-100"
+                )}
+                title="Alternar tema"
+              >
+                {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+              </button>
+              
+              <button 
+                onClick={() => fetchQueue(true)}
+                className={cn(
+                  "p-3 rounded-2xl border transition-all active:scale-95 shadow-sm",
+                  darkMode ? "bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100" : "bg-zinc-50 border-zinc-100 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                )}
+                title="Atualizar agora"
+              >
+                <RefreshCw size={20} className={refreshing ? "animate-spin" : ""} />
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-[1400px] mx-auto p-4 sm:p-8">
+      <main className="max-w-[1600px] mx-auto p-4 sm:p-8">
         
         {isGeneralView ? (
           // VISÃO GERAL (Grid de Todos Profissionais)
-          <div className="space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-               <div>
-                  <h2 className="text-2xl font-black tracking-tight">Painel Geral</h2>
-                  <p className="text-sm text-zinc-500 font-medium">Acompanhamento em tempo real de toda a equipe</p>
+          <div className="space-y-10">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+               <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-3xl font-black tracking-tight">Painel de Acompanhamento</h2>
+                    <Badge color="primary" size="sm" className="font-black ring-4 ring-amber-500/10">Ao Vivo</Badge>
+                  </div>
+                  <p className={cn("text-base font-medium opacity-60", darkMode ? "text-zinc-400" : "text-zinc-500")}>
+                    Gestão centralizada de atendimentos em tempo real.
+                  </p>
                </div>
-               <div className="flex items-center gap-2">
-                  <Badge color="default" size="md" className="font-black">
-                    <Users size={14} className="mr-2" /> {data.professionals?.length} Profissionais
-                  </Badge>
+               
+               {/* Professional Filter Chips */}
+               <div className={cn(
+                 "p-1.5 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar",
+                 darkMode ? "bg-zinc-900/50 border border-zinc-800" : "bg-zinc-100/50 border border-zinc-200/50"
+               )}>
+                  <button
+                    onClick={() => setFilterProf("all")}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                      filterProf === "all" 
+                        ? darkMode ? "bg-amber-500 text-zinc-950 shadow-lg shadow-amber-500/20" : "bg-zinc-900 text-white shadow-lg"
+                        : "text-zinc-500 hover:opacity-70"
+                    )}
+                  >
+                    Todos
+                  </button>
+                  {data.professionals?.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => setFilterProf(p.id)}
+                      className={cn(
+                        "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2",
+                        filterProf === p.id 
+                          ? darkMode ? "bg-amber-500 text-zinc-950 shadow-lg shadow-amber-500/20" : "bg-zinc-900 text-white shadow-lg"
+                          : darkMode ? "text-zinc-400 hover:bg-zinc-800" : "text-zinc-500 hover:bg-white shadow-sm"
+                      )}
+                    >
+                      {p.photo && <img src={p.photo} className="w-4 h-4 rounded-full object-cover" />}
+                      {p.name.split(" ")[0]}
+                    </button>
+                  ))}
                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {data.professionals?.map((prof) => {
-                const upcoming = prof.queue.filter(q => q.status === "scheduled" || q.status === "confirmed");
-                const next = upcoming.find(q => q.isNext);
-                const doneCount = prof.queue.filter(q => q.status === "performed").length;
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
+              <AnimatePresence mode="popLayout">
+                {filteredProfessionals.map((prof) => {
+                  const upcoming = prof.queue.filter(q => q.status === "scheduled" || q.status === "confirmed");
+                  const next = upcoming.find(q => q.isNext);
+                  const doneCount = prof.queue.filter(q => q.status === "performed").length;
+                  const missedCount = prof.queue.filter(q => q.status === "missed").length;
 
-                return (
-                  <PanelCard key={prof.id} className="flex flex-col h-full border-zinc-100 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="p-5 border-b border-zinc-50">
-                      <div className="flex items-center gap-4">
-                        <div className="relative">
-                          {prof.photo ? (
-                            <img src={prof.photo} className="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-md" alt={prof.name} />
-                          ) : (
-                            <div className="w-14 h-14 rounded-2xl bg-amber-500 flex items-center justify-center text-xl font-black text-white shadow-lg shadow-amber-500/10">
-                              {prof.name.charAt(0)}
-                            </div>
-                          )}
-                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-2 border-white rounded-full" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <Link to={`/pat/${prof.id}`} className="hover:text-amber-500 transition-colors">
-                            <h3 className="text-lg font-black truncate">{prof.name}</h3>
-                          </Link>
-                          <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest truncate">{prof.role ?? "Profissional"}</p>
-                        </div>
-                        <div className="text-right shrink-0">
-                           <p className="text-2xl font-black text-zinc-900">{upcoming.length}</p>
-                           <p className="text-[9px] font-black text-zinc-400 uppercase tracking-tighter">Pendente</p>
+                  return (
+                    <motion.div
+                      layout
+                      key={prof.id}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className={cn(
+                        "group flex flex-col h-full rounded-[32px] border overflow-hidden transition-all duration-500",
+                        darkMode 
+                          ? "bg-zinc-900/40 border-zinc-800/50 hover:bg-zinc-900/60 hover:border-zinc-700 shadow-2xl shadow-black/20" 
+                          : "bg-white border-zinc-100 shadow-sm hover:shadow-2xl hover:shadow-zinc-200/50"
+                      )}
+                    >
+                      <div className="p-6 border-b border-zinc-100/10">
+                        <div className="flex items-center gap-4">
+                          <div className="relative shrink-0">
+                            {prof.photo ? (
+                              <img src={prof.photo} className="w-16 h-16 rounded-[22px] object-cover border-2 border-white shadow-xl" alt={prof.name} />
+                            ) : (
+                              <div className={cn(
+                                "w-16 h-16 rounded-[22px] flex items-center justify-center text-2xl font-black text-white shadow-xl",
+                                darkMode ? "bg-zinc-800" : "bg-amber-500"
+                              )}>
+                                {prof.name.charAt(0)}
+                              </div>
+                            )}
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full animate-pulse shadow-sm shadow-emerald-500/50" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <Link to={`/pat/${prof.id}`} className={cn("hover:text-amber-500 transition-colors block", darkMode ? "text-zinc-100" : "text-zinc-900")}>
+                              <h3 className="text-xl font-black truncate tracking-tight">{prof.name}</h3>
+                            </Link>
+                            <p className={cn("text-[10px] font-black uppercase tracking-[0.2em]", darkMode ? "text-zinc-500" : "text-zinc-400")}>
+                              {prof.role ?? "Profissional"}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex-1 p-5 space-y-3 bg-zinc-50/30">
-                       {next ? (
-                         <div className="p-4 rounded-2xl bg-white border border-amber-100 shadow-sm shadow-amber-500/5">
-                            <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                               <Sparkles size={10} /> Em atendimento / Próximo
-                            </p>
-                            <div className="flex items-center justify-between gap-3">
-                               <p className="text-sm font-black text-zinc-900 truncate">{next.clientName}</p>
-                               <p className="text-sm font-black text-amber-600 tabular-nums">{next.startTime}</p>
+                      <div className={cn(
+                        "flex-1 p-6 space-y-4",
+                        darkMode ? "bg-zinc-950/20" : "bg-zinc-50/30"
+                      )}>
+                         {next ? (
+                           <div className={cn(
+                             "p-5 rounded-[24px] border transition-all group-hover:scale-[1.02]",
+                             darkMode ? "bg-zinc-900/80 border-amber-500/20 shadow-xl" : "bg-white border-amber-100 shadow-md shadow-amber-500/5"
+                           )}>
+                              <div className="flex items-center justify-between gap-3 mb-3">
+                                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
+                                   <Sparkles size={12} className="animate-pulse" /> Em Fila
+                                </p>
+                                <div className="flex items-center gap-1">
+                                  <button 
+                                    onClick={(e) => { e.preventDefault(); updateStatus(next.id, "performed"); }}
+                                    className={cn(
+                                      "p-1.5 rounded-lg border transition-all active:scale-90",
+                                      darkMode ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-white" : "bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-500 hover:text-white"
+                                    )}
+                                    title="Finalizar"
+                                  >
+                                    <Check size={14} strokeWidth={3} />
+                                  </button>
+                                  <button 
+                                    onClick={(e) => { e.preventDefault(); updateStatus(next.id, "missed"); }}
+                                    className={cn(
+                                      "p-1.5 rounded-lg border transition-all active:scale-90",
+                                      darkMode ? "bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white" : "bg-red-50 border-red-100 text-red-600 hover:bg-red-500 hover:text-white"
+                                    )}
+                                    title="Falta"
+                                  >
+                                    <X size={14} strokeWidth={3} />
+                                  </button>
+                                </div>
+                              </div>
+                              <p className={cn("text-base font-black truncate tracking-tight", darkMode ? "text-zinc-100" : "text-zinc-900")}>
+                                {next.clientName}
+                              </p>
+                              <div className="flex items-center justify-between mt-1">
+                                {next.serviceName ? (
+                                  <p className={cn("text-xs font-bold opacity-60 truncate", darkMode ? "text-zinc-400" : "text-zinc-500")}>
+                                    {next.serviceName}
+                                  </p>
+                                ) : <div />}
+                                <p className="text-xs font-black text-amber-500 tabular-nums">{next.startTime}</p>
+                              </div>
+                           </div>
+                         ) : upcoming.length > 0 ? (
+                              <div className={cn(
+                                "p-6 rounded-[24px] border border-dashed flex flex-col items-center justify-center text-center",
+                                darkMode ? "bg-zinc-900/30 border-zinc-800" : "bg-white border-zinc-200"
+                              )}>
+                                  <Timer size={24} className={darkMode ? "text-zinc-700" : "text-zinc-200"} />
+                                  <p className={cn("text-xs font-bold mt-3 italic", darkMode ? "text-zinc-600" : "text-zinc-400")}>Aguardando próximo...</p>
+                              </div>
+                         ) : (
+                            <div className={cn(
+                              "p-6 rounded-[24px] border flex flex-col items-center justify-center text-center",
+                              darkMode ? "bg-emerald-500/5 border-emerald-500/10" : "bg-emerald-50/50 border-emerald-100"
+                            )}>
+                              <CheckCircle2 size={24} className="text-emerald-500 opacity-40 mb-2" />
+                              <p className="text-xs font-black text-emerald-500/70 uppercase tracking-widest">Sem Agenda</p>
                             </div>
+                         )}
+
+                         <div className={cn(
+                           "mt-6 pt-6 border-t flex items-center justify-between",
+                           darkMode ? "border-zinc-800" : "border-zinc-100"
+                         )}>
+                            <div className="flex gap-4">
+                              <div className="text-center">
+                                <p className={cn("text-sm font-black", darkMode ? "text-zinc-300" : "text-zinc-700")}>{doneCount}</p>
+                                <p className="text-[8px] font-black uppercase text-zinc-500 tracking-tighter">Ok</p>
+                              </div>
+                              <div className="text-center">
+                                <p className={cn("text-sm font-black", missedCount > 0 ? "text-red-500" : darkMode ? "text-zinc-300" : "text-zinc-700")}>{missedCount}</p>
+                                <p className="text-[8px] font-black uppercase text-zinc-500 tracking-tighter">Faltas</p>
+                              </div>
+                              <div className="text-center">
+                                <p className={cn("text-sm font-black", darkMode ? "text-zinc-300" : "text-zinc-700")}>{upcoming.length}</p>
+                                <p className="text-[8px] font-black uppercase text-zinc-500 tracking-tighter">Fila</p>
+                              </div>
+                            </div>
+                            <Link 
+                              to={`/pat/${prof.id}`} 
+                              className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                darkMode ? "bg-zinc-800 text-amber-500 hover:bg-zinc-700" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                              )}
+                            >
+                               Ver <ChevronRight size={14} />
+                            </Link>
                          </div>
-                       ) : upcoming.length > 0 ? (
-                            <div className="p-4 rounded-2xl bg-white border border-zinc-100 text-center">
-                                <p className="text-xs font-bold text-zinc-400 italic">Prepara-se para o próximo...</p>
-                            </div>
-                       ) : (
-                          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 text-center">
-                            <p className="text-xs font-black text-emerald-600">Sem agendamentos no momento</p>
-                          </div>
-                       )}
-
-                       <div className="mt-4 pt-4 border-t border-zinc-100 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                          <span>Realizados: {doneCount}</span>
-                          <Link to={`/pat/${prof.id}`} className="flex items-center gap-1 text-amber-600 hover:text-amber-700">
-                             Ver Fila <ChevronRight size={12} />
-                          </Link>
-                       </div>
-                    </div>
-                  </PanelCard>
-                );
-              })}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             </div>
           </div>
         ) : (
           // VISÃO EXCLUSIVA (Fila Detalhada do Profissional)
-          <div className="max-w-[1000px] mx-auto space-y-6">
+          <div className="max-w-[1200px] mx-auto space-y-8">
             
-            <div className="flex items-center gap-4 mb-8">
-               <Link to={`/pat/general/${data.studio.slug}`} className="h-10 w-10 flex items-center justify-center rounded-xl bg-white border border-zinc-100 text-zinc-400 hover:text-zinc-900 hover:border-zinc-200 transition-all shadow-sm">
-                  <ArrowLeft size={18} />
-               </Link>
-               <div>
-                  <h2 className="text-2xl font-black tracking-tight">Fila de Atendimento</h2>
-                  <p className="text-sm text-zinc-500 font-medium">Controle seus atendimentos de hoje</p>
-               </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <div className="flex items-center gap-5">
+                 <Link 
+                   to={`/pat/general/${data.studio.slug}`} 
+                   className={cn(
+                     "h-12 w-12 flex items-center justify-center rounded-2xl border transition-all active:scale-90 shadow-sm shrink-0",
+                     darkMode ? "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-100" : "bg-white border-zinc-200 text-zinc-400 hover:text-zinc-900"
+                   )}
+                 >
+                    <ArrowLeft size={22} />
+                 </Link>
+                 <div>
+                    <h2 className="text-3xl font-black tracking-tight leading-none">Fila Individual</h2>
+                    <p className={cn("text-base font-medium mt-1.5 opacity-60", darkMode ? "text-zinc-400" : "text-zinc-500")}>Acompanhe sua agenda do dia.</p>
+                 </div>
+              </div>
+
+              {/* Status Header Bar */}
+              <div className={cn(
+                "hidden md:flex items-center gap-8 p-4 rounded-3xl border",
+                darkMode ? "bg-zinc-900/30 border-zinc-800" : "bg-zinc-50 border-zinc-200/50"
+              )}>
+                 <div className="flex items-center gap-3">
+                   <div className="w-2 h-2 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50" />
+                   <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pendentes: <span className={darkMode ? "text-zinc-100" : "text-zinc-900"}>{data.queue?.filter(q => ["scheduled", "confirmed"].includes(q.status)).length}</span></p>
+                 </div>
+                 <div className="flex items-center gap-3">
+                   <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
+                   <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Realizados: <span className={darkMode ? "text-zinc-100" : "text-zinc-900"}>{data.queue?.filter(q => q.status === "performed").length}</span></p>
+                 </div>
+                 <div className="flex items-center gap-3">
+                   <div className="w-2 h-2 rounded-full bg-red-500 shadow-sm shadow-red-500/50" />
+                   <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Faltas: <span className={darkMode ? "text-zinc-100" : "text-zinc-900"}>{data.queue?.filter(q => q.status === "missed").length}</span></p>
+                 </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               
-              {/* Sidebar: Stats + Profile */}
-              <div className="lg:col-span-1 space-y-6">
-                <PanelCard className="p-6 border-zinc-100 shadow-sm relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-8 bg-amber-50 rounded-full translate-x-12 -translate-y-12 shrink-0 -z-10" />
+              {/* Sidebar: Profile */}
+              <div className="lg:col-span-4 space-y-6">
+                <div className={cn(
+                  "p-8 rounded-[40px] border shadow-2xl relative overflow-hidden transition-all duration-500",
+                  darkMode ? "bg-zinc-900 border-zinc-800 shadow-black/40" : "bg-white border-zinc-100 shadow-zinc-200/50"
+                )}>
+                  <div className={cn(
+                    "absolute top-0 right-0 p-12 rounded-full translate-x-12 -translate-y-12 shrink-0 -z-10",
+                    darkMode ? "bg-amber-500/5" : "bg-amber-50"
+                  )} />
                   
-                  <div className="flex items-center gap-4 mb-6">
-                    {data.professional?.photo ? (
-                      <img src={data.professional.photo} className="w-16 h-16 rounded-2xl object-cover border-2 border-white shadow-md" alt={data.professional.name} />
-                    ) : (
-                      <div className="w-16 h-16 rounded-2xl bg-amber-500 flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-amber-500/20">
-                        {data.professional?.name.charAt(0)}
+                  <div className="flex flex-col items-center text-center">
+                    <div className="relative mb-6">
+                      {data.professional?.photo ? (
+                        <img src={data.professional.photo} className="w-32 h-32 rounded-[40px] object-cover border-4 border-white shadow-2xl" alt={data.professional.name} />
+                      ) : (
+                        <div className={cn(
+                          "w-32 h-32 rounded-[40px] flex items-center justify-center text-5xl font-black text-white shadow-2xl",
+                          darkMode ? "bg-zinc-800" : "bg-amber-500"
+                        )}>
+                          {data.professional?.name.charAt(0)}
+                        </div>
+                      )}
+                      <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-500 border-4 border-white rounded-full flex items-center justify-center shadow-lg">
+                         <CheckCircle size={20} className="text-white" />
                       </div>
-                    )}
-                    <div>
-                      <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-0.5">{getGreeting()}!</p>
-                      <h1 className="text-xl font-black text-zinc-900 leading-tight">{data.professional?.name}</h1>
-                      <p className="text-xs text-zinc-400 font-bold">{data.professional?.role ?? "Profissional"}</p>
                     </div>
+                    
+                    <p className={cn("text-xs font-black uppercase tracking-[0.4em] mb-2", darkMode ? "text-zinc-500" : "text-amber-500")}>
+                      {getGreeting()}!
+                    </p>
+                    <h1 className={cn("text-3xl font-black tracking-tight", darkMode ? "text-zinc-100" : "text-zinc-900")}>
+                      {data.professional?.name}
+                    </h1>
+                    <p className={cn("text-sm font-bold mt-1 opacity-60", darkMode ? "text-zinc-400" : "text-zinc-500")}>
+                      {data.professional?.role ?? "Profissional Parceiro"}
+                    </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 pt-4 border-t border-zinc-50">
-                     <div className="p-3 bg-zinc-50 rounded-2xl text-center">
-                        <p className="text-xl font-black">{data.queue?.filter(q => ["scheduled", "confirmed"].includes(q.status)).length}</p>
-                        <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mt-0.5">Pendentes</p>
+                  <div className={cn(
+                    "grid grid-cols-2 gap-4 mt-10 pt-10 border-t",
+                    darkMode ? "border-zinc-800" : "border-zinc-50"
+                  )}>
+                     <div className={cn("p-4 rounded-3xl text-center", darkMode ? "bg-zinc-950/50" : "bg-zinc-50")}>
+                        <p className={cn("text-3xl font-black", darkMode ? "text-zinc-100" : "text-zinc-900")}>
+                          {data.queue?.filter(q => ["scheduled", "confirmed"].includes(q.status)).length}
+                        </p>
+                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">Pendentes</p>
                      </div>
-                     <div className="p-3 bg-emerald-50 rounded-2xl text-center text-emerald-600">
-                        <p className="text-xl font-black">{data.queue?.filter(q => q.status === "performed").length}</p>
-                        <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mt-0.5">Realizados</p>
+                     <div className={cn("p-4 rounded-3xl text-center", darkMode ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600")}>
+                        <p className="text-3xl font-black">
+                          {data.queue?.filter(q => q.status === "performed").length}
+                        </p>
+                        <p className={cn("text-[10px] font-black uppercase tracking-widest mt-1", darkMode ? "text-emerald-500/60" : "text-emerald-400")}>Realizados</p>
                      </div>
                   </div>
-                </PanelCard>
+                </div>
 
-                {/* Legend or Quick Tips */}
-                <div className="p-5 rounded-3xl bg-amber-500 text-white shadow-xl shadow-amber-500/20 relative overflow-hidden">
-                   <Scissors className="absolute -bottom-4 -right-4 w-24 h-24 text-white/10" />
-                   <h4 className="text-sm font-black mb-2 flex items-center gap-2">
-                     <Clock size={16} /> Próximo Passo
+                <div className={cn(
+                  "p-8 rounded-[40px] shadow-2xl relative overflow-hidden group hover:scale-[1.02] transition-transform duration-500",
+                  darkMode ? "bg-amber-600 text-zinc-950" : "bg-amber-500 text-white"
+                )}>
+                   <Scissors className="absolute -bottom-6 -right-6 w-32 h-32 opacity-10 rotate-12 group-hover:rotate-45 transition-transform duration-700" />
+                   <h4 className="text-lg font-black mb-3 flex items-center gap-3">
+                     <Clock size={20} /> Modo Operacional
                    </h4>
-                   <p className="text-xs font-bold leading-relaxed opacity-90">
-                     Clique no check verde para finalizar o atendimento atual. Isso manterá seu dashboard atualizado em tempo real.
+                   <p className="text-sm font-bold leading-relaxed opacity-90">
+                     Ao finalizar um atendimento, clique no botão verde para atualizar o painel geral da recepção e notificar o sistema.
                    </p>
                 </div>
               </div>
 
               {/* Main Queue List */}
-              <div className="lg:col-span-2 space-y-4">
-                <div className="flex items-center justify-between px-2 mb-2">
-                  <h3 className="text-xs font-black text-zinc-400 uppercase tracking-[0.3em]">Agenda do Dia</h3>
+              <div className="lg:col-span-8 space-y-6">
+                <div className="flex items-center justify-between px-2">
+                  <h3 className={cn("text-sm font-black uppercase tracking-[0.4em]", darkMode ? "text-zinc-500" : "text-zinc-400")}>Agenda do Dia</h3>
+                  {refreshing && <Loader2 size={16} className="animate-spin text-amber-500" />}
                 </div>
 
                 {!data.queue || data.queue.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 bg-white border-2 border-dashed border-zinc-100 rounded-[32px]">
-                    <CheckCircle2 size={48} className="text-emerald-100 mb-4" />
-                    <p className="text-sm font-black text-zinc-400 uppercase tracking-widest">Tudo pronto por aqui!</p>
-                    <p className="text-xs text-zinc-300 font-bold mt-1">Nenhum atendimento agendado para hoje.</p>
+                  <div className={cn(
+                    "flex flex-col items-center justify-center py-32 border-2 border-dashed rounded-[48px] transition-colors",
+                    darkMode ? "bg-zinc-900/20 border-zinc-800" : "bg-white border-zinc-100"
+                  )}>
+                    <div className={cn(
+                      "w-24 h-24 rounded-full flex items-center justify-center mb-6",
+                      darkMode ? "bg-zinc-900" : "bg-emerald-50"
+                    )}>
+                      <CheckCircle2 size={48} className="text-emerald-500 opacity-40" />
+                    </div>
+                    <p className={cn("text-lg font-black tracking-tight", darkMode ? "text-zinc-400" : "text-zinc-500")}>Nenhum agendamento hoje</p>
+                    <p className={cn("text-sm font-bold mt-1 opacity-50", darkMode ? "text-zinc-600" : "text-zinc-400")}>Tudo tranquilo por aqui!</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <AnimatePresence mode="popLayout">
                       {data.queue.map((item, i) => (
                         <AppointmentCard 
@@ -468,15 +769,19 @@ export default function PATQueue() {
                           item={item} 
                           index={i} 
                           onStatusChange={updateStatus}
+                          darkMode={darkMode}
                         />
                       ))}
                     </AnimatePresence>
                   </div>
                 )}
 
-                <div className="pt-8 text-center">
-                    <p className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.3em]">
-                      Glow & Cut • Terminal PAT v2.0
+                <div className="pt-12 text-center">
+                    <p className={cn(
+                      "text-[10px] font-black uppercase tracking-[0.5em] opacity-30",
+                      darkMode ? "text-zinc-500" : "text-zinc-400"
+                    )}>
+                      Agendelle Intelligence • Terminal PAT v3.0
                     </p>
                 </div>
               </div>
@@ -486,13 +791,24 @@ export default function PATQueue() {
         )}
       </main>
 
-      {/* Floating Action for Admin (optional, but requested for tablets) */}
-      <footer className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-zinc-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-4 border border-white/10 backdrop-blur-md opacity-90 hover:opacity-100 transition-opacity">
-         <div className="flex items-center gap-2 pr-4 border-r border-white/10 mr-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <p className="text-[10px] font-black uppercase tracking-widest">Modo Monitor</p>
+      {/* Floating Status Bar */}
+      <footer className={cn(
+        "fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-6 border backdrop-blur-xl transition-all duration-500",
+        darkMode ? "bg-zinc-900/90 border-zinc-800 text-white shadow-black" : "bg-zinc-950/90 border-white/10 text-white shadow-zinc-900/20"
+      )}>
+         <div className="flex items-center gap-3 pr-6 border-r border-white/10">
+            <div className="relative">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-emerald-500 blur-sm animate-ping" />
+            </div>
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] whitespace-nowrap">Monitoramento Ativo</p>
          </div>
-         <p className="text-[10px] font-bold text-zinc-400">Pressione F11 para tela cheia</p>
+         <p className="hidden sm:block text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Pressione F11 para Tela Cheia</p>
+         
+         <div className="flex items-center gap-2 pl-2">
+            <div className={cn("w-1.5 h-1.5 rounded-full", darkMode ? "bg-zinc-700" : "bg-white/20")} />
+            <p className="text-[10px] font-black tabular-nums opacity-60">{format(currentTime, "HH:mm")}</p>
+         </div>
       </footer>
 
     </div>
