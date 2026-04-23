@@ -66,6 +66,8 @@ export function ProfessionalModal({
 }: ProfessionalModalProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // null = não escolheu ainda, true = sim sou eu, false = outro profissional
+  const [selfChoice, setSelfChoice] = useState<boolean | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoUpload = (file: File) => {
@@ -95,11 +97,12 @@ export function ProfessionalModal({
   useEffect(() => {
     if (isProfessionalModalOpen && !editingProfessional) {
       setCurrentStep(1);
+      setSelfChoice(null);
     }
   }, [isProfessionalModalOpen, editingProfessional]);
 
   // Dono do sistema: pula step de Permissões
-  const isSelfAdd = !editingProfessional && !!adminUser && !!adminUser.email && newProfessional.email === adminUser.email;
+  const isSelfAdd = !editingProfessional && selfChoice === true;
   const STEPS = isSelfAdd ? ALL_STEPS.filter(s => s.id !== 2) : ALL_STEPS;
   // currentStep é o índice dentro de STEPS (1-based); realStep é o id do step real (conteúdo)
   const realStep = STEPS[currentStep - 1]?.id ?? currentStep;
@@ -274,74 +277,73 @@ export function ProfessionalModal({
 
           {/* Você atende na agenda? — só para novo profissional com adminUser */}
           {!editingProfessional && adminUser && (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Você atende na agenda?</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
+                {/* Sim, sou eu */}
                 <button
                   type="button"
-                  onClick={() => setNewProfessional((p: any) => ({
-                    ...p,
-                    name: adminUser.name || p.name,
-                    email: adminUser.email || p.email,
-                    phone: adminUser.phone || p.phone,
-                    photo: adminUser.photo || p.photo,
-                    accessLevel: "full",
-                    attendsSchedule: true,
-                  }))}
+                  onClick={() => {
+                    setSelfChoice(true);
+                    setNewProfessional((p: any) => ({
+                      ...p,
+                      name: adminUser.name || "",
+                      email: adminUser.email || "",
+                      phone: adminUser.phone || "",
+                      photo: adminUser.photo || "",
+                      accessLevel: "full",
+                      attendsSchedule: true,
+                    }));
+                  }}
                   className={cn(
-                    "flex items-center gap-2.5 p-3 rounded-2xl border-2 text-left transition-all",
-                    isSelfAdd
+                    "flex items-center gap-3 px-4 py-3 rounded-2xl border-2 text-left transition-all flex-1",
+                    selfChoice === true
                       ? "bg-zinc-900 border-zinc-900 text-white shadow-md"
-                      : "bg-zinc-50 border-zinc-100 hover:border-zinc-300"
+                      : "bg-white border-zinc-200 hover:border-zinc-400"
                   )}
                 >
-                  <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black shrink-0",
-                    isSelfAdd ? "bg-white/20 text-white" : "bg-zinc-200 text-zinc-600"
+                  <div className={cn(
+                    "w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black shrink-0",
+                    selfChoice === true ? "bg-white/15 text-white" : "bg-amber-100 text-amber-700"
                   )}>
                     {adminUser.name?.charAt(0)?.toUpperCase() || "A"}
                   </div>
-                  <div className="min-w-0">
-                    <p className={cn("text-xs font-black truncate", isSelfAdd ? "text-white" : "text-zinc-900")}>
-                      Sim, sou eu
-                    </p>
-                    <p className={cn("text-[9px] font-medium truncate", isSelfAdd ? "text-white/60" : "text-zinc-400")}>
-                      Usar meus dados
-                    </p>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn("text-xs font-black", selfChoice === true ? "text-white" : "text-zinc-900")}>Sim, sou eu</p>
+                    <p className={cn("text-[10px] font-medium", selfChoice === true ? "text-white/60" : "text-zinc-400")}>Usar meus dados</p>
                   </div>
-                  {isSelfAdd && <Check size={14} strokeWidth={3} className="text-emerald-400 ml-auto shrink-0" />}
+                  {selfChoice === true && <Check size={14} strokeWidth={3} className="text-emerald-400 shrink-0" />}
                 </button>
 
+                {/* Não, outro profissional */}
                 <button
                   type="button"
-                  onClick={() => setNewProfessional((p: any) => ({
-                    ...p,
-                    name: p.email === adminUser.email ? "" : p.name,
-                    email: p.email === adminUser.email ? "" : p.email,
-                    phone: p.email === adminUser.email ? "" : p.phone,
-                    photo: p.email === adminUser.email ? "" : p.photo,
-                    accessLevel: p.accessLevel === "full" && p.email === adminUser.email ? "no-access" : p.accessLevel,
-                  }))}
+                  onClick={() => {
+                    setSelfChoice(false);
+                    setNewProfessional((p: any) => ({
+                      ...p,
+                      name: "", email: "", phone: "", photo: "",
+                      accessLevel: "no-access", attendsSchedule: true,
+                    }));
+                  }}
                   className={cn(
-                    "flex items-center gap-2.5 p-3 rounded-2xl border-2 text-left transition-all",
-                    !isSelfAdd
+                    "flex items-center gap-3 px-4 py-3 rounded-2xl border-2 text-left transition-all flex-1",
+                    selfChoice === false
                       ? "bg-zinc-900 border-zinc-900 text-white shadow-md"
-                      : "bg-zinc-50 border-zinc-100 hover:border-zinc-300"
+                      : "bg-white border-zinc-200 hover:border-zinc-400"
                   )}
                 >
-                  <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
-                    !isSelfAdd ? "bg-white/20" : "bg-zinc-200"
+                  <div className={cn(
+                    "w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
+                    selfChoice === false ? "bg-white/15" : "bg-zinc-100"
                   )}>
-                    <User size={14} className={!isSelfAdd ? "text-white" : "text-zinc-500"} />
+                    <User size={15} className={selfChoice === false ? "text-white" : "text-zinc-500"} />
                   </div>
-                  <div className="min-w-0">
-                    <p className={cn("text-xs font-black", !isSelfAdd ? "text-white" : "text-zinc-900")}>
-                      Não, outro profissional
-                    </p>
-                    <p className={cn("text-[9px] font-medium", !isSelfAdd ? "text-white/60" : "text-zinc-400")}>
-                      Preencher manualmente
-                    </p>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn("text-xs font-black", selfChoice === false ? "text-white" : "text-zinc-900")}>Outro profissional</p>
+                    <p className={cn("text-[10px] font-medium", selfChoice === false ? "text-white/60" : "text-zinc-400")}>Preencher manualmente</p>
                   </div>
-                  {!isSelfAdd && <Check size={14} strokeWidth={3} className="text-emerald-400 ml-auto shrink-0" />}
+                  {selfChoice === false && <Check size={14} strokeWidth={3} className="text-emerald-400 shrink-0" />}
                 </button>
               </div>
             </div>
@@ -466,7 +468,7 @@ export function ProfessionalModal({
               </div>
             </div>
 
-            <div className={cn("grid gap-3", isSelfAdd ? "grid-cols-1" : "grid-cols-2")}>
+            <div className={cn("grid gap-3", isSelfAdd ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
               <Input
                 label="Cargo / Especialidade"
                 placeholder="Ex: Barbeiro Master"
@@ -648,71 +650,81 @@ export function ProfessionalModal({
 
       {/* ── Step 3 — Horários ─────────────────────────────────────── */}
       {realStep === 3 && (
-        <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          {newProfessional.workingHours.map((hour: any, idx: number) => (
-            <div
-              key={hour.day}
-              className={cn(
-                "flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl border transition-all",
-                hour.active
-                  ? "bg-white border-zinc-200 shadow-sm"
-                  : "bg-zinc-50/50 border-zinc-100 opacity-50"
-              )}
-            >
-              {/* Toggle dia */}
-              <button
-                type="button"
-                onClick={() => toggleWorkingDay(idx)}
+        <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          {newProfessional.workingHours.map((hour: any, idx: number) => {
+            // Abreviação do dia para mobile
+            const shortDay = hour.day
+              .replace("segunda-feira", "Seg")
+              .replace("terca-feira", "Ter")
+              .replace("quarta-feira", "Qua")
+              .replace("quinta-feira", "Qui")
+              .replace("sexta-feira", "Sex")
+              .replace("sabado", "Sáb")
+              .replace("domingo", "Dom");
+            return (
+              <div
+                key={hour.day}
                 className={cn(
-                  "w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all",
-                  hour.active ? "bg-zinc-900 border-zinc-900 text-white" : "bg-white border-zinc-200 hover:border-zinc-400"
+                  "flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all",
+                  hour.active ? "bg-white border-zinc-200 shadow-sm" : "bg-zinc-50 border-zinc-100 opacity-50"
                 )}
               >
-                {hour.active && <Check size={12} strokeWidth={4} />}
-              </button>
+                {/* Toggle */}
+                <button
+                  type="button"
+                  onClick={() => toggleWorkingDay(idx)}
+                  className={cn(
+                    "w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all",
+                    hour.active ? "bg-zinc-900 border-zinc-900 text-white" : "bg-white border-zinc-200 hover:border-zinc-400"
+                  )}
+                >
+                  {hour.active && <Check size={11} strokeWidth={4} />}
+                </button>
 
-              {/* Dia */}
-              <p className="text-[11px] font-black text-zinc-900 capitalize w-16 sm:w-20 truncate shrink-0">
-                {hour.day.replace("-feira", "")}
-              </p>
+                {/* Dia — abreviado no mobile */}
+                <p className="text-[11px] font-black text-zinc-800 shrink-0 w-7 sm:w-20 sm:truncate">
+                  <span className="sm:hidden">{shortDay}</span>
+                  <span className="hidden sm:inline capitalize">{hour.day.replace("-feira", "")}</span>
+                </p>
 
-              {/* Inputs de hora */}
-              <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                <div className="relative flex-1 min-w-0">
-                  <Clock size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400" />
+                {/* Inputs — sem ícone sobreposto para caber no mobile */}
+                <div className="flex items-center gap-1 flex-1 min-w-0">
                   <input
                     type="time"
                     disabled={!hour.active}
-                    className="ds-input !h-8 !text-[11px] !pl-6 !pr-1.5 !rounded-lg !min-h-0"
+                    className={cn(
+                      "flex-1 min-w-0 h-8 text-[11px] font-bold text-center border rounded-lg outline-none transition-all bg-zinc-50 border-zinc-200",
+                      hour.active ? "focus:border-amber-400 focus:bg-white" : "opacity-50 cursor-not-allowed"
+                    )}
                     value={hour.start}
                     onChange={e => updateWorkingTime(idx, "start", e.target.value)}
                   />
-                </div>
-                <span className="text-zinc-300 text-[10px] font-bold shrink-0">—</span>
-                <div className="relative flex-1 min-w-0">
-                  <Clock size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <span className="text-zinc-300 text-[10px] font-bold shrink-0">—</span>
                   <input
                     type="time"
                     disabled={!hour.active}
-                    className="ds-input !h-8 !text-[11px] !pl-6 !pr-1.5 !rounded-lg !min-h-0"
+                    className={cn(
+                      "flex-1 min-w-0 h-8 text-[11px] font-bold text-center border rounded-lg outline-none transition-all bg-zinc-50 border-zinc-200",
+                      hour.active ? "focus:border-amber-400 focus:bg-white" : "opacity-50 cursor-not-allowed"
+                    )}
                     value={hour.end}
                     onChange={e => updateWorkingTime(idx, "end", e.target.value)}
                   />
                 </div>
-              </div>
 
-              {/* Replicar */}
-              <button
-                type="button"
-                disabled={!hour.active}
-                onClick={() => replicateTimes(idx)}
-                title="Replicar horários para todos os dias ativos"
-                className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all disabled:opacity-0 active:scale-90 shrink-0"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          ))}
+                {/* Replicar */}
+                <button
+                  type="button"
+                  disabled={!hour.active}
+                  onClick={() => replicateTimes(idx)}
+                  title="Replicar para todos os dias ativos"
+                  className="w-7 h-7 flex items-center justify-center text-zinc-300 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-all disabled:opacity-0 active:scale-90 shrink-0"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
