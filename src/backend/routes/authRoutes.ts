@@ -5,20 +5,62 @@ import { randomUUID } from "crypto";
 
 export const authRouter = Router();
 
+// In-memory rate limiter to prevent brute force attacks
+const loginAttempts = new Map<string, { count: number, timestamp: number }>();
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_TIME_MS = 15 * 60 * 1000; // 15 minutos
+
+function checkRateLimit(ip: string): { allowed: boolean, remainingMs?: number } {
+  const now = Date.now();
+  const attempt = loginAttempts.get(ip);
+  if (!attempt) return { allowed: true };
+
+  if (attempt.count >= MAX_ATTEMPTS) {
+    if (now - attempt.timestamp < LOCKOUT_TIME_MS) {
+      return { allowed: false, remainingMs: LOCKOUT_TIME_MS - (now - attempt.timestamp) };
+    }
+    loginAttempts.delete(ip);
+    return { allowed: true };
+  }
+  return { allowed: true };
+}
+
+function recordFailedAttempt(ip: string) {
+  const attempt = loginAttempts.get(ip) || { count: 0, timestamp: Date.now() };
+  attempt.count += 1;
+  attempt.timestamp = Date.now();
+  loginAttempts.set(ip, attempt);
+}
+
+function clearAttempts(ip: string) {
+  loginAttempts.delete(ip);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/auth/login
 // Autentica qualquer tipo de usuário e devolve JWT + dados
 // ─────────────────────────────────────────────────────────────────────────────
 authRouter.post("/login", async (req: Request, res: Response) => {
+  const ip = req.ip || req.connection?.remoteAddress || "unknown";
+  const rateLimitStatus = checkRateLimit(ip);
+  
+  if (!rateLimitStatus.allowed) {
+    const minutes = Math.ceil((rateLimitStatus.remainingMs || 0) / 60000);
+    return res.status(429).json({ error: `Muitas tentativas inválidas. Acesso bloqueado por segurança. Tente novamente em ${minutes} minuto(s).` });
+  }
+
   const { identifier, password } = req.body;
-  if (!identifier || !password)
+  if (!identifier || !password) {
+    recordFailedAttempt(ip);
     return res.status(400).json({ error: "Preencha todos os campos." });
+  }
 
   // 1. Super-admin
   const sa = await (prisma as any).superAdmin.findFirst({
     where: { username: identifier, password },
   });
   if (sa) {
+    clearAttempts(ip);
     const token = signToken({ sub: sa.id, type: "superadmin" });
     return res.json({
       token,
@@ -32,6 +74,7 @@ authRouter.post("/login", async (req: Request, res: Response) => {
     include: { tenant: { include: { plan: true } } },
   });
   if (admin) {
+    clearAttempts(ip);
     await (prisma as any).adminUser.update({
       where: { id: admin.id },
       data: { lastLogin: new Date() },
@@ -57,6 +100,7 @@ authRouter.post("/login", async (req: Request, res: Response) => {
     },
   });
   if (prof) {
+    clearAttempts(ip);
     const token = signToken({
       sub: prof.id,
       type: "professional",
@@ -77,6 +121,7 @@ authRouter.post("/login", async (req: Request, res: Response) => {
     });
   }
 
+  recordFailedAttempt(ip);
   return res.status(401).json({ error: "Usuário ou senha inválidos." });
 });
 
