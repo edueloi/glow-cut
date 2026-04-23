@@ -41,20 +41,14 @@ export function ClientModal({
 
   const footer = (
     <ModalFooter>
-      <Button
-        variant="outline"
-        size="md"
-        onClick={handleClose}
-        className="w-full sm:w-auto"
-      >
+      <Button variant="outline" size="sm" onClick={handleClose}>
         Cancelar
       </Button>
       <Button
         variant="primary"
-        size="lg"
+        size="sm"
         onClick={handleCreateClient}
         disabled={!newClient.name}
-        className="w-full sm:w-auto"
       >
         {editingClient ? "Salvar Alterações" : "Cadastrar Cliente"}
       </Button>
@@ -67,7 +61,7 @@ export function ClientModal({
       onClose={handleClose}
       title={editingClient ? "Editar Cliente" : "Novo Cliente"}
       size="lg"
-      mobileStyle="fullscreen"
+      mobileStyle="bottom-sheet"
       footer={footer}
     >
       <div className="space-y-4">
