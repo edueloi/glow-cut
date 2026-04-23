@@ -319,7 +319,7 @@ function DetailModal({ comanda, onClose, onPay, onEdit, fetchComandas, products,
     try {
       if (payMode === "single") {
         if (singleOverpay || !canPaySingle) return;
-        const details = { mode: "single", method: payMethod, amount: singleNum, installments: payMethod === "card" ? payInstallments : 1, isPartial: singlePartial, totalPaying: singleNum };
+        const details = { mode: "single", method: payMethod, amount: singleNum, cardType: payMethod === "card" ? cardType : undefined, installments: payMethod === "card" && cardType === "credit" ? payInstallments : 1, isPartial: singlePartial, totalPaying: singleNum };
         await onPay(payMethod, details);
         toast.success(singlePartial ? `Pagamento parcial de ${fmtBRL(singleNum)} registrado!` : "Comanda paga com sucesso!");
       } else {
@@ -723,6 +723,20 @@ function DetailModal({ comanda, onClose, onPay, onEdit, fetchComandas, products,
                       })}
                     </div>
 
+                    {/* Débito / Crédito */}
+                    {payMethod === "card" && (
+                      <div className="flex gap-1.5 p-1 bg-blue-50 rounded-2xl border border-blue-100">
+                        {([["debit", "Débito"], ["credit", "Crédito"]] as const).map(([v, label]) => (
+                          <button key={v} onClick={() => { setCardType(v); if (v === "debit") setPayInstallments(1); }}
+                            className={cn("flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                              cardType === v ? "bg-blue-500 text-white shadow-sm" : "text-blue-400 hover:text-blue-600"
+                            )}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Valor */}
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
@@ -752,8 +766,8 @@ function DetailModal({ comanda, onClose, onPay, onEdit, fetchComandas, products,
                       )}
                     </div>
 
-                    {/* Parcelamento */}
-                    {payMethod === "card" && (
+                    {/* Parcelamento — só crédito */}
+                    {payMethod === "card" && cardType === "credit" && (
                       <div>
                         <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Parcelamento</p>
                         <div className="grid grid-cols-3 gap-2">
