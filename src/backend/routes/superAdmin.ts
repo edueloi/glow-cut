@@ -144,11 +144,11 @@ superAdminRouter.put("/profile", async (req, res) => {
   try {
     const data: any = {
       name,
-      email,
-      phone,
+      email: email || null,
+      phone: phone || null,
       birthday: birthday ? new Date(birthday) : null,
-      bio,
-      photo
+      bio: bio || null,
+      photo: photo || null
     };
     if (password) data.password = password;
 
@@ -203,12 +203,12 @@ superAdminRouter.post("/staff", async (req, res) => {
         username, 
         password,
         name,
-        email,
-        phone,
+        email: email || null,
+        phone: phone || null,
         birthday: birthday ? new Date(birthday) : null,
-        role,
-        bio,
-        photo,
+        role: role || null,
+        bio: bio || null,
+        photo: photo || null,
         permissions: permissions ? (typeof permissions === 'string' ? permissions : JSON.stringify(permissions)) : "{}"
       }
     });
@@ -224,12 +224,12 @@ superAdminRouter.put("/staff/:id", async (req, res) => {
     const data: any = { 
       username,
       name,
-      email,
-      phone,
+      email: email || null,
+      phone: phone || null,
       birthday: birthday ? new Date(birthday) : null,
-      role,
-      bio,
-      photo,
+      role: role || null,
+      bio: bio || null,
+      photo: photo || null,
       permissions: permissions ? (typeof permissions === 'string' ? permissions : JSON.stringify(permissions)) : undefined
     };
     if (password) data.password = password;
