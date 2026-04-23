@@ -212,301 +212,740 @@ function ActionMenu({ comanda, onPay, onEdit, onView, onDelete }: {
   );
 }
 
-// ─── Detail Modal ─────────────────────────────────────────────────────────────
+// ─── ComandaDrawer ────────────────────────────────────────────────────────────
+// Drawer lateral completo: pagamento inline, adição de itens, sessões, agendamentos
 
-function DetailModal({ comanda, onClose, onPay, onEdit, fetchComandas }: {
-  comanda: any; onClose: () => void; onPay: () => void; onEdit: () => void; fetchComandas: () => void;
+type DrawerView = "main" | "pay" | "catalog";
+type PayMode = "single" | "mixed";
+type PayMethod = "cash" | "card" | "pix";
+
+function parseBRL(s: string): number {
+  const digits = s.replace(/\D/g, "");
+  if (!digits) return 0;
+  return parseInt(digits, 10) / 100;
+}
+function fmtInput(v: string): string {
+  const digits = v.replace(/\D/g, "");
+  if (!digits) return "";
+  return (parseInt(digits, 10) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+const PAY_CFG = {
+  cash: { label: "Dinheiro", icon: Banknote,    bg: "bg-emerald-500", light: "bg-emerald-50 border-emerald-200 text-emerald-700" },
+  card: { label: "Cartão",   icon: CreditCard,  bg: "bg-blue-500",    light: "bg-blue-50 border-blue-200 text-blue-600" },
+  pix:  { label: "Pix",      icon: Smartphone,  bg: "bg-violet-500",  light: "bg-violet-50 border-violet-200 text-violet-700" },
+};
+
+function DetailModal({ comanda, onClose, onPay, onEdit, fetchComandas, products, services }: {
+  comanda: any; onClose: () => void; onPay: (method: string, details: any) => void;
+  onEdit: () => void; fetchComandas: () => void; products: any[]; services: any[];
 }) {
-  const toast = useToast();
-  const [updating, setUpdating] = useState(false);
+  const toast   = useToast();
+  const [view,    setView]    = useState<DrawerView>("main");
+  const [saving,  setSaving]  = useState(false);
+
+  // ── Sessões
+  const [updatingSession, setUpdatingSession] = useState(false);
+
+  // ── Pagamento
+  const [payMode,         setPayMode]         = useState<PayMode>("single");
+  const [payMethod,       setPayMethod]       = useState<PayMethod>("cash");
+  const [cardType,        setCardType]        = useState<"debit" | "credit">("credit");
+  const [payInstallments, setPayInstallments] = useState(1);
+  const [payAmount,       setPayAmount]       = useState("");
+  const [mixedEntries, setMixedEntries] = useState<{ method: PayMethod; amount: string }[]>([
+    { method: "cash", amount: "" }, { method: "pix", amount: "" }
+  ]);
+
+  // ── Catálogo (adição de itens rápida)
+  const [catalogTab,    setCatalogTab]    = useState<"services" | "products">("services");
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [addedItems, setAddedItems] = useState<{ name: string; price: number; quantity: number; productId: string | null; serviceId: string | null }[]>([]);
+  const [savingItems, setSavingItems] = useState(false);
+
+  useEffect(() => {
+    if (comanda) { setView("main"); setPayAmount(""); setPayMode("single"); setPayMethod("cash"); setCardType("credit"); setPayInstallments(1); setAddedItems([]); setCatalogSearch(""); }
+  }, [comanda?.id]);
+
   if (!comanda) return null;
 
-  const sessionTotal  = Number(comanda.sessionCount || 1);
-  const done          = Number(comanda.sessionsCompleted || 0);
-  const isMulti       = sessionTotal > 1;
+  // ── Cálculos
   const packages: any[] = comanda.packages || [];
-  const svcItems  = (comanda.items || []).filter((i: any) => !i.productId);
-  const prodItems = (comanda.items || []).filter((i: any) => i.productId);
-  const appts: any[]    = (comanda.appointments || []);
-  const subtotal        = (comanda.items || []).reduce((a: number, i: any) => a + Number(i.price) * Number(i.quantity), 0);
-  const paidAmount      = Number(comanda.paidAmount || 0);
-  const totalVal        = Number(comanda.total);
-  const remaining       = Math.max(0, totalVal - paidAmount);
-  const paidPct         = totalVal > 0 ? Math.min(100, Math.round((paidAmount / totalVal) * 100)) : 0;
-
-  const handleSession = async (newDone: number) => {
-    setUpdating(true);
-    try {
-      await apiFetch(`/api/comandas/${comanda.id}/sessions`, {
-        method: "PATCH",
-        body: JSON.stringify({ sessionsCompleted: newDone }),
-      });
-      fetchComandas();
-      toast.success(`Sessão ${newDone}/${sessionTotal} marcada!`);
-    } catch { toast.error("Erro ao atualizar sessão."); }
-    finally { setUpdating(false); }
-  };
+  const svcItems   = (comanda.items || []).filter((i: any) => !i.productId);
+  const prodItems  = (comanda.items || []).filter((i: any) => i.productId);
+  const appts: any[] = (comanda.appointments || []);
+  const subtotal   = (comanda.items || []).reduce((a: number, i: any) => a + Number(i.price) * Number(i.quantity), 0);
+  const totalVal   = Number(comanda.total);
+  const paidAmount = Number(comanda.paidAmount || 0);
+  const remaining  = Math.max(0, totalVal - paidAmount);
+  const paidPct    = totalVal > 0 ? Math.min(100, Math.round((paidAmount / totalVal) * 100)) : 0;
+  const sessionTotal = Number(comanda.sessionCount || 1);
+  const done         = Number(comanda.sessionsCompleted || 0);
+  const isMulti      = sessionTotal > 1;
 
   const statusColor = comanda.status === "paid" ? "success" : comanda.status === "partial" ? "info" : "warning";
   const statusLabel = comanda.status === "paid" ? "Pago" : comanda.status === "partial" ? "Parcial" : "Em Aberto";
+  const canPay      = comanda.status === "open" || comanda.status === "partial";
 
-  return (
-    <Modal
-      isOpen={!!comanda}
-      onClose={onClose}
-      title={`Comanda #${comanda.id?.slice(-6).toUpperCase()}`}
-      size="lg"
-      mobileStyle="fullscreen"
-      footer={
-        <ModalFooter>
-          <Button variant="outline" size="sm" iconLeft={<Edit2 size={13} />} onClick={() => { onEdit(); onClose(); }} className="flex-1 sm:flex-none">
-            Editar
-          </Button>
-          {(comanda.status === "open" || comanda.status === "partial") && (
-            <Button variant="primary" size="sm" iconLeft={<CheckCircle size={13} />} onClick={() => { onPay(); onClose(); }} className="flex-1 sm:flex-none">
-              {comanda.status === "partial" ? `Pagar Restante (${fmtBRL(remaining)})` : `Pagar (${fmtBRL(totalVal)})`}
-            </Button>
-          )}
-        </ModalFooter>
+  // ── Pagamento — cálculos
+  const singleNum     = payAmount ? parseBRL(payAmount) : remaining;
+  const singlePartial = singleNum < remaining - 0.01;
+  const singleBalance = remaining - singleNum;
+  const singleOverpay = singleNum > remaining + 0.01;
+  const canPaySingle  = singleNum > 0.01 && !singleOverpay;
+
+  const mixedTotal    = mixedEntries.reduce((s, e) => s + parseBRL(e.amount), 0);
+  const mixedRem      = remaining - mixedTotal;
+  const canPayMixed   = mixedTotal > 0.01 && mixedTotal <= remaining + 0.01;
+
+  // ── Catálogo
+  const filteredSvcs  = services.filter(s => s.type !== "package" && (!catalogSearch || s.name.toLowerCase().includes(catalogSearch.toLowerCase())));
+  const filteredPkgs  = services.filter(s => s.type === "package"  && (!catalogSearch || s.name.toLowerCase().includes(catalogSearch.toLowerCase())));
+  const filteredProds = products.filter(p => p.isForSale && (!catalogSearch || p.name.toLowerCase().includes(catalogSearch.toLowerCase())));
+
+  // ── Handlers
+  const handleSession = async (newDone: number) => {
+    setUpdatingSession(true);
+    try {
+      await apiFetch(`/api/comandas/${comanda.id}/sessions`, { method: "PATCH", body: JSON.stringify({ sessionsCompleted: newDone }) });
+      fetchComandas(); toast.success(`Sessão ${newDone}/${sessionTotal} marcada!`);
+    } catch { toast.error("Erro ao atualizar sessão."); }
+    finally { setUpdatingSession(false); }
+  };
+
+  const handleConfirmPayment = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      if (payMode === "single") {
+        if (singleOverpay || !canPaySingle) return;
+        const details = { mode: "single", method: payMethod, amount: singleNum, installments: payMethod === "card" ? payInstallments : 1, isPartial: singlePartial, totalPaying: singleNum };
+        await onPay(payMethod, details);
+        toast.success(singlePartial ? `Pagamento parcial de ${fmtBRL(singleNum)} registrado!` : "Comanda paga com sucesso!");
+      } else {
+        if (!canPayMixed) return;
+        const valid = mixedEntries.filter(e => parseBRL(e.amount) > 0);
+        const methods = [...new Set(valid.map(e => e.method))];
+        const label   = methods.length === 1 ? methods[0] : "mixed";
+        const total   = valid.reduce((s, e) => s + parseBRL(e.amount), 0);
+        const isPartialMixed = total < remaining - 0.01;
+        const details = { mode: "mixed", entries: valid.map(e => ({ method: e.method, amount: parseBRL(e.amount), installments: 1 })), isPartial: isPartialMixed, totalPaying: total };
+        await onPay(label, details);
+        toast.success(isPartialMixed ? `Pagamento parcial de ${fmtBRL(total)} registrado!` : "Comanda paga com sucesso!");
       }
-    >
-      <div className="space-y-4 p-1">
+      fetchComandas();
+      setView("main");
+    } catch (err: any) { toast.error(err?.message || "Erro ao processar pagamento."); }
+    finally { setSaving(false); }
+  };
 
-        {/* ── Cliente + Status + Financeiro ── */}
-        <div className="rounded-2xl border border-zinc-200 overflow-hidden">
-          {/* Cabeçalho do cliente */}
-          <div className="flex items-center gap-3 p-4 bg-white">
+  const addCatalogItem = (item: { name: string; price: number; productId: string | null; serviceId: string | null }) => {
+    setAddedItems(prev => {
+      const ex = prev.find(i => (item.productId && i.productId === item.productId) || (item.serviceId && i.serviceId === item.serviceId));
+      if (ex) return prev.map(i => i === ex ? { ...i, quantity: i.quantity + 1 } : i);
+      return [...prev, { ...item, quantity: 1 }];
+    });
+  };
+
+  const addPackageToCatalog = (pkg: any) => {
+    (pkg.packageServices || []).forEach((ps: any) => {
+      setAddedItems(prev => [...prev, {
+        name: ps.service?.name || ps.name || pkg.name,
+        price: Number(ps.service?.price ?? ps.price) || 0,
+        quantity: ps.quantity || 1,
+        productId: null,
+        serviceId: ps.serviceId || ps.service?.id || null,
+      }]);
+    });
+  };
+
+  const handleSaveItems = async () => {
+    if (!addedItems.length) { setView("main"); return; }
+    setSavingItems(true);
+    try {
+      const existing: any[] = (comanda.items || []).map((i: any) => ({
+        id: i.id, name: i.name, price: Number(i.price), quantity: Number(i.quantity),
+        productId: i.productId || null, serviceId: i.serviceId || null,
+        packageId: i.packageId || null, packageName: i.packageName || null,
+      }));
+      const newItems = addedItems.map(i => ({ name: i.name, price: i.price, quantity: i.quantity, productId: i.productId, serviceId: i.serviceId, packageId: null }));
+      const all = [...existing, ...newItems];
+      const newSubtotal = all.reduce((s, i) => s + i.price * i.quantity, 0);
+      await apiFetch(`/api/comandas/${comanda.id}/items`, {
+        method: "PUT", body: JSON.stringify({ items: all, discount: Number(comanda.discount || 0), discountType: comanda.discountType || "value", total: newSubtotal }),
+      });
+      toast.success("Itens adicionados!");
+      setAddedItems([]); setCatalogSearch("");
+      fetchComandas(); setView("main");
+    } catch { toast.error("Erro ao adicionar itens."); }
+    finally { setSavingItems(false); }
+  };
+
+  // ── Render: drawer lateral no desktop, fullscreen no mobile
+  return (
+    <AnimatePresence>
+      {!!comanda && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-[80] backdrop-blur-sm"
+            onClick={onClose}
+          />
+          {/* Drawer */}
+          <motion.div
+            initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 280 }}
+            className="fixed right-0 top-0 bottom-0 z-[81] w-full sm:w-[460px] bg-white shadow-2xl flex flex-col overflow-hidden"
+          >
+
+            {/* ── Header ── */}
             <div className={cn(
-              "w-12 h-12 rounded-2xl flex items-center justify-center text-base font-black shrink-0",
-              comanda.status === "paid" ? "bg-emerald-50 border border-emerald-100 text-emerald-600" :
-              comanda.status === "partial" ? "bg-blue-50 border border-blue-100 text-blue-600" :
-              "bg-amber-50 border border-amber-100 text-amber-600"
+              "flex items-center gap-3 px-4 py-4 border-b shrink-0",
+              view === "pay" ? "bg-emerald-50 border-emerald-100" :
+              view === "catalog" ? "bg-amber-50 border-amber-100" : "bg-white border-zinc-100"
             )}>
-              {comanda.client?.name?.charAt(0).toUpperCase() || "?"}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-black text-zinc-900">{comanda.client?.name || "Sem cliente"}</p>
-              {comanda.client?.phone && (
-                <p className="text-[10px] text-zinc-500 font-bold flex items-center gap-1 mt-0.5">
-                  <Phone size={9} /> {comanda.client.phone}
-                </p>
+              {view !== "main" ? (
+                <button onClick={() => setView("main")} className="p-2 rounded-xl hover:bg-white/60 text-zinc-500 transition-all">
+                  <ChevronRight size={18} className="rotate-180" />
+                </button>
+              ) : (
+                <button onClick={onClose} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-all">
+                  <X size={18} />
+                </button>
               )}
-              {comanda.professional?.name && (
-                <p className="text-[10px] text-zinc-400 font-bold flex items-center gap-1">
-                  <Scissors size={9} /> {comanda.professional.name}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-zinc-900">
+                  {view === "pay" ? "Registrar Pagamento" : view === "catalog" ? "Adicionar Itens" : `Comanda #${comanda.id?.slice(-6).toUpperCase()}`}
                 </p>
+                <p className="text-[10px] text-zinc-400 font-bold truncate">
+                  {view === "pay" ? `Restante: ${fmtBRL(remaining)}` :
+                   view === "catalog" ? `${addedItems.length} item(ns) selecionado(s)` :
+                   comanda.client?.name || "Sem cliente"}
+                </p>
+              </div>
+              {view === "main" && (
+                <Badge color={statusColor} size="sm">{statusLabel}</Badge>
               )}
             </div>
-            <div className="flex flex-col items-end gap-1 shrink-0">
-              <Badge color={statusColor} size="sm">{statusLabel}</Badge>
-              <p className="text-[9px] text-zinc-400 font-bold">{fmtDate(comanda.createdAt)}</p>
-            </div>
-          </div>
 
-          {/* Financeiro */}
-          <div className="border-t border-zinc-100 bg-zinc-50/60 p-4">
-            <div className="grid grid-cols-3 gap-3 text-center mb-3">
-              <div>
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Total</p>
-                <p className="text-base font-black text-zinc-900">{fmtBRL(totalVal)}</p>
-              </div>
-              <div>
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Pago</p>
-                <p className="text-base font-black text-emerald-600">{fmtBRL(paidAmount)}</p>
-              </div>
-              <div>
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Restante</p>
-                <p className={cn("text-base font-black", remaining > 0 ? "text-amber-600" : "text-zinc-400")}>
-                  {fmtBRL(remaining)}
-                </p>
-              </div>
-            </div>
-            {/* Barra de progresso de pagamento */}
-            {totalVal > 0 && (
-              <div className="space-y-1">
-                <div className="h-2 bg-zinc-200 rounded-full overflow-hidden">
-                  <div
-                    className={cn("h-full rounded-full transition-all", paidPct >= 100 ? "bg-emerald-500" : paidPct > 0 ? "bg-amber-400" : "bg-zinc-300")}
-                    style={{ width: `${paidPct}%` }}
-                  />
+            {/* ── MAIN VIEW ── */}
+            {view === "main" && (
+              <div className="flex-1 overflow-y-auto">
+
+                {/* Bloco financeiro */}
+                <div className="px-4 py-4 border-b border-zinc-100 bg-zinc-50/40">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={cn(
+                      "w-11 h-11 rounded-2xl flex items-center justify-center text-sm font-black shrink-0",
+                      comanda.status === "paid" ? "bg-emerald-100 text-emerald-600" :
+                      comanda.status === "partial" ? "bg-blue-100 text-blue-600" : "bg-amber-100 text-amber-600"
+                    )}>
+                      {comanda.client?.name?.charAt(0).toUpperCase() || "?"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black text-zinc-900 truncate">{comanda.client?.name || "Sem cliente"}</p>
+                      {comanda.client?.phone && (
+                        <p className="text-[10px] text-zinc-500 font-bold flex items-center gap-1"><Phone size={9} />{comanda.client.phone}</p>
+                      )}
+                      {comanda.professional?.name && (
+                        <p className="text-[10px] text-zinc-400 font-bold flex items-center gap-1"><Scissors size={9} />{comanda.professional.name}</p>
+                      )}
+                    </div>
+                    <p className="text-[9px] text-zinc-400 font-bold shrink-0">{fmtDate(comanda.createdAt)}</p>
+                  </div>
+
+                  {/* 3 colunas financeiras */}
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[
+                      { label: "Total", val: totalVal, cls: "text-zinc-900" },
+                      { label: "Pago",  val: paidAmount, cls: "text-emerald-600" },
+                      { label: "Restante", val: remaining, cls: remaining > 0 ? "text-amber-600" : "text-zinc-400" },
+                    ].map(col => (
+                      <div key={col.label} className="bg-white rounded-2xl border border-zinc-100 p-3 text-center">
+                        <p className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">{col.label}</p>
+                        <p className={cn("text-base font-black mt-0.5", col.cls)}>{fmtBRL(col.val)}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Barra progresso */}
+                  <div className="space-y-1">
+                    <div className="h-2 bg-zinc-200 rounded-full overflow-hidden">
+                      <div className={cn("h-full rounded-full transition-all duration-500",
+                        paidPct >= 100 ? "bg-emerald-500" : paidPct > 0 ? "bg-amber-400" : "bg-zinc-300"
+                      )} style={{ width: `${paidPct}%` }} />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[9px] font-bold text-zinc-400">{paidPct}% pago</span>
+                      <div className="flex items-center gap-2">
+                        {Number(comanda.discount) > 0 && (
+                          <span className="text-[9px] font-black text-emerald-600 flex items-center gap-0.5">
+                            <Zap size={8} /> -{comanda.discountType === "percentage" ? `${comanda.discount}%` : fmtBRL(Number(comanda.discount))}
+                          </span>
+                        )}
+                        {comanda.paymentMethod && comanda.status === "paid" && <PaymentBadge method={comanda.paymentMethod} />}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[9px] font-bold text-zinc-400">{paidPct}% pago</span>
-                  {comanda.paymentMethod && comanda.status === "paid" && (
-                    <PaymentBadge method={comanda.paymentMethod} />
+
+                {/* Botões de ação rápida */}
+                <div className="px-4 py-3 border-b border-zinc-100 grid grid-cols-2 gap-2">
+                  {canPay && (
+                    <button
+                      onClick={() => setView("pay")}
+                      className="flex items-center gap-2 p-3 bg-emerald-500 hover:bg-emerald-600 rounded-2xl text-white transition-all active:scale-95"
+                    >
+                      <div className="p-1.5 bg-white/20 rounded-xl shrink-0"><CheckCircle size={15} /></div>
+                      <div className="text-left min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-widest leading-none">Pagar</p>
+                        <p className="text-[9px] font-bold opacity-80 mt-0.5">{fmtBRL(remaining)}</p>
+                      </div>
+                    </button>
                   )}
-                  {Number(comanda.discount) > 0 && (
-                    <span className="text-[9px] font-black text-emerald-600 flex items-center gap-0.5">
-                      <Zap size={8} /> -{comanda.discountType === "percentage" ? `${comanda.discount}%` : fmtBRL(Number(comanda.discount))}
-                    </span>
+                  <button
+                    onClick={() => { setView("catalog"); setCatalogSearch(""); setAddedItems([]); }}
+                    className="flex items-center gap-2 p-3 bg-amber-500 hover:bg-amber-600 rounded-2xl text-white transition-all active:scale-95"
+                  >
+                    <div className="p-1.5 bg-white/20 rounded-xl shrink-0"><Plus size={15} /></div>
+                    <div className="text-left min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest leading-none">Adicionar</p>
+                      <p className="text-[9px] font-bold opacity-80 mt-0.5">Serv · Prod · Pacote</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => { onEdit(); onClose(); }}
+                    className="flex items-center gap-2 p-3 bg-zinc-100 hover:bg-zinc-200 rounded-2xl text-zinc-700 transition-all active:scale-95"
+                  >
+                    <div className="p-1.5 bg-zinc-200 rounded-xl shrink-0"><Edit2 size={14} /></div>
+                    <div className="text-left">
+                      <p className="text-[10px] font-black uppercase tracking-widest leading-none">Editar</p>
+                      <p className="text-[9px] font-bold text-zinc-400 mt-0.5">Desc, cliente, prof.</p>
+                    </div>
+                  </button>
+                  {!canPay && (
+                    <button
+                      onClick={onClose}
+                      className="flex items-center gap-2 p-3 bg-zinc-100 hover:bg-zinc-200 rounded-2xl text-zinc-700 transition-all active:scale-95"
+                    >
+                      <div className="p-1.5 bg-zinc-200 rounded-xl shrink-0"><X size={14} /></div>
+                      <div className="text-left">
+                        <p className="text-[10px] font-black uppercase tracking-widest leading-none">Fechar</p>
+                      </div>
+                    </button>
                   )}
+                </div>
+
+                {/* Sessões */}
+                {isMulti && (
+                  <div className="mx-4 mt-4 p-3 bg-violet-50 rounded-2xl border border-violet-100 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-black text-violet-700 uppercase tracking-widest flex items-center gap-1.5">
+                          <Layers size={11} /> Sessões — {done}/{sessionTotal}
+                        </p>
+                        <p className="text-[9px] text-violet-400 font-bold mt-0.5">
+                          {done >= sessionTotal ? "✓ Todas concluídas" : `${sessionTotal - done} restante(s)`}
+                        </p>
+                      </div>
+                      <div className="flex gap-1">
+                        <IconButton size="xs" variant="outline" disabled={done <= 0 || updatingSession} onClick={() => handleSession(done - 1)}>
+                          <Minus size={11} />
+                        </IconButton>
+                        <IconButton size="xs" variant="outline" disabled={done >= sessionTotal || updatingSession}
+                          onClick={() => handleSession(done + 1)} className={done < sessionTotal ? "border-violet-300 text-violet-600" : ""}>
+                          <Plus size={11} />
+                        </IconButton>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      {Array.from({ length: sessionTotal }).map((_, i) => (
+                        <button key={i} disabled={updatingSession} onClick={() => handleSession(i < done ? i : i + 1)}
+                          className={cn("flex-1 h-6 rounded-lg border text-[8px] font-black transition-all",
+                            i < done ? "bg-violet-500 border-violet-500 text-white" : "bg-white border-violet-200 text-violet-300 hover:border-violet-400"
+                          )}>
+                          {i + 1}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Itens */}
+                <div className="px-4 pt-4 pb-2">
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                    <Receipt size={11} /> Itens da Comanda
+                  </p>
+
+                  {comanda.items?.length === 0 && packages.length === 0 ? (
+                    <div className="flex flex-col items-center py-8 text-zinc-300">
+                      <Package size={28} className="mb-2" />
+                      <p className="text-xs font-bold">Sem itens</p>
+                      <button onClick={() => { setView("catalog"); setAddedItems([]); setCatalogSearch(""); }}
+                        className="mt-2 text-[10px] font-black text-amber-600 hover:text-amber-700">
+                        + Adicionar itens
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {packages.map((pkg: any) => (
+                        <div key={pkg.packageId} className="rounded-xl border border-violet-100 overflow-hidden mb-1">
+                          <div className="flex items-center gap-2 px-3 py-2 bg-violet-50">
+                            <Layers size={10} className="text-violet-500 shrink-0" />
+                            <span className="text-[10px] font-black text-violet-700">{pkg.packageName}</span>
+                            <span className="ml-auto text-[9px] text-violet-400">{pkg.count} svc</span>
+                          </div>
+                          {(comanda.items || []).filter((i: any) => i.packageId === pkg.packageId).map((it: any) => (
+                            <div key={it.id} className="flex items-center justify-between px-3 py-1.5 border-t border-violet-50">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <Scissors size={9} className="text-violet-400 shrink-0" />
+                                <span className="text-xs font-bold text-zinc-800 truncate">{it.name}</span>
+                                <span className="text-[9px] text-zinc-400 shrink-0">{it.quantity}x</span>
+                              </div>
+                              <span className="text-xs font-black text-zinc-700 ml-2 shrink-0">{fmtBRL(Number(it.total || it.price * it.quantity))}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                      {svcItems.filter((i: any) => !i.packageId).map((it: any) => (
+                        <div key={it.id} className="flex items-center justify-between p-2.5 bg-amber-50/40 rounded-xl border border-amber-100">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600 shrink-0"><Scissors size={10} /></div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-zinc-900 truncate">{it.name}</p>
+                              <p className="text-[9px] text-zinc-400">{it.quantity}x · {fmtBRL(Number(it.price))}/un</p>
+                            </div>
+                          </div>
+                          <p className="text-sm font-black text-zinc-900 shrink-0 ml-2">{fmtBRL(Number(it.total || it.price * it.quantity))}</p>
+                        </div>
+                      ))}
+                      {prodItems.map((it: any) => (
+                        <div key={it.id} className="flex items-center justify-between p-2.5 bg-emerald-50/40 rounded-xl border border-emerald-100">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600 shrink-0"><Package size={10} /></div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-zinc-900 truncate">{it.name}</p>
+                              <p className="text-[9px] text-zinc-400">{it.quantity}x · {fmtBRL(Number(it.price))}/un</p>
+                            </div>
+                          </div>
+                          <p className="text-sm font-black text-zinc-900 shrink-0 ml-2">{fmtBRL(Number(it.total || it.price * it.quantity))}</p>
+                        </div>
+                      ))}
+                      <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-100 space-y-1.5 mt-1">
+                        <div className="flex justify-between text-xs font-bold text-zinc-500"><span>Subtotal</span><span>{fmtBRL(subtotal)}</span></div>
+                        {Number(comanda.discount) > 0 && (
+                          <div className="flex justify-between text-xs text-emerald-600 font-black">
+                            <span className="flex items-center gap-1"><Zap size={9} /> Desconto</span>
+                            <span>-{comanda.discountType === "percentage" ? `${comanda.discount}%` : fmtBRL(Number(comanda.discount))}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm font-black text-zinc-900 pt-1 border-t border-zinc-200"><span>Total</span><span>{fmtBRL(totalVal)}</span></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Agendamentos */}
+                {appts.length > 0 && (
+                  <div className="px-4 pt-2 pb-4">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                      <Calendar size={11} className="text-blue-500" /> Agendamentos ({appts.length})
+                    </p>
+                    <div className="space-y-1.5">
+                      {appts.map((a: any) => {
+                        const isDone  = a.status === "realizado";
+                        const isSched = ["agendado", "confirmado", "reagendado"].includes(a.status);
+                        const isBad   = ["cancelado", "faltou"].includes(a.status);
+                        return (
+                          <div key={a.id} className="flex items-center gap-2.5 p-2.5 bg-white rounded-xl border border-zinc-100">
+                            <div className={cn("p-1.5 rounded-lg shrink-0",
+                              isDone ? "bg-emerald-100 text-emerald-600" : isSched ? "bg-blue-100 text-blue-600" : isBad ? "bg-red-100 text-red-400" : "bg-zinc-100 text-zinc-400"
+                            )}>
+                              <Calendar size={10} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-zinc-900 truncate">{a.serviceName || a.service?.name || "Serviço"}</p>
+                              <p className="text-[9px] text-zinc-400">
+                                {a.date ? format(new Date(a.date), "dd/MM/yyyy", { locale: ptBR }) : "—"}{a.startTime ? ` · ${a.startTime}` : ""}
+                                {a.professional?.name ? ` · ${a.professional.name}` : ""}
+                              </p>
+                            </div>
+                            <Badge color={isDone ? "success" : isSched ? "info" : isBad ? "danger" : "default"} size="sm">
+                              <span className="capitalize">{a.status}</span>
+                            </Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {comanda.description && (
+                  <div className="mx-4 mb-4 p-3 bg-zinc-50 border border-zinc-100 rounded-xl">
+                    <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Observações</p>
+                    <p className="text-xs text-zinc-700 font-bold leading-relaxed">{comanda.description}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── PAY VIEW ── */}
+            {view === "pay" && (
+              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+                {/* Modo */}
+                <div className="flex gap-1 p-1 bg-zinc-100 rounded-xl">
+                  {([["single", "Único"], ["mixed", "Misto"]] as const).map(([v, label]) => (
+                    <button key={v} onClick={() => setPayMode(v)}
+                      className={cn("flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                        payMode === v ? "bg-white shadow-sm text-zinc-900" : "text-zinc-400"
+                      )}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {payMode === "single" && (
+                  <div className="space-y-4">
+                    {/* Métodos */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["cash", "card", "pix"] as const).map(m => {
+                        const cfg = PAY_CFG[m]; const Icon = cfg.icon; const active = payMethod === m;
+                        return (
+                          <button key={m} onClick={() => setPayMethod(m)}
+                            className={cn("flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all",
+                              active ? `${cfg.bg} border-transparent shadow-lg text-white` : `${cfg.light} border-current`
+                            )}>
+                            <Icon size={22} />
+                            <span className="text-[10px] font-black uppercase tracking-wider">{cfg.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Valor */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Valor a Pagar</p>
+                        <button onClick={() => setPayAmount("")} className="text-[10px] font-black text-amber-600">
+                          Pagar tudo ({fmtBRL(remaining)})
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-zinc-400">R$</span>
+                        <input type="text" inputMode="numeric" value={payAmount}
+                          onChange={e => setPayAmount(fmtInput(e.target.value))}
+                          placeholder={fmtBRL(remaining).replace("R$ ", "")}
+                          className={cn("w-full pl-10 pr-4 py-3 border-2 rounded-2xl text-xl font-black text-zinc-900 outline-none transition-all",
+                            singleOverpay ? "border-red-300 bg-red-50" : singlePartial && payAmount ? "border-amber-300 bg-amber-50" : "border-zinc-200 bg-white focus:border-amber-400"
+                          )}
+                        />
+                      </div>
+                      {payAmount && (
+                        <div className={cn("mt-2 flex items-center justify-between p-2.5 rounded-xl text-xs font-black border",
+                          singleOverpay ? "bg-red-50 border-red-200 text-red-700" :
+                          singlePartial ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-emerald-50 border-emerald-200 text-emerald-700"
+                        )}>
+                          <span>{singleOverpay ? "⚠️ Valor acima do saldo" : singlePartial ? "⚠️ Pagamento parcial — restará:" : "✅ Quita o total"}</span>
+                          {singlePartial && !singleOverpay && <span>{fmtBRL(singleBalance)}</span>}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Parcelamento */}
+                    {payMethod === "card" && (
+                      <div>
+                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Parcelamento</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[1,2,3,4,5,6].map(n => (
+                            <button key={n} onClick={() => setPayInstallments(n)}
+                              className={cn("py-2.5 rounded-xl border text-xs font-black transition-all",
+                                payInstallments === n ? "bg-blue-500 text-white border-transparent" : "bg-blue-50 text-blue-600 border-blue-100"
+                              )}>
+                              {n === 1 ? "À vista" : `${n}x`}
+                              {n > 1 && <span className="block text-[8px] opacity-80">{fmtBRL((payAmount ? singleNum : remaining) / n)}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {payMode === "mixed" && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Divisão</p>
+                      <button onClick={() => setMixedEntries(prev => [...prev, { method: "cash", amount: "" }])}
+                        className="text-[10px] font-black text-amber-600 flex items-center gap-1">
+                        <Plus size={11} /> Adicionar
+                      </button>
+                    </div>
+                    {mixedEntries.map((e, idx) => (
+                      <div key={idx} className="flex items-center gap-2 p-3 bg-zinc-50 rounded-2xl border border-zinc-100">
+                        <select value={e.method} onChange={ev => setMixedEntries(prev => prev.map((x, i) => i === idx ? { ...x, method: ev.target.value as PayMethod } : x))}
+                          className="text-xs font-bold bg-white border border-zinc-200 rounded-xl px-2 py-2 outline-none">
+                          <option value="cash">💵 Dinheiro</option>
+                          <option value="card">💳 Cartão</option>
+                          <option value="pix">📲 Pix</option>
+                        </select>
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400">R$</span>
+                          <input type="text" inputMode="numeric" value={e.amount}
+                            onChange={ev => setMixedEntries(prev => prev.map((x, i) => i === idx ? { ...x, amount: fmtInput(ev.target.value) } : x))}
+                            placeholder="0,00"
+                            className="w-full pl-9 pr-3 py-2 text-sm font-bold bg-white border border-zinc-200 rounded-xl outline-none focus:border-amber-400" />
+                        </div>
+                        {mixedEntries.length > 1 && (
+                          <button onClick={() => setMixedEntries(prev => prev.filter((_, i) => i !== idx))} className="p-1.5 text-zinc-300 hover:text-red-400 rounded-lg">
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <div className={cn("flex items-center justify-between p-3 rounded-xl text-xs font-black border",
+                      Math.abs(mixedRem) < 0.01 ? "bg-emerald-50 border-emerald-200 text-emerald-700" :
+                      mixedRem > 0 ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-red-50 border-red-200 text-red-700"
+                    )}>
+                      <span>{Math.abs(mixedRem) < 0.01 ? "✅ Valores conferem!" : mixedRem > 0 ? "⚠️ Faltam" : "⚠️ Excesso"}</span>
+                      {Math.abs(mixedRem) >= 0.01 && <span>{fmtBRL(Math.abs(mixedRem))}</span>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── CATALOG VIEW ── */}
+            {view === "catalog" && (
+              <div className="flex flex-col flex-1 overflow-hidden">
+                {/* Tabs */}
+                <div className="flex border-b border-zinc-100 shrink-0">
+                  {[{ k: "services", label: "Serviços / Pacotes", icon: <Scissors size={11} /> },
+                    { k: "products", label: "Produtos",           icon: <Package size={11} /> }
+                  ].map(t => (
+                    <button key={t.k} onClick={() => setCatalogTab(t.k as any)}
+                      className={cn("flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all",
+                        catalogTab === t.k ? "border-amber-500 text-amber-700 bg-amber-50/40" : "border-transparent text-zinc-400"
+                      )}>
+                      {t.icon} {t.label}
+                    </button>
+                  ))}
+                </div>
+                {/* Search */}
+                <div className="px-4 py-2.5 border-b border-zinc-100 shrink-0">
+                  <div className="relative">
+                    <ShoppingBag size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                    <input autoFocus type="text" placeholder="Buscar..." value={catalogSearch}
+                      onChange={e => setCatalogSearch(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-amber-400"
+                    />
+                  </div>
+                </div>
+                {/* Lista */}
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5">
+                  {catalogTab === "services" && (
+                    <>
+                      {filteredPkgs.length > 0 && (
+                        <>
+                          <p className="text-[9px] font-black text-violet-500 uppercase tracking-widest pb-1">Pacotes</p>
+                          {filteredPkgs.map((pkg: any) => (
+                            <button key={pkg.id} onClick={() => addPackageToCatalog(pkg)}
+                              className="w-full flex items-center gap-3 p-3 rounded-xl border border-zinc-100 hover:border-violet-300 hover:bg-violet-50/40 transition-all text-left">
+                              <div className="p-2 bg-violet-100 text-violet-700 rounded-xl shrink-0"><Layers size={13} /></div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-black text-zinc-900 truncate">{pkg.name}</p>
+                                <p className="text-[10px] text-violet-600 font-black">{fmtBRL(Number(pkg.price))}</p>
+                              </div>
+                              <Plus size={15} className="text-zinc-300 shrink-0" />
+                            </button>
+                          ))}
+                          {filteredSvcs.length > 0 && <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest pt-2 pb-1">Serviços</p>}
+                        </>
+                      )}
+                      {filteredSvcs.map((s: any) => {
+                        const qty = addedItems.find(i => i.serviceId === s.id)?.quantity || 0;
+                        return (
+                          <button key={s.id} onClick={() => addCatalogItem({ name: s.name, price: Number(s.price), productId: null, serviceId: s.id })}
+                            className="w-full flex items-center gap-3 p-3 rounded-xl border border-zinc-100 hover:border-amber-300 hover:bg-amber-50/40 transition-all text-left">
+                            <div className="p-2 bg-amber-50 text-amber-600 rounded-xl shrink-0"><Scissors size={13} /></div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-zinc-800 truncate">{s.name}</p>
+                              <p className="text-[10px] text-amber-600 font-black">{fmtBRL(Number(s.price))}</p>
+                            </div>
+                            {qty > 0 ? <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-2 py-1 rounded-lg">{qty}x</span>
+                                      : <Plus size={15} className="text-zinc-300 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
+                  {catalogTab === "products" && filteredProds.map((p: any) => {
+                    const qty = addedItems.find(i => i.productId === p.id)?.quantity || 0;
+                    const noStock = p.stock <= 0;
+                    return (
+                      <button key={p.id} disabled={noStock} onClick={() => !noStock && addCatalogItem({ name: p.name, price: Number(p.salePrice), productId: p.id, serviceId: null })}
+                        className={cn("w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                          noStock ? "border-zinc-100 opacity-40 cursor-not-allowed" : "border-zinc-100 hover:border-emerald-300 hover:bg-emerald-50/40"
+                        )}>
+                        <div className={cn("p-2 rounded-xl shrink-0", noStock ? "bg-zinc-100 text-zinc-400" : "bg-emerald-50 text-emerald-600")}><Package size={13} /></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-zinc-800 truncate">{p.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-[10px] text-emerald-600 font-black">{fmtBRL(Number(p.salePrice))}</p>
+                            <span className={cn("text-[8px] font-black px-1 py-0.5 rounded", noStock ? "bg-red-50 text-red-500" : "bg-zinc-100 text-zinc-500")}>
+                              {noStock ? "Sem estoque" : `Est: ${p.stock}`}
+                            </span>
+                          </div>
+                        </div>
+                        {qty > 0 ? <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg">{qty}x</span>
+                                  : !noStock ? <Plus size={15} className="text-zinc-300 shrink-0" /> : null}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* ── Sessões ── */}
-        {isMulti && (
-          <div className="p-3 bg-violet-50 rounded-2xl border border-violet-100 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-black text-violet-700 uppercase tracking-widest flex items-center gap-1.5">
-                  <Layers size={11} /> Sessões — {done}/{sessionTotal}
-                </p>
-                <p className="text-[9px] text-violet-400 font-bold mt-0.5">
-                  {done >= sessionTotal ? "Todas as sessões concluídas!" : `${sessionTotal - done} sessão(ões) restante(s)`}
-                </p>
-              </div>
-              <div className="flex gap-1">
-                <IconButton size="xs" variant="outline" disabled={done <= 0 || updating} onClick={() => handleSession(done - 1)} title="Desfazer sessão">
-                  <Minus size={11} />
-                </IconButton>
-                <IconButton size="xs" variant="outline" disabled={done >= sessionTotal || updating} onClick={() => handleSession(done + 1)}
-                  title="Confirmar sessão" className={done < sessionTotal ? "border-violet-300 text-violet-600 hover:bg-violet-50" : ""}>
-                  <Plus size={11} />
-                </IconButton>
-              </div>
-            </div>
-            <div className="flex gap-1.5">
-              {Array.from({ length: sessionTotal }).map((_, i) => (
-                <button key={i} disabled={updating} onClick={() => handleSession(i < done ? i : i + 1)}
-                  className={cn("flex-1 h-6 rounded-lg transition-all border text-[8px] font-black",
-                    i < done ? "bg-violet-500 border-violet-500 text-white" : "bg-white border-violet-200 text-violet-300 hover:border-violet-400"
-                  )}>
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Itens ── */}
-        {(comanda.items?.length > 0 || packages.length > 0) ? (
-          <div className="space-y-1.5">
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-              <Receipt size={11} /> Itens da Comanda
-            </p>
-
-            {/* Pacotes */}
-            {packages.map((pkg: any) => (
-              <div key={pkg.packageId} className="rounded-xl border border-violet-100 overflow-hidden">
-                <div className="flex items-center gap-2 px-3 py-2 bg-violet-50">
-                  <Layers size={11} className="text-violet-500 shrink-0" />
-                  <span className="text-[10px] font-black text-violet-700 uppercase tracking-widest">{pkg.packageName}</span>
-                  <span className="ml-auto text-[9px] text-violet-400 font-bold">{pkg.count} serviços</span>
-                </div>
-                {(comanda.items || []).filter((i: any) => i.packageId === pkg.packageId).map((it: any) => (
-                  <div key={it.id} className="flex items-center justify-between px-3 py-2 border-t border-violet-50">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Scissors size={10} className="text-violet-400 shrink-0" />
-                      <span className="text-xs font-bold text-zinc-800 truncate">{it.name}</span>
-                      <span className="text-[9px] text-zinc-400 font-bold shrink-0">{it.quantity}x</span>
-                    </div>
-                    <span className="text-xs font-black text-zinc-700 shrink-0 ml-2">{fmtBRL(Number(it.total || it.price * it.quantity))}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
-
-            {/* Serviços avulsos */}
-            {svcItems.filter((i: any) => !i.packageId).map((it: any) => (
-              <div key={it.id} className="flex items-center justify-between p-2.5 bg-amber-50/40 rounded-xl border border-amber-100">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="p-1.5 rounded-lg bg-amber-100 text-amber-600 shrink-0"><Scissors size={11} /></div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-zinc-900 truncate">{it.name}</p>
-                    <p className="text-[9px] text-zinc-400 font-bold">{it.quantity}x · {fmtBRL(Number(it.price))}/un</p>
-                  </div>
-                </div>
-                <p className="text-sm font-black text-zinc-900 shrink-0 ml-2">{fmtBRL(Number(it.total || it.price * it.quantity))}</p>
-              </div>
-            ))}
-
-            {/* Produtos */}
-            {prodItems.map((it: any) => (
-              <div key={it.id} className="flex items-center justify-between p-2.5 bg-emerald-50/40 rounded-xl border border-emerald-100">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600 shrink-0"><Package size={11} /></div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-zinc-900 truncate">{it.name}</p>
-                    <p className="text-[9px] text-zinc-400 font-bold">{it.quantity}x · {fmtBRL(Number(it.price))}/un</p>
-                  </div>
-                </div>
-                <p className="text-sm font-black text-zinc-900 shrink-0 ml-2">{fmtBRL(Number(it.total || it.price * it.quantity))}</p>
-              </div>
-            ))}
-
-            {/* Subtotal / desconto */}
-            <div className="mt-2 p-3 bg-zinc-50 rounded-xl border border-zinc-100 space-y-1.5">
-              <div className="flex justify-between text-xs font-bold text-zinc-500">
-                <span>Subtotal</span>
-                <span>{fmtBRL(subtotal)}</span>
-              </div>
-              {Number(comanda.discount) > 0 && (
-                <div className="flex justify-between text-xs text-emerald-600 font-black">
-                  <span className="flex items-center gap-1"><Zap size={10} /> Desconto</span>
-                  <span>-{comanda.discountType === "percentage" ? `${comanda.discount}%` : fmtBRL(Number(comanda.discount))}</span>
+            {/* ── Footer ── */}
+            <div className="px-4 py-3 border-t border-zinc-100 bg-white shrink-0">
+              {view === "main" && (
+                <Button variant="ghost" size="sm" fullWidth onClick={onClose} className="text-zinc-400">
+                  Fechar
+                </Button>
+              )}
+              {view === "pay" && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setView("main")} className="flex-1">Voltar</Button>
+                  <button
+                    onClick={handleConfirmPayment}
+                    disabled={saving || (payMode === "single" ? !canPaySingle : !canPayMixed)}
+                    className={cn("flex-[2] py-3 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all",
+                      saving || (payMode === "single" ? !canPaySingle : !canPayMixed)
+                        ? "bg-zinc-200 text-zinc-400 cursor-not-allowed"
+                        : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 active:scale-95"
+                    )}>
+                    <CheckCircle size={14} />
+                    {saving ? "Processando..." :
+                      payMode === "single" && singlePartial && payAmount ? `Pagar ${fmtBRL(singleNum)} (Parcial)` :
+                      payMode === "mixed" && mixedRem > 0.01 ? `Pagar ${fmtBRL(mixedTotal)} (Parcial)` :
+                      "Confirmar Pagamento"}
+                  </button>
                 </div>
               )}
-              <div className="flex justify-between text-sm font-black text-zinc-900 pt-1 border-t border-zinc-200">
-                <span>Total</span>
-                <span>{fmtBRL(totalVal)}</span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center py-8 text-zinc-300">
-            <Package size={28} className="mb-2" />
-            <p className="text-xs font-bold">Nenhum item na comanda</p>
-            <button onClick={() => { onEdit(); onClose(); }} className="mt-2 text-[10px] font-black text-amber-600 hover:text-amber-700">
-              + Adicionar itens
-            </button>
-          </div>
-        )}
-
-        {/* ── Agendamentos ── */}
-        {appts.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-              <Calendar size={11} className="text-blue-500" /> Agendamentos vinculados ({appts.length})
-            </p>
-            {appts.map((a: any) => {
-              const isDone   = a.status === "realizado";
-              const isSched  = ["agendado", "confirmado", "reagendado"].includes(a.status);
-              const isBad    = ["cancelado", "faltou"].includes(a.status);
-              return (
-                <div key={a.id} className="flex items-center gap-2.5 p-2.5 bg-white rounded-xl border border-zinc-100">
-                  <div className={cn("p-1.5 rounded-lg shrink-0",
-                    isDone ? "bg-emerald-100 text-emerald-600" : isSched ? "bg-blue-100 text-blue-600" : isBad ? "bg-red-100 text-red-400" : "bg-zinc-100 text-zinc-400"
-                  )}>
-                    <Calendar size={11} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-zinc-900 truncate">{a.serviceName || a.service?.name || "Serviço"}</p>
-                    <p className="text-[9px] text-zinc-400 font-bold">
-                      {a.date ? format(new Date(a.date), "dd/MM/yyyy", { locale: ptBR }) : "—"}{a.startTime ? ` · ${a.startTime}` : ""}
-                      {a.professional?.name ? ` · ${a.professional.name}` : ""}
-                    </p>
-                  </div>
-                  <Badge color={isDone ? "success" : isSched ? "info" : isBad ? "danger" : "default"} size="sm">
-                    <span className="capitalize">{a.status}</span>
-                  </Badge>
+              {view === "catalog" && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setView("main")} className="flex-1">Voltar</Button>
+                  <Button variant="primary" size="sm" onClick={handleSaveItems} loading={savingItems}
+                    disabled={addedItems.length === 0} className="flex-[2]">
+                    Adicionar {addedItems.length > 0 ? `(${addedItems.length})` : ""}
+                  </Button>
                 </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── Observações ── */}
-        {comanda.description && (
-          <div className="p-3 bg-zinc-50 border border-zinc-100 rounded-xl">
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Observações</p>
-            <p className="text-xs text-zinc-700 font-bold leading-relaxed">{comanda.description}</p>
-          </div>
-        )}
-      </div>
-    </Modal>
+              )}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -1361,13 +1800,35 @@ export function ComandasTab({
         <Plus size={24} />
       </button>
 
-      {/* Detail Modal */}
+      {/* Detail Drawer */}
       <DetailModal
         comanda={detailComanda}
         onClose={() => setDetailComanda(null)}
-        onPay={() => { handlePayComanda(detailComanda); setDetailComanda(null); }}
+        onPay={async (method, details) => {
+          const c = detailComanda;
+          if (!c) return;
+          const isPartial = details?.isPartial === true;
+          if (isPartial) {
+            const res = await apiFetch(`/api/comandas/${c.id}/partial-payment`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ amount: details.totalPaying, paymentMethod: method, paymentDetails: details }),
+            });
+            if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err?.error || "Erro ao registrar pagamento parcial."); }
+          } else {
+            const totalToPay = Number(c.total) || 0;
+            const res = await apiFetch(`/api/comandas/${c.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "paid", paymentMethod: method, paymentDetails: details, paidAmount: totalToPay }),
+            });
+            if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err?.error || "Erro ao confirmar pagamento."); }
+          }
+        }}
         onEdit={() => { setEditingComanda(detailComanda); setDetailComanda(null); }}
         fetchComandas={fetchComandas}
+        products={products}
+        services={services}
       />
 
       {/* Edit Modal */}
