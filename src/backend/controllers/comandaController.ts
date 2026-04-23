@@ -159,7 +159,7 @@ export const comandaController = {
 
   async update(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    const { status, total, discount, discountType, paymentMethod, paymentDetails, description, clientId, professionalId, type, sessionCount } = req.body;
+    const { status, total, discount, discountType, paymentMethod, paymentDetails, description, clientId, professionalId, type, sessionCount, paidAmount } = req.body;
     try {
       const sets: string[] = [];
       const vals: any[] = [];
@@ -174,6 +174,7 @@ export const comandaController = {
       if (professionalId !== undefined){ sets.push("professionalId = ?");vals.push(professionalId); }
       if (type !== undefined)          { sets.push("type = ?");          vals.push(type); }
       if (sessionCount !== undefined)  { sets.push("sessionCount = ?");  vals.push(parseInt(sessionCount) || 1); }
+      if (paidAmount !== undefined)    { sets.push("paidAmount = ?");    vals.push(parseFloat(paidAmount) || 0); }
 
       if (sets.length > 0) {
         vals.push(req.params.id);
@@ -181,49 +182,59 @@ export const comandaController = {
         await (prisma as any).$executeRawUnsafe(`UPDATE Comanda SET ${sets.join(", ")} WHERE id = ?${tenantId ? " AND tenantId = ?" : ""}`, ...vals);
       }
 
-      if (status === "paid" && tenantId) {
+      if ((status === "paid" || status === "partial") && tenantId) {
         try {
-          const cmdData: any[] = await (prisma as any).$queryRawUnsafe(`SELECT total, clientId FROM Comanda WHERE id = ?`, req.params.id);
+          const cmdData: any[] = await (prisma as any).$queryRawUnsafe(`SELECT total, paidAmount, clientId FROM Comanda WHERE id = ?`, req.params.id);
           if (cmdData[0]) {
+            const entryAmount = status === "paid"
+              ? Number(cmdData[0].total) || 0
+              : parseFloat(paidAmount) || Number(cmdData[0].paidAmount) || 0;
             await (prisma as any).$executeRawUnsafe(`DELETE FROM CashEntry WHERE comandaId = ? AND tenantId = ?`, req.params.id, tenantId);
             await (prisma as any).$executeRawUnsafe(
               `INSERT INTO CashEntry (id, tenantId, type, category, description, amount, date, comandaId)
                VALUES (?, ?, 'income', 'Comanda', ?, ?, NOW(), ?)`,
-              randomUUID(), tenantId, `Pagamento comanda #${req.params.id.slice(-6).toUpperCase()}`, cmdData[0].total || 0, req.params.id
+              randomUUID(), tenantId,
+              status === "paid"
+                ? `Pagamento comanda #${req.params.id.slice(-6).toUpperCase()}`
+                : `Pagamento parcial comanda #${req.params.id.slice(-6).toUpperCase()}`,
+              entryAmount, req.params.id
             );
           }
         } catch (e2: any) {
           console.warn("⚠️ Auto CashEntry creation failed:", e2.message);
         }
 
-        try {
-          const svcItems: any[] = await (prisma as any).$queryRawUnsafe(
-            `SELECT ci.serviceId, ci.quantity FROM ComandaItem ci WHERE ci.comandaId = ? AND ci.serviceId IS NOT NULL`, req.params.id
-          );
-          for (const item of svcItems) {
-            if (!item.serviceId) continue;
-            const serviceProds = await (prisma as any).serviceProduct.findMany({ where: { serviceId: item.serviceId } });
-            const svcNameRows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT name FROM Service WHERE id = ?`, item.serviceId);
-            const svcName = svcNameRows[0]?.name || item.serviceId;
-            for (const sp of serviceProds) {
-              const totalDeduct = sp.quantity * (Number(item.quantity) || 1);
-              const prodRows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT stock FROM Product WHERE id = ?`, sp.productId);
-              if (!prodRows.length) continue;
-              const previousQty = prodRows[0].stock;
-              const newQty = Math.max(0, previousQty - totalDeduct);
-              await (prisma as any).$executeRawUnsafe(
-                `UPDATE Product SET stock = ?, reservedStock = GREATEST(0, reservedStock - ?) WHERE id = ?`,
-                newQty, totalDeduct, sp.productId
-              );
-              await (prisma as any).$executeRawUnsafe(
-                `INSERT INTO StockMovement (id, tenantId, productId, type, quantity, previousQty, newQty, reason, reference) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                randomUUID(), tenantId, sp.productId, "consumo", totalDeduct, previousQty, newQty,
-                `Consumo via serviço: ${svcName}`, req.params.id
-              );
+        // Stock deduction only when fully paid
+        if (status === "paid") {
+          try {
+            const svcItems: any[] = await (prisma as any).$queryRawUnsafe(
+              `SELECT ci.serviceId, ci.quantity FROM ComandaItem ci WHERE ci.comandaId = ? AND ci.serviceId IS NOT NULL`, req.params.id
+            );
+            for (const item of svcItems) {
+              if (!item.serviceId) continue;
+              const serviceProds = await (prisma as any).serviceProduct.findMany({ where: { serviceId: item.serviceId } });
+              const svcNameRows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT name FROM Service WHERE id = ?`, item.serviceId);
+              const svcName = svcNameRows[0]?.name || item.serviceId;
+              for (const sp of serviceProds) {
+                const totalDeduct = sp.quantity * (Number(item.quantity) || 1);
+                const prodRows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT stock FROM Product WHERE id = ?`, sp.productId);
+                if (!prodRows.length) continue;
+                const previousQty = prodRows[0].stock;
+                const newQty = Math.max(0, previousQty - totalDeduct);
+                await (prisma as any).$executeRawUnsafe(
+                  `UPDATE Product SET stock = ?, reservedStock = GREATEST(0, reservedStock - ?) WHERE id = ?`,
+                  newQty, totalDeduct, sp.productId
+                );
+                await (prisma as any).$executeRawUnsafe(
+                  `INSERT INTO StockMovement (id, tenantId, productId, type, quantity, previousQty, newQty, reason, reference) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  randomUUID(), tenantId, sp.productId, "consumo", totalDeduct, previousQty, newQty,
+                  `Consumo via serviço: ${svcName}`, req.params.id
+                );
+              }
             }
+          } catch (e2: any) {
+            console.warn("⚠️  Auto stock deduction failed:", e2.message);
           }
-        } catch (e2: any) {
-          console.warn("⚠️  Auto stock deduction failed:", e2.message);
         }
       }
 
@@ -324,6 +335,93 @@ export const comandaController = {
     } catch (e: any) {
       console.error("[PATCH /api/comandas/:id/sessions]", e?.message);
       res.status(500).json({ error: e?.message || "Erro ao atualizar sessões." });
+    }
+  },
+
+  // POST /api/comandas/:id/partial-payment — register a partial payment
+  async partialPayment(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    const { amount, paymentMethod, paymentDetails } = req.body;
+    try {
+      const rows: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT total, paidAmount, status FROM Comanda WHERE id = ?${tenantId ? " AND tenantId = ?" : ""}`,
+        ...(tenantId ? [req.params.id, tenantId] : [req.params.id])
+      );
+      if (!rows.length) return res.status(404).json({ error: "Comanda não encontrada." });
+
+      const comanda = rows[0];
+      const currentPaid = Number(comanda.paidAmount) || 0;
+      const paymentAmount = parseFloat(amount) || 0;
+      if (paymentAmount <= 0) return res.status(400).json({ error: "Valor de pagamento inválido." });
+
+      const newPaidAmount = currentPaid + paymentAmount;
+      const comandaTotal = Number(comanda.total) || 0;
+      const isFullyPaid = newPaidAmount >= comandaTotal - 0.01;
+      const newStatus = isFullyPaid ? "paid" : "partial";
+
+      // Update comanda
+      const detailsStr = paymentDetails ? (typeof paymentDetails === 'object' ? JSON.stringify(paymentDetails) : paymentDetails) : null;
+      await (prisma as any).$executeRawUnsafe(
+        `UPDATE Comanda SET paidAmount = ?, status = ?, paymentMethod = ?, paymentDetails = ? WHERE id = ?${tenantId ? " AND tenantId = ?" : ""}`,
+        ...(tenantId
+          ? [newPaidAmount, newStatus, paymentMethod || null, detailsStr, req.params.id, tenantId]
+          : [newPaidAmount, newStatus, paymentMethod || null, detailsStr, req.params.id])
+      );
+
+      // Create CashEntry for this payment
+      if (tenantId) {
+        try {
+          await (prisma as any).$executeRawUnsafe(
+            `INSERT INTO CashEntry (id, tenantId, type, category, description, amount, date, comandaId)
+             VALUES (?, ?, 'income', 'Comanda', ?, ?, NOW(), ?)`,
+            randomUUID(), tenantId,
+            isFullyPaid
+              ? `Pagamento final comanda #${req.params.id.slice(-6).toUpperCase()}`
+              : `Pagamento parcial comanda #${req.params.id.slice(-6).toUpperCase()}`,
+            paymentAmount, req.params.id
+          );
+        } catch (e2: any) {
+          console.warn("⚠️ CashEntry partial payment failed:", e2.message);
+        }
+      }
+
+      // Stock deduction on full payment
+      if (isFullyPaid && tenantId) {
+        try {
+          const svcItems: any[] = await (prisma as any).$queryRawUnsafe(
+            `SELECT ci.serviceId, ci.quantity FROM ComandaItem ci WHERE ci.comandaId = ? AND ci.serviceId IS NOT NULL`, req.params.id
+          );
+          for (const item of svcItems) {
+            if (!item.serviceId) continue;
+            const serviceProds = await (prisma as any).serviceProduct.findMany({ where: { serviceId: item.serviceId } });
+            const svcNameRows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT name FROM Service WHERE id = ?`, item.serviceId);
+            const svcName = svcNameRows[0]?.name || item.serviceId;
+            for (const sp of serviceProds) {
+              const totalDeduct = sp.quantity * (Number(item.quantity) || 1);
+              const prodRows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT stock FROM Product WHERE id = ?`, sp.productId);
+              if (!prodRows.length) continue;
+              const previousQty = prodRows[0].stock;
+              const newQty = Math.max(0, previousQty - totalDeduct);
+              await (prisma as any).$executeRawUnsafe(
+                `UPDATE Product SET stock = ?, reservedStock = GREATEST(0, reservedStock - ?) WHERE id = ?`,
+                newQty, totalDeduct, sp.productId
+              );
+              await (prisma as any).$executeRawUnsafe(
+                `INSERT INTO StockMovement (id, tenantId, productId, type, quantity, previousQty, newQty, reason, reference) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                randomUUID(), tenantId, sp.productId, "consumo", totalDeduct, previousQty, newQty,
+                `Consumo via serviço: ${svcName}`, req.params.id
+              );
+            }
+          }
+        } catch (e2: any) {
+          console.warn("⚠️  Auto stock deduction failed:", e2.message);
+        }
+      }
+
+      return res.json({ paidAmount: newPaidAmount, status: newStatus, remaining: Math.max(0, comandaTotal - newPaidAmount) });
+    } catch (e: any) {
+      console.error("[POST /api/comandas/:id/partial-payment]", e?.message);
+      res.status(500).json({ error: e?.message || "Erro ao registrar pagamento parcial." });
     }
   },
 

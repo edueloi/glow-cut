@@ -42,7 +42,7 @@ interface ClientsTabProps {
   clientView: "grid" | "list";
   setClientView: (val: "grid" | "list") => void;
   clients: Client[];
-  setIsClientModalOpen: (b: boolean) => void;
+  setIsClientModalOpen: (b?: boolean) => void;
   calculateAge?: (birthDate: string) => number | null;
   handleEditClient: (c: Client) => void;
   handleDeleteClient: (id: string) => void;

@@ -182,6 +182,7 @@ model Comanda {
   sessionCount       Int?          @default(1)
   sessionsCompleted  Int?          @default(0)
   type               String?       @default("normal") @db.VarChar(20)
+  paidAmount         Float         @default(0)
   createdAt      DateTime      @default(now()) @db.DateTime(0)
   appointment    Appointment[]
   items          ComandaItem[]

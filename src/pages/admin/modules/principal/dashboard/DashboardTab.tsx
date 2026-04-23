@@ -31,7 +31,7 @@ interface DashboardTabProps {
   handleTabChange: (tab: "dash" | "agenda" | "minha-agenda" | "services" | "clients" | "comandas" | "fluxo" | "settings" | "professionals" | "horarios" | "profile") => void;
   setIsAppointmentModalOpen?: (v: boolean) => void;
   setIsComandaModalOpen?: (v: boolean) => void;
-  setIsClientModalOpen?: (v: boolean) => void;
+  setIsClientModalOpen?: (v?: boolean) => void;
   onAppointmentConfirmed?: () => void;
   pendingAppointments?: any[];
 }

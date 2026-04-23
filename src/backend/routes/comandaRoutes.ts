@@ -10,3 +10,4 @@ comandaRouter.put("/:id", comandaController.update);
 comandaRouter.delete("/:id", comandaController.delete);
 comandaRouter.put("/:id/items", comandaController.updateItems);
 comandaRouter.patch("/:id/sessions", comandaController.patchSessions);
+comandaRouter.post("/:id/partial-payment", comandaController.partialPayment);

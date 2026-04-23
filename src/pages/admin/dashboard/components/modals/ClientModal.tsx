@@ -1,8 +1,9 @@
 import React from "react";
-import { cn } from "@/src/lib/utils";
 import { Button } from "@/src/components/ui/Button";
 import { Modal, ModalFooter } from "@/src/components/ui/Modal";
 import { Input, Textarea, Select } from "@/src/components/ui/Input";
+import { DatePicker } from "@/src/components/ui/DatePicker";
+import { maskPhone, maskCPF } from "@/src/lib/masks";
 
 interface ClientModalProps {
   isClientModalOpen: boolean;
@@ -83,7 +84,10 @@ export function ClientModal({
             type="tel"
             placeholder="(00) 00000-0000"
             value={newClient.phone || ""}
-            onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+            onChange={(e) =>
+              setNewClient({ ...newClient, phone: maskPhone(e.target.value) })
+            }
+            maxLength={15}
           />
         </div>
 
@@ -100,17 +104,21 @@ export function ClientModal({
             label="CPF"
             placeholder="000.000.000-00"
             value={newClient.cpf || ""}
-            onChange={(e) => setNewClient({ ...newClient, cpf: e.target.value })}
+            onChange={(e) =>
+              setNewClient({ ...newClient, cpf: maskCPF(e.target.value) })
+            }
+            maxLength={14}
           />
         </div>
 
         {/* Row 3: BirthDate and Gender */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
+          <DatePicker
             label="Data de Nascimento"
-            type="date"
-            value={newClient.birthDate || ""}
-            onChange={(e) => setNewClient({ ...newClient, birthDate: e.target.value })}
+            value={newClient.birthDate || null}
+            onChange={(v) => setNewClient({ ...newClient, birthDate: v || "" })}
+            placeholder="DD/MM/AAAA"
+            max={new Date().toISOString().slice(0, 10)}
           />
           <Select
             label="Gênero"
@@ -120,7 +128,7 @@ export function ClientModal({
           />
         </div>
 
-        {/* Row 4: Endereço (optional addition for completeness) */}
+        {/* Row 4: Cidade and Estado */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Cidade"

@@ -565,7 +565,7 @@ export default function AdminDashboard() {
 
   // New Comanda State
   const emptyComanda = {
-    type: "normal" as "normal" | "pacote",
+    type: "normal" as "normal" | "pacote" | "produto",
     description: "",
     clientId: "",
     clientPhone: "",
@@ -813,18 +813,27 @@ export default function AdminDashboard() {
   const handleCreateComanda = async () => {
     let clientId = newComanda.clientId;
 
-    if (!clientId) {
-      if (!newComanda.clientName || !newComanda.clientPhone) {
-        alert("Por favor, selecione um cliente ou preencha nome e telefone para cadastrar um novo.");
+    if (!clientId && newComanda.clientName) {
+      if (!newComanda.clientPhone) {
+        toast.error("Preencha o telefone do cliente para cadastrá-lo automaticamente.");
         return;
       }
-      const newClientRes = await apiFetch("/api/clients", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newComanda.clientName, phone: newComanda.clientPhone })
-      });
-      const newClientData = await newClientRes.json();
-      clientId = newClientData.id;
+      try {
+        const newClientRes = await apiFetch("/api/clients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: newComanda.clientName, phone: newComanda.clientPhone })
+        });
+        const newClientData = await newClientRes.json();
+        if (!newClientData.id) {
+          toast.error(newClientData.error || "Erro ao cadastrar cliente.");
+          return;
+        }
+        clientId = newClientData.id;
+      } catch {
+        toast.error("Erro de conexão ao criar cliente.");
+        return;
+      }
     }
 
     const subtotal = newComanda.type === 'normal'
@@ -850,23 +859,34 @@ export default function AdminDashboard() {
       discountType: newComanda.discountType,
       total,
       type: newComanda.type,
-      items: newComanda.type === 'pacote' ? newComanda.items : [{
+      items: newComanda.type === 'normal' ? [{
         name: newComanda.description || "Atendimento",
         price: parseFloat(newComanda.value || "0"),
         quantity: finalSessionCount,
         sessions: finalSessionCount
-      }],
+      }] : newComanda.items,
       professionalId: newComanda.professionalId,
       date: newComanda.date,
       sessionCount: finalSessionCount
     };
 
-    const response = await apiFetch("/api/comandas", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
-    const createdComanda = await response.json();
+    let response: Response;
+    let createdComanda: any;
+    try {
+      response = await apiFetch("/api/comandas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      createdComanda = await response.json();
+      if (!response.ok) {
+        toast.error(createdComanda?.error || "Erro ao criar comanda.");
+        return;
+      }
+    } catch {
+      toast.error("Erro de conexão ao criar comanda.");
+      return;
+    }
 
     if (isAppointmentModalOpen) {
       // Tenta cruzar a descrição da comanda com um serviço existente para preencher campos
@@ -921,6 +941,7 @@ export default function AdminDashboard() {
       fetchAppointments();
     }
 
+    toast.success("Comanda criada com sucesso!");
     setIsComandaModalOpen(false);
     setNewComanda({ ...emptyComanda });
     setComandaAppt({ ...emptyComandaAppt });
@@ -951,18 +972,52 @@ export default function AdminDashboard() {
     setComandaClientSearchResults([]);
   };
 
-  const handleCreateClient = async () => {
-    const url = editingClient ? `/api/clients/${editingClient.id}` : "/api/clients";
-    const method = editingClient ? "PUT" : "POST";
-    await apiFetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newClient)
-    });
-    setIsClientModalOpen(false);
+  const handleOpenNewClientModal = () => {
     setEditingClient(null);
     setNewClient({ ...emptyClient });
-    apiFetch("/api/clients").then(res => res.json()).then(d => setClients(Array.isArray(d) ? d : []));
+    setIsClientModalOpen(true);
+  };
+
+  const handleCreateClient = async () => {
+    if (!newClient.name?.trim()) {
+      toast.error("O nome do cliente é obrigatório.");
+      return;
+    }
+
+    // Verificar duplicata de telefone antes de salvar
+    const phoneRaw = (newClient.phone || "").replace(/\D/g, "");
+    if (phoneRaw) {
+      const duplicate = clients.find(c => {
+        if (editingClient && c.id === editingClient.id) return false;
+        return (c.phone || "").replace(/\D/g, "") === phoneRaw;
+      });
+      if (duplicate) {
+        toast.error(`Já existe um cliente com este telefone: ${duplicate.name}. Dois clientes não podem ter o mesmo telefone.`);
+        return;
+      }
+    }
+
+    const url = editingClient ? `/api/clients/${editingClient.id}` : "/api/clients";
+    const method = editingClient ? "PUT" : "POST";
+    try {
+      const res = await apiFetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newClient)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err?.error || "Erro ao salvar cliente.");
+        return;
+      }
+      toast.success(editingClient ? "Cliente atualizado com sucesso!" : "Cliente cadastrado com sucesso!");
+      setIsClientModalOpen(false);
+      setEditingClient(null);
+      setNewClient({ ...emptyClient });
+      apiFetch("/api/clients").then(r => r.json()).then(d => setClients(Array.isArray(d) ? d : []));
+    } catch {
+      toast.error("Erro de conexão ao salvar cliente.");
+    }
   };
 
   const handleDeleteClient = (id: string) => {
@@ -1230,11 +1285,42 @@ export default function AdminDashboard() {
 
   const handleConfirmPayment = async (paymentMethod: string, paymentDetails: any) => {
     if (!payingComanda) return;
-    await apiFetch(`/api/comandas/${payingComanda.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "paid", paymentMethod, paymentDetails })
-    });
+
+    const isPartial = paymentDetails?.isPartial === true;
+
+    try {
+      if (isPartial) {
+        const totalPaying = paymentDetails?.totalPaying ?? 0;
+        const res = await apiFetch(`/api/comandas/${payingComanda.id}/partial-payment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: totalPaying, paymentMethod, paymentDetails }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          toast.error(err?.error || "Erro ao registrar pagamento parcial.");
+          return;
+        }
+        toast.success(`Pagamento parcial de ${totalPaying.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} registrado!`);
+      } else {
+        const totalToPay = Number(payingComanda.total) || 0;
+        const res = await apiFetch(`/api/comandas/${payingComanda.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "paid", paymentMethod, paymentDetails, paidAmount: totalToPay }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          toast.error(err?.error || "Erro ao confirmar pagamento.");
+          return;
+        }
+        toast.success("Comanda paga com sucesso!");
+      }
+    } catch {
+      toast.error("Erro de conexão ao processar pagamento.");
+      return;
+    }
+
     apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
     setPayingComanda(null);
   };
@@ -1511,7 +1597,7 @@ export default function AdminDashboard() {
           setHolidays={setHolidays}
           setHoveredAppointment={setHoveredAppointment}
           setIsAppointmentModalOpen={setIsAppointmentModalOpen}
-          setIsClientModalOpen={setIsClientModalOpen}
+          setIsClientModalOpen={handleOpenNewClientModal}
           setIsComandaDetailOpen={setIsComandaDetailOpen}
           setIsComandaModalOpen={setIsComandaModalOpen}
           setIsPermProfileModalOpen={setIsPermProfileModalOpen}
@@ -1744,7 +1830,7 @@ export default function AdminDashboard() {
                               );
                             })}
                             <button
-                              onMouseDown={() => { setIsClientModalOpen(true); setClientSearchResults([]); }}
+                              onMouseDown={() => { handleOpenNewClientModal(); setClientSearchResults([]); }}
                               className="w-full text-left px-3 py-2 text-xs text-amber-600 font-bold hover:bg-amber-50 rounded-lg transition-all flex items-center gap-2 border-t border-zinc-100">
                               <Plus size={12}/> Cadastrar "{newAppointment.clientName}"
                             </button>
@@ -2127,16 +2213,18 @@ export default function AdminDashboard() {
           >
             <div className="space-y-5">
               {/* Tipo */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
                 <span className="text-xs font-bold text-zinc-500">Tipo:</span>
-                {(['normal','pacote'] as const).map(t => (
+                {(['normal','pacote','produto'] as const).map(t => (
                   <label key={t} className="flex items-center gap-2 cursor-pointer">
                     <div onClick={() => setNewComanda(p => ({...p, type: t}))}
                       className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all",
                         newComanda.type === t ? "border-amber-500" : "border-zinc-300")}>
                       {newComanda.type === t && <div className="w-2 h-2 rounded-full bg-amber-500"/>}
                     </div>
-                    <span className="text-xs font-semibold text-zinc-700">{t === 'normal' ? 'Comanda Normal' : 'Comanda Pacote'}</span>
+                    <span className="text-xs font-semibold text-zinc-700">
+                      {t === 'normal' ? 'Comanda Normal' : t === 'pacote' ? 'Comanda Pacote' : 'Comanda Produto'}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -2174,7 +2262,7 @@ export default function AdminDashboard() {
                                   </button>
                                 ))
                             }
-                            <button onMouseDown={() => { setComandaClientSearchResults([]); setIsClientModalOpen(true); }}
+                            <button onMouseDown={() => { setComandaClientSearchResults([]); handleOpenNewClientModal(); }}
                               className="w-full text-left px-3 py-2 text-xs text-amber-600 font-bold hover:bg-amber-50 rounded-lg border-t border-zinc-100 flex items-center gap-1">
                               <Plus size={11}/> Novo cliente
                             </button>
@@ -2225,8 +2313,9 @@ export default function AdminDashboard() {
                 </>
               ) : (
                 <>
-                  <Select
-                    label="Pacote"
+                  {newComanda.type === 'pacote' && (
+                    <Select
+                      label="Pacote"
                     value={newComanda.packageId}
                     onChange={e => {
                       const pkgId = e.target.value;
@@ -2253,6 +2342,7 @@ export default function AdminDashboard() {
                   >
                     {services.filter(s => s.type === 'package').map(s => <option key={s.id} value={s.id}>{s.name} – R$ {Number(s.price).toFixed(2)}</option>)}
                   </Select>
+                  )}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Cliente</label>
                     <div className="relative">
@@ -2314,12 +2404,25 @@ export default function AdminDashboard() {
                                 }
                               }}>
                               <option value="">Selecione...</option>
-                              <optgroup label="Serviços">
-                                {services.map(s => <option key={s.id} value={`s-${s.id}`}>{s.name}</option>)}
-                              </optgroup>
-                              <optgroup label="Produtos">
-                                {products.filter(p => p.isForSale).map(p => <option key={p.id} value={`p-${p.id}`}>{p.name} (Estoque: {p.stock})</option>)}
-                              </optgroup>
+                              {newComanda.type === 'produto' ? (
+                                <>
+                                  <optgroup label="Produtos">
+                                    {products.filter(p => p.isForSale).map(p => <option key={p.id} value={`p-${p.id}`}>{p.name} (Estoque: {p.stock})</option>)}
+                                  </optgroup>
+                                  <optgroup label="Serviços">
+                                    {services.filter(s => s.type !== 'package').map(s => <option key={s.id} value={`s-${s.id}`}>{s.name}</option>)}
+                                  </optgroup>
+                                </>
+                              ) : (
+                                <>
+                                  <optgroup label="Serviços">
+                                    {services.map(s => <option key={s.id} value={`s-${s.id}`}>{s.name}</option>)}
+                                  </optgroup>
+                                  <optgroup label="Produtos">
+                                    {products.filter(p => p.isForSale).map(p => <option key={p.id} value={`p-${p.id}`}>{p.name} (Estoque: {p.stock})</option>)}
+                                  </optgroup>
+                                </>
+                              )}
                             </select>
                             <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"/>
                           </div>

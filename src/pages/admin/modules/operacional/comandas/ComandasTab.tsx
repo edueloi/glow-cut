@@ -6,7 +6,7 @@ import {
   Plus, CheckCircle, X, Scissors, Banknote, CreditCard, Smartphone,
   Shuffle, Package, FileText, Phone, Zap, Trash2, Edit2,
   Minus, User, ArrowRightLeft, ChevronDown,
-  MoreVertical, Eye, DollarSign, Clock,
+  MoreVertical, Eye, DollarSign, Clock, AlertCircle,
   ShoppingBag, Receipt, Calendar, Layers, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
@@ -101,6 +101,16 @@ function PackageSummary({ comanda }: { comanda: any }) {
 
   return (
     <div className="flex flex-wrap gap-1">
+      {comanda.type === 'produto' && (
+        <span className="inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-lg bg-orange-50 border border-orange-100 text-orange-700">
+          <ShoppingBag size={8} /> Produto
+        </span>
+      )}
+      {comanda.type === 'pacote' && packages.length === 0 && (
+        <span className="inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-lg bg-violet-50 border border-violet-100 text-violet-700">
+          <Layers size={8} /> Pacote
+        </span>
+      )}
       {packages.map((pkg: any) => (
         <span key={pkg.packageId} className="inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-lg bg-violet-50 border border-violet-100 text-violet-700">
           <Layers size={8} /> {pkg.packageName}
@@ -152,7 +162,7 @@ function ActionMenu({ comanda, onPay, onEdit, onView, onDelete }: {
   }, [open]);
 
   const items = [
-    comanda.status === "open" && { label: "Pagar", icon: <CheckCircle size={14} />, cls: "text-emerald-700 hover:bg-emerald-50", action: onPay },
+    (comanda.status === "open" || comanda.status === "partial") && { label: "Pagar", icon: <CheckCircle size={14} />, cls: "text-emerald-700 hover:bg-emerald-50", action: onPay },
     { label: "Editar",   icon: <Edit2 size={14} />,    cls: "text-zinc-700",                  action: onEdit },
     { label: "Detalhes", icon: <Eye size={14} />,      cls: "text-zinc-700",                  action: onView },
     null, // divider
@@ -211,13 +221,18 @@ function DetailModal({ comanda, onClose, onPay, onEdit, fetchComandas }: {
   const [updating, setUpdating] = useState(false);
   if (!comanda) return null;
 
-  const total    = Number(comanda.sessionCount || 1);
-  const done     = Number(comanda.sessionsCompleted || 0);
-  const isMulti  = total > 1;
+  const sessionTotal  = Number(comanda.sessionCount || 1);
+  const done          = Number(comanda.sessionsCompleted || 0);
+  const isMulti       = sessionTotal > 1;
   const packages: any[] = comanda.packages || [];
-  const svcItems = (comanda.items || []).filter((i: any) => !i.productId);
+  const svcItems  = (comanda.items || []).filter((i: any) => !i.productId);
   const prodItems = (comanda.items || []).filter((i: any) => i.productId);
-  const appts: any[] = (comanda.appointments || []);
+  const appts: any[]    = (comanda.appointments || []);
+  const subtotal        = (comanda.items || []).reduce((a: number, i: any) => a + Number(i.price) * Number(i.quantity), 0);
+  const paidAmount      = Number(comanda.paidAmount || 0);
+  const totalVal        = Number(comanda.total);
+  const remaining       = Math.max(0, totalVal - paidAmount);
+  const paidPct         = totalVal > 0 ? Math.min(100, Math.round((paidAmount / totalVal) * 100)) : 0;
 
   const handleSession = async (newDone: number) => {
     setUpdating(true);
@@ -227,74 +242,138 @@ function DetailModal({ comanda, onClose, onPay, onEdit, fetchComandas }: {
         body: JSON.stringify({ sessionsCompleted: newDone }),
       });
       fetchComandas();
-      toast.success(`Sessão ${newDone}/${total} marcada!`);
+      toast.success(`Sessão ${newDone}/${sessionTotal} marcada!`);
     } catch { toast.error("Erro ao atualizar sessão."); }
     finally { setUpdating(false); }
   };
 
+  const statusColor = comanda.status === "paid" ? "success" : comanda.status === "partial" ? "info" : "warning";
+  const statusLabel = comanda.status === "paid" ? "Pago" : comanda.status === "partial" ? "Parcial" : "Em Aberto";
+
   return (
-    <Modal isOpen={!!comanda} onClose={onClose} title={`Comanda #${comanda.id?.slice(-6).toUpperCase()}`} size="lg">
+    <Modal
+      isOpen={!!comanda}
+      onClose={onClose}
+      title={`Comanda #${comanda.id?.slice(-6).toUpperCase()}`}
+      size="lg"
+      mobileStyle="fullscreen"
+      footer={
+        <ModalFooter>
+          <Button variant="outline" size="sm" iconLeft={<Edit2 size={13} />} onClick={() => { onEdit(); onClose(); }} className="flex-1 sm:flex-none">
+            Editar
+          </Button>
+          {(comanda.status === "open" || comanda.status === "partial") && (
+            <Button variant="primary" size="sm" iconLeft={<CheckCircle size={13} />} onClick={() => { onPay(); onClose(); }} className="flex-1 sm:flex-none">
+              {comanda.status === "partial" ? `Pagar Restante (${fmtBRL(remaining)})` : `Pagar (${fmtBRL(totalVal)})`}
+            </Button>
+          )}
+        </ModalFooter>
+      }
+    >
       <div className="space-y-4 p-1">
 
-        {/* Client + status */}
-        <div className="flex items-center gap-3 p-3 bg-amber-50/60 rounded-2xl border border-amber-100">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-sm font-black text-amber-600 shrink-0">
-            {comanda.client?.name?.charAt(0).toUpperCase() || "?"}
+        {/* ── Cliente + Status + Financeiro ── */}
+        <div className="rounded-2xl border border-zinc-200 overflow-hidden">
+          {/* Cabeçalho do cliente */}
+          <div className="flex items-center gap-3 p-4 bg-white">
+            <div className={cn(
+              "w-12 h-12 rounded-2xl flex items-center justify-center text-base font-black shrink-0",
+              comanda.status === "paid" ? "bg-emerald-50 border border-emerald-100 text-emerald-600" :
+              comanda.status === "partial" ? "bg-blue-50 border border-blue-100 text-blue-600" :
+              "bg-amber-50 border border-amber-100 text-amber-600"
+            )}>
+              {comanda.client?.name?.charAt(0).toUpperCase() || "?"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-zinc-900">{comanda.client?.name || "Sem cliente"}</p>
+              {comanda.client?.phone && (
+                <p className="text-[10px] text-zinc-500 font-bold flex items-center gap-1 mt-0.5">
+                  <Phone size={9} /> {comanda.client.phone}
+                </p>
+              )}
+              {comanda.professional?.name && (
+                <p className="text-[10px] text-zinc-400 font-bold flex items-center gap-1">
+                  <Scissors size={9} /> {comanda.professional.name}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <Badge color={statusColor} size="sm">{statusLabel}</Badge>
+              <p className="text-[9px] text-zinc-400 font-bold">{fmtDate(comanda.createdAt)}</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-black text-zinc-900">{comanda.client?.name || "—"}</p>
-            <p className="text-[10px] text-zinc-500 font-bold flex items-center gap-1 mt-0.5">
-              <Phone size={9} /> {comanda.client?.phone || "—"}
-            </p>
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <Badge color={comanda.status === "open" ? "warning" : "success"}>
-              {comanda.status === "open" ? "Em Aberto" : "Pago"}
-            </Badge>
-            <p className="text-[10px] text-zinc-400 font-bold">{fmtDate(comanda.createdAt)}</p>
+
+          {/* Financeiro */}
+          <div className="border-t border-zinc-100 bg-zinc-50/60 p-4">
+            <div className="grid grid-cols-3 gap-3 text-center mb-3">
+              <div>
+                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Total</p>
+                <p className="text-base font-black text-zinc-900">{fmtBRL(totalVal)}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Pago</p>
+                <p className="text-base font-black text-emerald-600">{fmtBRL(paidAmount)}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Restante</p>
+                <p className={cn("text-base font-black", remaining > 0 ? "text-amber-600" : "text-zinc-400")}>
+                  {fmtBRL(remaining)}
+                </p>
+              </div>
+            </div>
+            {/* Barra de progresso de pagamento */}
+            {totalVal > 0 && (
+              <div className="space-y-1">
+                <div className="h-2 bg-zinc-200 rounded-full overflow-hidden">
+                  <div
+                    className={cn("h-full rounded-full transition-all", paidPct >= 100 ? "bg-emerald-500" : paidPct > 0 ? "bg-amber-400" : "bg-zinc-300")}
+                    style={{ width: `${paidPct}%` }}
+                  />
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[9px] font-bold text-zinc-400">{paidPct}% pago</span>
+                  {comanda.paymentMethod && comanda.status === "paid" && (
+                    <PaymentBadge method={comanda.paymentMethod} />
+                  )}
+                  {Number(comanda.discount) > 0 && (
+                    <span className="text-[9px] font-black text-emerald-600 flex items-center gap-0.5">
+                      <Zap size={8} /> -{comanda.discountType === "percentage" ? `${comanda.discount}%` : fmtBRL(Number(comanda.discount))}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Sessions tracker */}
+        {/* ── Sessões ── */}
         {isMulti && (
-          <div className="p-3 bg-violet-50 rounded-2xl border border-violet-100 space-y-2">
+          <div className="p-3 bg-violet-50 rounded-2xl border border-violet-100 space-y-2.5">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-black text-violet-600 uppercase tracking-widest flex items-center gap-1.5">
-                <Layers size={11} /> Sessões — {done}/{total}
-              </p>
+              <div>
+                <p className="text-[10px] font-black text-violet-700 uppercase tracking-widest flex items-center gap-1.5">
+                  <Layers size={11} /> Sessões — {done}/{sessionTotal}
+                </p>
+                <p className="text-[9px] text-violet-400 font-bold mt-0.5">
+                  {done >= sessionTotal ? "Todas as sessões concluídas!" : `${sessionTotal - done} sessão(ões) restante(s)`}
+                </p>
+              </div>
               <div className="flex gap-1">
-                <IconButton
-                  size="xs" variant="outline"
-                  disabled={done <= 0 || updating}
-                  onClick={() => handleSession(done - 1)}
-                  title="Desfazer última sessão"
-                >
+                <IconButton size="xs" variant="outline" disabled={done <= 0 || updating} onClick={() => handleSession(done - 1)} title="Desfazer sessão">
                   <Minus size={11} />
                 </IconButton>
-                <IconButton
-                  size="xs" variant="outline"
-                  disabled={done >= total || updating}
-                  onClick={() => handleSession(done + 1)}
-                  title="Confirmar próxima sessão"
-                  className={done < total ? "border-violet-300 text-violet-600 hover:bg-violet-50" : ""}
-                >
+                <IconButton size="xs" variant="outline" disabled={done >= sessionTotal || updating} onClick={() => handleSession(done + 1)}
+                  title="Confirmar sessão" className={done < sessionTotal ? "border-violet-300 text-violet-600 hover:bg-violet-50" : ""}>
                   <Plus size={11} />
                 </IconButton>
               </div>
             </div>
             <div className="flex gap-1.5">
-              {Array.from({ length: total }).map((_, i) => (
-                <button
-                  key={i}
-                  disabled={updating}
-                  onClick={() => handleSession(i < done ? i : i + 1)}
-                  className={cn(
-                    "flex-1 h-5 rounded-lg transition-all border text-[7px] font-black",
-                    i < done
-                      ? "bg-violet-500 border-violet-500 text-white"
-                      : "bg-white border-violet-200 text-violet-300 hover:border-violet-400"
-                  )}
-                >
+              {Array.from({ length: sessionTotal }).map((_, i) => (
+                <button key={i} disabled={updating} onClick={() => handleSession(i < done ? i : i + 1)}
+                  className={cn("flex-1 h-6 rounded-lg transition-all border text-[8px] font-black",
+                    i < done ? "bg-violet-500 border-violet-500 text-white" : "bg-white border-violet-200 text-violet-300 hover:border-violet-400"
+                  )}>
                   {i + 1}
                 </button>
               ))}
@@ -302,36 +381,39 @@ function DetailModal({ comanda, onClose, onPay, onEdit, fetchComandas }: {
           </div>
         )}
 
-        {/* Packages */}
-        {packages.length > 0 && (
+        {/* ── Itens ── */}
+        {(comanda.items?.length > 0 || packages.length > 0) ? (
           <div className="space-y-1.5">
             <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-              <Layers size={11} className="text-violet-500" /> Pacotes
+              <Receipt size={11} /> Itens da Comanda
             </p>
+
+            {/* Pacotes */}
             {packages.map((pkg: any) => (
-              <div key={pkg.packageId} className="p-2.5 bg-violet-50/50 rounded-xl border border-violet-100">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-violet-100 text-violet-600 shrink-0"><Layers size={11} /></div>
-                  <div>
-                    <p className="text-xs font-black text-zinc-900">{pkg.packageName}</p>
-                    <p className="text-[9px] text-zinc-400 font-bold">{pkg.count} serviços incluídos</p>
-                  </div>
+              <div key={pkg.packageId} className="rounded-xl border border-violet-100 overflow-hidden">
+                <div className="flex items-center gap-2 px-3 py-2 bg-violet-50">
+                  <Layers size={11} className="text-violet-500 shrink-0" />
+                  <span className="text-[10px] font-black text-violet-700 uppercase tracking-widest">{pkg.packageName}</span>
+                  <span className="ml-auto text-[9px] text-violet-400 font-bold">{pkg.count} serviços</span>
                 </div>
+                {(comanda.items || []).filter((i: any) => i.packageId === pkg.packageId).map((it: any) => (
+                  <div key={it.id} className="flex items-center justify-between px-3 py-2 border-t border-violet-50">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Scissors size={10} className="text-violet-400 shrink-0" />
+                      <span className="text-xs font-bold text-zinc-800 truncate">{it.name}</span>
+                      <span className="text-[9px] text-zinc-400 font-bold shrink-0">{it.quantity}x</span>
+                    </div>
+                    <span className="text-xs font-black text-zinc-700 shrink-0 ml-2">{fmtBRL(Number(it.total || it.price * it.quantity))}</span>
+                  </div>
+                ))}
               </div>
             ))}
-          </div>
-        )}
 
-        {/* Services */}
-        {svcItems.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-              <Scissors size={11} className="text-violet-500" /> {packages.length > 0 ? "Serviços do Pacote" : "Serviços"}
-            </p>
-            {svcItems.map((it: any) => (
-              <div key={it.id} className="flex items-center justify-between p-2.5 bg-violet-50/40 rounded-xl border border-violet-100">
+            {/* Serviços avulsos */}
+            {svcItems.filter((i: any) => !i.packageId).map((it: any) => (
+              <div key={it.id} className="flex items-center justify-between p-2.5 bg-amber-50/40 rounded-xl border border-amber-100">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="p-1.5 rounded-lg bg-violet-100 text-violet-600 shrink-0"><Scissors size={11} /></div>
+                  <div className="p-1.5 rounded-lg bg-amber-100 text-amber-600 shrink-0"><Scissors size={11} /></div>
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-zinc-900 truncate">{it.name}</p>
                     <p className="text-[9px] text-zinc-400 font-bold">{it.quantity}x · {fmtBRL(Number(it.price))}/un</p>
@@ -340,15 +422,8 @@ function DetailModal({ comanda, onClose, onPay, onEdit, fetchComandas }: {
                 <p className="text-sm font-black text-zinc-900 shrink-0 ml-2">{fmtBRL(Number(it.total || it.price * it.quantity))}</p>
               </div>
             ))}
-          </div>
-        )}
 
-        {/* Products */}
-        {prodItems.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-              <Package size={11} className="text-emerald-500" /> Produtos
-            </p>
+            {/* Produtos */}
             {prodItems.map((it: any) => (
               <div key={it.id} className="flex items-center justify-between p-2.5 bg-emerald-50/40 rounded-xl border border-emerald-100">
                 <div className="flex items-center gap-2 min-w-0">
@@ -361,77 +436,73 @@ function DetailModal({ comanda, onClose, onPay, onEdit, fetchComandas }: {
                 <p className="text-sm font-black text-zinc-900 shrink-0 ml-2">{fmtBRL(Number(it.total || it.price * it.quantity))}</p>
               </div>
             ))}
+
+            {/* Subtotal / desconto */}
+            <div className="mt-2 p-3 bg-zinc-50 rounded-xl border border-zinc-100 space-y-1.5">
+              <div className="flex justify-between text-xs font-bold text-zinc-500">
+                <span>Subtotal</span>
+                <span>{fmtBRL(subtotal)}</span>
+              </div>
+              {Number(comanda.discount) > 0 && (
+                <div className="flex justify-between text-xs text-emerald-600 font-black">
+                  <span className="flex items-center gap-1"><Zap size={10} /> Desconto</span>
+                  <span>-{comanda.discountType === "percentage" ? `${comanda.discount}%` : fmtBRL(Number(comanda.discount))}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm font-black text-zinc-900 pt-1 border-t border-zinc-200">
+                <span>Total</span>
+                <span>{fmtBRL(totalVal)}</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center py-8 text-zinc-300">
+            <Package size={28} className="mb-2" />
+            <p className="text-xs font-bold">Nenhum item na comanda</p>
+            <button onClick={() => { onEdit(); onClose(); }} className="mt-2 text-[10px] font-black text-amber-600 hover:text-amber-700">
+              + Adicionar itens
+            </button>
           </div>
         )}
 
-        {comanda.items?.length === 0 && <p className="text-xs text-zinc-400 italic text-center py-4">Nenhum item vinculado.</p>}
-
-        {/* Appointments */}
+        {/* ── Agendamentos ── */}
         {appts.length > 0 && (
           <div className="space-y-1.5">
             <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-              <Calendar size={11} className="text-blue-500" /> Agendamentos vinculados
+              <Calendar size={11} className="text-blue-500" /> Agendamentos vinculados ({appts.length})
             </p>
-            {appts.map((a: any) => (
-              <div key={a.id} className="flex items-center gap-2.5 p-2.5 bg-blue-50/30 rounded-xl border border-blue-100">
-                <div className={cn("p-1.5 rounded-lg shrink-0",
-                  a.status === "realizado" ? "bg-emerald-100 text-emerald-600" :
-                  (a.status === "agendado" || a.status === "confirmado" || a.status === "reagendado") ? "bg-blue-100 text-blue-600" :
-                  (a.status === "cancelado" || a.status === "faltou") ? "bg-red-100 text-red-400" : "bg-zinc-100 text-zinc-400"
-                )}>
-                  <Calendar size={11} />
+            {appts.map((a: any) => {
+              const isDone   = a.status === "realizado";
+              const isSched  = ["agendado", "confirmado", "reagendado"].includes(a.status);
+              const isBad    = ["cancelado", "faltou"].includes(a.status);
+              return (
+                <div key={a.id} className="flex items-center gap-2.5 p-2.5 bg-white rounded-xl border border-zinc-100">
+                  <div className={cn("p-1.5 rounded-lg shrink-0",
+                    isDone ? "bg-emerald-100 text-emerald-600" : isSched ? "bg-blue-100 text-blue-600" : isBad ? "bg-red-100 text-red-400" : "bg-zinc-100 text-zinc-400"
+                  )}>
+                    <Calendar size={11} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-zinc-900 truncate">{a.serviceName || a.service?.name || "Serviço"}</p>
+                    <p className="text-[9px] text-zinc-400 font-bold">
+                      {a.date ? format(new Date(a.date), "dd/MM/yyyy", { locale: ptBR }) : "—"}{a.startTime ? ` · ${a.startTime}` : ""}
+                      {a.professional?.name ? ` · ${a.professional.name}` : ""}
+                    </p>
+                  </div>
+                  <Badge color={isDone ? "success" : isSched ? "info" : isBad ? "danger" : "default"} size="sm">
+                    <span className="capitalize">{a.status}</span>
+                  </Badge>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-zinc-900 truncate">{a.serviceName || "Serviço"}</p>
-                  <p className="text-[9px] text-zinc-400 font-bold">
-                    {a.date ? format(new Date(a.date), "dd/MM/yyyy", { locale: ptBR }) : "—"}{a.startTime ? ` · ${a.startTime}` : ""}
-                  </p>
-                </div>
-                <Badge
-                  color={a.status === "realizado" ? "success" : (a.status === "agendado" || a.status === "confirmado" || a.status === "reagendado") ? "info" : (a.status === "cancelado" || a.status === "faltou") ? "danger" : "default"}
-                  size="sm"
-                >
-                  <span className="capitalize">{a.status}</span>
-                </Badge>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        {/* Totals */}
-        <ContentCard padding="none">
-          <div className="p-4 space-y-2">
-            <div className="flex justify-between text-xs font-bold text-zinc-500">
-              <span>Subtotal</span>
-              <span>{fmtBRL(comanda.items?.reduce((a: number, i: any) => a + Number(i.price) * Number(i.quantity), 0) || 0)}</span>
-            </div>
-            {Number(comanda.discount) > 0 && (
-              <div className="flex justify-between text-xs text-emerald-600 font-black">
-                <span className="flex items-center gap-1"><Zap size={10} /> Desconto</span>
-                <span>-{comanda.discountType === "percentage" ? `${comanda.discount}%` : fmtBRL(Number(comanda.discount))}</span>
-              </div>
-            )}
-            <div className="pt-2 border-t border-zinc-200 flex items-end justify-between">
-              <div>
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Total</p>
-                <p className="text-xl font-black text-zinc-900">{fmtBRL(Number(comanda.total))}</p>
-                {comanda.status === "paid" && comanda.paymentMethod && (
-                  <div className="mt-1"><PaymentBadge method={comanda.paymentMethod} /></div>
-                )}
-              </div>
-              {comanda.status === "open" && (
-                <Button variant="primary" size="sm" iconLeft={<CheckCircle size={13} />} onClick={() => { onPay(); onClose(); }}>
-                  Pagar
-                </Button>
-              )}
-            </div>
-          </div>
-        </ContentCard>
-
+        {/* ── Observações ── */}
         {comanda.description && (
           <div className="p-3 bg-zinc-50 border border-zinc-100 rounded-xl">
             <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Observações</p>
-            <p className="text-xs text-zinc-700 font-bold">{comanda.description}</p>
+            <p className="text-xs text-zinc-700 font-bold leading-relaxed">{comanda.description}</p>
           </div>
         )}
       </div>
@@ -915,14 +986,15 @@ export function ComandasTab({
   const [detailComanda,  setDetailComanda]  = useState<any | null>(null);
 
   const openCount = comandas.filter(c => c.status === "open").length;
+  const partialCount = comandas.filter(c => c.status === "partial").length;
   const paidCount = comandas.filter(c => c.status === "paid").length;
-  const totalOpen = comandas.filter(c => c.status === "open").reduce((a, c) => a + Number(c.total), 0);
+  const totalOpen = comandas.filter(c => c.status === "open" || c.status === "partial").reduce((a, c) => a + Math.max(0, Number(c.total) - Number(c.paidAmount || 0)), 0);
   const totalPaid = comandas.filter(c => c.status === "paid").reduce((a, c) => a + Number(c.total), 0);
   const multiSessions = comandas.filter(c => Number(c.sessionCount) > 1).length;
 
   const filtered = useMemo(() => {
     let list = comandas;
-    if (statusFilter === "open") list = list.filter(c => c.status === "open");
+    if (statusFilter === "open") list = list.filter(c => c.status === "open" || c.status === "partial");
     if (statusFilter === "paid") list = list.filter(c => c.status === "paid");
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -940,7 +1012,7 @@ export function ComandasTab({
 
   const statusOpts = [
     { value: "all",  label: `Todos (${comandas.length})` },
-    { value: "open", label: `Aberto (${openCount})` },
+    { value: "open", label: `Aberto (${openCount + partialCount})` },
     { value: "paid", label: `Pagas (${paidCount})` },
   ];
 
@@ -951,7 +1023,9 @@ export function ComandasTab({
         <div className="flex items-center gap-2.5">
           <div className={cn(
             "w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0",
-            c.status === "open" ? "bg-amber-50 border border-amber-200 text-amber-600" : "bg-emerald-50 border border-emerald-200 text-emerald-600"
+            c.status === "open" ? "bg-amber-50 border border-amber-200 text-amber-600" :
+            c.status === "partial" ? "bg-blue-50 border border-blue-200 text-blue-600" :
+            "bg-emerald-50 border border-emerald-200 text-emerald-600"
           )}>
             {c.client?.name?.charAt(0).toUpperCase() || "?"}
           </div>
@@ -980,16 +1054,26 @@ export function ComandasTab({
     },
     {
       header: "Total",
-      render: (c) => (
-        <div>
-          <span className="text-sm font-black text-zinc-900 whitespace-nowrap">{fmtBRL(Number(c.total))}</span>
-          {Number(c.discount) > 0 && (
-            <p className="text-[9px] text-emerald-600 font-bold">
-              -{c.discountType === "percentage" ? `${c.discount}%` : fmtBRL(Number(c.discount))}
-            </p>
-          )}
-        </div>
-      ),
+      render: (c) => {
+        const paid = Number(c.paidAmount || 0);
+        const tot = Number(c.total);
+        const rem = Math.max(0, tot - paid);
+        return (
+          <div>
+            <span className="text-sm font-black text-zinc-900 whitespace-nowrap">{fmtBRL(tot)}</span>
+            {Number(c.discount) > 0 && (
+              <p className="text-[9px] text-emerald-600 font-bold">
+                -{c.discountType === "percentage" ? `${c.discount}%` : fmtBRL(Number(c.discount))}
+              </p>
+            )}
+            {paid > 0 && c.status !== "paid" && (
+              <p className="text-[9px] text-amber-600 font-black mt-0.5">
+                Restante: {fmtBRL(rem)}
+              </p>
+            )}
+          </div>
+        );
+      },
     },
     {
       header: "Pgto",
@@ -1001,8 +1085,8 @@ export function ComandasTab({
     {
       header: "Status",
       render: (c) => (
-        <Badge color={c.status === "open" ? "warning" : "success"}>
-          {c.status === "open" ? "Em Aberto" : "Pago"}
+        <Badge color={c.status === "open" ? "warning" : c.status === "partial" ? "info" : "success"}>
+          {c.status === "open" ? "Em Aberto" : c.status === "partial" ? "Parcial" : "Pago"}
         </Badge>
       ),
     },
@@ -1012,9 +1096,9 @@ export function ComandasTab({
       className: "text-right",
       render: (c) => (
         <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
-          {c.status === "open" && (
+          {(c.status === "open" || c.status === "partial") && (
             <Button variant="primary" size="xs" iconLeft={<CheckCircle size={11} />} onClick={() => handlePayComanda(c)}>
-              Pagar
+              {c.status === "partial" ? "Pagar Resto" : "Pagar"}
             </Button>
           )}
           <ActionMenu
@@ -1042,8 +1126,8 @@ export function ComandasTab({
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-5">
-        <StatCard title="Em Aberto"   value={openCount}         icon={Receipt}     color="warning" description={fmtBRL(totalOpen)} />
-        <StatCard title="A Receber"   value={fmtBRL(totalOpen)} icon={DollarSign}  color="danger"  description={`${openCount} pendentes`} />
+        <StatCard title="Em Aberto"   value={openCount + partialCount}  icon={Receipt}     color="warning" description={fmtBRL(totalOpen)} />
+        <StatCard title="A Receber"   value={fmtBRL(totalOpen)} icon={DollarSign}  color="danger"  description={`${openCount + partialCount} pendentes${partialCount > 0 ? ` (${partialCount} parcial)` : ""}`} />
         <StatCard title="Pagas"       value={paidCount}         icon={CheckCircle} color="success" description={fmtBRL(totalPaid)} className="hidden sm:block" />
         <StatCard title="Multi-sessão" value={multiSessions}    icon={Layers}      color="default" description="Pacotes parcelados" className="hidden sm:block" />
       </div>
@@ -1074,7 +1158,7 @@ export function ComandasTab({
           keyExtractor={c => c.id}
           noDesktopCard
           onRowClick={c => setDetailComanda(c)}
-          getMobileBorderClass={c => c.status === "open" ? "border-amber-200" : "border-zinc-200"}
+          getMobileBorderClass={c => c.status === "open" ? "border-amber-200" : c.status === "partial" ? "border-blue-200" : "border-zinc-200"}
           emptyMessage={
             <EmptyState
               icon={Receipt}
@@ -1087,102 +1171,168 @@ export function ComandasTab({
           renderMobileAvatar={c => (
             <div className={cn(
               "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black shrink-0",
-              c.status === "open" ? "bg-amber-50 text-amber-600 border border-amber-200" : "bg-emerald-50 text-emerald-600 border border-emerald-200"
+              c.status === "open" ? "bg-amber-50 text-amber-600 border border-amber-200" :
+              c.status === "partial" ? "bg-blue-50 text-blue-600 border border-blue-200" :
+              "bg-emerald-50 text-emerald-600 border border-emerald-200"
             )}>
               {c.client?.name?.charAt(0).toUpperCase() || "?"}
             </div>
           )}
-          renderMobileItem={c => (
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-black text-zinc-900 truncate">{c.client?.name || "Sem cliente"}</p>
-                  <Badge color={c.status === "open" ? "warning" : "success"} size="sm">
-                    {c.status === "open" ? "Aberto" : "Pago"}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                  <span className="text-[10px] text-zinc-400 font-bold flex items-center gap-1">
-                    <Clock size={9} /> {fmtDate(c.createdAt)}
-                  </span>
-                  {Number(c.sessionCount) > 1 && (
-                    <span className="text-[10px] text-violet-600 font-black flex items-center gap-1">
-                      <Layers size={9} /> {Number(c.sessionsCompleted || 0)}/{Number(c.sessionCount)}
+          renderMobileItem={c => {
+            const tot  = Number(c.total);
+            const paid = Number(c.paidAmount || 0);
+            const rem  = Math.max(0, tot - paid);
+            return (
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-sm font-black text-zinc-900 truncate">{c.client?.name || "Sem cliente"}</p>
+                    <Badge
+                      color={c.status === "paid" ? "success" : c.status === "partial" ? "info" : "warning"}
+                      size="sm"
+                    >
+                      {c.status === "paid" ? "Pago" : c.status === "partial" ? "Parcial" : "Aberto"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span className="text-[10px] text-zinc-400 font-bold flex items-center gap-1">
+                      <Clock size={9} /> {fmtDate(c.createdAt)}
                     </span>
-                  )}
-                  {(c.packages?.length || 0) > 0 && (
-                    <span className="text-[10px] text-violet-600 font-bold">
-                      {c.packages[0].packageName}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <span className={cn("text-base font-black shrink-0", c.status === "open" ? "text-zinc-900" : "text-emerald-600")}>
-                {fmtBRL(Number(c.total))}
-              </span>
-            </div>
-          )}
-          renderMobileExpandedContent={c => (
-            <div className="px-4 pb-4 pt-3 space-y-3">
-              {/* Package summary on mobile */}
-              {c.packages?.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {c.packages.map((pkg: any) => (
-                    <span key={pkg.packageId} className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-lg bg-violet-50 border border-violet-100 text-violet-700">
-                      <Layers size={8} /> {pkg.packageName} · {pkg.count} svc
-                    </span>
-                  ))}
-                </div>
-              )}
-              {/* Items */}
-              {(c.items?.length || 0) > 0 && (
-                <div className="space-y-1.5">
-                  {c.items.filter((it: any) => !it.packageId).slice(0, 4).map((it: any, i: number) => (
-                    <div key={it.id || i} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className={cn("p-1 rounded-md shrink-0", it.productId ? "bg-emerald-50 text-emerald-500" : "bg-violet-50 text-violet-500")}>
-                          {it.productId ? <Package size={10} /> : <Scissors size={10} />}
-                        </div>
-                        <span className="text-xs font-bold text-zinc-700 truncate">{it.name}</span>
-                        <span className="text-[9px] text-zinc-400 font-bold shrink-0">{it.quantity}x</span>
-                      </div>
-                      <span className="text-xs font-black text-zinc-800 shrink-0 ml-2">
-                        {fmtBRL(Number(it.total || it.price * it.quantity))}
+                    {Number(c.sessionCount) > 1 && (
+                      <span className="text-[10px] text-violet-600 font-black flex items-center gap-1">
+                        <Layers size={9} /> {Number(c.sessionsCompleted || 0)}/{Number(c.sessionCount)}
                       </span>
-                    </div>
-                  ))}
+                    )}
+                    {(c.packages?.length || 0) > 0 && (
+                      <span className="text-[10px] text-violet-600 font-bold truncate max-w-[100px]">
+                        {c.packages[0].packageName}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              )}
-              {/* Discount */}
-              {Number(c.discount) > 0 && (
-                <div className="flex items-center justify-between text-xs px-1">
-                  <span className="font-bold text-emerald-600 flex items-center gap-1"><Zap size={10} /> Desconto</span>
-                  <span className="font-black text-emerald-600">
-                    -{c.discountType === "percentage" ? `${c.discount}%` : fmtBRL(Number(c.discount))}
+                <div className="flex flex-col items-end shrink-0">
+                  <span className={cn("text-base font-black",
+                    c.status === "paid" ? "text-emerald-600" :
+                    c.status === "partial" ? "text-blue-700" : "text-zinc-900"
+                  )}>
+                    {fmtBRL(tot)}
                   </span>
+                  {paid > 0 && c.status !== "paid" && (
+                    <span className="text-[9px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-lg border border-amber-100 mt-0.5">
+                      Resta: {fmtBRL(rem)}
+                    </span>
+                  )}
                 </div>
-              )}
-              {/* Payment */}
-              {c.status === "paid" && c.paymentMethod && (
-                <PaymentBadge method={c.paymentMethod} />
-              )}
-              {/* Actions */}
-              <div className="flex gap-2 pt-1">
-                {c.status === "open" && (
-                  <Button variant="primary" size="xs" fullWidth iconLeft={<CheckCircle size={13} />} onClick={e => { e.stopPropagation(); handlePayComanda(c); }}>
-                    Pagar
-                  </Button>
-                )}
-                <Button variant="outline" size="xs" fullWidth iconLeft={<Edit2 size={12} />} onClick={e => { e.stopPropagation(); setEditingComanda(c); }}>
-                  Editar
-                </Button>
-                <IconButton variant="outline" size="xs" onClick={e => { e.stopPropagation(); setDetailComanda(c); }}><Eye size={12} /></IconButton>
-                <IconButton variant="ghost" size="xs" onClick={e => { e.stopPropagation(); handleDeleteComanda(c.id, c.client?.name || "esta comanda"); }} className="text-zinc-300 hover:text-red-500 hover:bg-red-50">
-                  <Trash2 size={14} />
-                </IconButton>
               </div>
-            </div>
-          )}
+            );
+          }}
+          renderMobileExpandedContent={c => {
+            const tot  = Number(c.total);
+            const paid = Number(c.paidAmount || 0);
+            const rem  = Math.max(0, tot - paid);
+            const pct  = tot > 0 ? Math.min(100, Math.round((paid / tot) * 100)) : 0;
+            return (
+              <div className="px-4 pb-4 pt-2 space-y-3">
+                {/* Barra de progresso de pagamento */}
+                {paid > 0 && c.status !== "paid" && (
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[9px] font-black">
+                      <span className="text-emerald-600">Pago: {fmtBRL(paid)}</span>
+                      <span className="text-amber-600">Resta: {fmtBRL(rem)}</span>
+                    </div>
+                    <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Pacotes */}
+                {c.packages?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {c.packages.map((pkg: any) => (
+                      <span key={pkg.packageId} className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-lg bg-violet-50 border border-violet-100 text-violet-700">
+                        <Layers size={8} /> {pkg.packageName} · {pkg.count}svc
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Itens */}
+                {(c.items?.length || 0) > 0 && (
+                  <div className="space-y-1.5 bg-zinc-50 rounded-xl p-2.5 border border-zinc-100">
+                    {c.items.filter((it: any) => !it.packageId).slice(0, 5).map((it: any, i: number) => (
+                      <div key={it.id || i} className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <div className={cn("p-1 rounded-md shrink-0", it.productId ? "bg-emerald-50 text-emerald-500" : "bg-amber-50 text-amber-500")}>
+                            {it.productId ? <Package size={9} /> : <Scissors size={9} />}
+                          </div>
+                          <span className="text-xs font-bold text-zinc-700 truncate">{it.name}</span>
+                          <span className="text-[9px] text-zinc-400 font-bold shrink-0">{it.quantity}x</span>
+                        </div>
+                        <span className="text-xs font-black text-zinc-800 shrink-0 ml-2">
+                          {fmtBRL(Number(it.total || it.price * it.quantity))}
+                        </span>
+                      </div>
+                    ))}
+                    {Number(c.discount) > 0 && (
+                      <div className="flex items-center justify-between text-[10px] pt-1 border-t border-zinc-200">
+                        <span className="font-bold text-emerald-600 flex items-center gap-1"><Zap size={9} /> Desconto</span>
+                        <span className="font-black text-emerald-600">
+                          -{c.discountType === "percentage" ? `${c.discount}%` : fmtBRL(Number(c.discount))}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Forma de pagamento */}
+                {c.status === "paid" && c.paymentMethod && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Pgto:</span>
+                    <PaymentBadge method={c.paymentMethod} />
+                  </div>
+                )}
+
+                {/* Sessões mobile */}
+                {Number(c.sessionCount) > 1 && (
+                  <div className="flex items-center gap-2 p-2 bg-violet-50 rounded-xl border border-violet-100">
+                    <Layers size={11} className="text-violet-500 shrink-0" />
+                    <span className="text-[10px] font-black text-violet-700">
+                      Sessões: {Number(c.sessionsCompleted || 0)}/{Number(c.sessionCount)}
+                    </span>
+                    <div className="flex-1 h-1.5 bg-violet-100 rounded-full overflow-hidden ml-1">
+                      <div className="h-full bg-violet-500 rounded-full"
+                        style={{ width: `${Math.round((Number(c.sessionsCompleted || 0) / Number(c.sessionCount)) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Ações */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {(c.status === "open" || c.status === "partial") && (
+                    <Button variant="primary" size="sm" fullWidth iconLeft={<CheckCircle size={13} />}
+                      onClick={e => { e.stopPropagation(); handlePayComanda(c); }}>
+                      {c.status === "partial" ? `Pagar ${fmtBRL(rem)}` : `Pagar ${fmtBRL(tot)}`}
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" fullWidth iconLeft={<Eye size={12} />}
+                    onClick={e => { e.stopPropagation(); setDetailComanda(c); }}>
+                    Detalhes
+                  </Button>
+                  <Button variant="outline" size="sm" fullWidth iconLeft={<Edit2 size={12} />}
+                    onClick={e => { e.stopPropagation(); setEditingComanda(c); }}>
+                    Editar
+                  </Button>
+                  <Button variant="ghost" size="sm" fullWidth iconLeft={<Trash2 size={12} />}
+                    onClick={e => { e.stopPropagation(); handleDeleteComanda(c.id, c.client?.name || "esta comanda"); }}
+                    className="text-red-400 hover:bg-red-50 hover:text-red-600">
+                    Excluir
+                  </Button>
+                </div>
+              </div>
+            );
+          }}
           pagination={{
             total: filtered.length,
             page,
