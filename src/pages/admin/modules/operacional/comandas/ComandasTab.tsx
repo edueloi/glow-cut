@@ -1578,7 +1578,7 @@ export function ComandasTab({
         title="Comandas"
         description="Controle de serviços, pacotes e sessões"
         icon={Receipt}
-        action={<Button iconLeft={<Plus size={14} />} onClick={() => setIsComandaModalOpen(true)}>Nova Comanda</Button>}
+        action={<Button className="hidden sm:flex" iconLeft={<Plus size={14} />} onClick={() => setIsComandaModalOpen(true)}>Nova Comanda</Button>}
         divider
       />
 
@@ -1600,10 +1600,9 @@ export function ComandasTab({
             <FilterLineSegmented value={statusFilter} onChange={v => { setStatusFilter(v as any); setPage(1); }} options={statusOpts} size="sm" />
           </FilterLineItem>
         </FilterLineSection>
-        <FilterLineSection align="right" wrap={false}>
-          <Button iconLeft={<Plus size={14} />} onClick={() => setIsComandaModalOpen(true)}>
-            <span className="hidden sm:inline">Nova Comanda</span>
-            <span className="sm:hidden">Nova</span>
+        <FilterLineSection align="right" wrap={false} className="hidden sm:flex">
+          <Button className="hidden sm:flex" iconLeft={<Plus size={14} />} onClick={() => setIsComandaModalOpen(true)}>
+            Nova Comanda
           </Button>
         </FilterLineSection>
       </FilterLine>
