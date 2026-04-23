@@ -1520,9 +1520,14 @@ export function ComandasTab({
               </p>
             )}
             {paid > 0 && c.status !== "paid" && (
-              <p className="text-[9px] text-amber-600 font-black mt-0.5">
-                Restante: {fmtBRL(rem)}
-              </p>
+              <div className="mt-1">
+                <p className="text-[9px] text-emerald-600 font-black">
+                  Pago: {fmtBRL(paid)}
+                </p>
+                <p className="text-[9px] text-amber-600 font-black mt-0.5">
+                  Restante: {fmtBRL(rem)}
+                </p>
+              </div>
             )}
           </div>
         );
