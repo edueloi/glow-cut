@@ -36,9 +36,10 @@ interface ProfessionalModalProps {
   handleCreateProfessional: () => void;
   emptyProfessional: any;
   services: any[];
+  adminUser?: any;
 }
 
-const STEPS = [
+const ALL_STEPS = [
   { id: 1, label: "Dados",       icon: User },
   { id: 2, label: "Permissões",  icon: Shield },
   { id: 3, label: "Horários",    icon: Clock },
@@ -61,6 +62,7 @@ export function ProfessionalModal({
   handleCreateProfessional,
   emptyProfessional,
   services,
+  adminUser,
 }: ProfessionalModalProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -95,6 +97,12 @@ export function ProfessionalModal({
       setCurrentStep(1);
     }
   }, [isProfessionalModalOpen, editingProfessional]);
+
+  // Dono do sistema: pula step de Permissões
+  const isSelfAdd = !editingProfessional && !!adminUser && !!adminUser.email && newProfessional.email === adminUser.email;
+  const STEPS = isSelfAdd ? ALL_STEPS.filter(s => s.id !== 2) : ALL_STEPS;
+  // currentStep é o índice dentro de STEPS (1-based); realStep é o id do step real (conteúdo)
+  const realStep = STEPS[currentStep - 1]?.id ?? currentStep;
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
@@ -192,7 +200,7 @@ export function ProfessionalModal({
           variant="success"
           size="lg"
           onClick={handleCreateProfessional}
-          disabled={!newProfessional.name || (!editingProfessional && !newProfessional.password)}
+          disabled={!newProfessional.name || (!editingProfessional && !isSelfAdd && !newProfessional.password)}
           iconRight={<Check size={16} strokeWidth={3} />}
           className="shadow-lg shadow-emerald-500/20"
         >
@@ -208,7 +216,7 @@ export function ProfessionalModal({
       onClose={closeModal}
       title={editingProfessional ? "Editar Profissional" : "Novo Profissional"}
       size="xl"
-      mobileStyle="fullscreen"
+      mobileStyle="bottom-sheet"
       footer={footer}
     >
       {/* ── Step Indicator ─────────────────────────────────────────── */}
@@ -261,8 +269,84 @@ export function ProfessionalModal({
       </div>
 
       {/* ── Step 1 — Dados Gerais ──────────────────────────────────── */}
-      {currentStep === 1 && (
+      {realStep === 1 && (
         <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+
+          {/* Você atende na agenda? — só para novo profissional com adminUser */}
+          {!editingProfessional && adminUser && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Você atende na agenda?</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewProfessional((p: any) => ({
+                    ...p,
+                    name: adminUser.name || p.name,
+                    email: adminUser.email || p.email,
+                    phone: adminUser.phone || p.phone,
+                    photo: adminUser.photo || p.photo,
+                    accessLevel: "full",
+                    attendsSchedule: true,
+                  }))}
+                  className={cn(
+                    "flex items-center gap-2.5 p-3 rounded-2xl border-2 text-left transition-all",
+                    isSelfAdd
+                      ? "bg-zinc-900 border-zinc-900 text-white shadow-md"
+                      : "bg-zinc-50 border-zinc-100 hover:border-zinc-300"
+                  )}
+                >
+                  <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black shrink-0",
+                    isSelfAdd ? "bg-white/20 text-white" : "bg-zinc-200 text-zinc-600"
+                  )}>
+                    {adminUser.name?.charAt(0)?.toUpperCase() || "A"}
+                  </div>
+                  <div className="min-w-0">
+                    <p className={cn("text-xs font-black truncate", isSelfAdd ? "text-white" : "text-zinc-900")}>
+                      Sim, sou eu
+                    </p>
+                    <p className={cn("text-[9px] font-medium truncate", isSelfAdd ? "text-white/60" : "text-zinc-400")}>
+                      Usar meus dados
+                    </p>
+                  </div>
+                  {isSelfAdd && <Check size={14} strokeWidth={3} className="text-emerald-400 ml-auto shrink-0" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setNewProfessional((p: any) => ({
+                    ...p,
+                    name: p.email === adminUser.email ? "" : p.name,
+                    email: p.email === adminUser.email ? "" : p.email,
+                    phone: p.email === adminUser.email ? "" : p.phone,
+                    photo: p.email === adminUser.email ? "" : p.photo,
+                    accessLevel: p.accessLevel === "full" && p.email === adminUser.email ? "no-access" : p.accessLevel,
+                  }))}
+                  className={cn(
+                    "flex items-center gap-2.5 p-3 rounded-2xl border-2 text-left transition-all",
+                    !isSelfAdd
+                      ? "bg-zinc-900 border-zinc-900 text-white shadow-md"
+                      : "bg-zinc-50 border-zinc-100 hover:border-zinc-300"
+                  )}
+                >
+                  <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
+                    !isSelfAdd ? "bg-white/20" : "bg-zinc-200"
+                  )}>
+                    <User size={14} className={!isSelfAdd ? "text-white" : "text-zinc-500"} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className={cn("text-xs font-black", !isSelfAdd ? "text-white" : "text-zinc-900")}>
+                      Não, outro profissional
+                    </p>
+                    <p className={cn("text-[9px] font-medium", !isSelfAdd ? "text-white/60" : "text-zinc-400")}>
+                      Preencher manualmente
+                    </p>
+                  </div>
+                  {!isSelfAdd && <Check size={14} strokeWidth={3} className="text-emerald-400 ml-auto shrink-0" />}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Foto */}
           <div className="flex items-center gap-4 sm:gap-5">
             <div className="relative shrink-0">
@@ -376,11 +460,13 @@ export function ProfessionalModal({
               </div>
               <div>
                 <h4 className="text-xs font-black text-zinc-900 uppercase tracking-tight">Segurança</h4>
-                <p className="text-[10px] text-zinc-400 font-medium">Cargo e credenciais</p>
+                <p className="text-[10px] text-zinc-400 font-medium">
+                  {isSelfAdd ? "Cargo — login pelo e-mail do sistema" : "Cargo e credenciais"}
+                </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className={cn("grid gap-3", isSelfAdd ? "grid-cols-1" : "grid-cols-2")}>
               <Input
                 label="Cargo / Especialidade"
                 placeholder="Ex: Barbeiro Master"
@@ -388,34 +474,36 @@ export function ProfessionalModal({
                 onChange={e => setNewProfessional((p: any) => ({ ...p, role: e.target.value }))}
               />
 
-              <div className="flex flex-col gap-1.5">
-                <label className="ds-label">
-                  {editingProfessional ? "Alterar Senha" : "Senha *"}
-                </label>
-                <div className="relative flex items-center">
-                  <input
-                    type={profPasswordVisible ? "text" : "password"}
-                    className="ds-input pr-9"
-                    placeholder="Mín. 4 caracteres"
-                    value={newProfessional.password}
-                    onChange={e => setNewProfessional((p: any) => ({ ...p, password: e.target.value }))}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 text-zinc-400 hover:text-zinc-700 transition-colors"
-                    onClick={() => setProfPasswordVisible((v: boolean) => !v)}
-                  >
-                    {profPasswordVisible ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
+              {!isSelfAdd && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="ds-label">
+                    {editingProfessional ? "Alterar Senha" : "Senha *"}
+                  </label>
+                  <div className="relative flex items-center">
+                    <input
+                      type={profPasswordVisible ? "text" : "password"}
+                      className="ds-input pr-9"
+                      placeholder="Mín. 4 caracteres"
+                      value={newProfessional.password}
+                      onChange={e => setNewProfessional((p: any) => ({ ...p, password: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 text-zinc-400 hover:text-zinc-700 transition-colors"
+                      onClick={() => setProfPasswordVisible((v: boolean) => !v)}
+                    >
+                      {profPasswordVisible ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
       {/* ── Step 2 — Permissões ───────────────────────────────────── */}
-      {currentStep === 2 && (
+      {realStep === 2 && (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           {/* Nível de acesso */}
           <div className="space-y-3">
@@ -452,8 +540,18 @@ export function ProfessionalModal({
             </div>
           </div>
 
-          {/* Toggles PAT & Fotos */}
+          {/* Toggles: Agenda, PAT & Fotos */}
           <div className="bg-zinc-50 rounded-2xl border border-zinc-100 divide-y divide-zinc-100">
+            <div className="flex items-center justify-between p-3.5 sm:p-4">
+              <div className="min-w-0 pr-3">
+                <p className="text-xs font-black text-zinc-900 truncate">Atende na Agenda</p>
+                <p className="text-[10px] text-zinc-400 font-medium truncate">Aparece para agendamento de clientes</p>
+              </div>
+              <Switch
+                checked={newProfessional.attendsSchedule !== false}
+                onCheckedChange={(v) => setNewProfessional((p: any) => ({ ...p, attendsSchedule: v }))}
+              />
+            </div>
             <div className="flex items-center justify-between p-3.5 sm:p-4">
               <div className="min-w-0 pr-3">
                 <p className="text-xs font-black text-zinc-900 truncate">App de Atendimento (PAT)</p>
@@ -549,7 +647,7 @@ export function ProfessionalModal({
       )}
 
       {/* ── Step 3 — Horários ─────────────────────────────────────── */}
-      {currentStep === 3 && (
+      {realStep === 3 && (
         <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
           {newProfessional.workingHours.map((hour: any, idx: number) => (
             <div
@@ -619,7 +717,7 @@ export function ProfessionalModal({
       )}
 
       {/* ── Step 4 — Serviços ─────────────────────────────────────── */}
-      {currentStep === 4 && (
+      {realStep === 4 && (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -672,7 +770,7 @@ export function ProfessionalModal({
       )}
 
       {/* ── Step 5 — Finalizar ────────────────────────────────────── */}
-      {currentStep === 5 && (
+      {realStep === 5 && (
         <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <Textarea
             label="Bio / Portfólio"

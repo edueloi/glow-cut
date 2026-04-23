@@ -397,6 +397,7 @@ export default function AdminDashboard() {
     accessLevel: "no-access", // "no-access", "full", "custom"
     patAccess: false,
     canAddServicePhotos: false,
+    attendsSchedule: true,
     workingHours: [
       { day: "segunda-feira", active: true, start: "09:00", end: "20:00", lunchStart: "", lunchEnd: "", breakStart: "", breakEnd: "" },
       { day: "terca-feira", active: true, start: "09:00", end: "20:00", lunchStart: "", lunchEnd: "", breakStart: "", breakEnd: "" },
@@ -1407,6 +1408,7 @@ export default function AdminDashboard() {
       accessLevel: newProfessional.accessLevel,
       patAccess: newProfessional.patAccess,
       canAddServicePhotos: newProfessional.canAddServicePhotos,
+      attendsSchedule: newProfessional.attendsSchedule !== false,
       workingHours: newProfessional.workingHours,
       services: newProfessional.services,
     };
@@ -2593,6 +2595,7 @@ export default function AdminDashboard() {
         handleCreateProfessional={handleCreateProfessional}
         emptyProfessional={emptyProfessional}
         services={services}
+        adminUser={adminUser}
       />
 
       <ClientModal

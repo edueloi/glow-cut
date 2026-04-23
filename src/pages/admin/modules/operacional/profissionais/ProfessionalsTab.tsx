@@ -246,6 +246,7 @@ export function ProfessionalsTab({
       accessLevel: prof.accessLevel || "no-access",
       patAccess: prof.patAccess || false,
       canAddServicePhotos: prof.canAddServicePhotos || false,
+      attendsSchedule: prof.attendsSchedule !== false,
       workingHours: prof.workingHours || emptyProfessional.workingHours,
       services: prof.services || [],
     });
@@ -324,17 +325,20 @@ export function ProfessionalsTab({
                     className="group bg-white rounded-3xl border border-zinc-200 shadow-sm hover:shadow-lg hover:border-amber-300 transition-all overflow-hidden"
                   >
                     {/* Banner */}
-                    <div className="relative h-14 bg-gradient-to-r from-amber-400 to-amber-500">
+                    <div className={`relative h-14 bg-gradient-to-r ${prof.isOwner ? "from-zinc-700 to-zinc-900" : "from-amber-400 to-amber-500"}`}>
                       <div className="absolute -bottom-7 left-5">
                         {prof.photo ? (
                           <img src={prof.photo} className="w-14 h-14 rounded-2xl object-cover border-4 border-white shadow-md" />
                         ) : (
-                          <div className="w-14 h-14 rounded-2xl bg-white border-4 border-white shadow-md flex items-center justify-center text-amber-500 text-xl font-black">
+                          <div className={`w-14 h-14 rounded-2xl bg-white border-4 border-white shadow-md flex items-center justify-center text-xl font-black ${prof.isOwner ? "text-zinc-700" : "text-amber-500"}`}>
                             {prof.name.charAt(0).toUpperCase()}
                           </div>
                         )}
                       </div>
-                      <div className="absolute top-2 right-3">
+                      <div className="absolute top-2 right-3 flex gap-1.5">
+                        {prof.isOwner && (
+                          <Badge color="default" size="sm" pill>DONO</Badge>
+                        )}
                         <Badge color={prof.isActive !== false ? "success" : "default"} size="sm" pill>
                           {prof.isActive !== false ? "ATIVO" : "INATIVO"}
                         </Badge>
@@ -350,6 +354,13 @@ export function ProfessionalsTab({
                       <div className="space-y-1">
                         {prof.phone && <p className="text-[10px] text-zinc-500 flex items-center gap-1.5"><Phone size={9} /> {prof.phone}</p>}
                         {prof.email && <p className="text-[10px] text-zinc-500 flex items-center gap-1.5"><Mail size={9} className="shrink-0" /><span className="truncate">{prof.email}</span></p>}
+                      </div>
+                      <div>
+                        {prof.attendsSchedule !== false ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700">✓ Atende na agenda</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-lg bg-zinc-100 border border-zinc-200 text-zinc-500">Somente gestão</span>
+                        )}
                       </div>
                       {/* Permissões expandidas */}
                       {Object.values(perms).some(m => Object.values(m).some(Boolean)) ? (
@@ -377,16 +388,18 @@ export function ProfessionalsTab({
                         >
                           Editar
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          fullWidth
-                          iconLeft={<Trash2 size={12} />}
-                          className="border-red-200 text-red-500 hover:bg-red-50"
-                          onClick={() => handleDeleteProfessional(prof.id)}
-                        >
-                          Excluir
-                        </Button>
+                        {!prof.isOwner && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            fullWidth
+                            iconLeft={<Trash2 size={12} />}
+                            className="border-red-200 text-red-500 hover:bg-red-50"
+                            onClick={() => handleDeleteProfessional(prof.id)}
+                          >
+                            Excluir
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </motion.div>

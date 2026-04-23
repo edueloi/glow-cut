@@ -389,6 +389,8 @@ model Professional {
   patAccess    Boolean        @default(false)
   canAddServicePhotos Boolean @default(false)
   isActive     Boolean        @default(true)
+  isOwner      Boolean        @default(false)
+  attendsSchedule Boolean     @default(true)
   tenantId     String?        @db.VarChar(36)
   appointment  Appointment[]
   workinghours WorkingHours[]

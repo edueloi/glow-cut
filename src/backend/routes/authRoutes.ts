@@ -185,6 +185,35 @@ authRouter.post("/register-tenant", async (req, res) => {
       }
     });
 
+    // Cria o profissional do dono automaticamente (isOwner=true, sem senha própria)
+    const ownerProfId = randomUUID();
+    await (prisma as any).professional.create({
+      data: {
+        id: ownerProfId,
+        tenantId,
+        name: ownerName,
+        email: ownerEmail,
+        phone: ownerPhone || null,
+        accessLevel: "full",
+        permissions: "{}",
+        isOwner: true,
+        attendsSchedule: false,
+        isActive: true,
+        patAccess: false,
+        canAddServicePhotos: false,
+      }
+    });
+    // Horários padrão para o dono (todos inativos por padrão, ele configura depois)
+    const days = [
+      { dayOfWeek: 1 }, { dayOfWeek: 2 }, { dayOfWeek: 3 },
+      { dayOfWeek: 4 }, { dayOfWeek: 5 }, { dayOfWeek: 6 }, { dayOfWeek: 0 },
+    ];
+    for (const d of days) {
+      await (prisma as any).workingHours.create({
+        data: { id: randomUUID(), professionalId: ownerProfId, dayOfWeek: d.dayOfWeek, isOpen: false, startTime: "09:00", endTime: "20:00" }
+      });
+    }
+
     res.json({ success: true, tenantId });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

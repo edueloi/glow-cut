@@ -246,7 +246,8 @@ export const professionalController = {
       services,
     } = req.body;
 
-    if (!name || !password) return res.status(400).json({ error: "Nome e senha são obrigatórios." });
+    // Dono do sistema (accessLevel full) pode ser criado sem senha própria — faz login pelo admin
+    if (!name || (!password && accessLevel !== "full")) return res.status(400).json({ error: "Nome e senha são obrigatórios." });
 
     try {
       const professional = await (prisma as any).professional.create({
@@ -270,6 +271,8 @@ export const professionalController = {
           patAccess: asBoolean(patAccess),
           canAddServicePhotos: asBoolean(canAddServicePhotos),
           isActive: true,
+          isOwner: asBoolean(req.body.isOwner),
+          attendsSchedule: req.body.attendsSchedule !== undefined ? asBoolean(req.body.attendsSchedule, true) : true,
         },
         include: {
           workinghours: true,
@@ -368,6 +371,7 @@ export const professionalController = {
         ...(patAccess !== undefined && { patAccess: asBoolean(patAccess) }),
         ...(canAddServicePhotos !== undefined && { canAddServicePhotos: asBoolean(canAddServicePhotos) }),
         ...(isActive !== undefined && { isActive: asBoolean(isActive, true) }),
+        ...(req.body.attendsSchedule !== undefined && { attendsSchedule: asBoolean(req.body.attendsSchedule, true) }),
       };
 
       if (password) data.password = password;
@@ -406,6 +410,7 @@ export const professionalController = {
         where: { id: req.params.id, tenantId },
       });
       if (!professional) return res.status(404).json({ error: "Profissional não encontrado." });
+      if (professional.isOwner) return res.status(403).json({ error: "O profissional do proprietário não pode ser excluído." });
 
       await syncProfessionalServices(tenantId, professional.id, []);
       await (prisma as any).workingHours.deleteMany({ where: { professionalId: professional.id } });
