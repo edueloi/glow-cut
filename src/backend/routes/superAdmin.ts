@@ -478,29 +478,32 @@ superAdminRouter.put("/plans/:id", async (req, res) => {
   } = req.body;
 
   try {
-    const plan = await (prisma as any).plan.update({
-      where: { id: req.params.id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(price !== undefined && { price }),
-        ...(maxProfessionals !== undefined && { maxProfessionals }),
-        ...(maxAdminUsers !== undefined && { maxAdminUsers }),
-        ...(canCreateAdminUsers !== undefined && { canCreateAdminUsers: !!canCreateAdminUsers }),
-        ...(canDeleteAccount !== undefined && { canDeleteAccount: !!canDeleteAccount }),
-        ...(systemBotEnabled !== undefined && { systemBotEnabled: !!systemBotEnabled }),
-        ...(qrCodeBotEnabled !== undefined && { qrCodeBotEnabled: !!qrCodeBotEnabled }),
-        ...(siteEnabled !== undefined && { siteEnabled: !!siteEnabled }),
-        ...(agendaExternaEnabled !== undefined && { agendaExternaEnabled: !!agendaExternaEnabled }),
-        ...(priceExtraProfessional !== undefined && { priceExtraProfessional }),
-        ...(stripePaymentLink !== undefined && { stripePaymentLink: stripePaymentLink || null }),
-        ...(stripePriceId !== undefined && { stripePriceId: stripePriceId || null }),
-        ...(isActive !== undefined && { isActive }),
-        ...(features !== undefined && { features: Array.isArray(features) ? JSON.stringify(features) : features }),
-        ...(permissions !== undefined && { permissions: typeof permissions === "object" ? JSON.stringify(permissions) : permissions }),
-      },
-    });
+    const sets: string[] = [];
+    const vals: any[] = [];
 
+    if (name !== undefined)                   { sets.push("`name` = ?");                   vals.push(name); }
+    if (price !== undefined)                  { sets.push("`price` = ?");                  vals.push(price); }
+    if (maxProfessionals !== undefined)       { sets.push("`maxProfessionals` = ?");       vals.push(maxProfessionals); }
+    if (maxAdminUsers !== undefined)          { sets.push("`maxAdminUsers` = ?");          vals.push(maxAdminUsers); }
+    if (canCreateAdminUsers !== undefined)    { sets.push("`canCreateAdminUsers` = ?");    vals.push(canCreateAdminUsers ? 1 : 0); }
+    if (canDeleteAccount !== undefined)       { sets.push("`canDeleteAccount` = ?");       vals.push(canDeleteAccount ? 1 : 0); }
+    if (systemBotEnabled !== undefined)       { sets.push("`systemBotEnabled` = ?");       vals.push(systemBotEnabled ? 1 : 0); }
+    if (qrCodeBotEnabled !== undefined)       { sets.push("`qrCodeBotEnabled` = ?");       vals.push(qrCodeBotEnabled ? 1 : 0); }
+    if (siteEnabled !== undefined)            { sets.push("`siteEnabled` = ?");            vals.push(siteEnabled ? 1 : 0); }
+    if (agendaExternaEnabled !== undefined)   { sets.push("`agendaExternaEnabled` = ?");   vals.push(agendaExternaEnabled ? 1 : 0); }
+    if (priceExtraProfessional !== undefined) { sets.push("`priceExtraProfessional` = ?"); vals.push(priceExtraProfessional); }
+    if (stripePaymentLink !== undefined)      { sets.push("`stripePaymentLink` = ?");      vals.push(stripePaymentLink || null); }
+    if (stripePriceId !== undefined)          { sets.push("`stripePriceId` = ?");          vals.push(stripePriceId || null); }
+    if (isActive !== undefined)               { sets.push("`isActive` = ?");               vals.push(isActive ? 1 : 0); }
+    if (features !== undefined)               { sets.push("`features` = ?");               vals.push(Array.isArray(features) ? JSON.stringify(features) : features); }
+    if (permissions !== undefined)            { sets.push("`permissions` = ?");            vals.push(typeof permissions === "object" ? JSON.stringify(permissions) : permissions); }
 
+    if (sets.length > 0) {
+      vals.push(req.params.id);
+      await (prisma as any).$executeRawUnsafe(`UPDATE \`Plan\` SET ${sets.join(", ")} WHERE \`id\` = ?`, ...vals);
+    }
+
+    const plan = await (prisma as any).plan.findUnique({ where: { id: req.params.id } });
     res.json(plan);
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Erro ao atualizar plano." });
