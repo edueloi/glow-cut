@@ -2,6 +2,9 @@ import { Router, Request, Response } from "express";
 import { prisma } from "../prisma";
 import { signToken, requireAuth, type JwtPayload } from "../middleware/auth";
 import { randomUUID } from "crypto";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2026-04-22.dahlia" });
 
 export const authRouter = Router();
 
@@ -382,3 +385,100 @@ function parsePermissions(raw: string | null | undefined): Record<string, Record
   } catch {}
   return null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/create-checkout
+// Cria uma Checkout Session do Stripe com metadata completo
+// Usado tanto pela LandingPage (novo cliente) quanto pela AssinaturaTab (upgrade)
+// Body: { planId, tenantId?, email?, ref? }
+// ─────────────────────────────────────────────────────────────────────────────
+authRouter.post("/create-checkout", async (req: Request, res: Response) => {
+  const { planId, tenantId, email, ref } = req.body;
+  if (!planId) return res.status(400).json({ error: "planId obrigatório" });
+
+  try {
+    const plan = await (prisma as any).plan.findUnique({ where: { id: planId } });
+    if (!plan) return res.status(404).json({ error: "Plano não encontrado" });
+
+    // Se não tem stripePriceId configurado, cai no Payment Link legado
+    if (!plan.stripePriceId) {
+      if (plan.stripePaymentLink) {
+        const url = email
+          ? `${plan.stripePaymentLink}?prefilled_email=${encodeURIComponent(email)}`
+          : plan.stripePaymentLink;
+        return res.json({ url });
+      }
+      return res.status(400).json({ error: "Este plano ainda não tem checkout configurado" });
+    }
+
+    // Busca tenant para pegar email e stripeCustomerId se existir
+    let customer: string | undefined;
+    let salesPersonId: string | null = ref || null;
+
+    if (tenantId) {
+      const tenant = await (prisma as any).tenant.findUnique({
+        where: { id: tenantId },
+        select: { stripeCustomerId: true, salesPersonId: true, ownerEmail: true }
+      });
+      if (tenant?.stripeCustomerId) customer = tenant.stripeCustomerId;
+      if (tenant?.salesPersonId) salesPersonId = tenant.salesPersonId;
+      if (!email && tenant?.ownerEmail) req.body.email = tenant.ownerEmail;
+    }
+
+    const appUrl = process.env.APP_URL || "https://agendelle.com.br";
+
+    const sessionParams: any = {
+      mode: "subscription",
+      line_items: [{ price: plan.stripePriceId, quantity: 1 }],
+      success_url: `${appUrl}/login?checkout=success&plan=${encodeURIComponent(plan.name)}`,
+      cancel_url: `${appUrl}/#precos`,
+      subscription_data: {
+        trial_period_days: 30,
+        metadata: {
+          planId: plan.id,
+          planName: plan.name,
+          ...(tenantId && { tenantId }),
+          ...(salesPersonId && { salesPersonId }),
+        }
+      },
+      metadata: {
+        planId: plan.id,
+        planName: plan.name,
+        ...(tenantId && { tenantId }),
+        ...(salesPersonId && { salesPersonId }),
+      },
+      allow_promotion_codes: true,
+    };
+
+    // Preficha o email se disponível
+    const resolvedEmail = email || req.body.email;
+    if (resolvedEmail) sessionParams.customer_email = resolvedEmail;
+
+    // Reutiliza customer Stripe existente
+    if (customer) {
+      delete sessionParams.customer_email;
+      sessionParams.customer = customer;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+    res.json({ url: session.url });
+  } catch (e: any) {
+    console.error("[create-checkout]", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/auth/plans — retorna planos ativos (público)
+// já existe no authRouter, mas expõe stripePriceId para o frontend saber se usa checkout dinâmico
+authRouter.get("/plan-detail/:id", async (req: Request, res: Response) => {
+  try {
+    const plan = await (prisma as any).plan.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true, price: true, stripePriceId: true, stripePaymentLink: true }
+    });
+    if (!plan) return res.status(404).json({ error: "Plano não encontrado" });
+    res.json(plan);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});

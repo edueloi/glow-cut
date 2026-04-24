@@ -144,6 +144,7 @@ function PlansTab() {
     siteEnabled: true, agendaExternaEnabled: true,
     priceExtraProfessional: "0",
     stripePaymentLink: "",
+    stripePriceId: "",
     features: "",
     permissions: {},
   };
@@ -169,6 +170,7 @@ function PlansTab() {
       price: String(p.price),
       priceExtraProfessional: String(p.priceExtraProfessional || "0"),
       stripePaymentLink: p.stripePaymentLink || "",
+      stripePriceId: p.stripePriceId || "",
     });
     setModal(true);
   };
@@ -290,8 +292,9 @@ function PlansTab() {
                     {p.qrCodeBotEnabled     && <Badge color="success">Bot Próprio</Badge>}
                     {p.siteEnabled          && <Badge color="primary">Site/Vitrine</Badge>}
                     {p.agendaExternaEnabled && <Badge color="primary">Agenda Online</Badge>}
-                    {p.stripePaymentLink    && <Badge color="success">✓ Stripe vinculado</Badge>}
-                    {!p.stripePaymentLink   && <Badge color="default">Sem link Stripe</Badge>}
+                    {p.stripePriceId        && <Badge color="success">✓ Price ID</Badge>}
+                    {!p.stripePriceId && p.stripePaymentLink && <Badge color="warning">Link legado</Badge>}
+                    {!p.stripePriceId && !p.stripePaymentLink && <Badge color="default">Sem Stripe</Badge>}
                   </div>
                   
                   {p.priceExtraProfessional > 0 && (
@@ -350,10 +353,18 @@ function PlansTab() {
             onChange={e => setF("priceExtraProfessional", e.target.value)}
           />
           <Input
-            label="Payment Link do Stripe"
+            label="Price ID do Stripe (recomendado)"
+            placeholder="price_1ABC..."
+            value={form.stripePriceId || ""}
+            onChange={e => setF("stripePriceId", e.target.value)}
+            helpText="ID do preço no Stripe (Produtos → selecionar produto → copiar Price ID). Usado para checkout com metadados."
+          />
+          <Input
+            label="Payment Link do Stripe (legado)"
             placeholder="https://buy.stripe.com/..."
             value={form.stripePaymentLink}
             onChange={e => setF("stripePaymentLink", e.target.value)}
+            helpText="Usado como fallback se o Price ID não estiver preenchido."
           />
           <Textarea
             label="Benefícios em Destaque (Texto para o Cliente)"

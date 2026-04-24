@@ -435,7 +435,7 @@ superAdminRouter.post("/plans", async (req, res) => {
     name, price, maxProfessionals, maxAdminUsers,
     canCreateAdminUsers, canDeleteAccount,
     systemBotEnabled, qrCodeBotEnabled, siteEnabled, agendaExternaEnabled,
-    priceExtraProfessional, stripePaymentLink,
+    priceExtraProfessional, stripePaymentLink, stripePriceId,
     features, permissions
   } = req.body;
 
@@ -457,6 +457,7 @@ superAdminRouter.post("/plans", async (req, res) => {
         agendaExternaEnabled: agendaExternaEnabled !== undefined ? !!agendaExternaEnabled : true,
         priceExtraProfessional: priceExtraProfessional || 0,
         stripePaymentLink: stripePaymentLink || null,
+        stripePriceId: stripePriceId || null,
         features: Array.isArray(features) ? JSON.stringify(features) : (features || "[]"),
         permissions: typeof permissions === "object" ? JSON.stringify(permissions) : (permissions || "{}"),
       },
@@ -472,7 +473,7 @@ superAdminRouter.put("/plans/:id", async (req, res) => {
     name, price, maxProfessionals, maxAdminUsers,
     canCreateAdminUsers, canDeleteAccount,
     systemBotEnabled, qrCodeBotEnabled, siteEnabled, agendaExternaEnabled,
-    priceExtraProfessional, stripePaymentLink,
+    priceExtraProfessional, stripePaymentLink, stripePriceId,
     features, permissions, isActive
   } = req.body;
 
@@ -492,6 +493,7 @@ superAdminRouter.put("/plans/:id", async (req, res) => {
         ...(agendaExternaEnabled !== undefined && { agendaExternaEnabled: !!agendaExternaEnabled }),
         ...(priceExtraProfessional !== undefined && { priceExtraProfessional }),
         ...(stripePaymentLink !== undefined && { stripePaymentLink: stripePaymentLink || null }),
+        ...(stripePriceId !== undefined && { stripePriceId: stripePriceId || null }),
         ...(isActive !== undefined && { isActive }),
         ...(features !== undefined && { features: Array.isArray(features) ? JSON.stringify(features) : features }),
         ...(permissions !== undefined && { permissions: typeof permissions === "object" ? JSON.stringify(permissions) : permissions }),

@@ -125,9 +125,27 @@ export function AssinaturaTab() {
              if (plan.siteEnabled) displayFeatures.unshift("Site / Vitrine Digital");
              
               const isCurrentPlan = adminUser?.planName?.toLowerCase() === plan.name.toLowerCase();
-             const checkoutUrl = plan.stripePaymentLink
-               ? `${plan.stripePaymentLink}?prefilled_email=${encodeURIComponent(adminUser?.email || "")}`
-               : null;
+             const openCheckout = async () => {
+               try {
+                 const r = await fetch("/api/auth/create-checkout", {
+                   method: "POST",
+                   headers: { "Content-Type": "application/json" },
+                   body: JSON.stringify({
+                     planId: plan.id,
+                     tenantId: adminUser?.tenantId,
+                     email: adminUser?.email,
+                   }),
+                 });
+                 const data = await r.json();
+                 if (data.url) window.open(data.url, "_blank", "noopener,noreferrer");
+               } catch {
+                 // fallback legado
+                 if (plan.stripePaymentLink) {
+                   const url = `${plan.stripePaymentLink}?prefilled_email=${encodeURIComponent(adminUser?.email || "")}`;
+                   window.open(url, "_blank", "noopener,noreferrer");
+                 }
+               }
+             };
 
               return (
                 <motion.div 
@@ -193,12 +211,12 @@ export function AssinaturaTab() {
                     >
                       Ativo
                     </Button>
-                  ) : checkoutUrl ? (
+                  ) : (plan.stripePriceId || plan.stripePaymentLink) ? (
                     <Button
                       variant={isPopular ? "outline" : "secondary"}
                       size="sm"
                       className="h-11 w-full rounded-xl font-black uppercase text-[9px] tracking-widest shadow-md"
-                      onClick={() => window.open(checkoutUrl, "_blank", "noopener,noreferrer")}
+                      onClick={openCheckout}
                     >
                       Selecionar
                     </Button>

@@ -148,6 +148,7 @@ async function initDb() {
 
   // ── Plan Columns (Auto-migration) ─────────────────────────────────────────
   const planCols = [
+    { name: "stripePriceId",          def: "VARCHAR(100) NULL" },
     { name: "wppEnabled",             def: "TINYINT(1) NOT NULL DEFAULT 0" },
     { name: "systemBotEnabled",      def: "TINYINT(1) NOT NULL DEFAULT 1" },
     { name: "qrCodeBotEnabled",      def: "TINYINT(1) NOT NULL DEFAULT 0" },
