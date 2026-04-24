@@ -2,7 +2,7 @@
   "name": "Agendelle",
   "short_name": "Agendelle",
   "description": "Smart Schedulings platform",
-  "start_url": "/login",
+  "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
@@ -12,13 +12,13 @@
       "src": "/favicon-celular.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/favicon-celular.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }
