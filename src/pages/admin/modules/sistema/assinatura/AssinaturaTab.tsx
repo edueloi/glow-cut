@@ -194,19 +194,14 @@ export function AssinaturaTab() {
                       Ativo
                     </Button>
                   ) : checkoutUrl ? (
-                    <a
-                      href={checkoutUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={cn(
-                        "flex items-center justify-center h-11 w-full rounded-xl font-black uppercase text-[9px] tracking-widest shadow-md transition-opacity hover:opacity-90",
-                        isPopular
-                          ? "bg-white border border-zinc-300 text-zinc-900"
-                          : "bg-zinc-100 text-zinc-900"
-                      )}
+                    <Button
+                      variant={isPopular ? "outline" : "secondary"}
+                      size="sm"
+                      className="h-11 w-full rounded-xl font-black uppercase text-[9px] tracking-widest shadow-md"
+                      onClick={() => window.open(checkoutUrl, "_blank", "noopener,noreferrer")}
                     >
                       Selecionar
-                    </a>
+                    </Button>
                   ) : (
                     <Button
                       variant={isPopular ? "outline" : "secondary"}
