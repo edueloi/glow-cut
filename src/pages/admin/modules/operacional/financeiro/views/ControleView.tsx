@@ -171,7 +171,7 @@ export function ControleView() {
   return (
     <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <StatCard
           title="Entradas"
           value={formatCurrency(totalEntradas)}

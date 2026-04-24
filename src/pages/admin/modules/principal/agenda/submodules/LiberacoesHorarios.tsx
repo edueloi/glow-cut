@@ -198,27 +198,27 @@ export function LiberacoesHorarios({
   return (
     <div className="space-y-6 pb-20 sm:pb-6 animate-in fade-in duration-700">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-6 bg-white rounded-[32px] border border-zinc-200 shadow-sm">
+      <div className="flex flex-col gap-4 p-5 sm:p-6 bg-white rounded-[32px] border border-zinc-200 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 border border-rose-100 shadow-sm">
-            <CalendarOff size={22} className="text-rose-500" />
+          <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 border border-rose-100 shadow-sm">
+            <CalendarOff size={20} className="text-rose-500" />
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tight text-zinc-900">Bloqueios e Fechamentos</h1>
-            <p className="text-xs text-zinc-400 mt-1">Gerencie ausências, feriados e horários excepcionais.</p>
+            <h1 className="text-lg sm:text-xl font-black tracking-tight text-zinc-900">Bloqueios e Fechamentos</h1>
+            <p className="text-xs text-zinc-400 mt-0.5">Gerencie ausências, feriados e horários excepcionais.</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-zinc-100 p-1 rounded-2xl">
+        <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-2xl overflow-x-auto">
           {(["bloqueios", "fechamentos", "releases"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "px-4 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest",
+                "flex-1 whitespace-nowrap px-3 py-2 rounded-xl text-[11px] font-black transition-all uppercase tracking-wide min-w-0",
                 activeTab === tab ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500 hover:text-zinc-800"
               )}
             >
-              {tab === "bloqueios" ? "Bloqueios" : tab === "fechamentos" ? "Feriados/Fechamentos" : "Intervalos Extras"}
+              {tab === "bloqueios" ? "Bloqueios" : tab === "fechamentos" ? "Feriados" : "Intervalos Extras"}
             </button>
           ))}
         </div>
@@ -301,7 +301,7 @@ export function LiberacoesHorarios({
                 </div>
               </div>
 
-              <div className="bg-white border border-zinc-200 rounded-[32px] p-6 shadow-xl h-fit sticky top-24">
+              <div className="bg-white border border-zinc-200 rounded-[32px] p-6 shadow-xl h-fit lg:sticky lg:top-24">
                 <h3 className="text-lg font-black text-zinc-900 mb-6 flex items-center gap-2">
                    <Lock size={18} className="text-zinc-400" /> Novo Bloqueio
                 </h3>
@@ -391,7 +391,7 @@ export function LiberacoesHorarios({
                 </div>
               </div>
 
-              <div className="bg-white border border-zinc-200 rounded-[32px] p-6 shadow-xl h-fit sticky top-24">
+              <div className="bg-white border border-zinc-200 rounded-[32px] p-6 shadow-xl h-fit lg:sticky lg:top-24">
                 <h3 className="text-lg font-black text-zinc-900 mb-6 flex items-center gap-2">
                    <CalendarOff size={18} className="text-rose-500" /> Novo Fechamento
                 </h3>
@@ -458,7 +458,7 @@ export function LiberacoesHorarios({
                 </div>
               </div>
 
-              <div className="bg-white border border-zinc-200 rounded-[32px] p-6 shadow-xl h-fit sticky top-24">
+              <div className="bg-white border border-zinc-200 rounded-[32px] p-6 shadow-xl h-fit lg:sticky lg:top-24">
                 <h3 className="text-lg font-black text-zinc-900 mb-6 flex items-center gap-2">
                    <Unlock size={18} className="text-emerald-500" /> Nova Liberação Extra
                 </h3>

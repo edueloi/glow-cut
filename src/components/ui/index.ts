@@ -42,3 +42,6 @@ export {
 
 // ── Pagamentos ─────────────────────────────────────────────────────────────
 export { PaymentModal } from './PaymentModal';
+
+// ── Utilitários de edição ──────────────────────────────────────────────────
+export { TokenTextarea } from './TokenTextarea';
