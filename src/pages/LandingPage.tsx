@@ -419,7 +419,13 @@ export default function LandingPage() {
                     </ul>
                     <button 
                       className={`lp-btn ${isHot ? "lp-btn-primary" : "lp-btn-ghost"}`} 
-                      onClick={() => navigate("/login")}
+                      onClick={() => {
+                        if (p.stripePaymentLink) {
+                          window.location.href = p.stripePaymentLink;
+                        } else {
+                          navigate("/login");
+                        }
+                      }}
                     >
                       Assinar Agora
                     </button>

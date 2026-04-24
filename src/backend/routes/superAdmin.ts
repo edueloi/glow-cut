@@ -348,7 +348,12 @@ superAdminRouter.put("/plans/:id", async (req, res) => {
 
 superAdminRouter.delete("/plans/:id", async (req, res) => {
   try {
-    await (prisma as any).plan.update({ where: { id: req.params.id }, data: { isActive: false } });
+    const tenantsCount = await (prisma as any).tenant.count({ where: { planId: req.params.id } });
+    if (tenantsCount === 0) {
+      await (prisma as any).plan.delete({ where: { id: req.params.id } });
+    } else {
+      await (prisma as any).plan.update({ where: { id: req.params.id }, data: { isActive: false } });
+    }
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Erro ao excluir plano." });
