@@ -26,6 +26,7 @@ import { sectorRouter } from "./src/backend/routes/sectorRoutes";
 import { publicBookingRouter } from "./src/backend/routes/publicBookingRoutes";
 import { preferencesRouter } from "./src/backend/routes/preferencesRoutes";
 import { blogPublicRouter, blogAdminRouter } from "./src/backend/routes/blogRoutes";
+import { stripeWebhookRouter } from "./src/backend/routes/stripeWebhookRoutes";
 
 // Import middleware
 import { requireAuth, requireSuperAdmin } from "./src/backend/middleware/auth";
@@ -46,6 +47,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
+
+// Webhook do Stripe — DEVE vir antes do express.json() (precisa do body raw)
+app.use("/api", stripeWebhookRouter);
+
 app.use(express.json({ limit: "20mb" }));
 
 // ── ONBOARDING FIX ────────────────────────────────────────────────────────────
@@ -173,6 +178,36 @@ async function initDb() {
     }
   } catch (e: any) {
     console.warn("[initDb] Tenant.wppOverride:", e?.message);
+  }
+
+  // ── Tenant.stripeCustomerId ───────────────────────────────────────────────
+  try {
+    const colStripe: any[] = await (prisma as any).$queryRawUnsafe(`SHOW COLUMNS FROM \`Tenant\` LIKE 'stripeCustomerId'`);
+    if (!colStripe.length) {
+      await (prisma as any).$executeRawUnsafe(`ALTER TABLE \`Tenant\` ADD COLUMN \`stripeCustomerId\` VARCHAR(100) NULL, ADD KEY \`idx_tenant_stripe_customer\` (\`stripeCustomerId\`)`);
+      console.log("[initDb] Tenant.stripeCustomerId added");
+    }
+  } catch (e: any) {
+    console.warn("[initDb] Tenant.stripeCustomerId:", e?.message);
+  }
+
+  // ── SuperAdmin — campos de comissão ───────────────────────────────────────
+  const saCols = [
+    { name: "commissionType",   def: "VARCHAR(20) NOT NULL DEFAULT 'percentage'" },
+    { name: "commissionValue",  def: "DOUBLE NOT NULL DEFAULT 0" },
+    { name: "commissionByPlan", def: "TEXT NULL" },
+    { name: "trialDays",        def: "INT NOT NULL DEFAULT 30" },
+  ];
+  for (const col of saCols) {
+    try {
+      const rows: any[] = await (prisma as any).$queryRawUnsafe(`SHOW COLUMNS FROM \`SuperAdmin\` LIKE '${col.name}'`);
+      if (!rows.length) {
+        await (prisma as any).$executeRawUnsafe(`ALTER TABLE \`SuperAdmin\` ADD COLUMN \`${col.name}\` ${col.def}`);
+        console.log(`[initDb] SuperAdmin.${col.name} added`);
+      }
+    } catch (e: any) {
+      console.warn(`[initDb] SuperAdmin.${col.name}:`, e?.message);
+    }
   }
 
   // ── Product.showOnSite + Product.brand ───────────────────────────────────

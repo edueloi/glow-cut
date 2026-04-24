@@ -254,6 +254,166 @@ superAdminRouter.delete("/staff/:id", async (req, res) => {
 });
 
 // ═════════════════════════════════════════════════════════════
+//  SUPER-ADMIN — Comissões de Vendedores
+// ═════════════════════════════════════════════════════════════
+
+// Lista todos os vendedores com suas configurações de comissão e resumo de vendas
+superAdminRouter.get("/commissions", async (req, res) => {
+  try {
+    const sellers = await (prisma as any).superAdmin.findMany({
+      select: {
+        id: true, username: true, name: true, email: true, photo: true, role: true,
+        commissionType: true, commissionValue: true, commissionByPlan: true, trialDays: true,
+        tenantsSold: {
+          select: {
+            id: true, name: true, isActive: true, createdAt: true, expiresAt: true,
+            plan: { select: { id: true, name: true, price: true } }
+          }
+        }
+      }
+    });
+
+    const plans = await (prisma as any).plan.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, price: true },
+      orderBy: { price: "asc" }
+    });
+
+    // Calcula resumo de comissões por vendedor
+    const result = sellers.map((s: any) => {
+      let byPlan: Record<string, { type: string; value: number }> = {};
+      try { byPlan = JSON.parse(s.commissionByPlan || "{}"); } catch {}
+
+      const activeTenants = s.tenantsSold.filter((t: any) => t.isActive);
+      const trialEnd = (t: any) => {
+        const d = new Date(t.createdAt);
+        d.setDate(d.getDate() + (s.trialDays ?? 30));
+        return d;
+      };
+      const now = new Date();
+
+      // MRR de comissão (apenas tenants fora do trial)
+      let monthlyCommission = 0;
+      for (const t of activeTenants) {
+        if (!t.plan || trialEnd(t) > now) continue;
+        const planOverride = byPlan[t.plan.id];
+        const type  = planOverride?.type  ?? s.commissionType  ?? "percentage";
+        const value = planOverride?.value ?? s.commissionValue ?? 0;
+        monthlyCommission += type === "fixed" ? value : t.plan.price * (value / 100);
+      }
+
+      return {
+        id: s.id, username: s.username, name: s.name, email: s.email,
+        photo: s.photo, role: s.role,
+        commissionType: s.commissionType ?? "percentage",
+        commissionValue: s.commissionValue ?? 0,
+        commissionByPlan: byPlan,
+        trialDays: s.trialDays ?? 30,
+        totalSales: s.tenantsSold.length,
+        activeSales: activeTenants.length,
+        inTrial: activeTenants.filter((t: any) => trialEnd(t) > now).length,
+        monthlyCommission,
+      };
+    });
+
+    res.json({ sellers: result, plans });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Atualiza configuração de comissão de um vendedor
+superAdminRouter.put("/commissions/:id", async (req, res) => {
+  const { commissionType, commissionValue, commissionByPlan, trialDays } = req.body;
+  try {
+    const data: any = {};
+    if (commissionType !== undefined) data.commissionType = commissionType;
+    if (commissionValue !== undefined) data.commissionValue = Number(commissionValue);
+    if (commissionByPlan !== undefined) {
+      data.commissionByPlan = typeof commissionByPlan === "string"
+        ? commissionByPlan
+        : JSON.stringify(commissionByPlan);
+    }
+    if (trialDays !== undefined) data.trialDays = Number(trialDays);
+
+    const updated = await (prisma as any).superAdmin.update({
+      where: { id: req.params.id },
+      data,
+      select: { id: true, commissionType: true, commissionValue: true, commissionByPlan: true, trialDays: true }
+    });
+    res.json(updated);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Resumo de comissões de um vendedor específico (histórico mensal)
+superAdminRouter.get("/commissions/:id/summary", async (req, res) => {
+  try {
+    const seller = await (prisma as any).superAdmin.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true, username: true, name: true,
+        commissionType: true, commissionValue: true, commissionByPlan: true, trialDays: true,
+        tenantsSold: {
+          select: {
+            id: true, name: true, isActive: true, createdAt: true, expiresAt: true,
+            plan: { select: { id: true, name: true, price: true } }
+          }
+        }
+      }
+    });
+    if (!seller) return res.status(404).json({ error: "Vendedor não encontrado" });
+
+    let byPlan: Record<string, { type: string; value: number }> = {};
+    try { byPlan = JSON.parse(seller.commissionByPlan || "{}"); } catch {}
+
+    const now = new Date();
+    const rows: any[] = [];
+
+    for (const t of seller.tenantsSold) {
+      if (!t.plan) continue;
+      const trialEnd = new Date(t.createdAt);
+      trialEnd.setDate(trialEnd.getDate() + (seller.trialDays ?? 30));
+
+      const planOverride = byPlan[t.plan.id];
+      const type  = planOverride?.type  ?? seller.commissionType  ?? "percentage";
+      const value = planOverride?.value ?? seller.commissionValue ?? 0;
+      const commissionAmount = type === "fixed" ? value : t.plan.price * (value / 100);
+
+      rows.push({
+        tenantId: t.id,
+        tenantName: t.name,
+        planName: t.plan.name,
+        planPrice: t.plan.price,
+        commissionType: type,
+        commissionValue: value,
+        commissionAmount,
+        isActive: t.isActive,
+        inTrial: trialEnd > now,
+        trialEndsAt: trialEnd.toISOString(),
+        createdAt: t.createdAt,
+        expiresAt: t.expiresAt,
+      });
+    }
+
+    const activeBilled = rows.filter(r => r.isActive && !r.inTrial);
+    const totalMonthly = activeBilled.reduce((s: number, r: any) => s + r.commissionAmount, 0);
+
+    res.json({
+      seller: { id: seller.id, username: seller.username, name: seller.name },
+      totalSales: rows.length,
+      activeBilled: activeBilled.length,
+      inTrial: rows.filter(r => r.isActive && r.inTrial).length,
+      monthlyCommission: totalMonthly,
+      rows,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════
 //  SUPER-ADMIN — Planos
 // ═════════════════════════════════════════════════════════════
 superAdminRouter.get("/plans", async (req, res) => {
@@ -859,7 +1019,7 @@ superAdminRouter.get("/wpp/stats", async (req, res) => {
 async function getVirtualSubscriptionEntries(from?: string, to?: string) {
   const tenants = await (prisma as any).tenant.findMany({
     where: { isActive: true },
-    include: { plan: true }
+    include: { plan: true, salesPerson: true }
   });
   const virtualEntries: any[] = [];
   const fromDate = from ? new Date(from) : new Date("2000-01-01T00:00:00.000Z");
@@ -870,53 +1030,75 @@ async function getVirtualSubscriptionEntries(from?: string, to?: string) {
     if (!t.plan || !t.plan.price) continue;
     let currentDate = new Date(t.createdAt);
     if (isNaN(currentDate.getTime())) currentDate = new Date();
-    
+
+    // Calcula data de fim do trial (sem cobrança de comissão)
+    const trialDays = t.salesPerson?.trialDays ?? 30;
+    const trialEnd = new Date(t.createdAt);
+    trialEnd.setDate(trialEnd.getDate() + trialDays);
+
+    // Resolve comissão do vendedor para este tenant/plano
+    function resolveCommission(salesPerson: any, planId: string, planPrice: number): number {
+      if (!salesPerson) return 0;
+      // Verifica se há taxa específica para este plano
+      let byPlan: Record<string, { type: string; value: number }> = {};
+      try { byPlan = JSON.parse(salesPerson.commissionByPlan || "{}"); } catch {}
+      const planOverride = byPlan[planId];
+      const type  = planOverride?.type  ?? salesPerson.commissionType  ?? "percentage";
+      const value = planOverride?.value ?? salesPerson.commissionValue ?? 0;
+      return type === "fixed" ? value : planPrice * (value / 100);
+    }
+
     while (currentDate <= now) {
       if (currentDate >= fromDate && currentDate <= toDate) {
-        // Receita: Assinatura
-        virtualEntries.push({
-          id: `virt-inc-${t.id}-${currentDate.getTime()}`,
-          type: "income",
-          category: "Assinatura de Plano",
-          description: `Assinatura: ${t.name} (${t.plan.name})`,
-          amount: t.plan.price,
-          date: new Date(currentDate).toISOString(),
-          recurrence: "monthly",
-          tenantId: t.id,
-          planId: t.plan.id,
-          createdAt: t.createdAt
-        });
-
-        // Despesa: Taxas de Gateway (Stripe / Pagar.me) -> ~4.9% + R$0.39
-        const gatewayFee = (t.plan.price * 0.049) + 0.39;
-        virtualEntries.push({
-          id: `virt-fee-${t.id}-${currentDate.getTime()}`,
-          type: "expense",
-          category: "Impostos e Taxas",
-          description: `Taxa Gateway (Assinatura): ${t.name}`,
-          amount: gatewayFee,
-          date: new Date(currentDate).toISOString(),
-          recurrence: "monthly",
-          tenantId: t.id,
-          planId: t.plan.id,
-          createdAt: t.createdAt
-        });
-
-        // Despesa: Comissão Parceiro/Vendedor (Ex: 30%)
-        if (t.salesPersonId) {
-          const commissionFee = t.plan.price * 0.30;
+        // Só gera entrada de receita após o período de trial
+        if (currentDate >= trialEnd) {
           virtualEntries.push({
-            id: `virt-com-${t.id}-${currentDate.getTime()}`,
-            type: "expense",
-            category: "Comissões e Parceiros",
-            description: `Comissão Venda (${t.plan.name}): ${t.name}`,
-            amount: commissionFee,
+            id: `virt-inc-${t.id}-${currentDate.getTime()}`,
+            type: "income",
+            category: "Assinatura de Plano",
+            description: `Assinatura: ${t.name} (${t.plan.name})`,
+            amount: t.plan.price,
             date: new Date(currentDate).toISOString(),
             recurrence: "monthly",
             tenantId: t.id,
             planId: t.plan.id,
             createdAt: t.createdAt
           });
+
+          // Despesa: Taxas de Gateway (Stripe) ~4.9% + R$0.39
+          const gatewayFee = (t.plan.price * 0.049) + 0.39;
+          virtualEntries.push({
+            id: `virt-fee-${t.id}-${currentDate.getTime()}`,
+            type: "expense",
+            category: "Impostos e Taxas",
+            description: `Taxa Gateway (Assinatura): ${t.name}`,
+            amount: gatewayFee,
+            date: new Date(currentDate).toISOString(),
+            recurrence: "monthly",
+            tenantId: t.id,
+            planId: t.plan.id,
+            createdAt: t.createdAt
+          });
+
+          // Despesa: Comissão do Vendedor (taxa configurável)
+          if (t.salesPersonId && t.salesPerson) {
+            const commissionFee = resolveCommission(t.salesPerson, t.plan.id, t.plan.price);
+            if (commissionFee > 0) {
+              virtualEntries.push({
+                id: `virt-com-${t.id}-${currentDate.getTime()}`,
+                type: "expense",
+                category: "Comissões e Parceiros",
+                description: `Comissão Venda (${t.plan.name}): ${t.name}`,
+                amount: commissionFee,
+                date: new Date(currentDate).toISOString(),
+                recurrence: "monthly",
+                tenantId: t.id,
+                planId: t.plan.id,
+                salesPersonId: t.salesPersonId,
+                createdAt: t.createdAt
+              });
+            }
+          }
         }
       }
       currentDate.setMonth(currentDate.getMonth() + 1);

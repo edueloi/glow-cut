@@ -30,7 +30,7 @@ import {
   Mail, Globe, User, Lock, MessageCircle, RefreshCw,
   Menu, BookOpen, FileText, Tag, UserCircle2, Bell,
   BarChart2, ArrowUpRight, ArrowLeft, ExternalLink,
-  CheckCircle, Clock, Archive,
+  CheckCircle, Clock, Archive, DollarSign,
   Camera,
   ChevronRight,
 } from "lucide-react";
@@ -39,7 +39,7 @@ import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/per
 /* ═══════════════════════════════════════════
    TIPOS
 ═══════════════════════════════════════════ */
-type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp" | "blog" | "sales" | "settings" | "finance";
+type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp" | "blog" | "sales" | "settings" | "finance" | "commissions";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
@@ -1809,6 +1809,287 @@ function FinanceTab() {
 
 
 /* ═══════════════════════════════════════════
+   ABA: COMISSÕES DE VENDEDORES
+═══════════════════════════════════════════ */
+function CommissionsTab() {
+  const toast = useToast();
+  const [data, setData] = useState<{ sellers: any[]; plans: any[] }>({ sellers: [], plans: [] });
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<any>(null);
+  const [detail, setDetail] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<any>({
+    commissionType: "percentage",
+    commissionValue: 0,
+    trialDays: 30,
+    commissionByPlan: {} as Record<string, { type: string; value: number }>,
+  });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await apiFetch("/api/super-admin/commissions");
+      if (r.ok) setData(await r.json());
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const openSeller = async (s: any) => {
+    setSelected(s);
+    setForm({
+      commissionType: s.commissionType ?? "percentage",
+      commissionValue: s.commissionValue ?? 0,
+      trialDays: s.trialDays ?? 30,
+      commissionByPlan: s.commissionByPlan ?? {},
+    });
+    const r = await apiFetch(`/api/super-admin/commissions/${s.id}/summary`);
+    if (r.ok) setDetail(await r.json());
+  };
+
+  const save = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      const r = await apiFetch(`/api/super-admin/commissions/${selected.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!r.ok) throw new Error("Erro ao salvar");
+      toast.success("Comissão atualizada!");
+      load();
+      const r2 = await apiFetch(`/api/super-admin/commissions/${selected.id}/summary`);
+      if (r2.ok) setDetail(await r2.json());
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const setPlanOverride = (planId: string, field: "type" | "value", val: any) => {
+    setForm((f: any) => {
+      const byPlan = { ...(f.commissionByPlan || {}) };
+      byPlan[planId] = { ...(byPlan[planId] || { type: f.commissionType, value: f.commissionValue }), [field]: field === "value" ? Number(val) : val };
+      return { ...f, commissionByPlan: byPlan };
+    });
+  };
+
+  const clearPlanOverride = (planId: string) => {
+    setForm((f: any) => {
+      const byPlan = { ...(f.commissionByPlan || {}) };
+      delete byPlan[planId];
+      return { ...f, commissionByPlan: byPlan };
+    });
+  };
+
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  if (loading) return <div className="flex items-center justify-center h-40 text-zinc-400 font-semibold">Carregando...</div>;
+
+  return (
+    <div className="space-y-5">
+      <SectionTitle title="Comissões de Vendedores" description="Configure a comissão de cada vendedor por plano ou valor padrão" icon={DollarSign} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Lista de vendedores */}
+        <div className="space-y-2">
+          <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-1">Vendedores</p>
+          {data.sellers.length === 0 && <EmptyState icon={Users} title="Nenhum vendedor cadastrado" />}
+          {data.sellers.map(s => (
+            <button
+              key={s.id}
+              onClick={() => openSeller(s)}
+              className={`w-full text-left p-4 rounded-xl border transition-all ${selected?.id === s.id ? "border-amber-400 bg-amber-50" : "border-zinc-200 bg-white hover:border-zinc-300"}`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-zinc-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {s.photo ? <img src={s.photo} alt="" className="w-full h-full object-cover" /> : <Users size={16} className="text-zinc-400" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-zinc-800 truncate">{s.name || s.username}</p>
+                  <p className="text-xs text-zinc-500">{s.activeSales} ativos · {s.inTrial} em trial</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-xs font-bold text-amber-600">{fmt(s.monthlyCommission)}</p>
+                  <p className="text-xs text-zinc-400">MRR</p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Configuração do vendedor selecionado */}
+        <div className="lg:col-span-2 space-y-4">
+          {!selected ? (
+            <div className="flex items-center justify-center h-48 bg-white rounded-xl border border-zinc-200">
+              <p className="text-sm text-zinc-400 font-medium">Selecione um vendedor para configurar</p>
+            </div>
+          ) : (
+            <>
+              {/* Header */}
+              <div className="bg-white rounded-xl border border-zinc-200 p-5">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center overflow-hidden">
+                    {selected.photo ? <img src={selected.photo} alt="" className="w-full h-full object-cover" /> : <Users size={18} className="text-zinc-400" />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-zinc-800">{selected.name || selected.username}</p>
+                    <p className="text-xs text-zinc-500">{selected.email || "Sem e-mail"}</p>
+                  </div>
+                </div>
+
+                {/* Resumo */}
+                {detail && (
+                  <div className="grid grid-cols-3 gap-3 mb-5">
+                    {[
+                      { label: "Total vendas", value: detail.totalSales },
+                      { label: "Ativos cobrados", value: detail.activeBilled },
+                      { label: "Em trial", value: detail.inTrial },
+                    ].map(c => (
+                      <div key={c.label} className="bg-zinc-50 rounded-lg p-3 text-center">
+                        <p className="text-xl font-black text-zinc-800">{c.value}</p>
+                        <p className="text-xs text-zinc-500 mt-0.5">{c.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Configurações padrão */}
+                <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">Configuração padrão</p>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-600 block mb-1">Tipo</label>
+                    <select
+                      value={form.commissionType}
+                      onChange={e => setForm((f: any) => ({ ...f, commissionType: e.target.value }))}
+                      className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    >
+                      <option value="percentage">Percentual (%)</option>
+                      <option value="fixed">Valor fixo (R$)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-600 block mb-1">
+                      {form.commissionType === "percentage" ? "Percentual (%)" : "Valor (R$)"}
+                    </label>
+                    <input
+                      type="number" step="0.01" min="0"
+                      value={form.commissionValue}
+                      onChange={e => setForm((f: any) => ({ ...f, commissionValue: e.target.value }))}
+                      className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-600 block mb-1">Trial (dias sem comissão)</label>
+                    <input
+                      type="number" min="0"
+                      value={form.trialDays}
+                      onChange={e => setForm((f: any) => ({ ...f, trialDays: e.target.value }))}
+                      className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Exceções por plano */}
+                <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">Exceções por plano (opcional)</p>
+                <div className="space-y-2">
+                  {data.plans.map(plan => {
+                    const override = form.commissionByPlan?.[plan.id];
+                    const hasOverride = !!override;
+                    const type  = hasOverride ? override.type  : form.commissionType;
+                    const value = hasOverride ? override.value : form.commissionValue;
+                    const preview = type === "fixed" ? fmt(Number(value)) : `${value}% = ${fmt(plan.price * Number(value) / 100)}`;
+                    return (
+                      <div key={plan.id} className={`rounded-lg border p-3 ${hasOverride ? "border-amber-300 bg-amber-50" : "border-zinc-200 bg-zinc-50"}`}>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-bold text-zinc-700 truncate">{plan.name}</span>
+                            <span className="text-xs text-zinc-400">{fmt(plan.price)}/mês</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs font-semibold text-amber-600">{preview}</span>
+                            {hasOverride ? (
+                              <button onClick={() => clearPlanOverride(plan.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">remover</button>
+                            ) : (
+                              <button onClick={() => setPlanOverride(plan.id, "type", form.commissionType)} className="text-xs text-amber-600 hover:text-amber-800 font-medium">personalizar</button>
+                            )}
+                          </div>
+                        </div>
+                        {hasOverride && (
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            <select value={override.type} onChange={e => setPlanOverride(plan.id, "type", e.target.value)}
+                              className="border border-zinc-300 rounded-lg px-2 py-1.5 text-xs font-medium text-zinc-700 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                              <option value="percentage">Percentual (%)</option>
+                              <option value="fixed">Valor fixo (R$)</option>
+                            </select>
+                            <input type="number" step="0.01" min="0" value={override.value}
+                              onChange={e => setPlanOverride(plan.id, "value", e.target.value)}
+                              className="border border-zinc-300 rounded-lg px-2 py-1.5 text-xs font-medium text-zinc-700 focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex justify-end mt-5">
+                  <Button onClick={save} disabled={saving} iconLeft={saving ? undefined : <Check size={14} />}>
+                    {saving ? "Salvando..." : "Salvar Configuração"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Tabela de parceiros deste vendedor */}
+              {detail && detail.rows.length > 0 && (
+                <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-zinc-100">
+                    <p className="font-bold text-zinc-800 text-sm">Parceiros vendidos</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">MRR de comissão: <span className="font-bold text-amber-600">{fmt(detail.monthlyCommission)}</span></p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-zinc-100 bg-zinc-50">
+                          {["Parceiro", "Plano", "Vlr. Plano", "Comissão", "Status"].map(h => (
+                            <th key={h} className="text-left text-xs font-bold text-zinc-500 px-4 py-2.5">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detail.rows.map((row: any) => (
+                          <tr key={row.tenantId} className="border-b border-zinc-50 hover:bg-zinc-50">
+                            <td className="px-4 py-3 font-semibold text-zinc-800">{row.tenantName}</td>
+                            <td className="px-4 py-3 text-zinc-600">{row.planName}</td>
+                            <td className="px-4 py-3 text-zinc-600">{fmt(row.planPrice)}</td>
+                            <td className="px-4 py-3 font-bold text-amber-600">{fmt(row.commissionAmount)}</td>
+                            <td className="px-4 py-3">
+                              {!row.isActive ? (
+                                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-zinc-100 text-zinc-500">Inativo</span>
+                              ) : row.inTrial ? (
+                                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-600">Trial</span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-50 text-green-600">Ativo</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
    ABA: EQUIPE (STAFF)
 ═══════════════════════════════════════════ */
 function StaffTab({ username, userPermissions }: { username: string; userPermissions: any }) {
@@ -1832,6 +2113,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
     { key: "blog", label: "Blog" },
     { key: "wpp", label: "WhatsApp" },
     { key: "sales", label: "Vendas e Afiliados" },
+    { key: "commissions", label: "Comissões de Vendedores" },
     { key: "finance", label: "Financeiro" },
     { key: "staff", label: "Minha Equipe" },
     { key: "settings", label: "Configurações" },
@@ -3978,6 +4260,7 @@ const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: stri
   { key: "blog",        icon: <BookOpen size={17} />,        label: "Blog",           path: "/super-admin/blog" },
   { key: "wpp",         icon: <MessageCircle size={17} />,   label: "WhatsApp",       path: "/super-admin/whatsapp" },
   { key: "sales",       icon: <TrendingUp size={17} />,      label: "Vendas e Afiliados", path: "/super-admin/vendas" },
+  { key: "commissions", icon: <DollarSign size={17} />,      label: "Comissões",      path: "/super-admin/comissoes" },
   { key: "finance",     icon: <BarChart2 size={17} />,        label: "Financeiro",     path: "/super-admin/financeiro" },
   { key: "staff",       icon: <Shield size={17} />,          label: "Minha Equipe",   path: "/super-admin/equipe" },
   { key: "settings",    icon: <Globe size={17} />,           label: "Configurações",   path: "/super-admin/configuracoes" },
@@ -3993,6 +4276,7 @@ function pathToTab(pathname: string): TabKey {
   if (pathname.includes("/blog"))        return "blog";
   if (pathname.includes("/whatsapp"))    return "wpp";
   if (pathname.includes("/vendas"))      return "sales";
+  if (pathname.includes("/comissoes"))   return "commissions";
   if (pathname.includes("/financeiro"))  return "finance";
   if (pathname.includes("/equipe"))      return "staff";
   if (pathname.includes("/configuracoes")) return "settings";
@@ -4155,6 +4439,7 @@ export default function SuperAdminDashboard({ username, onLogout, permissions }:
           {tab === "blog"        && <BlogTab />}
           {tab === "wpp"         && <WppTab plans={plans} onUpdatePlans={() => { apiFetch("/api/super-admin/plans").then(r => r.json()).then(setPlans); }} />}
           {tab === "sales"       && <SalesTab user={userData} />}
+          {tab === "commissions" && <CommissionsTab />}
           {tab === "finance"     && <FinanceTab />}
           {tab === "staff"       && <StaffTab username={username} userPermissions={permissions} />}
           {tab === "settings"    && <SettingsTab />}
