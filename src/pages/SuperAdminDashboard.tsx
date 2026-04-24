@@ -139,10 +139,11 @@ function PlansTab() {
   const [editing, setEditing] = useState<any>(null);
   const empty = {
     name: "", price: "", maxProfessionals: "3", maxAdminUsers: "1",
-    canCreateAdminUsers: false, canDeleteAccount: false, 
-    systemBotEnabled: true, qrCodeBotEnabled: false, 
+    canCreateAdminUsers: false, canDeleteAccount: false,
+    systemBotEnabled: true, qrCodeBotEnabled: false,
     siteEnabled: true, agendaExternaEnabled: true,
     priceExtraProfessional: "0",
+    stripePaymentLink: "",
     features: "",
     permissions: {},
   };
@@ -161,14 +162,14 @@ function PlansTab() {
   const openCreate = () => { setEditing(null); setForm(empty); setModal(true); };
   const openEdit = (p: any) => {
     setEditing(p);
-    setForm({ 
-      ...p, 
-      features: JSON.parse(p.features || "[]").join("\n"), 
+    setForm({
+      ...p,
+      features: JSON.parse(p.features || "[]").join("\n"),
       permissions: JSON.parse(p.permissions || "[]"),
       price: String(p.price),
-      priceExtraProfessional: String(p.priceExtraProfessional || "0")
+      priceExtraProfessional: String(p.priceExtraProfessional || "0"),
+      stripePaymentLink: p.stripePaymentLink || "",
     });
-
     setModal(true);
   };
 
@@ -289,6 +290,8 @@ function PlansTab() {
                     {p.qrCodeBotEnabled     && <Badge color="success">Bot Próprio</Badge>}
                     {p.siteEnabled          && <Badge color="primary">Site/Vitrine</Badge>}
                     {p.agendaExternaEnabled && <Badge color="primary">Agenda Online</Badge>}
+                    {p.stripePaymentLink    && <Badge color="success">✓ Stripe vinculado</Badge>}
+                    {!p.stripePaymentLink   && <Badge color="default">Sem link Stripe</Badge>}
                   </div>
                   
                   {p.priceExtraProfessional > 0 && (
@@ -339,12 +342,18 @@ function PlansTab() {
               ))}
             </div>
           </div>
-          <Input 
-            label="Preço Profissional Extra (R$)" 
-            type="number" 
-            placeholder="29.90" 
-            value={form.priceExtraProfessional} 
-            onChange={e => setF("priceExtraProfessional", e.target.value)} 
+          <Input
+            label="Preço Profissional Extra (R$)"
+            type="number"
+            placeholder="29.90"
+            value={form.priceExtraProfessional}
+            onChange={e => setF("priceExtraProfessional", e.target.value)}
+          />
+          <Input
+            label="Payment Link do Stripe"
+            placeholder="https://buy.stripe.com/..."
+            value={form.stripePaymentLink}
+            onChange={e => setF("stripePaymentLink", e.target.value)}
           />
           <Textarea
             label="Benefícios em Destaque (Texto para o Cliente)"

@@ -125,7 +125,10 @@ export function AssinaturaTab() {
              if (plan.siteEnabled) displayFeatures.unshift("Site / Vitrine Digital");
              
               const isCurrentPlan = adminUser?.planName?.toLowerCase() === plan.name.toLowerCase();
-              
+             const checkoutUrl = plan.stripePaymentLink
+               ? `${plan.stripePaymentLink}?prefilled_email=${encodeURIComponent(adminUser?.email || "")}`
+               : null;
+
               return (
                 <motion.div 
                   key={plan.id}
@@ -182,16 +185,39 @@ export function AssinaturaTab() {
                      ))}
                   </div>
 
-                  <Button 
-                    variant={isCurrentPlan ? "primary" : isPopular ? "outline" : "secondary"}
-                    size="sm"
-                    className={cn(
-                       "h-11 w-full rounded-xl font-black uppercase text-[9px] tracking-widest shadow-md",
-                       isCurrentPlan && "opacity-50 pointer-events-none"
-                    )}
-                  >
-                    {isCurrentPlan ? "Ativo" : "Selecionar"}
-                  </Button>
+                  {isCurrentPlan ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="h-11 w-full rounded-xl font-black uppercase text-[9px] tracking-widest shadow-md opacity-50 pointer-events-none"
+                    >
+                      Ativo
+                    </Button>
+                  ) : checkoutUrl ? (
+                    <a
+                      href={checkoutUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(
+                        "flex items-center justify-center h-11 w-full rounded-xl font-black uppercase text-[9px] tracking-widest shadow-md transition-opacity hover:opacity-90",
+                        isPopular
+                          ? "bg-white border border-zinc-300 text-zinc-900"
+                          : "bg-zinc-100 text-zinc-900"
+                      )}
+                    >
+                      Selecionar
+                    </a>
+                  ) : (
+                    <Button
+                      variant={isPopular ? "outline" : "secondary"}
+                      size="sm"
+                      disabled
+                      className="h-11 w-full rounded-xl font-black uppercase text-[9px] tracking-widest shadow-md opacity-40 cursor-not-allowed"
+                      title="Em breve"
+                    >
+                      Em breve
+                    </Button>
+                  )}
                 </motion.div>
               );
             })}

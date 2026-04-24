@@ -271,16 +271,16 @@ superAdminRouter.get("/plans", async (req, res) => {
 });
 
 superAdminRouter.post("/plans", async (req, res) => {
-  const { 
-    name, price, maxProfessionals, maxAdminUsers, 
-    canCreateAdminUsers, canDeleteAccount, 
+  const {
+    name, price, maxProfessionals, maxAdminUsers,
+    canCreateAdminUsers, canDeleteAccount,
     systemBotEnabled, qrCodeBotEnabled, siteEnabled, agendaExternaEnabled,
-    priceExtraProfessional,
-    features, permissions 
+    priceExtraProfessional, stripePaymentLink,
+    features, permissions
   } = req.body;
-  
+
   if (!name) return res.status(400).json({ error: "Nome do plano obrigatório." });
-  
+
   try {
     const plan = await (prisma as any).plan.create({
       data: {
@@ -296,6 +296,7 @@ superAdminRouter.post("/plans", async (req, res) => {
         siteEnabled: siteEnabled !== undefined ? !!siteEnabled : true,
         agendaExternaEnabled: agendaExternaEnabled !== undefined ? !!agendaExternaEnabled : true,
         priceExtraProfessional: priceExtraProfessional || 0,
+        stripePaymentLink: stripePaymentLink || null,
         features: Array.isArray(features) ? JSON.stringify(features) : (features || "[]"),
         permissions: typeof permissions === "object" ? JSON.stringify(permissions) : (permissions || "{}"),
       },
@@ -307,14 +308,14 @@ superAdminRouter.post("/plans", async (req, res) => {
 });
 
 superAdminRouter.put("/plans/:id", async (req, res) => {
-  const { 
-    name, price, maxProfessionals, maxAdminUsers, 
-    canCreateAdminUsers, canDeleteAccount, 
+  const {
+    name, price, maxProfessionals, maxAdminUsers,
+    canCreateAdminUsers, canDeleteAccount,
     systemBotEnabled, qrCodeBotEnabled, siteEnabled, agendaExternaEnabled,
-    priceExtraProfessional,
-    features, permissions, isActive 
+    priceExtraProfessional, stripePaymentLink,
+    features, permissions, isActive
   } = req.body;
-  
+
   try {
     const plan = await (prisma as any).plan.update({
       where: { id: req.params.id },
@@ -330,6 +331,7 @@ superAdminRouter.put("/plans/:id", async (req, res) => {
         ...(siteEnabled !== undefined && { siteEnabled: !!siteEnabled }),
         ...(agendaExternaEnabled !== undefined && { agendaExternaEnabled: !!agendaExternaEnabled }),
         ...(priceExtraProfessional !== undefined && { priceExtraProfessional }),
+        ...(stripePaymentLink !== undefined && { stripePaymentLink: stripePaymentLink || null }),
         ...(isActive !== undefined && { isActive }),
         ...(features !== undefined && { features: Array.isArray(features) ? JSON.stringify(features) : features }),
         ...(permissions !== undefined && { permissions: typeof permissions === "object" ? JSON.stringify(permissions) : permissions }),

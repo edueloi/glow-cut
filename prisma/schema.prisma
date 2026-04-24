@@ -363,6 +363,7 @@ model Plan {
   wppEnabled          Boolean  @default(false) // Legado/Geral
   features            String?  @default("[]") @db.VarChar(2000)
   permissions         String?  @default("[]") @db.VarChar(2000) // Módulos técnicos liberados
+  stripePaymentLink   String?  @db.VarChar(500) // Payment Link do Stripe (https://buy.stripe.com/...)
   isActive            Boolean  @default(true)
   createdAt           DateTime @default(now()) @db.DateTime(0)
   tenant              Tenant[]
