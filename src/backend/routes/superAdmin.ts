@@ -436,7 +436,7 @@ superAdminRouter.post("/plans", async (req, res) => {
     canCreateAdminUsers, canDeleteAccount,
     systemBotEnabled, qrCodeBotEnabled, siteEnabled, agendaExternaEnabled,
     priceExtraProfessional, stripePaymentLink, stripePriceId,
-    features, permissions
+    features, permissions, wppEnabled
   } = req.body;
 
   if (!name) return res.status(400).json({ error: "Nome do plano obrigatório." });
@@ -458,6 +458,7 @@ superAdminRouter.post("/plans", async (req, res) => {
         priceExtraProfessional: priceExtraProfessional || 0,
         stripePaymentLink: stripePaymentLink || null,
         stripePriceId: stripePriceId || null,
+        wppEnabled: !!wppEnabled,
         features: Array.isArray(features) ? JSON.stringify(features) : (features || "[]"),
         permissions: typeof permissions === "object" ? JSON.stringify(permissions) : (permissions || "{}"),
       },
@@ -474,36 +475,35 @@ superAdminRouter.put("/plans/:id", async (req, res) => {
     canCreateAdminUsers, canDeleteAccount,
     systemBotEnabled, qrCodeBotEnabled, siteEnabled, agendaExternaEnabled,
     priceExtraProfessional, stripePaymentLink, stripePriceId,
-    features, permissions, isActive
+    features, permissions, isActive, wppEnabled
   } = req.body;
 
   try {
-    const sets: string[] = [];
-    const vals: any[] = [];
+    const data: any = {};
 
-    if (name !== undefined)                   { sets.push("`name` = ?");                   vals.push(name); }
-    if (price !== undefined)                  { sets.push("`price` = ?");                  vals.push(price); }
-    if (maxProfessionals !== undefined)       { sets.push("`maxProfessionals` = ?");       vals.push(maxProfessionals); }
-    if (maxAdminUsers !== undefined)          { sets.push("`maxAdminUsers` = ?");          vals.push(maxAdminUsers); }
-    if (canCreateAdminUsers !== undefined)    { sets.push("`canCreateAdminUsers` = ?");    vals.push(canCreateAdminUsers ? 1 : 0); }
-    if (canDeleteAccount !== undefined)       { sets.push("`canDeleteAccount` = ?");       vals.push(canDeleteAccount ? 1 : 0); }
-    if (systemBotEnabled !== undefined)       { sets.push("`systemBotEnabled` = ?");       vals.push(systemBotEnabled ? 1 : 0); }
-    if (qrCodeBotEnabled !== undefined)       { sets.push("`qrCodeBotEnabled` = ?");       vals.push(qrCodeBotEnabled ? 1 : 0); }
-    if (siteEnabled !== undefined)            { sets.push("`siteEnabled` = ?");            vals.push(siteEnabled ? 1 : 0); }
-    if (agendaExternaEnabled !== undefined)   { sets.push("`agendaExternaEnabled` = ?");   vals.push(agendaExternaEnabled ? 1 : 0); }
-    if (priceExtraProfessional !== undefined) { sets.push("`priceExtraProfessional` = ?"); vals.push(priceExtraProfessional); }
-    if (stripePaymentLink !== undefined)      { sets.push("`stripePaymentLink` = ?");      vals.push(stripePaymentLink || null); }
-    if (stripePriceId !== undefined)          { sets.push("`stripePriceId` = ?");          vals.push(stripePriceId || null); }
-    if (isActive !== undefined)               { sets.push("`isActive` = ?");               vals.push(isActive ? 1 : 0); }
-    if (features !== undefined)               { sets.push("`features` = ?");               vals.push(Array.isArray(features) ? JSON.stringify(features) : features); }
-    if (permissions !== undefined)            { sets.push("`permissions` = ?");            vals.push(typeof permissions === "object" ? JSON.stringify(permissions) : permissions); }
+    if (name !== undefined) data.name = name;
+    if (price !== undefined) data.price = price;
+    if (maxProfessionals !== undefined) data.maxProfessionals = maxProfessionals;
+    if (maxAdminUsers !== undefined) data.maxAdminUsers = maxAdminUsers;
+    if (canCreateAdminUsers !== undefined) data.canCreateAdminUsers = canCreateAdminUsers ? true : false;
+    if (canDeleteAccount !== undefined) data.canDeleteAccount = canDeleteAccount ? true : false;
+    if (systemBotEnabled !== undefined) data.systemBotEnabled = systemBotEnabled ? true : false;
+    if (qrCodeBotEnabled !== undefined) data.qrCodeBotEnabled = qrCodeBotEnabled ? true : false;
+    if (siteEnabled !== undefined) data.siteEnabled = siteEnabled ? true : false;
+    if (agendaExternaEnabled !== undefined) data.agendaExternaEnabled = agendaExternaEnabled ? true : false;
+    if (priceExtraProfessional !== undefined) data.priceExtraProfessional = priceExtraProfessional;
+    if (stripePaymentLink !== undefined) data.stripePaymentLink = stripePaymentLink || null;
+    if (stripePriceId !== undefined) data.stripePriceId = stripePriceId || null;
+    if (isActive !== undefined) data.isActive = isActive ? true : false;
+    if (wppEnabled !== undefined) data.wppEnabled = wppEnabled ? true : false;
+    if (features !== undefined) data.features = Array.isArray(features) ? JSON.stringify(features) : features;
+    if (permissions !== undefined) data.permissions = typeof permissions === "object" ? JSON.stringify(permissions) : permissions;
 
-    if (sets.length > 0) {
-      vals.push(req.params.id);
-      await (prisma as any).$executeRawUnsafe(`UPDATE \`Plan\` SET ${sets.join(", ")} WHERE \`id\` = ?`, ...vals);
-    }
+    const plan = await (prisma as any).plan.update({
+      where: { id: req.params.id },
+      data,
+    });
 
-    const plan = await (prisma as any).plan.findUnique({ where: { id: req.params.id } });
     res.json(plan);
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Erro ao atualizar plano." });
