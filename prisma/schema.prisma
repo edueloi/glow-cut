@@ -536,6 +536,7 @@ model SuperAdmin {
   // Comissões por plano: JSON { planId: { type, value } }
   commissionByPlan String?  @db.Text
   trialDays        Int      @default(30) // dias de trial sem cobrar comissão
+  stripeAccountId  String?  @db.VarChar(150) // Stripe Connect Account ID
   createdAt        DateTime @default(now()) @db.DateTime(0)
   tenantsSold      Tenant[]
 }

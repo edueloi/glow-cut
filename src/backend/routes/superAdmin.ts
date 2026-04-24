@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
+import Stripe from "stripe";
 import {
   connectSession,
   disconnectSession,
@@ -9,6 +10,7 @@ import {
 import { requireSuperPermission } from "../middleware/auth";
 
 export const superAdminRouter = Router();
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2023-10-16" as any });
 
 // ─── CONTATOS GLOBAIS (WHATSAPP) ───────────────────────────────
 superAdminRouter.get("/platform-contacts", async (req, res) => {
@@ -353,7 +355,7 @@ superAdminRouter.get("/commissions/:id/summary", async (req, res) => {
     const seller = await (prisma as any).superAdmin.findUnique({
       where: { id: req.params.id },
       select: {
-        id: true, username: true, name: true,
+        id: true, username: true, name: true, stripeAccountId: true,
         commissionType: true, commissionValue: true, commissionByPlan: true, trialDays: true,
         tenantsSold: {
           select: {
@@ -401,12 +403,80 @@ superAdminRouter.get("/commissions/:id/summary", async (req, res) => {
     const totalMonthly = activeBilled.reduce((s: number, r: any) => s + r.commissionAmount, 0);
 
     res.json({
-      seller: { id: seller.id, username: seller.username, name: seller.name },
+      seller: { id: seller.id, username: seller.username, name: seller.name, stripeAccountId: seller.stripeAccountId },
       totalSales: rows.length,
       activeBilled: activeBilled.length,
       inTrial: rows.filter(r => r.isActive && r.inTrial).length,
       monthlyCommission: totalMonthly,
       rows,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════
+//  SUPER-ADMIN — Stripe Connect (Afiliados/Vendedores)
+// ═════════════════════════════════════════════════════════════
+superAdminRouter.post("/stripe-connect", async (req, res) => {
+  try {
+    const userId = (req as any).auth?.sub;
+    if (!userId) return res.status(401).json({ error: "Usuário não identificado" });
+
+    const seller = await (prisma as any).superAdmin.findUnique({ where: { id: userId } });
+    if (!seller) return res.status(404).json({ error: "Vendedor não encontrado" });
+
+    let accountId = seller.stripeAccountId;
+
+    // Se ainda não tem conta Stripe, cria uma
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: 'express',
+        email: seller.email || undefined,
+        business_type: 'individual',
+      });
+      accountId = account.id;
+      
+      await (prisma as any).superAdmin.update({
+        where: { id: userId },
+        data: { stripeAccountId: accountId }
+      });
+    }
+
+    // Cria o link de onboarding ou login
+    const origin = req.headers.origin || "https://agendelle.com.br";
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${origin}/super-admin/vendas?refresh=true`,
+      return_url: `${origin}/super-admin/vendas?success=true`,
+      type: 'account_onboarding',
+    });
+
+    res.json({ url: accountLink.url });
+  } catch (e: any) {
+    console.error("[Stripe Connect Error]:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+superAdminRouter.get("/stripe-connect/status", async (req, res) => {
+  try {
+    const userId = (req as any).auth?.sub;
+    if (!userId) return res.status(401).json({ error: "Usuário não identificado" });
+
+    const seller = await (prisma as any).superAdmin.findUnique({ where: { id: userId } });
+    if (!seller) return res.status(404).json({ error: "Vendedor não encontrado" });
+
+    if (!seller.stripeAccountId) {
+      return res.json({ connected: false });
+    }
+
+    const account = await stripe.accounts.retrieve(seller.stripeAccountId);
+    res.json({ 
+      connected: true, 
+      detailsSubmitted: account.details_submitted,
+      payoutsEnabled: account.payouts_enabled,
+      accountId: seller.stripeAccountId
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

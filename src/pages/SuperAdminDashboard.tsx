@@ -357,14 +357,14 @@ function PlansTab() {
             placeholder="price_1ABC..."
             value={form.stripePriceId || ""}
             onChange={e => setF("stripePriceId", e.target.value)}
-            helpText="ID do preço no Stripe (Produtos → selecionar produto → copiar Price ID). Usado para checkout com metadados."
+            hint="ID do preço no Stripe (Produtos → selecionar produto → copiar Price ID). Usado para checkout com metadados."
           />
           <Input
             label="Payment Link do Stripe (legado)"
             placeholder="https://buy.stripe.com/..."
             value={form.stripePaymentLink}
             onChange={e => setF("stripePaymentLink", e.target.value)}
-            helpText="Usado como fallback se o Price ID não estiver preenchido."
+            hint="Usado como fallback se o Price ID não estiver preenchido."
           />
           <Textarea
             label="Benefícios em Destaque (Texto para o Cliente)"
@@ -1324,26 +1324,30 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
 ═══════════════════════════════════════════ */
 function SalesTab({ user }: { user: any }) {
   const [stats, setStats] = useState<any>(null);
+  const [stripeStatus, setStripeStatus] = useState<any>(undefined); // undefined = loading
   const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
     if (user?.id) {
-      apiFetch("/api/super-admin/sales-stats")
-        .then(r => r.json())
-        .then(data => {
-          // Garante que stats sempre tem a estrutura esperada
-          setStats({
-            totalSales: data?.totalSales ?? 0,
-            totalActive: data?.totalActive ?? 0,
-            totalRecurring: Number(data?.totalRecurring ?? 0),
-            history: Array.isArray(data?.history) ? data.history : [],
-          });
-        })
-        .catch(() => {
-          setStats({ totalSales: 0, totalActive: 0, totalRecurring: 0, history: [] });
-        })
-        .finally(() => setLoading(false));
+      Promise.all([
+        apiFetch("/api/super-admin/sales-stats").then(r => r.json()).catch(() => null),
+        apiFetch("/api/super-admin/stripe-connect/status")
+          .then(async r => {
+            if (!r.ok) throw new Error("Status API failed");
+            return r.json();
+          })
+          .catch(() => ({ connected: false, error: true }))
+      ]).then(([statsData, stripeData]) => {
+        setStats({
+          totalSales: statsData?.totalSales ?? 0,
+          totalActive: statsData?.totalActive ?? 0,
+          totalRecurring: Number(statsData?.totalRecurring ?? 0),
+          history: Array.isArray(statsData?.history) ? statsData.history : [],
+        });
+        setStripeStatus(stripeData);
+      }).finally(() => setLoading(false));
     }
   }, [user]);
 
@@ -1352,6 +1356,20 @@ function SalesTab({ user }: { user: any }) {
   const copyLink = () => {
     navigator.clipboard.writeText(salesLink);
     toast.success("O seu link de vendas foi copiado para a área de transferência.");
+  };
+
+  const handleStripeConnect = async () => {
+    setConnecting(true);
+    try {
+      const r = await apiFetch("/api/super-admin/stripe-connect", { method: "POST" });
+      const data = await r.json();
+      if (data.url) window.location.href = data.url;
+      else toast.error(data.error || "Erro ao conectar com Stripe");
+    } catch (e) {
+      toast.error("Erro ao conectar com Stripe");
+    } finally {
+      setConnecting(false);
+    }
   };
 
   if (loading || !stats) return <div className="p-8 text-center text-sm text-zinc-400">Carregando estatísticas...</div>;
@@ -1424,28 +1442,70 @@ function SalesTab({ user }: { user: any }) {
           </div>
         </ContentCard>
 
-        <ContentCard>
-          <div className="space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
-              <TrendingUp size={24} />
+        <div className="space-y-6">
+          <ContentCard>
+            <div className="space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
+                <TrendingUp size={24} />
+              </div>
+              <h3 className="text-base font-black text-zinc-900 leading-tight">Como aumentar suas vendas?</h3>
+              <p className="text-sm text-zinc-500 leading-relaxed">
+                Compartilhe seu link exclusivo em suas redes sociais, grupos de WhatsApp e e-mails. Cada parceiro que assinar através do seu link será automaticamente vinculado ao seu perfil.
+              </p>
+              <div className="pt-2 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-zinc-600">
+                  <CheckCircle size={14} className="text-emerald-500" /> Atribuição vitalícia
+                </div>
+                <div className="flex items-center gap-2 text-xs font-bold text-zinc-600">
+                  <CheckCircle size={14} className="text-emerald-500" /> Relatórios em tempo real
+                </div>
+                <div className="flex items-center gap-2 text-xs font-bold text-zinc-600">
+                  <CheckCircle size={14} className="text-emerald-500" /> Suporte dedicado
+                </div>
+              </div>
             </div>
-            <h3 className="text-base font-black text-zinc-900 leading-tight">Como aumentar suas vendas?</h3>
-            <p className="text-sm text-zinc-500 leading-relaxed">
-              Compartilhe seu link exclusivo em suas redes sociais, grupos de WhatsApp e e-mails. Cada parceiro que assinar através do seu link será automaticamente vinculado ao seu perfil.
-            </p>
-            <div className="pt-2 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-zinc-600">
-                <CheckCircle size={14} className="text-emerald-500" /> Atribuição vitalícia
+          </ContentCard>
+
+          <ContentCard>
+            <div className="space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#635BFF]/10 flex items-center justify-center text-[#635BFF]">
+                <CreditCard size={24} />
               </div>
-              <div className="flex items-center gap-2 text-xs font-bold text-zinc-600">
-                <CheckCircle size={14} className="text-emerald-500" /> Relatórios em tempo real
-              </div>
-              <div className="flex items-center gap-2 text-xs font-bold text-zinc-600">
-                <CheckCircle size={14} className="text-emerald-500" /> Suporte dedicado
-              </div>
+              <h3 className="text-base font-black text-zinc-900 leading-tight">Recebimento Automático</h3>
+              <p className="text-sm text-zinc-500 leading-relaxed">
+                Conecte sua conta Stripe para receber seus repasses de comissão automaticamente na sua conta bancária.
+              </p>
+
+              {stripeStatus === undefined ? (
+                <div className="h-10 bg-zinc-100 animate-pulse rounded-xl" />
+              ) : stripeStatus.connected && stripeStatus.payoutsEnabled ? (
+                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                    <CheckCircle size={16} /> Conta Conectada
+                  </div>
+                  <p className="text-[10px] text-emerald-600 font-medium">Seus repasses automáticos estão ativos.</p>
+                  <Button variant="secondary" size="sm" onClick={handleStripeConnect} loading={connecting} className="w-full text-xs mt-2">
+                    Acessar Painel Stripe
+                  </Button>
+                </div>
+              ) : stripeStatus.connected && !stripeStatus.payoutsEnabled ? (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-sm font-bold text-amber-700">
+                    <TrendingUp size={16} /> Configuração Pendente
+                  </div>
+                  <p className="text-[10px] text-amber-600 font-medium">Faltam dados para liberar seus repasses.</p>
+                  <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-[#635BFF] hover:bg-[#5249EC] text-white border-none shadow-lg mt-2">
+                    Completar Cadastro
+                  </Button>
+                </div>
+              ) : (
+                <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-[#635BFF] hover:bg-[#5249EC] text-white border-none shadow-lg">
+                  Conectar com Stripe
+                </Button>
+              )}
             </div>
-          </div>
-        </ContentCard>
+          </ContentCard>
+        </div>
       </div>
     </div>
   );
