@@ -18,6 +18,7 @@ import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
 import RegistrationPage from "./pages/RegistrationPage";
 import SetupAccountPage from "./pages/SetupAccountPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import PlatformLegalPage from "./pages/PlatformLegalPage";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
@@ -175,6 +176,33 @@ function LoginPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Esqueci a senha
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotDone, setForgotDone] = useState(false);
+  const [forgotError, setForgotError] = useState("");
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail) return;
+    setForgotLoading(true);
+    setForgotError("");
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) setForgotError(data.error || "Erro ao enviar.");
+      else setForgotDone(true);
+    } catch {
+      setForgotError("Erro de conexão. Tente novamente.");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   // Redireciona se já logado
   if (!loading && user) {
     if (user.type === "superadmin") return <Navigate to="/super-admin" replace />;
@@ -324,6 +352,13 @@ function LoginPage() {
                   Lembrar de mim
                 </span>
               </label>
+              <button
+                type="button"
+                onClick={() => { setForgotOpen(true); setForgotDone(false); setForgotError(""); setForgotEmail(identifier || ""); }}
+                className="text-[11px] font-bold text-amber-500 hover:text-amber-600 transition-colors uppercase tracking-wider"
+              >
+                Esqueci a senha
+              </button>
             </div>
 
             <button
@@ -344,6 +379,68 @@ function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* ── Modal Esqueci a Senha ─────────────────────── */}
+      {forgotOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setForgotOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 z-10">
+            {forgotDone ? (
+              <div className="text-center">
+                <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-7 h-7 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-black text-zinc-900 mb-2">E-mail enviado!</h3>
+                <p className="text-sm text-zinc-500 mb-6">
+                  Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha em instantes.
+                </p>
+                <button
+                  onClick={() => setForgotOpen(false)}
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl py-3 text-sm transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-lg font-black text-zinc-900 mb-1">Recuperar senha</h3>
+                <p className="text-xs text-zinc-400 mb-6">Digite seu e-mail e enviaremos um link para redefinir sua senha.</p>
+                <div className="space-y-4">
+                  <input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleForgotPassword()}
+                    placeholder="seu@email.com"
+                    className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-800 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all placeholder:text-zinc-400"
+                    autoFocus
+                  />
+                  {forgotError && (
+                    <p className="text-xs font-bold text-red-500 bg-red-50 rounded-xl px-3 py-2">{forgotError}</p>
+                  )}
+                  <button
+                    onClick={handleForgotPassword}
+                    disabled={forgotLoading || !forgotEmail}
+                    className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-bold rounded-xl py-3 text-sm transition-colors flex items-center justify-center gap-2"
+                  >
+                    {forgotLoading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : "Enviar link de recuperação"}
+                  </button>
+                  <button
+                    onClick={() => setForgotOpen(false)}
+                    className="w-full text-xs text-zinc-400 hover:text-zinc-600 transition-colors py-1"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -490,6 +587,7 @@ function App() {
           <Route path="/agendar/:slug" element={<ClientBooking />} />
           <Route path="/assinar" element={<RegistrationPage />} />
           <Route path="/setup-account" element={<SetupAccountPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/termos" element={<PlatformLegalPage type="terms" />} />
           <Route path="/privacidade" element={<PlatformLegalPage type="privacy" />} />
         </Routes>

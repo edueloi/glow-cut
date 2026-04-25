@@ -3,7 +3,7 @@ import { prisma } from "../prisma";
 import { signToken, requireAuth, type JwtPayload } from "../middleware/auth";
 import { randomUUID } from "crypto";
 import Stripe from "stripe";
-import { sendWelcomeEmail } from "../utils/emailService";
+import { sendWelcomeEmail, sendResetPasswordEmail } from "../utils/emailService";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2026-04-22.dahlia" });
 
@@ -593,6 +593,122 @@ authRouter.post("/setup-account", async (req: Request, res: Response) => {
 
   console.log(`[Setup] Conta configurada para tenant ${tenant.id}`);
   res.json({ success: true, email: tenant.ownerEmail });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/forgot-password
+// Gera token de reset e envia email (funciona para AdminUser e Professional)
+// ─────────────────────────────────────────────────────────────────────────────
+authRouter.post("/forgot-password", async (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "E-mail obrigatório." });
+
+  // Sempre responde 200 para não revelar se o e-mail existe
+  res.json({ ok: true });
+
+  try {
+    const resetToken = randomBytes(32).toString("hex");
+    const resetTokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
+
+    // Busca AdminUser primeiro
+    const admin = await (prisma as any).adminUser.findFirst({
+      where: { email, isActive: true },
+      select: { id: true, name: true, tenantId: true },
+    });
+
+    if (admin) {
+      // Salva token no tenant do admin
+      await (prisma as any).tenant.update({
+        where: { id: admin.tenantId },
+        data: { resetToken, resetTokenExpiresAt },
+      });
+
+      await sendResetPasswordEmail({
+        toEmail: email,
+        toName: admin.name,
+        resetToken,
+      }).catch((e: any) => console.error("[Email] Reset password:", e.message));
+      return;
+    }
+
+    // Tenta Professional
+    const prof = await (prisma as any).professional.findFirst({
+      where: { email, isActive: true },
+      select: { id: true, name: true, tenantId: true },
+    });
+
+    if (prof) {
+      await (prisma as any).tenant.update({
+        where: { id: prof.tenantId },
+        data: { resetToken, resetTokenExpiresAt },
+      });
+
+      await sendResetPasswordEmail({
+        toEmail: email,
+        toName: prof.name,
+        resetToken,
+      }).catch((e: any) => console.error("[Email] Reset password prof:", e.message));
+    }
+  } catch (e: any) {
+    console.error("[forgot-password]", e.message);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/auth/reset-password?token=xxx  — valida token
+// ─────────────────────────────────────────────────────────────────────────────
+authRouter.get("/reset-password", async (req: Request, res: Response) => {
+  const { token } = req.query;
+  if (!token || typeof token !== "string") return res.status(400).json({ error: "Token inválido." });
+
+  const tenant = await (prisma as any).tenant.findFirst({
+    where: { resetToken: token },
+    select: { id: true, ownerEmail: true, ownerName: true, resetTokenExpiresAt: true },
+  });
+
+  if (!tenant) return res.status(404).json({ error: "Link inválido ou já utilizado." });
+  if (tenant.resetTokenExpiresAt && new Date() > new Date(tenant.resetTokenExpiresAt)) {
+    return res.status(410).json({ error: "Este link expirou. Solicite um novo." });
+  }
+
+  res.json({ email: tenant.ownerEmail, name: tenant.ownerName });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/reset-password  — aplica nova senha
+// ─────────────────────────────────────────────────────────────────────────────
+authRouter.post("/reset-password", async (req: Request, res: Response) => {
+  const { token, password } = req.body;
+  if (!token || !password) return res.status(400).json({ error: "Token e senha obrigatórios." });
+  if (password.length < 6) return res.status(400).json({ error: "A senha deve ter no mínimo 6 caracteres." });
+
+  const tenant = await (prisma as any).tenant.findFirst({
+    where: { resetToken: token },
+    select: { id: true, ownerEmail: true, resetTokenExpiresAt: true },
+  });
+
+  if (!tenant) return res.status(404).json({ error: "Link inválido ou já utilizado." });
+  if (tenant.resetTokenExpiresAt && new Date() > new Date(tenant.resetTokenExpiresAt)) {
+    return res.status(410).json({ error: "Este link expirou. Solicite um novo." });
+  }
+
+  // Atualiza senha de todos os admins + profissional owner deste tenant com esse email
+  await (prisma as any).adminUser.updateMany({
+    where: { tenantId: tenant.id, email: tenant.ownerEmail },
+    data: { password },
+  });
+
+  await (prisma as any).professional.updateMany({
+    where: { tenantId: tenant.id, email: tenant.ownerEmail },
+    data: { password },
+  });
+
+  await (prisma as any).tenant.update({
+    where: { id: tenant.id },
+    data: { resetToken: null, resetTokenExpiresAt: null },
+  });
+
+  res.json({ success: true });
 });
 
 // GET /api/auth/plans — retorna planos ativos (público)

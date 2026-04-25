@@ -515,6 +515,8 @@ model Tenant {
   salesPerson           SuperAdmin? @relation(fields: [salesPersonId], references: [id], map: "fk_tenant_salesperson")
   setupToken            String?     @db.VarChar(100)
   setupTokenExpiresAt   DateTime?   @db.DateTime(0)
+  resetToken            String?     @db.VarChar(100)
+  resetTokenExpiresAt   DateTime?   @db.DateTime(0)
 
   @@index([planId], map: "fk_tenant_plan")
   @@index([stripeCustomerId], map: "idx_tenant_stripe_customer")

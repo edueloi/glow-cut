@@ -166,3 +166,43 @@ export async function sendWelcomeEmail(opts: {
     `,
   });
 }
+
+// ─── Email de reset de senha ─────────────────────────────────────────────────
+export async function sendResetPasswordEmail(opts: {
+  toEmail: string;
+  toName: string;
+  resetToken: string;
+}) {
+  const link = `${APP_URL}/reset-password?token=${opts.resetToken}`;
+
+  await transporter.sendMail({
+    from: FROM,
+    to: opts.toEmail,
+    subject: "Redefinição de senha — Agendelle",
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#fff;">
+        <h2 style="color:#1a1a1a;">Olá, ${opts.toName}!</h2>
+        <p style="color:#444;font-size:15px;">
+          Recebemos uma solicitação para redefinir a senha da sua conta no Agendelle.
+        </p>
+        <p style="color:#444;font-size:15px;">Clique no botão abaixo para criar uma nova senha:</p>
+        <a href="${link}" style="
+          display:inline-block;
+          background:#c9a96e;
+          color:#fff;
+          text-decoration:none;
+          padding:14px 32px;
+          border-radius:8px;
+          font-size:15px;
+          font-weight:600;
+          margin:16px 0;
+        ">Redefinir minha senha</a>
+        <p style="color:#888;font-size:13px;margin-top:24px;">
+          Este link é válido por <strong>1 hora</strong>. Se você não solicitou a redefinição, ignore este e-mail — sua senha permanece a mesma.
+        </p>
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
+        <p style="color:#aaa;font-size:12px;">Agendelle — Sistema de Agendamento Profissional</p>
+      </div>
+    `,
+  });
+}
