@@ -502,9 +502,14 @@ function MinhaAgendaView({
                 const min = totalMinutes % 60;
                 const hourStr = `${hour.toString().padStart(2, "0")}:${min.toString().padStart(2, "0")}`;
                 const isFullHour = min === 0;
-                const dayApps = appointments.filter(
-                  (a) => isSameDay(new Date(a.date), currentMonth) && a.startTime === hourStr
-                );
+                const slotStart = totalMinutes;
+                const slotEnd = slotStart + 30;
+                const dayApps = appointments.filter((a) => {
+                  if (!isSameDay(new Date(a.date), currentMonth)) return false;
+                  const [h, m] = a.startTime.split(":").map(Number);
+                  const appMin = h * 60 + m;
+                  return appMin >= slotStart && appMin < slotEnd;
+                });
                 return (
                   <div key={hourStr} className={cn(
                     "flex gap-3 sm:gap-4 px-3 sm:px-6 hover:bg-zinc-50/50 transition-colors group",
@@ -788,9 +793,14 @@ function MinhaAgendaView({
                       {/* Day columns */}
                       {Array.from({ length: 7 }).map((_, j) => {
                         const day = addDays(startOfWeek(currentMonth), j);
-                        const dayApps = appointments.filter(
-                          (a) => isSameDay(new Date(a.date), day) && a.startTime === hourStr
-                        );
+                        const slotStart = totalMinutes;
+                        const slotEnd = slotStart + 30;
+                        const dayApps = appointments.filter((a) => {
+                          if (!isSameDay(new Date(a.date), day)) return false;
+                          const [h, m] = a.startTime.split(":").map(Number);
+                          const appMin = h * 60 + m;
+                          return appMin >= slotStart && appMin < slotEnd;
+                        });
                         const hasApps = dayApps.length > 0;
                         const { blocked: isBlockedWeekDay } = getDayBlockInfo(day, agendaClosedDays, agendaSpecialDays, blockNationalHolidays);
                         return (
