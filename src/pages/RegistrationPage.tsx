@@ -1,17 +1,23 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Building2, User, Lock, Mail, Phone, Globe, CheckCircle, ArrowRight, ArrowLeft, Crown, Shield, MessageCircle, CreditCard, Star } from "lucide-react";
-import { Button, Input, ContentCard, SectionTitle, FormRow, Badge, useToast } from "@/src/components/ui";
+import { 
+  Building2, User, Lock, Mail, Phone, Globe, CheckCircle, 
+  ArrowRight, ArrowLeft, Crown, Shield, MessageCircle, 
+  CreditCard, Star, Zap, Clock, TrendingUp, Users, 
+  Smartphone, Bell, Calendar, Wallet, AlertCircle
+} from "lucide-react";
+import { Button, Input, ContentCard, Badge, useToast } from "@/src/components/ui";
 import { apiFetch } from "@/src/lib/api";
 
-import logoImg from "../images/system/imagem-agendele.png";
+import logoImg from "../images/system/logo-favicon.png";
 
 export default function RegistrationPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const plansRef = useRef<HTMLDivElement>(null);
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // Step 0 is the Landing Page content
   const [loading, setLoading] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
@@ -37,6 +43,17 @@ export default function RegistrationPage() {
       });
   }, []);
 
+  const scrollToPlans = () => {
+    if (plansRef.current) {
+      plansRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const handleStartSelection = () => {
+    setStep(1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const handleNext = () => {
     if (step === 1 && !selectedPlan) {
       toast.warning("Você precisa escolher um plano para continuar.");
@@ -49,6 +66,7 @@ export default function RegistrationPage() {
       }
     }
     setStep(s => s + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleSubmit = async () => {
@@ -88,11 +106,203 @@ export default function RegistrationPage() {
     }
   };
 
+  // --- COMPONENTES DA LANDING PAGE (STEP 0) ---
+
+  if (step === 0) {
+    return (
+      <div className="min-h-screen bg-white font-sans overflow-x-hidden">
+        {/* Navbar Flutuante */}
+        <nav className="fixed top-0 left-0 w-full bg-white/80 backdrop-blur-md z-50 border-b border-zinc-100">
+          <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
+              <img src={logoImg} alt="Agendelle" className="h-10 w-10 object-contain" />
+              <span className="text-2xl font-black text-zinc-900 tracking-tighter">Agendelle</span>
+            </div>
+            <div className="hidden md:flex items-center gap-8">
+              <a href="#beneficios" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Benefícios</a>
+              <a href="#dor" className="text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Por que assinar?</a>
+              <Button onClick={scrollToPlans} size="sm" className="bg-zinc-900 hover:bg-zinc-800 text-white rounded-full px-6">
+                Ver Planos
+              </Button>
+            </div>
+          </div>
+        </nav>
+
+        {/* HERO SECTION */}
+        <header className="pt-40 pb-20 px-6 relative overflow-hidden">
+          <div className="absolute top-20 right-[-10%] w-[40%] h-[40%] bg-amber-400/10 rounded-full blur-[120px] -z-10" />
+          <div className="absolute bottom-20 left-[-10%] w-[30%] h-[30%] bg-indigo-500/10 rounded-full blur-[100px] -z-10" />
+          
+          <div className="max-w-5xl mx-auto text-center space-y-8">
+            <Badge color="primary" className="py-2 px-4 text-xs font-black uppercase tracking-widest animate-bounce">
+              🔥 A Solução Definitiva para o seu Negócio
+            </Badge>
+            <h1 className="text-5xl md:text-7xl font-black text-zinc-900 tracking-tighter leading-[0.95]">
+              Sua agenda não é <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-amber-600 italic">
+                apenas um horário.
+              </span>
+            </h1>
+            <p className="text-xl md:text-2xl text-zinc-500 max-w-3xl mx-auto leading-relaxed font-medium">
+              Pare de perder dinheiro com esquecimentos e desorganização. 
+              Recupere 30% do seu tempo e fature mais com agendamentos 100% automatizados.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+              <Button onClick={handleStartSelection} size="lg" className="h-16 px-10 text-xl bg-amber-500 hover:bg-amber-600 text-white rounded-2xl shadow-2xl shadow-amber-500/30 group">
+                Começar Teste Grátis <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+              <div className="flex flex-col items-start px-4">
+                <div className="flex -space-x-2">
+                  {[1,2,3,4].map(i => (
+                    <div key={i} className="w-8 h-8 rounded-full bg-zinc-200 border-2 border-white" />
+                  ))}
+                  <div className="w-8 h-8 rounded-full bg-amber-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-amber-600">+99</div>
+                </div>
+                <p className="text-[11px] font-bold text-zinc-400 mt-2 uppercase tracking-wider">Junte-se a centenas de profissionais</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* SECTION: A DOR / O PREJUÍZO */}
+        <section id="dor" className="py-24 bg-zinc-950 text-white px-6">
+          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+            <div className="space-y-6">
+              <div className="w-16 h-1 bg-amber-500" />
+              <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">
+                Quanto custa um <br />
+                <span className="text-zinc-500">cliente que não aparece?</span>
+              </h2>
+              <p className="text-lg text-zinc-400 leading-relaxed">
+                Cada "furo" na sua agenda, cada mensagem de marcação que você esquece de responder, e cada minuto que você perde atendendo o telefone é <span className="text-red-400 font-bold underline decoration-red-400/30">dinheiro saindo pelo ralo.</span>
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6">
+                <div className="p-5 bg-white/5 rounded-2xl border border-white/10 flex flex-col gap-3 hover:bg-white/10 transition-colors">
+                  <AlertCircle className="text-red-400" size={32} />
+                  <p className="text-sm font-bold">Agenda Vazia</p>
+                  <p className="text-xs text-zinc-500">Sem um link de agendamento 24h, você perde clientes enquanto dorme.</p>
+                </div>
+                <div className="p-5 bg-white/5 rounded-2xl border border-white/10 flex flex-col gap-3 hover:bg-white/10 transition-colors">
+                  <Clock className="text-amber-400" size={32} />
+                  <p className="text-sm font-bold">Tempo Perdido</p>
+                  <p className="text-xs text-zinc-500">Pare de gastar horas no WhatsApp. Deixe o robô trabalhar por você.</p>
+                </div>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="aspect-square bg-gradient-to-br from-zinc-800 to-zinc-900 rounded-[3rem] p-8 flex flex-col justify-center relative overflow-hidden group">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/20 blur-3xl" />
+                 <TrendingUp className="text-amber-500 mb-6" size={64} />
+                 <h3 className="text-3xl font-black mb-4">Recupere o controle do seu negócio.</h3>
+                 <p className="text-zinc-400 mb-8 leading-relaxed">O Agendelle não é apenas uma agenda, é o seu gerente comercial que nunca dorme, nunca cansa e nunca esquece de cobrar.</p>
+                 <Button onClick={handleStartSelection} className="w-full bg-white text-zinc-900 hover:bg-zinc-100 rounded-2xl h-14 font-black">QUERO PROFISSIONALIZAR MEU ESTÚDIO</Button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION: BENEFÍCIOS */}
+        <section id="beneficios" className="py-24 px-6 bg-zinc-50">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center space-y-4 mb-20">
+              <h2 className="text-3xl md:text-5xl font-black text-zinc-900 tracking-tight">Tudo que você precisa em um só lugar.</h2>
+              <p className="text-zinc-500 text-lg md:text-xl">O sistema mais completo, rápido e bonito do mercado.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                { icon: <Calendar className="text-indigo-500" />, title: "Agendamento Online 24h", desc: "Seu cliente agenda o horário sozinho, sem você precisar falar nada." },
+                { icon: <Bell className="text-amber-500" />, title: "Lembretes no WhatsApp", desc: "Reduza faltas em até 80% com notificações automáticas para seus clientes." },
+                { icon: <Smartphone className="text-emerald-500" />, title: "Site Personalizado", desc: "Ganhe um site exclusivo do seu estúdio para passar credibilidade." },
+                { icon: <Users className="text-blue-500" />, title: "Gestão de Equipe", desc: "Controle as agendas e comissões de todos os seus profissionais." },
+                { icon: <Wallet className="text-purple-500" />, title: "Financeiro Completo", desc: "Saiba exatamente quanto você ganhou hoje, no mês e no ano." },
+                { icon: <Shield className="text-rose-500" />, title: "Segurança Total", desc: "Seus dados e de seus clientes protegidos com tecnologia de ponta." },
+              ].map((item, idx) => (
+                <div key={idx} className="bg-white p-8 rounded-[2rem] shadow-sm border border-zinc-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                  <div className="w-14 h-14 bg-zinc-50 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
+                    {React.cloneElement(item.icon as any, { size: 28 })}
+                  </div>
+                  <h4 className="text-xl font-black text-zinc-900 mb-3">{item.title}</h4>
+                  <p className="text-zinc-500 text-sm leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION: PLANOS (TRIGGER) */}
+        <section ref={plansRef} className="py-24 px-6 bg-white relative">
+          <div className="max-w-6xl mx-auto text-center">
+             <div className="mb-16">
+                <Badge color="primary" className="mb-4">PREÇOS TRANSPARENTES</Badge>
+                <h2 className="text-4xl md:text-6xl font-black text-zinc-900 tracking-tight">Investimento que se paga <br />no primeiro dia.</h2>
+                <p className="mt-4 text-zinc-500 text-lg">Teste grátis por 30 dias. Cancele quando quiser.</p>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                {plans.map((p) => (
+                  <div key={p.id} className={`relative p-8 rounded-[2.5rem] border-2 text-left flex flex-col h-full transition-all duration-500 ${p.name === "Pro" ? 'border-amber-500 shadow-2xl scale-105 z-10 bg-white' : 'border-zinc-100 bg-zinc-50/50'}`}>
+                    {p.name === "Pro" && (
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg">RECOMENDADO</div>
+                    )}
+                    <div className="mb-8">
+                      <h3 className="text-2xl font-black text-zinc-900">{p.name}</h3>
+                      <p className="text-zinc-500 text-xs mt-1 font-medium">Ideal para quem busca {p.name === "Start" ? 'começar' : 'crescer'}.</p>
+                    </div>
+                    <div className="mb-8">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-black text-zinc-900">R$ {Number(p.price).toFixed(2)}</span>
+                        <span className="text-zinc-400 text-sm font-medium">/mês</span>
+                      </div>
+                      <p className="text-[10px] text-emerald-600 font-black mt-2 uppercase tracking-wide">Primeiros 30 dias grátis</p>
+                    </div>
+                    <ul className="space-y-4 mb-10 flex-1">
+                       {JSON.parse(p.features || "[]").map((f: string, i: number) => (
+                        <li key={i} className="flex items-start gap-3 text-sm text-zinc-700 font-medium">
+                          <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <CheckCircle size={12} className="text-emerald-600" />
+                          </div>
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <Button 
+                      onClick={() => { setSelectedPlan(p.id); handleStartSelection(); }} 
+                      className={`w-full h-14 rounded-2xl font-black shadow-xl transition-all ${p.name === "Pro" ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20' : 'bg-white border border-zinc-200 text-zinc-900 hover:bg-zinc-50 shadow-zinc-200/20'}`}
+                    >
+                      Escolher {p.name}
+                    </Button>
+                  </div>
+                ))}
+             </div>
+          </div>
+        </section>
+
+        {/* FOOTER */}
+        <footer className="py-12 bg-zinc-50 border-t border-zinc-100 text-center">
+           <div className="max-w-4xl mx-auto px-6">
+              <div className="flex items-center justify-center gap-2 mb-6">
+                 <Shield size={16} className="text-zinc-400" />
+                 <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Tecnologia Certificada pela Stripe</span>
+              </div>
+              <p className="text-sm text-zinc-500 mb-2">© 2026 Agendelle. Todos os direitos reservados.</p>
+              <p className="text-[10px] text-zinc-400">Desenvolvido para profissionais que valorizam seu tempo.</p>
+           </div>
+        </footer>
+      </div>
+    );
+  }
+
+  // --- COMPONENTES DO FLUXO DE CADASTRO (STEP 1, 2, 3, 4) ---
+
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col items-center py-12 px-4 font-sans">
-      {/* Header */}
+      {/* Header do Flow */}
       <div className="w-full max-w-4xl flex items-center justify-between mb-12">
-        <img src={logoImg} alt="Agendelle" className="h-8 md:h-10 object-contain" />
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setStep(0)}>
+          <img src={logoImg} alt="Agendelle" className="h-8 w-8 object-contain" />
+          <span className="font-black text-zinc-900 text-xl tracking-tighter">Agendelle</span>
+        </div>
         <div className="hidden md:flex items-center gap-6">
           <div className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step >= 1 ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-zinc-200 text-zinc-500'}`}>1</div>
@@ -109,8 +319,8 @@ export default function RegistrationPage() {
             <span className={`text-xs font-bold ${step >= 3 ? 'text-zinc-900' : 'text-zinc-400'}`}>Acesso</span>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => navigate("/")} iconLeft={<ArrowLeft size={14} />}>
-          <span className="hidden sm:inline">Voltar ao site</span>
+        <Button variant="ghost" size="sm" onClick={() => setStep(0)} iconLeft={<ArrowLeft size={14} />}>
+          <span className="hidden sm:inline">Voltar</span>
         </Button>
       </div>
 
@@ -118,8 +328,8 @@ export default function RegistrationPage() {
         {step === 1 && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="text-center space-y-2">
-              <h1 className="text-3xl md:text-4xl font-black text-zinc-900 tracking-tight">Escolha o seu plano</h1>
-              <p className="text-zinc-500 text-lg">Comece hoje com 30 dias de teste grátis. Sem compromisso.</p>
+              <h1 className="text-3xl md:text-4xl font-black text-zinc-900 tracking-tight">Confirmar Plano</h1>
+              <p className="text-zinc-500 text-lg">Selecione o plano ideal para o seu momento.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -135,12 +345,12 @@ export default function RegistrationPage() {
                 >
                   {p.name === "Pro" && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-lg">
-                      Mais Popular
+                      Destaque
                     </div>
                   )}
                   <div className="space-y-4">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${selectedPlan === p.id ? 'bg-amber-500 text-white' : 'bg-zinc-100 text-zinc-500'}`}>
-                      <CreditCard size={24} />
+                      <Zap size={24} />
                     </div>
                     <div>
                       <h3 className="text-lg font-black text-zinc-900">{p.name}</h3>
@@ -190,7 +400,7 @@ export default function RegistrationPage() {
                   />
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black text-zinc-500 uppercase tracking-widest ml-1">Endereço da sua Agenda (Slug)</label>
+                  <label className="text-[11px] font-black text-zinc-500 uppercase tracking-widest ml-1">Endereço da sua Agenda (Link)</label>
                   <div className="flex items-stretch">
                     <div className="bg-zinc-100 border border-r-0 border-zinc-200 rounded-l-xl px-4 flex items-center text-zinc-500 text-sm font-medium">
                       agendelle.com.br/
@@ -233,7 +443,7 @@ export default function RegistrationPage() {
                   required
                 />
 
-                <FormRow>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
                     label="E-mail de Acesso"
                     type="email"
@@ -250,9 +460,9 @@ export default function RegistrationPage() {
                     value={form.ownerPhone}
                     onChange={e => setForm({ ...form, ownerPhone: e.target.value })}
                   />
-                </FormRow>
+                </div>
 
-                <FormRow>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
                     label="Escolha uma Senha"
                     type="password"
@@ -271,7 +481,7 @@ export default function RegistrationPage() {
                     onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
                     required
                   />
-                </FormRow>
+                </div>
 
                 <div className="pt-4 flex gap-4">
                   <Button variant="ghost" onClick={() => setStep(2)} disabled={loading} fullWidth>Voltar</Button>
@@ -330,3 +540,4 @@ export default function RegistrationPage() {
     </div>
   );
 }
+

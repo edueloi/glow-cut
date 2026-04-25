@@ -414,6 +414,7 @@ authRouter.post("/create-checkout", async (req: Request, res: Response) => {
     // Busca tenant para pegar email e stripeCustomerId se existir
     let customer: string | undefined;
     let salesPersonId: string | null = ref || null;
+    let transferData: any = null;
 
     if (tenantId) {
       const tenant = await (prisma as any).tenant.findUnique({
@@ -423,6 +424,53 @@ authRouter.post("/create-checkout", async (req: Request, res: Response) => {
       if (tenant?.stripeCustomerId) customer = tenant.stripeCustomerId;
       if (tenant?.salesPersonId) salesPersonId = tenant.salesPersonId;
       if (!email && tenant?.ownerEmail) req.body.email = tenant.ownerEmail;
+    }
+
+    // Lógica de Repasse Automático (Stripe Connect)
+    if (salesPersonId) {
+      try {
+        const seller = await (prisma as any).superAdmin.findUnique({
+          where: { id: salesPersonId },
+          select: { stripeAccountId: true, commissionType: true, commissionValue: true, commissionByPlan: true }
+        });
+
+        if (seller?.stripeAccountId) {
+          // Verifica se tem comissão específica para este plano
+          let commType = seller.commissionType || "percentage";
+          let commValue = seller.commissionValue || 0;
+
+          if (seller.commissionByPlan) {
+            try {
+              const byPlan = JSON.parse(seller.commissionByPlan);
+              if (byPlan[plan.id]) {
+                commType = byPlan[plan.id].type || commType;
+                commValue = byPlan[plan.id].value || commValue;
+              }
+            } catch (e) {}
+          }
+
+          if (commValue > 0) {
+            let percent = 0;
+            if (commType === "percentage") {
+              percent = commValue;
+            } else if (commType === "fixed" && plan.price > 0) {
+              percent = (commValue / plan.price) * 100;
+            }
+
+            // Garante que o percentual não passe de 100% (segurança)
+            percent = Math.min(Math.max(percent, 0), 100);
+
+            if (percent > 0) {
+              transferData = {
+                destination: seller.stripeAccountId,
+                amount_percent: parseFloat(percent.toFixed(2)),
+              };
+            }
+          }
+        }
+      } catch (e) {
+        console.error("[transfer-data-error]", e);
+      }
     }
 
     const appUrl = process.env.APP_URL || "https://agendelle.com.br";
@@ -439,7 +487,8 @@ authRouter.post("/create-checkout", async (req: Request, res: Response) => {
           planName: plan.name,
           ...(tenantId && { tenantId }),
           ...(salesPersonId && { salesPersonId }),
-        }
+        },
+        ...(transferData && { transfer_data: transferData })
       },
       metadata: {
         planId: plan.id,
