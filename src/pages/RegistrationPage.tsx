@@ -14,6 +14,7 @@ import { apiFetch } from "@/src/lib/api";
 
 import logoImg from "../images/system/logo-favicon.png";
 import mockupImg from "../images/system/agendelle_mockup_dashboard.png";
+const appMockupImg = "/mockup-app-agendelle.png";
 
 export default function RegistrationPage() {
   const [searchParams] = useSearchParams();
@@ -361,32 +362,17 @@ export default function RegistrationPage() {
                 </div>
 
                 {/* Visual */}
-                <div className="relative hidden lg:flex items-center justify-center p-12">
-                  <div className="absolute inset-0 bg-amber-500/5 blur-[60px]" />
-                  <div className="relative z-10 flex flex-col items-center gap-4">
-                    {/* Phone mockup simples */}
-                    <div className="w-48 h-80 bg-zinc-700 rounded-[2.5rem] border-4 border-zinc-600 overflow-hidden shadow-2xl relative">
-                      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-zinc-500 rounded-full" />
-                      <div className="mt-10 p-3">
-                        <div className="bg-zinc-800 rounded-2xl p-3 mb-2">
-                          <div className="w-8 h-8 bg-amber-500 rounded-xl mb-2 flex items-center justify-center">
-                            <img src={logoImg} className="w-5 h-5 object-contain" alt="" />
-                          </div>
-                          <div className="text-white text-[10px] font-black">Agendelle</div>
-                          <div className="text-zinc-400 text-[8px]">App instalado ✓</div>
-                        </div>
-                        <div className="space-y-1.5">
-                          {["08:00 - Maria Silva", "09:30 - João Costa", "11:00 - Ana Souza"].map((s, i) => (
-                            <div key={i} className="bg-amber-500/20 rounded-lg px-2.5 py-1.5">
-                              <p className="text-amber-300 text-[8px] font-bold">{s}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-2">
-                      <CheckCircle size={12} className="text-emerald-400" />
-                      <span className="text-zinc-300 text-[10px] font-bold">Instalado na tela inicial</span>
+                <div className="relative hidden lg:flex items-center justify-center p-8">
+                  <div className="absolute inset-0 bg-amber-500/10 blur-[80px]" />
+                  <div className="relative z-10 w-full max-w-[400px] group">
+                    <img 
+                      src={appMockupImg} 
+                      alt="App Agendelle" 
+                      className="w-full drop-shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-transform duration-500 group-hover:scale-105" 
+                    />
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-full px-5 py-2 border border-white/20 whitespace-nowrap">
+                      <CheckCircle size={14} className="text-emerald-400" />
+                      <span className="text-white text-xs font-bold">Instalado na tela inicial</span>
                     </div>
                   </div>
                 </div>
