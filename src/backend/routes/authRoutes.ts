@@ -603,55 +603,56 @@ authRouter.post("/forgot-password", async (req: Request, res: Response) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: "E-mail obrigatório." });
 
-  // Sempre responde 200 para não revelar se o e-mail existe
+  console.log(`[forgot-password] Solicitação para: ${email}`);
+  console.log(`[forgot-password] SMTP_USER=${process.env.SMTP_USER} SMTP_PASS_SET=${!!process.env.SMTP_PASS && process.env.SMTP_PASS !== "COLOQUE_A_SENHA_AQUI"}`);
+
+  // Responde imediatamente — processamento async em background
   res.json({ ok: true });
 
-  try {
-    const resetToken = randomBytes(32).toString("hex");
-    const resetTokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
+  setImmediate(async () => {
+    try {
+      const resetToken = randomBytes(32).toString("hex");
+      const resetTokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
 
-    // Busca AdminUser primeiro
-    const admin = await (prisma as any).adminUser.findFirst({
-      where: { email, isActive: true },
-      select: { id: true, name: true, tenantId: true },
-    });
-
-    if (admin) {
-      // Salva token no tenant do admin
-      await (prisma as any).tenant.update({
-        where: { id: admin.tenantId },
-        data: { resetToken, resetTokenExpiresAt },
+      // Busca AdminUser primeiro
+      const admin = await (prisma as any).adminUser.findFirst({
+        where: { email, isActive: true },
+        select: { id: true, name: true, tenantId: true },
       });
 
-      await sendResetPasswordEmail({
-        toEmail: email,
-        toName: admin.name,
-        resetToken,
-      }).catch((e: any) => console.error("[Email] Reset password:", e.message));
-      return;
-    }
+      if (admin) {
+        console.log(`[forgot-password] Admin encontrado: ${admin.name}`);
+        await (prisma as any).tenant.update({
+          where: { id: admin.tenantId },
+          data: { resetToken, resetTokenExpiresAt },
+        });
+        await sendResetPasswordEmail({ toEmail: email, toName: admin.name, resetToken });
+        console.log(`[forgot-password] Email enviado para ${email}`);
+        return;
+      }
 
-    // Tenta Professional
-    const prof = await (prisma as any).professional.findFirst({
-      where: { email, isActive: true },
-      select: { id: true, name: true, tenantId: true },
-    });
-
-    if (prof) {
-      await (prisma as any).tenant.update({
-        where: { id: prof.tenantId },
-        data: { resetToken, resetTokenExpiresAt },
+      // Tenta Professional
+      const prof = await (prisma as any).professional.findFirst({
+        where: { email, isActive: true },
+        select: { id: true, name: true, tenantId: true },
       });
 
-      await sendResetPasswordEmail({
-        toEmail: email,
-        toName: prof.name,
-        resetToken,
-      }).catch((e: any) => console.error("[Email] Reset password prof:", e.message));
+      if (prof) {
+        console.log(`[forgot-password] Profissional encontrado: ${prof.name}`);
+        await (prisma as any).tenant.update({
+          where: { id: prof.tenantId },
+          data: { resetToken, resetTokenExpiresAt },
+        });
+        await sendResetPasswordEmail({ toEmail: email, toName: prof.name, resetToken });
+        console.log(`[forgot-password] Email enviado para ${email}`);
+        return;
+      }
+
+      console.warn(`[forgot-password] Nenhum usuário encontrado para: ${email}`);
+    } catch (e: any) {
+      console.error("[forgot-password] ERRO:", e.message);
     }
-  } catch (e: any) {
-    console.error("[forgot-password]", e.message);
-  }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
