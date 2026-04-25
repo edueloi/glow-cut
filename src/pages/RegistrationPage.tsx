@@ -123,11 +123,11 @@ export default function RegistrationPage() {
   };
 
   const faqs = [
-    { q: "Preciso de cartão de crédito para testar?", a: "Não! Você pode criar sua conta e usar todos os recursos por 30 dias sem cadastrar nenhum cartão." },
+    { q: "Como funciona a cobrança?", a: "O primeiro mês é totalmente gratuito (fase de adaptação). Você só começa a pagar após 30 dias de uso. Se cancelar antes desse período, nenhuma cobrança será gerada." },
     { q: "O sistema funciona no celular?", a: "Sim! O Agendelle é totalmente responsivo e funciona perfeitamente em qualquer smartphone, tablet ou computador." },
     { q: "Como meus clientes agendam?", a: "Você terá um link exclusivo (ex: agendelle.com.br/seu-estudio) que pode colocar na bio do Instagram ou enviar pelo WhatsApp." },
-    { q: "Posso cancelar a qualquer momento?", a: "Com certeza. Não temos fidelidade. Se não estiver satisfeito, pode cancelar sua assinatura sem multas." },
-    { q: "O sistema envia mensagens automáticas?", a: "Sim, o Agendelle envia lembretes automáticos de agendamento para reduzir as faltas dos seus clientes." },
+    { q: "Posso cancelar a qualquer momento?", a: "Com certeza. Não temos fidelidade. Se não estiver satisfeito, pode cancelar sua assinatura a qualquer momento diretamente pelo painel." },
+    { q: "O sistema envia mensagens automáticas?", a: "Sim! A partir do Plano Pro, o Agendelle envia lembretes automáticos de agendamento via WhatsApp para reduzir as faltas dos seus clientes." },
   ];
 
   if (step === 0) {
@@ -172,16 +172,6 @@ export default function RegistrationPage() {
               <Button onClick={() => handleStartSelection()} size="lg" className="w-full sm:w-auto h-16 md:h-20 px-10 md:px-14 text-lg md:text-2xl bg-zinc-900 hover:bg-zinc-800 text-white rounded-[2rem] shadow-2xl group transition-all hover:scale-105">
                 Testar Grátis Agora <ArrowRight className="ml-3 group-hover:translate-x-2 transition-transform" />
               </Button>
-              <div className="flex flex-col items-center sm:items-start px-4">
-                <div className="flex -space-x-3">
-                  {[1,2,3,4,5].map(i => (
-                    <div key={i} className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-zinc-200 border-4 border-white shadow-sm overflow-hidden">
-                       <img src={`https://i.pravatar.cc/100?u=${i}`} alt="User" className="w-full h-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-                <p className="text-[10px] md:text-[12px] font-bold text-zinc-400 mt-3 uppercase tracking-widest">+1.500 profissionais ativos hoje</p>
-              </div>
             </div>
 
             {/* Mockup do Sistema */}
@@ -261,7 +251,7 @@ export default function RegistrationPage() {
 
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { icon: <MessageCircle className="text-emerald-500" />, title: "WhatsApp Bot", desc: "Confirmações, lembretes e mensagens de pós-venda 100% automáticas." },
+                { icon: <MessageCircle className="text-emerald-500" />, title: "WhatsApp Bot", desc: "Confirmações e lembretes de agendamento 100% automáticos. (Disponível no Plano Pro)", badge: "PLANO PRO" },
                 { icon: <BarChart3 className="text-blue-500" />, title: "Relatórios de Elite", desc: "Saiba quais serviços dão mais lucro e quem são seus melhores clientes." },
                 { icon: <Layers className="text-purple-500" />, title: "Comandas Digitais", desc: "Abra atendimentos, adicione produtos e receba pagamentos com facilidade." },
                 { icon: <Package className="text-amber-500" />, title: "Controle de Estoque", desc: "Nunca mais fique sem aquele produto essencial. Alertas de reposição automáticos." },
@@ -271,8 +261,11 @@ export default function RegistrationPage() {
                 { icon: <Zap className="text-amber-500" />, title: "Velocidade Real", desc: "Carregamento instantâneo. Sem travamentos, mesmo com milhares de dados." },
               ].map((f, i) => (
                 <div key={i} className="bg-white p-8 rounded-[2rem] border border-zinc-100 shadow-sm hover:shadow-2xl transition-all group">
-                   <div className="w-14 h-14 bg-zinc-50 rounded-2xl flex items-center justify-center mb-6 shadow-inner group-hover:scale-110 transition-transform">
-                      {React.cloneElement(f.icon as any, { size: 28 })}
+                   <div className="flex justify-between items-start mb-6">
+                      <div className="w-14 h-14 bg-zinc-50 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                         {React.cloneElement(f.icon as any, { size: 28 })}
+                      </div>
+                      {f.badge && <span className="text-[8px] font-black bg-amber-100 text-amber-700 px-2 py-1 rounded-md">{f.badge}</span>}
                    </div>
                    <h4 className="text-lg font-black text-zinc-900 mb-2">{f.title}</h4>
                    <p className="text-xs md:text-sm text-zinc-500 leading-relaxed font-medium">{f.desc}</p>
