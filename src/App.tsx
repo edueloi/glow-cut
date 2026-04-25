@@ -17,6 +17,7 @@ import SiteLegalPage from "./pages/SiteLegalPage";
 import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
 import RegistrationPage from "./pages/RegistrationPage";
+import SetupAccountPage from "./pages/SetupAccountPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import PlatformLegalPage from "./pages/PlatformLegalPage";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
@@ -488,6 +489,7 @@ function App() {
           <Route path="/:slug/agendar" element={<ClientBooking />} />
           <Route path="/agendar/:slug" element={<ClientBooking />} />
           <Route path="/assinar" element={<RegistrationPage />} />
+          <Route path="/setup-account" element={<SetupAccountPage />} />
           <Route path="/termos" element={<PlatformLegalPage type="terms" />} />
           <Route path="/privacidade" element={<PlatformLegalPage type="privacy" />} />
         </Routes>

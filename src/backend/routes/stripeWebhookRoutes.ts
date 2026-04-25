@@ -1,12 +1,17 @@
 import express from "express";
 import Stripe from "stripe";
+import { randomBytes } from "crypto";
 import { prisma } from "../prisma";
+import {
+  sendSetupAccountEmail,
+  sendAdminNewSubscriptionEmail,
+  sendAbandonedCheckoutEmail,
+} from "../utils/emailService";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2026-04-22.dahlia" });
 
 export const stripeWebhookRouter = express.Router();
 
-// Webhook precisa do body raw (não JSON parseado)
 stripeWebhookRouter.post(
   "/stripe/webhook",
   express.raw({ type: "application/json" }),
@@ -20,7 +25,6 @@ stripeWebhookRouter.post(
       if (webhookSecret && webhookSecret !== "whsec_COLE_AQUI_QUANDO_CONFIGURAR_WEBHOOK") {
         event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret) as Stripe.Event;
       } else {
-        // Sem webhook secret configurado — aceita em dev sem verificação de assinatura
         event = JSON.parse(req.body.toString()) as Stripe.Event;
       }
     } catch (err: any) {
@@ -33,6 +37,11 @@ stripeWebhookRouter.post(
         case "checkout.session.completed": {
           const session = event.data.object as Stripe.Checkout.Session;
           await handleCheckoutCompleted(session);
+          break;
+        }
+        case "checkout.session.expired": {
+          const session = event.data.object as Stripe.Checkout.Session;
+          await handleCheckoutExpired(session);
           break;
         }
         case "customer.subscription.updated": {
@@ -69,7 +78,7 @@ stripeWebhookRouter.post(
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const tenantId = session.metadata?.tenantId;
-  const planId = session.metadata?.planId;
+  const planName = session.metadata?.planName || "Agendelle";
 
   if (!tenantId) {
     console.warn("[Stripe Webhook] checkout.session.completed sem tenantId no metadata");
@@ -78,6 +87,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
   const subscriptionId = typeof session.subscription === "string" ? session.subscription : (session.subscription as any)?.id;
+
+  // Email e nome do comprador (vêm do Stripe checkout)
+  const buyerEmail = session.customer_details?.email || session.customer_email || null;
+  const buyerName = session.customer_details?.name || null;
 
   let expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30);
@@ -92,12 +105,103 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     }
   }
 
-  const updateData: any = { isActive: true, expiresAt, blockedAt: null };
-  if (planId) updateData.planId = planId;
-  if (customerId) updateData.stripeCustomerId = customerId;
+  // Gera token único de setup (válido por 48h)
+  const setupToken = randomBytes(32).toString("hex");
+  const setupTokenExpiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-  await (prisma as any).tenant.update({ where: { id: tenantId }, data: updateData });
+  const updateData: any = {
+    isActive: true,
+    expiresAt,
+    blockedAt: null,
+    setupToken,
+    setupTokenExpiresAt,
+  };
+  if (session.metadata?.planId) updateData.planId = session.metadata.planId;
+  if (customerId) updateData.stripeCustomerId = customerId;
+  if (buyerEmail) updateData.ownerEmail = buyerEmail;
+  if (buyerName) updateData.ownerName = buyerName;
+
+  const tenant = await (prisma as any).tenant.update({
+    where: { id: tenantId },
+    data: updateData,
+    select: { id: true, name: true, ownerName: true, ownerEmail: true },
+  });
+
   console.log(`[Stripe Webhook] Tenant ${tenantId} ativado via checkout`);
+
+  // Envia emails em paralelo
+  const emailTargetEmail = buyerEmail || tenant.ownerEmail;
+  const emailTargetName = buyerName || tenant.ownerName || "Cliente";
+
+  const emailJobs: Promise<void>[] = [
+    sendAdminNewSubscriptionEmail({
+      tenantName: tenant.name,
+      ownerName: emailTargetName,
+      ownerEmail: emailTargetEmail,
+      planName,
+      tenantId,
+    }).catch((e) => console.error("[Email] Falha aviso admin:", e.message)),
+  ];
+
+  if (emailTargetEmail) {
+    emailJobs.push(
+      sendSetupAccountEmail({
+        toEmail: emailTargetEmail,
+        toName: emailTargetName,
+        tenantName: tenant.name,
+        planName,
+        setupToken,
+      }).catch((e) => console.error("[Email] Falha setup account:", e.message))
+    );
+  }
+
+  await Promise.all(emailJobs);
+}
+
+async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
+  const buyerEmail = session.customer_details?.email || session.customer_email;
+  const buyerName = session.customer_details?.name;
+  const planName = session.metadata?.planName || "Agendelle";
+
+  if (!buyerEmail) return;
+
+  // Gera novo link de checkout para o mesmo plano
+  const planId = session.metadata?.planId;
+  let checkoutUrl = process.env.APP_URL || "https://agendelle.com.br";
+
+  if (planId) {
+    try {
+      const plan = await (prisma as any).plan.findUnique({
+        where: { id: planId },
+        select: { stripePriceId: true, stripePaymentLink: true },
+      });
+      if (plan?.stripePriceId) {
+        const newSession = await stripe.checkout.sessions.create({
+          mode: "subscription",
+          line_items: [{ price: plan.stripePriceId, quantity: 1 }],
+          success_url: `${checkoutUrl}/login?checkout=success&plan=${encodeURIComponent(planName)}`,
+          cancel_url: `${checkoutUrl}/#precos`,
+          customer_email: buyerEmail,
+          allow_promotion_codes: true,
+          metadata: session.metadata || {},
+        });
+        if (newSession.url) checkoutUrl = newSession.url;
+      } else if (plan?.stripePaymentLink) {
+        checkoutUrl = plan.stripePaymentLink;
+      }
+    } catch (e) {
+      console.warn("[Stripe Webhook] Erro ao criar novo checkout para expirado:", e);
+    }
+  }
+
+  await sendAbandonedCheckoutEmail({
+    toEmail: buyerEmail,
+    toName: buyerName || undefined,
+    planName,
+    checkoutUrl,
+  }).catch((e) => console.error("[Email] Falha checkout expirado:", e.message));
+
+  console.log(`[Stripe Webhook] Email de checkout abandonado enviado para ${buyerEmail}`);
 }
 
 async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
@@ -167,5 +271,4 @@ async function handleInvoiceFailed(invoice: Stripe.Invoice) {
   if (!tenant) return;
 
   console.warn(`[Stripe Webhook] Pagamento falhou para tenant ${tenant.id}`);
-  // Não bloqueia imediatamente — subscription.updated vai cuidar quando status mudar
 }

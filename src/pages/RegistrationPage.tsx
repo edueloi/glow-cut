@@ -135,7 +135,7 @@ export default function RegistrationPage() {
 
   const faqs = [
     { q: "Como funciona o período gratuito?", a: "Os primeiros 30 dias são 100% gratuitos, sem precisar de cartão para começar. Você só é cobrado após esse período, se quiser continuar. Cancele antes sem custo nenhum." },
-    { q: "Funciona no celular? Tem app?", a: "Sim! O Agendelle é um App PWA — você instala direto pelo navegador, sem precisar de App Store ou Play Store. Funciona como app nativo no iPhone e Android, ocupa pouquíssimo espaço e funciona offline." },
+    { q: "Funciona no celular? Tem app?", a: "Sim! O Agendelle é um App PWA — você instala direto pelo navegador, sem precisar de App Store ou Play Store. Funciona como app nativo no iPhone e Android, ocupa pouquíssimo espaço e abre instantaneamente. Por ser um sistema online, precisa de internet para funcionar." },
     { q: "Como meus clientes agendam?", a: "Você recebe um link exclusivo (ex: agendelle.com.br/seu-estudio) que pode colocar na bio do Instagram, enviar pelo WhatsApp ou compartilhar onde quiser. Seus clientes agendam sozinhos, 24h por dia." },
     { q: "Posso cancelar a qualquer momento?", a: "Com certeza. Sem fidelidade, sem multa. Se não estiver satisfeito, cancela direto pelo painel em menos de 1 minuto." },
     { q: "O sistema envia mensagens automáticas?", a: "Sim! A partir do Plano Pro, o Agendelle envia lembretes automáticos via WhatsApp antes de cada atendimento, reduzindo faltas em até 90%." },
@@ -342,7 +342,7 @@ export default function RegistrationPage() {
                     {[
                       { icon: <Download size={14} className="text-amber-400" />, t: "Instale sem App Store ou Play Store" },
                       { icon: <Battery size={14} className="text-emerald-400" />, t: "Ocupa menos de 1MB no celular" },
-                      { icon: <Wifi size={14} className="text-blue-400" />, t: "Funciona offline — sem internet" },
+                      { icon: <Wifi size={14} className="text-blue-400" />, t: "Carrega rápido com boa internet" },
                       { icon: <Bell size={14} className="text-purple-400" />, t: "Notificações push como app nativo" },
                       { icon: <Smartphone size={14} className="text-rose-400" />, t: "Compatível com iPhone e Android" },
                     ].map((item, i) => (

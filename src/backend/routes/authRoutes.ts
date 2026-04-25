@@ -3,6 +3,7 @@ import { prisma } from "../prisma";
 import { signToken, requireAuth, type JwtPayload } from "../middleware/auth";
 import { randomUUID } from "crypto";
 import Stripe from "stripe";
+import { sendWelcomeEmail } from "../utils/emailService";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2026-04-22.dahlia" });
 
@@ -515,6 +516,83 @@ authRouter.post("/create-checkout", async (req: Request, res: Response) => {
     console.error("[create-checkout]", e.message);
     res.status(500).json({ error: e.message });
   }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/auth/setup-account?token=xxx
+// Valida o token de setup e retorna nome/email do tenant
+// ─────────────────────────────────────────────────────────────────────────────
+authRouter.get("/setup-account", async (req: Request, res: Response) => {
+  const { token } = req.query;
+  if (!token || typeof token !== "string") {
+    return res.status(400).json({ error: "Token inválido." });
+  }
+
+  const tenant = await (prisma as any).tenant.findFirst({
+    where: { setupToken: token },
+    select: { id: true, name: true, ownerName: true, ownerEmail: true, setupTokenExpiresAt: true },
+  });
+
+  if (!tenant) return res.status(404).json({ error: "Link inválido ou já utilizado." });
+
+  if (tenant.setupTokenExpiresAt && new Date() > new Date(tenant.setupTokenExpiresAt)) {
+    return res.status(410).json({ error: "Este link expirou. Entre em contato com o suporte." });
+  }
+
+  res.json({
+    tenantName: tenant.name,
+    ownerName: tenant.ownerName,
+    ownerEmail: tenant.ownerEmail,
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/setup-account
+// Define a senha do owner e limpa o token de setup
+// ─────────────────────────────────────────────────────────────────────────────
+authRouter.post("/setup-account", async (req: Request, res: Response) => {
+  const { token, password } = req.body;
+
+  if (!token || !password) {
+    return res.status(400).json({ error: "Token e senha são obrigatórios." });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: "A senha deve ter no mínimo 6 caracteres." });
+  }
+
+  const tenant = await (prisma as any).tenant.findFirst({
+    where: { setupToken: token },
+    select: { id: true, name: true, slug: true, ownerName: true, ownerEmail: true, setupTokenExpiresAt: true },
+  });
+
+  if (!tenant) return res.status(404).json({ error: "Link inválido ou já utilizado." });
+
+  if (tenant.setupTokenExpiresAt && new Date() > new Date(tenant.setupTokenExpiresAt)) {
+    return res.status(410).json({ error: "Este link expirou. Entre em contato com o suporte." });
+  }
+
+  // Atualiza a senha do AdminUser do owner e limpa o token
+  await (prisma as any).adminUser.updateMany({
+    where: { tenantId: tenant.id, role: "owner" },
+    data: { password, isActive: true },
+  });
+
+  await (prisma as any).tenant.update({
+    where: { id: tenant.id },
+    data: { setupToken: null, setupTokenExpiresAt: null },
+  });
+
+  // Envia email de boas-vindas
+  if (tenant.ownerEmail) {
+    sendWelcomeEmail({
+      toEmail: tenant.ownerEmail,
+      toName: tenant.ownerName || "Cliente",
+      tenantSlug: tenant.slug,
+    }).catch((e: any) => console.error("[Email] Boas-vindas:", e.message));
+  }
+
+  console.log(`[Setup] Conta configurada para tenant ${tenant.id}`);
+  res.json({ success: true, email: tenant.ownerEmail });
 });
 
 // GET /api/auth/plans — retorna planos ativos (público)
