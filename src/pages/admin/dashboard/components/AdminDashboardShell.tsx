@@ -126,7 +126,7 @@ export function AdminDashboardShell({
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-50 font-sans text-zinc-700 selection:bg-amber-500/30">
       {slotHover && (
-        <div className="fixed z-[200] pointer-events-none" style={{ left: slotHover.x + 14, top: slotHover.y - 36 }}>
+        <div className="fixed z-[200] pointer-events-none hidden sm:block" style={{ left: slotHover.x + 14, top: slotHover.y - 36 }}>
           <div className="flex items-center gap-2 whitespace-nowrap rounded-xl bg-zinc-900/95 px-3 py-2 text-[11px] font-bold text-white shadow-2xl">
             <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500">
               <Plus size={11} className="text-white" />

@@ -339,40 +339,38 @@ function MinhaAgendaView({
   }
 
   return (
-    <div className="flex flex-col h-full gap-3 sm:gap-4">
+    <div className="flex flex-col h-full gap-3 sm:gap-4 overflow-hidden">
       {/* ── Top controls ── */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        {/* Left: view switcher */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-0.5 bg-zinc-100 p-1 rounded-xl">
-            {(["day", "week", "month"] as const).map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-wider",
-                  view === v
-                    ? "bg-white text-zinc-900 shadow-sm"
-                    : "text-zinc-500 hover:text-zinc-700"
-                )}
-              >
-                {v === "day" ? "Dia" : v === "week" ? "Sem." : "Mês"}
-              </button>
-            ))}
-          </div>
+      {/* Desktop: tudo numa linha | Mobile/tablet: view switcher em cima, nav + novo embaixo */}
+      <div className="flex flex-col md:flex-row md:items-center md:gap-2 gap-2">
+        {/* View switcher */}
+        <div className="flex items-center gap-0.5 bg-zinc-100 p-1 rounded-xl w-full md:w-auto">
+          {(["day", "week", "month"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={cn(
+                "flex-1 md:flex-none px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-wider",
+                view === v
+                  ? "bg-white text-zinc-900 shadow-sm"
+                  : "text-zinc-500 hover:text-zinc-700"
+              )}
+            >
+              {v === "day" ? "Dia" : v === "week" ? "Sem." : "Mês"}
+            </button>
+          ))}
         </div>
 
-        {/* Right: nav + new button */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* today + prev/next */}
+        {/* Nav + botão novo */}
+        <div className="flex items-center gap-2 flex-1">
           <button
             onClick={() => setCurrentMonth(new Date())}
-            className="px-3 py-1.5 bg-white border border-zinc-200 rounded-xl text-[10px] font-black text-zinc-600 hover:bg-zinc-50 transition-all shadow-sm uppercase tracking-wider"
+            className="px-3 py-1.5 bg-white border border-zinc-200 rounded-xl text-[10px] font-black text-zinc-600 hover:bg-zinc-50 transition-all shadow-sm uppercase tracking-wider shrink-0"
           >
             Hoje
           </button>
-          <div className="flex items-center gap-0.5 bg-white border border-zinc-200 p-1 rounded-xl shadow-sm">
-            <button onClick={navPrev} className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition-colors">
+          <div className="flex items-center gap-0.5 bg-white border border-zinc-200 p-1 rounded-xl shadow-sm flex-1 md:flex-none md:w-auto min-w-0">
+            <button onClick={navPrev} className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition-colors shrink-0">
               <ChevronLeft size={14} />
             </button>
             <DatePicker
@@ -384,28 +382,29 @@ function MinhaAgendaView({
                 }
               }}
               renderTrigger={() => (
-                <span className="text-[10px] font-black text-zinc-800 px-1.5 sm:px-2 min-w-[90px] sm:min-w-[120px] text-center uppercase tracking-widest cursor-pointer hover:bg-zinc-100 rounded-lg py-1 transition-colors block">
+                <span className="text-[10px] font-black text-zinc-800 px-1.5 md:px-2 min-w-[90px] md:min-w-[120px] text-center uppercase tracking-widest cursor-pointer hover:bg-zinc-100 rounded-lg py-1 transition-colors block truncate">
                   {dateLabel}
                 </span>
               )}
               className="!w-auto"
             />
-            <button onClick={navNext} className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition-colors">
+            <button onClick={navNext} className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition-colors shrink-0">
               <ChevronRight size={14} />
             </button>
           </div>
 
+          {/* Botão Novo — esticado no mobile, fixo no desktop */}
           <Button
             onClick={() => {
               const empty = { id: undefined, date: new Date(), startTime: "09:00", duration: 60, clientId: "", clientPhone: "", clientName: "", serviceId: "", packageId: "", serviceIds: [], professionalId: "", status: "agendado", notes: "", recurrence: { type: "none", count: 1, interval: 7 }, comandaId: "", type: "atendimento" };
               setIsAppointmentModalOpen(true);
               setNewAppointment(empty);
             }}
-            className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-3 sm:px-5 font-bold shadow-sm flex items-center gap-1.5 text-xs h-9"
+            className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-4 md:px-5 font-bold shadow-sm flex items-center justify-center gap-1.5 text-xs h-9 shrink-0 flex-1 md:flex-none"
           >
             <Plus size={14} />
-            <span className="hidden sm:inline">Novo Agendamento</span>
-            <span className="sm:hidden">Novo</span>
+            <span className="hidden md:inline">Novo Agendamento</span>
+            <span className="md:hidden">+ Novo</span>
           </Button>
         </div>
       </div>
@@ -496,8 +495,18 @@ function MinhaAgendaView({
               </div>
             ) : (
             <div className="flex-1 overflow-y-auto scrollbar-hide divide-y divide-zinc-50">
-              {Array.from({ length: 28 }).map((_, i) => {
-                const totalMinutes = (i + 16) * 30; // starts at 08:00
+              {(() => {
+                const todayApps = appointments.filter((a) => isSameDay(new Date(a.date), currentMonth));
+                const minAppMin = todayApps.reduce((min, a) => {
+                  const [h, m] = a.startTime.split(":").map(Number);
+                  return Math.min(min, h * 60 + m);
+                }, 480);
+                const gridStartMin = Math.floor(Math.min(minAppMin, 480) / 30) * 30;
+                const gridStartSlot = gridStartMin / 30;
+                const gridEndSlot = 44; // 22:00
+                const slotCount = gridEndSlot - gridStartSlot;
+                return Array.from({ length: slotCount }).map((_, i) => {
+                const totalMinutes = (gridStartSlot + i) * 30;
                 const hour = Math.floor(totalMinutes / 60);
                 const min = totalMinutes % 60;
                 const hourStr = `${hour.toString().padStart(2, "0")}:${min.toString().padStart(2, "0")}`;
@@ -595,7 +604,8 @@ function MinhaAgendaView({
                     </div>
                   </div>
                 );
-              })}
+              });
+              })()}
             </div>
             )}
           </div>
@@ -727,10 +737,10 @@ function MinhaAgendaView({
 
         {/* ── VIEW: WEEK ── */}
         {view === "week" && (
-          <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex flex-col flex-1 min-h-0 min-w-0">
             {/* Horizontal scroll wrapper for entire week grid */}
-            <div className="flex-1 overflow-auto scrollbar-hide">
-              <div style={{ minWidth: "700px" }}>
+            <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-hide">
+              <div style={{ minWidth: "620px", width: "100%", minHeight: "100%" }}>
                 {/* Week header */}
                 <div
                   className="grid border-b border-zinc-100 sticky top-0 z-10 bg-white"
@@ -770,8 +780,23 @@ function MinhaAgendaView({
                 </div>
 
                 {/* Hour rows — 30-min intervals */}
-                {Array.from({ length: 28 }).map((_, i) => {
-                  const totalMinutes = (i + 16) * 30; // starts at 08:00
+                {(() => {
+                  const weekStart = startOfWeek(currentMonth);
+                  const weekEnd = endOfWeek(currentMonth);
+                  const weekApps = appointments.filter((a) => {
+                    const d = new Date(a.date);
+                    return d >= weekStart && d <= weekEnd;
+                  });
+                  const minAppMin = weekApps.reduce((min, a) => {
+                    const [h, m] = a.startTime.split(":").map(Number);
+                    return Math.min(min, h * 60 + m);
+                  }, 480);
+                  const gridStartMin = Math.floor(Math.min(minAppMin, 480) / 30) * 30;
+                  const gridStartSlot = gridStartMin / 30;
+                  const gridEndSlot = 44; // 22:00
+                  const slotCount = gridEndSlot - gridStartSlot;
+                  return Array.from({ length: slotCount }).map((_, i) => {
+                  const totalMinutes = (gridStartSlot + i) * 30;
                   const hour = Math.floor(totalMinutes / 60);
                   const min = totalMinutes % 60;
                   const hourStr = `${hour.toString().padStart(2, "0")}:${min.toString().padStart(2, "0")}`;
@@ -850,15 +875,12 @@ function MinhaAgendaView({
 
                             {/* Appointment cards — multiple per slot */}
                             {hasApps && (
-                              <div className="absolute inset-0 z-10 flex">
-                                {dayApps.map((app, index) => {
-                                  // Average height: 1 hr = ~73px
-                                  const heightPx = Math.max((app.duration / 60) * 73, 26);
+                              <div className="absolute inset-x-0 top-0 z-10 flex" style={{ height: `${Math.max(...dayApps.map(a => Math.max((a.duration / 60) * 73, 36)))}px` }}>
+                                {dayApps.map((app) => {
                                   return (
-                                  <div 
-                                    key={app.id} 
-                                    className="relative flex-1 p-0.5"
-                                    style={{ height: `${heightPx}px` }}
+                                  <div
+                                    key={app.id}
+                                    className="relative flex-1 p-0.5 h-full"
                                   >
                                     <motion.div
                                       initial={{ opacity: 0, scale: 0.95 }}
@@ -867,12 +889,12 @@ function MinhaAgendaView({
                                       onMouseLeave={() => setHoveredAppointment(null)}
                                       onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(app); }}
                                       className={cn(
-                                        "rounded-lg p-0.5 sm:p-1 flex flex-col justify-between cursor-pointer transition-all border hover:shadow-md w-full h-full overflow-hidden",
+                                        "rounded-sm p-1 sm:p-1.5 flex flex-col justify-between cursor-pointer transition-all border hover:shadow-md w-full h-full",
                                         appBg(app.type, app.status)
                                       )}
                                     >
                                       <div className="flex flex-col gap-0 min-w-0 flex-1">
-                                        <p className={cn("text-[10px] font-black leading-tight line-clamp-2", appText(app.type, app.status))}>
+                                        <p className={cn("text-[10px] font-black leading-tight", appText(app.type, app.status))}>
                                           {app.type === "bloqueio"
                                             ? "🚫 Bloq."
                                             : app.type === "pessoal"
@@ -880,7 +902,7 @@ function MinhaAgendaView({
                                             : app.client?.name}
                                         </p>
                                         {app.type === "atendimento" && app.service && app.duration >= 45 && (
-                                          <p className="text-[8px] font-bold text-amber-600/80 line-clamp-1 leading-none mt-0.5">
+                                          <p className="text-[8px] font-bold text-amber-600/80 leading-none mt-0.5">
                                             {app.service.name}
                                           </p>
                                         )}
@@ -930,7 +952,8 @@ function MinhaAgendaView({
                       })}
                     </div>
                   );
-                })}
+                });
+                })()}
               </div>
             </div>
           </div>
