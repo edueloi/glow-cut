@@ -730,7 +730,7 @@ function MinhaAgendaView({
           <div className="flex flex-col flex-1 min-h-0">
             {/* Horizontal scroll wrapper for entire week grid */}
             <div className="flex-1 overflow-auto scrollbar-hide">
-              <div style={{ minWidth: "520px" }}>
+              <div style={{ minWidth: "700px" }}>
                 {/* Week header */}
                 <div
                   className="grid border-b border-zinc-100 sticky top-0 z-10 bg-white"
@@ -872,7 +872,7 @@ function MinhaAgendaView({
                                       )}
                                     >
                                       <div className="flex flex-col gap-0 min-w-0 flex-1">
-                                        <p className={cn("text-[9px] font-black leading-[1] break-words line-clamp-2", appText(app.type, app.status))}>
+                                        <p className={cn("text-[10px] font-black leading-tight line-clamp-2", appText(app.type, app.status))}>
                                           {app.type === "bloqueio"
                                             ? "🚫 Bloq."
                                             : app.type === "pessoal"
