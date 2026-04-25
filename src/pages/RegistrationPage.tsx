@@ -52,6 +52,27 @@ export default function RegistrationPage() {
     }
   };
 
+  const openCheckout = async (plan: any) => {
+    try {
+      const r = await fetch("/api/auth/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId: plan.id, ref: salesPersonId }),
+      });
+      const data = await r.json();
+      if (data.url) {
+        window.open(data.url, "_blank", "noopener,noreferrer");
+        return;
+      }
+    } catch {}
+    // fallback: link direto do vendedor
+    if (salesPersonId) {
+      window.open(`https://agendelle.com.br/assinar?ref=${salesPersonId}`, "_blank", "noopener,noreferrer");
+    } else if (plan.stripePaymentLink) {
+      window.open(plan.stripePaymentLink, "_blank", "noopener,noreferrer");
+    }
+  };
+
   const handleStartSelection = (planId?: string) => {
     if (planId) {
       setSelectedPlan(planId);
@@ -137,12 +158,12 @@ export default function RegistrationPage() {
         <nav className="fixed top-0 left-0 w-full bg-white/90 backdrop-blur-xl z-50 border-b border-zinc-100">
           <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-3 cursor-pointer" onClick={() => navigate("/")}>
-              <img src={logoImg} alt="Agendelle" className="h-8 w-8 md:h-10 md:w-10 object-contain" />
-              <span className="text-xl md:text-2xl font-black text-zinc-900 tracking-tighter">Agendelle</span>
+              <img src={logoImg} alt="Agendelle" className="h-7 w-7 md:h-10 md:w-10 object-contain" />
+              <span className="text-lg md:text-2xl font-black text-zinc-900 tracking-tighter">Agendelle</span>
             </div>
-            <div className="flex items-center gap-3 md:gap-8">
+            <div className="flex items-center gap-2 md:gap-8">
               <a href="#beneficios" className="hidden lg:block text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">Funcionalidades</a>
-              <Button onClick={scrollToPlans} size="sm" className="bg-zinc-900 hover:bg-zinc-800 text-white rounded-full px-4 md:px-6 text-[10px] md:text-sm font-black uppercase tracking-widest">
+              <Button onClick={scrollToPlans} size="sm" className="bg-zinc-900 hover:bg-zinc-800 text-white rounded-full px-4 md:px-6 text-[10px] md:text-sm font-black uppercase tracking-widest h-9 md:h-11">
                 VER PLANOS
               </Button>
             </div>
@@ -150,92 +171,92 @@ export default function RegistrationPage() {
         </nav>
 
         {/* HERO SECTION */}
-        <header className="pt-28 md:pt-40 pb-16 md:pb-32 px-6 relative overflow-hidden bg-gradient-to-b from-zinc-50 to-white">
-          <div className="absolute top-20 right-[-10%] w-[60%] md:w-[40%] h-[40%] bg-amber-400/10 rounded-full blur-[80px] md:blur-[120px] -z-10 animate-pulse" />
-          <div className="absolute bottom-20 left-[-10%] w-[50%] md:w-[30%] h-[30%] bg-indigo-500/10 rounded-full blur-[70px] md:blur-[100px] -z-10 animate-pulse" />
+        <header className="pt-24 md:pt-40 pb-12 md:pb-32 px-4 md:px-6 relative overflow-hidden bg-gradient-to-b from-zinc-50 to-white">
+          <div className="absolute top-10 right-[-10%] w-[80%] md:w-[40%] h-[40%] bg-amber-400/10 rounded-full blur-[60px] md:blur-[120px] -z-10 animate-pulse" />
+          <div className="absolute bottom-10 left-[-10%] w-[70%] md:w-[30%] h-[30%] bg-indigo-500/10 rounded-full blur-[50px] md:blur-[100px] -z-10 animate-pulse" />
           
-          <div className="max-w-6xl mx-auto text-center space-y-6 md:space-y-10">
-            <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 py-2 px-4 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest shadow-sm">
-              <Star size={14} className="fill-amber-500" /> A ESCOLHA Nº 1 DOS MELHORES ESTÚDIOS
+          <div className="max-w-6xl mx-auto text-center space-y-5 md:space-y-10">
+            <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 py-1.5 px-3 md:py-2 md:px-4 rounded-full text-[9px] md:text-xs font-black uppercase tracking-widest shadow-sm">
+              <Star size={12} className="fill-amber-500 md:w-3.5 md:h-3.5" /> A ESCOLHA Nº 1 DOS MELHORES ESTÚDIOS
             </div>
-            <h1 className="text-4xl md:text-8xl font-black text-zinc-900 tracking-tighter leading-[1.05] md:leading-[0.9] max-w-5xl mx-auto">
-              Transforme sua paixão em um <br />
+            <h1 className="text-3xl md:text-8xl font-black text-zinc-900 tracking-tighter leading-[1.1] md:leading-[0.9] max-w-5xl mx-auto">
+              Transforme sua paixão em um <br className="hidden md:block" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 italic">
                 Império Lucrativo.
               </span>
             </h1>
-            <p className="text-base md:text-2xl text-zinc-500 max-w-3xl mx-auto leading-relaxed font-medium px-2">
+            <p className="text-sm md:text-2xl text-zinc-500 max-w-2xl mx-auto leading-relaxed font-medium px-2">
               A única plataforma que une Agendamento 24h, Gestão Financeira Real e Automação de WhatsApp em uma interface que seus clientes vão amar.
             </p>
             
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
-              <Button onClick={() => handleStartSelection()} size="lg" className="w-full sm:w-auto h-16 md:h-20 px-10 md:px-14 text-lg md:text-2xl bg-zinc-900 hover:bg-zinc-800 text-white rounded-[2rem] shadow-2xl group transition-all hover:scale-105">
-                Testar Grátis Agora <ArrowRight className="ml-3 group-hover:translate-x-2 transition-transform" />
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 md:pt-6">
+              <Button onClick={() => handleStartSelection()} size="lg" className="w-full sm:w-auto h-14 md:h-20 px-8 md:px-14 text-base md:text-2xl bg-zinc-900 hover:bg-zinc-800 text-white rounded-[1.5rem] md:rounded-[2rem] shadow-2xl group transition-all hover:scale-105 active:scale-95">
+                Testar Grátis Agora <ArrowRight className="ml-2 md:ml-3 group-hover:translate-x-2 transition-transform w-4 h-4 md:w-6 md:h-6" />
               </Button>
             </div>
 
             {/* Mockup do Sistema */}
-            <div className="mt-16 md:mt-24 relative max-w-5xl mx-auto group">
-               <div className="absolute -inset-4 md:-inset-10 bg-gradient-to-tr from-amber-500/20 to-indigo-500/20 rounded-[3rem] blur-3xl opacity-50 group-hover:opacity-100 transition-opacity" />
-               <div className="relative bg-zinc-900 rounded-[2rem] md:rounded-[3.5rem] p-2 md:p-4 shadow-[0_0_80px_rgba(0,0,0,0.15)] overflow-hidden">
-                  <img src={mockupImg} alt="Agendelle Dashboard" className="w-full rounded-[1.5rem] md:rounded-[2.8rem] shadow-2xl" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/40 to-transparent pointer-events-none" />
+            <div className="mt-12 md:mt-24 relative max-w-5xl mx-auto group px-2 md:px-0">
+               <div className="absolute -inset-2 md:-inset-10 bg-gradient-to-tr from-amber-500/10 to-indigo-500/10 rounded-[2rem] md:rounded-[3.5rem] blur-2xl md:blur-3xl opacity-50 group-hover:opacity-100 transition-opacity" />
+               <div className="relative bg-zinc-900 rounded-[1.5rem] md:rounded-[3.5rem] p-1.5 md:p-4 shadow-[0_0_50px_rgba(0,0,0,0.1)] overflow-hidden">
+                  <img src={mockupImg} alt="Agendelle Dashboard" className="w-full rounded-[1rem] md:rounded-[2.8rem] shadow-2xl" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/20 to-transparent pointer-events-none" />
                </div>
             </div>
           </div>
         </header>
 
         {/* SECTION: COMPARATIVO */}
-        <section className="py-24 px-6 bg-white overflow-hidden">
+        <section className="py-16 md:py-24 px-4 md:px-6 bg-white overflow-hidden">
            <div className="max-w-6xl mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-                 <div className="space-y-8">
-                    <Badge color="primary" className="py-1 px-3">O FIM DO CAOS</Badge>
-                    <h2 className="text-3xl md:text-5xl font-black text-zinc-900 tracking-tight leading-[1.1]">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-16 items-center">
+                 <div className="space-y-6 md:space-y-8">
+                    <Badge color="primary" className="py-1 px-3 text-[10px]">O FIM DO CAOS</Badge>
+                    <h2 className="text-2xl md:text-5xl font-black text-zinc-900 tracking-tight leading-[1.2] md:leading-[1.1]">
                       Você ainda usa <br />
                       <span className="text-zinc-400 line-through decoration-amber-500 decoration-4">Agenda de Papel?</span>
                     </h2>
-                    <p className="text-lg text-zinc-500 font-medium">A desorganização é o inimigo nº 1 do seu faturamento. Veja o que você está perdendo:</p>
+                    <p className="text-sm md:text-lg text-zinc-500 font-medium">A desorganização é o inimigo nº 1 do seu faturamento. Veja o que você está perdendo:</p>
                     
-                    <div className="space-y-4 pt-4">
+                    <div className="space-y-3 md:space-y-4 pt-2 md:pt-4">
                        {[
-                         { t: "Furos na Agenda", d: "Clientes esquecem e você fica com horário vago e sem lucro.", icon: <XCircle className="text-red-500" /> },
-                         { t: "Escravidão do WhatsApp", d: "Você gasta 4h por dia respondendo clientes em vez de estar atendendo.", icon: <XCircle className="text-red-500" /> },
-                         { t: "Furo no Caixa", d: "No final do mês, você não sabe para onde foi o dinheiro.", icon: <XCircle className="text-red-500" /> },
+                         { t: "Furos na Agenda", d: "Clientes esquecem e você fica com horário vago.", icon: <XCircle className="text-red-500 w-5 h-5" /> },
+                         { t: "Escravidão do WhatsApp", d: "Você gasta 4h por dia respondendo clientes.", icon: <XCircle className="text-red-500 w-5 h-5" /> },
+                         { t: "Furo no Caixa", d: "No final do mês, você não sabe onde está o lucro.", icon: <XCircle className="text-red-500 w-5 h-5" /> },
                        ].map((item, i) => (
-                         <div key={i} className="flex gap-4 p-4 bg-red-50/50 rounded-2xl border border-red-100">
-                            <div className="mt-1">{item.icon}</div>
+                         <div key={i} className="flex gap-3 md:gap-4 p-4 bg-red-50/50 rounded-2xl border border-red-100">
+                            <div className="mt-0.5">{item.icon}</div>
                             <div>
-                               <p className="font-black text-zinc-900 text-sm md:text-base">{item.t}</p>
-                               <p className="text-xs md:text-sm text-zinc-500 mt-0.5">{item.d}</p>
+                               <p className="font-black text-zinc-900 text-xs md:text-base">{item.t}</p>
+                               <p className="text-[10px] md:text-sm text-zinc-500 mt-0.5">{item.d}</p>
                             </div>
                          </div>
                        ))}
                     </div>
                  </div>
 
-                 <div className="bg-zinc-900 rounded-[3rem] p-8 md:p-12 text-white relative shadow-2xl group">
-                    <div className="absolute top-0 right-0 p-8">
-                       <Crown className="text-amber-500" size={48} />
+                 <div className="bg-zinc-900 rounded-[2rem] md:rounded-[3rem] p-6 md:p-12 text-white relative shadow-2xl group">
+                    <div className="absolute top-0 right-0 p-6 md:p-8 opacity-20 md:opacity-100">
+                       <Crown className="text-amber-500 w-8 h-8 md:w-12 md:h-12" />
                     </div>
-                    <h3 className="text-3xl md:text-4xl font-black mb-8">A Era Agendelle</h3>
-                    <div className="space-y-6">
+                    <h3 className="text-2xl md:text-4xl font-black mb-6 md:mb-8">A Era Agendelle</h3>
+                    <div className="space-y-4 md:space-y-6">
                        {[
-                         { t: "Agendamento Automático", d: "Seu link trabalha 24h por você. O cliente agenda sozinho.", icon: <CheckCircle className="text-emerald-500" /> },
-                         { t: "Lembretes Inteligentes", d: "WhatsApp avisa o cliente. Faltas reduzidas em até 90%.", icon: <CheckCircle className="text-emerald-500" /> },
-                         { t: "Controle Total", d: "Gráficos de lucro, comissões de equipe e estoque na palma da mão.", icon: <CheckCircle className="text-emerald-500" /> },
+                         { t: "Agendamento Automático", d: "Seu link trabalha 24h por você.", icon: <CheckCircle className="text-emerald-500 w-5 h-5" /> },
+                         { t: "Lembretes Inteligentes", d: "Reduza faltas em até 90% via WhatsApp.", icon: <CheckCircle className="text-emerald-500 w-5 h-5" /> },
+                         { t: "Controle Total", d: "Gráficos de lucro e comissões automáticas.", icon: <CheckCircle className="text-emerald-500 w-5 h-5" /> },
                        ].map((item, i) => (
-                         <div key={i} className="flex gap-4 p-5 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-all">
-                            <div className="mt-1">{item.icon}</div>
+                         <div key={i} className="flex gap-3 md:gap-4 p-4 md:p-5 bg-white/5 rounded-2xl md:rounded-3xl border border-white/10 hover:bg-white/10 transition-all">
+                            <div className="mt-0.5">{item.icon}</div>
                             <div>
-                               <p className="font-black text-white text-base md:text-lg">{item.t}</p>
-                               <p className="text-xs md:text-sm text-zinc-400 mt-1">{item.d}</p>
+                               <p className="font-black text-white text-sm md:text-lg">{item.t}</p>
+                               <p className="text-[10px] md:text-sm text-zinc-400 mt-1">{item.d}</p>
                             </div>
                          </div>
                        ))}
                     </div>
-                    <Button onClick={() => handleStartSelection()} className="w-full mt-10 h-16 md:h-20 bg-white text-zinc-900 hover:bg-amber-500 hover:text-white rounded-3xl font-black text-sm md:text-lg transition-all shadow-xl group">
-                       SIM, QUERO O AGENDELLE AGORA <ArrowRight className="ml-2 group-hover:translate-x-2 transition-transform" />
+                    <Button onClick={() => handleStartSelection()} className="w-full mt-8 md:mt-10 h-14 md:h-20 bg-white text-zinc-900 hover:bg-amber-500 hover:text-white rounded-2xl md:rounded-3xl font-black text-xs md:text-lg transition-all shadow-xl group">
+                       QUERO O AGENDELLE AGORA <ArrowRight className="ml-2 group-hover:translate-x-2 transition-transform w-4 h-4 md:w-5 md:h-5" />
                     </Button>
                  </div>
               </div>
@@ -243,57 +264,57 @@ export default function RegistrationPage() {
         </section>
 
         {/* SECTION: FUNCIONALIDADES DETALHADAS */}
-        <section id="beneficios" className="py-24 px-6 bg-zinc-50">
-           <div className="max-w-6xl mx-auto text-center mb-16">
-              <Badge color="primary" className="mb-4">O PODER DO SISTEMA</Badge>
-              <h2 className="text-3xl md:text-6xl font-black text-zinc-900 tracking-tight">O que faz o Agendelle ser Top?</h2>
+        <section id="beneficios" className="py-16 md:py-24 px-4 md:px-6 bg-zinc-50">
+           <div className="max-w-6xl mx-auto text-center mb-10 md:mb-16">
+              <Badge color="primary" className="mb-3 text-[10px]">O PODER DO SISTEMA</Badge>
+              <h2 className="text-2xl md:text-6xl font-black text-zinc-900 tracking-tight leading-tight">O que faz o Agendelle <br className="md:hidden" /> ser Top?</h2>
            </div>
 
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
               {[
-                { icon: <MessageCircle className="text-emerald-500" />, title: "WhatsApp Bot", desc: "Confirmações e lembretes de agendamento 100% automáticos. (Disponível no Plano Pro)", badge: "PLANO PRO" },
-                { icon: <BarChart3 className="text-blue-500" />, title: "Relatórios de Elite", desc: "Saiba quais serviços dão mais lucro e quem são seus melhores clientes." },
-                { icon: <Layers className="text-purple-500" />, title: "Comandas Digitais", desc: "Abra atendimentos, adicione produtos e receba pagamentos com facilidade." },
-                { icon: <Package className="text-amber-500" />, title: "Controle de Estoque", desc: "Nunca mais fique sem aquele produto essencial. Alertas de reposição automáticos." },
-                { icon: <Users className="text-indigo-500" />, title: "Cálculo de Comissão", desc: "Esqueça a calculadora. O sistema faz o rateio exato para seus profissionais." },
-                { icon: <Smartphone className="text-rose-500" />, title: "PWA Instalação", desc: "Instale o sistema no seu celular como se fosse um app da Apple Store." },
-                { icon: <Shield className="text-zinc-600" />, title: "Segurança AWS", desc: "Seus dados em servidores globais com backup diário automático." },
-                { icon: <Zap className="text-amber-500" />, title: "Velocidade Real", desc: "Carregamento instantâneo. Sem travamentos, mesmo com milhares de dados." },
+                { icon: <MessageCircle className="text-emerald-500" />, title: "WhatsApp Bot", desc: "Confirmações e lembretes de agendamento automáticos. (Plano Pro)", badge: "PRO" },
+                { icon: <BarChart3 className="text-blue-500" />, title: "Relatórios", desc: "Saiba quais serviços dão mais lucro e quem são seus melhores clientes." },
+                { icon: <Layers className="text-purple-500" />, title: "Comandas", desc: "Abra atendimentos, adicione produtos e receba pagamentos com facilidade." },
+                { icon: <Package className="text-amber-500" />, title: "Estoque", desc: "Nunca mais fique sem produtos essenciais com alertas automáticos." },
+                { icon: <Users className="text-indigo-500" />, title: "Comissão", desc: "O sistema faz o rateio exato para seus profissionais automaticamente." },
+                { icon: <Smartphone className="text-rose-500" />, title: "App PWA", desc: "Instale o sistema no seu celular como se fosse um app da Apple Store." },
+                { icon: <Shield className="text-zinc-600" />, title: "Segurança", desc: "Seus dados em servidores AWS globais com backup diário." },
+                { icon: <Zap className="text-amber-500" />, title: "Velocidade", desc: "Carregamento instantâneo. Sem travamentos mesmo com muitos dados." },
               ].map((f, i) => (
-                <div key={i} className="bg-white p-8 rounded-[2rem] border border-zinc-100 shadow-sm hover:shadow-2xl transition-all group">
-                   <div className="flex justify-between items-start mb-6">
-                      <div className="w-14 h-14 bg-zinc-50 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-                         {React.cloneElement(f.icon as any, { size: 28 })}
+                <div key={i} className="bg-white p-4 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-zinc-100 shadow-sm hover:shadow-xl transition-all group">
+                   <div className="flex justify-between items-start mb-4 md:mb-6">
+                      <div className="w-10 h-10 md:w-14 md:h-14 bg-zinc-50 rounded-xl md:rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                         {React.cloneElement(f.icon as any, { className: "w-5 h-5 md:w-7 md:h-7" })}
                       </div>
-                      {f.badge && <span className="text-[8px] font-black bg-amber-100 text-amber-700 px-2 py-1 rounded-md">{f.badge}</span>}
+                      {f.badge && <span className="text-[7px] md:text-[8px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md">{f.badge}</span>}
                    </div>
-                   <h4 className="text-lg font-black text-zinc-900 mb-2">{f.title}</h4>
-                   <p className="text-xs md:text-sm text-zinc-500 leading-relaxed font-medium">{f.desc}</p>
+                   <h4 className="text-sm md:text-lg font-black text-zinc-900 mb-1 md:mb-2">{f.title}</h4>
+                   <p className="text-[9px] md:text-sm text-zinc-500 leading-relaxed font-medium line-clamp-3">{f.desc}</p>
                 </div>
               ))}
            </div>
         </section>
 
         {/* SECTION: FAQ */}
-        <section className="py-24 px-6 bg-white">
+        <section className="py-16 md:py-24 px-4 md:px-6 bg-white">
            <div className="max-w-3xl mx-auto">
-              <div className="text-center mb-16">
-                 <h2 className="text-3xl md:text-5xl font-black text-zinc-900 tracking-tight">Dúvidas Frequentes</h2>
-                 <p className="text-zinc-500 mt-4">Tudo o que você precisa saber para começar.</p>
+              <div className="text-center mb-10 md:mb-16">
+                 <h2 className="text-2xl md:text-5xl font-black text-zinc-900 tracking-tight">Dúvidas Frequentes</h2>
+                 <p className="text-sm text-zinc-500 mt-2 md:mt-4">Tudo o que você precisa saber para começar.</p>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 md:space-y-4">
                  {faqs.map((f, i) => (
-                   <div key={i} className="border border-zinc-100 rounded-[1.5rem] overflow-hidden transition-all shadow-sm hover:border-amber-200">
+                   <div key={i} className="border border-zinc-100 rounded-xl md:rounded-[1.5rem] overflow-hidden transition-all shadow-sm">
                       <button 
                         onClick={() => setActiveFaq(activeFaq === i ? null : i)}
-                        className="w-full flex items-center justify-between p-6 text-left hover:bg-zinc-50 transition-colors"
+                        className="w-full flex items-center justify-between p-5 md:p-6 text-left hover:bg-zinc-50 transition-colors"
                       >
-                         <span className="font-black text-zinc-900 md:text-lg">{f.q}</span>
-                         {activeFaq === i ? <ChevronUp size={20} className="text-amber-500" /> : <ChevronDown size={20} className="text-zinc-400" />}
+                         <span className="font-black text-zinc-900 text-sm md:text-lg pr-4">{f.q}</span>
+                         {activeFaq === i ? <ChevronUp size={18} className="text-amber-500 shrink-0" /> : <ChevronDown size={18} className="text-zinc-400 shrink-0" />}
                       </button>
                       {activeFaq === i && (
-                        <div className="px-6 pb-6 text-zinc-500 text-sm md:text-base leading-relaxed animate-in slide-in-from-top-2 duration-300">
+                        <div className="px-5 pb-5 md:px-6 md:pb-6 text-zinc-500 text-xs md:text-base leading-relaxed animate-in slide-in-from-top-2 duration-300">
                            {f.a}
                         </div>
                       )}
@@ -304,51 +325,86 @@ export default function RegistrationPage() {
         </section>
 
         {/* SECTION: PLANOS */}
-        <section ref={plansRef} className="py-24 px-4 md:px-6 bg-zinc-950 text-white relative overflow-hidden">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-500/10 rounded-full blur-[120px] -z-0" />
-          <div className="max-w-6xl mx-auto text-center relative z-10">
-             <div className="mb-16">
-                <Badge color="primary" className="mb-4 bg-white/10 text-white border-white/20">PREÇOS SEM PEGADINHAS</Badge>
-                <h2 className="text-4xl md:text-7xl font-black tracking-tight leading-tight">Escolha seu Plano e <br />Comece Agora.</h2>
-                <p className="mt-6 text-zinc-400 text-lg md:text-xl">O investimento que se paga com apenas um cliente extra na semana.</p>
-             </div>
+        <section ref={plansRef} className="py-16 md:py-24 px-4 md:px-6 bg-white">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-10 md:mb-16">
+              <Badge color="primary" className="mb-4 text-[9px]">PREÇOS SEM PEGADINHAS</Badge>
+              <h2 className="text-3xl md:text-6xl font-black text-zinc-900 tracking-tight leading-tight">
+                Comece Agora.
+              </h2>
+              <p className="mt-3 md:mt-5 text-zinc-500 text-sm md:text-xl font-medium">
+                O investimento que se paga com apenas um cliente extra na semana.
+              </p>
+            </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                {plans.map((p) => (
-                  <div key={p.id} className={`relative p-8 md:p-10 rounded-[3rem] border-2 text-left flex flex-col h-full transition-all duration-500 ${p.name === "Pro" ? 'border-amber-500 bg-white text-zinc-900 shadow-[0_0_60px_rgba(245,158,11,0.2)] md:scale-105 z-20' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}>
-                    {p.name === "Pro" && (
-                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] md:text-[12px] font-black uppercase tracking-widest px-6 py-2 rounded-full shadow-lg">RECOMENDADO</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 max-w-5xl mx-auto">
+              {plans.map((p, idx) => {
+                const isPopular = p.name === "Pro";
+                let features: string[] = [];
+                try { features = JSON.parse(p.features || "[]"); } catch {}
+                return (
+                  <div
+                    key={p.id}
+                    className={`relative flex flex-col rounded-2xl border-2 p-6 md:p-8 transition-all duration-300 ${
+                      isPopular
+                        ? "border-amber-500 shadow-xl shadow-amber-100/60 bg-white"
+                        : "border-zinc-200 bg-white shadow-sm hover:border-zinc-300 hover:shadow-md"
+                    }`}
+                  >
+                    {isPopular && (
+                      <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-md whitespace-nowrap">
+                        Recomendado
+                      </div>
                     )}
-                    <div className="mb-8">
-                      <h3 className={`text-2xl md:text-3xl font-black ${p.name === "Pro" ? 'text-zinc-900' : 'text-white'}`}>{p.name}</h3>
-                      <p className={`${p.name === "Pro" ? 'text-zinc-500' : 'text-zinc-400'} text-xs mt-2 font-bold uppercase tracking-widest`}>Acesso Completo</p>
-                    </div>
-                    <div className="mb-10">
-                      <div className="flex items-baseline gap-1">
-                        <span className={`text-4xl md:text-5xl font-black ${p.name === "Pro" ? 'text-zinc-900' : 'text-white'}`}>R$ {Number(p.price).toFixed(2)}</span>
-                        <span className={`${p.name === "Pro" ? 'text-zinc-400' : 'text-zinc-500'} text-sm font-bold`}>/mês</span>
+
+                    {/* Header */}
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${isPopular ? "bg-amber-500 text-white" : "bg-zinc-100 text-zinc-600"}`}>
+                        {idx === 0 ? <Zap size={18} /> : idx === 1 ? <Crown size={18} /> : <Star size={18} />}
                       </div>
-                      <div className={`inline-flex items-center gap-2 mt-4 px-3 py-1.5 rounded-xl text-[10px] md:text-[12px] font-black uppercase tracking-widest ${p.name === "Pro" ? 'bg-amber-100 text-amber-700' : 'bg-white/10 text-white'}`}>
-                        <Zap size={14} /> PRIMEIROS 30 DIAS GRÁTIS
+                      <div>
+                        <h3 className="text-lg font-black text-zinc-900 leading-none">{p.name}</h3>
+                        <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">Acesso completo</p>
                       </div>
                     </div>
-                    <ul className="space-y-5 mb-12 flex-1">
-                       {JSON.parse(p.features || "[]").map((f: string, i: number) => (
-                        <li key={i} className={`flex items-start gap-3 text-sm md:text-base font-bold ${p.name === "Pro" ? 'text-zinc-700' : 'text-zinc-300'}`}>
-                          <CheckCircle size={18} className="text-emerald-500 shrink-0 mt-0.5" />
+
+                    {/* Preço */}
+                    <div className="mb-5">
+                      <div className="flex items-baseline gap-0.5">
+                        <span className="text-xs font-black text-zinc-400">R$</span>
+                        <span className="text-4xl font-black text-zinc-900 tracking-tighter">{Math.floor(p.price)}</span>
+                        <span className="text-[10px] font-bold text-zinc-400">/mês</span>
+                      </div>
+                      <div className={`inline-flex items-center gap-1.5 mt-3 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${isPopular ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-500"}`}>
+                        <Zap size={10} /> Primeiros 30 dias grátis
+                      </div>
+                    </div>
+
+                    {/* Features */}
+                    <ul className="space-y-2.5 mb-7 flex-1">
+                      {features.map((f, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-[11px] md:text-xs font-bold text-zinc-600">
+                          <CheckCircle className="text-emerald-500 shrink-0 mt-0.5 w-3.5 h-3.5" />
                           {f}
                         </li>
                       ))}
                     </ul>
-                    <Button 
-                      onClick={() => handleStartSelection(p.id)} 
-                      className={`w-full h-16 md:h-20 rounded-[2rem] font-black shadow-2xl transition-all ${p.name === "Pro" ? 'bg-zinc-900 hover:bg-zinc-800 text-white' : 'bg-white text-zinc-900 hover:bg-amber-500 hover:text-white'}`}
+
+                    {/* CTA */}
+                    <Button
+                      onClick={() => openCheckout(p)}
+                      className={`w-full h-11 md:h-12 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-sm ${
+                        isPopular
+                          ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200"
+                          : "bg-zinc-900 hover:bg-zinc-800 text-white"
+                      }`}
                     >
-                      ESCOLHER {p.name.toUpperCase()}
+                      Escolher {p.name}
                     </Button>
                   </div>
-                ))}
-             </div>
+                );
+              })}
+            </div>
           </div>
         </section>
 
@@ -412,58 +468,81 @@ export default function RegistrationPage() {
 
       <div className="w-full max-w-4xl">
         {step === 1 && (
-          <div className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
-            <div className="text-center space-y-4">
-              <Badge color="primary" className="py-1 px-4">SELEÇÃO DE PLANO</Badge>
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <div className="text-center space-y-3">
+              <Badge color="primary" className="py-1 px-4">ESCOLHA SEU PLANO</Badge>
               <h1 className="text-3xl md:text-5xl font-black text-zinc-900 tracking-tighter">Qual seu objetivo hoje?</h1>
-              <p className="text-zinc-500 text-lg md:text-xl font-medium">Selecione o plano ideal para escalar seu estúdio.</p>
+              <p className="text-zinc-500 text-base md:text-lg font-medium">Selecione o plano e vá direto para o pagamento. Primeiros 30 dias grátis.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {plans.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => setSelectedPlan(p.id)}
-                  className={`relative p-8 rounded-[2.5rem] border-2 cursor-pointer transition-all duration-500 ${
-                    selectedPlan === p.id 
-                      ? "border-amber-500 bg-white shadow-2xl ring-8 ring-amber-500/5" 
-                      : "border-transparent bg-white shadow-sm hover:border-zinc-200"
-                  }`}
-                >
-                  {p.name === "Pro" && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg">
-                      O MELHOR CUSTO-BENEFÍCIO
-                    </div>
-                  )}
-                  <div className="space-y-6">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${selectedPlan === p.id ? 'bg-amber-500 text-white' : 'bg-zinc-100 text-zinc-500'}`}>
-                      <Zap size={28} />
-                    </div>
-                    <div>
-                      <h3 className="text-xl md:text-2xl font-black text-zinc-900">{p.name}</h3>
-                      <div className="flex items-baseline gap-1 mt-2">
-                        <span className="text-2xl md:text-3xl font-black text-zinc-900">R$ {Number(p.price).toFixed(2)}</span>
-                        <span className="text-zinc-400 text-xs font-bold uppercase">/mês</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {plans.map((p, idx) => {
+                const isPopular = p.name === "Pro";
+                let features: string[] = [];
+                try { features = JSON.parse(p.features || "[]"); } catch {}
+                return (
+                  <div
+                    key={p.id}
+                    className={`relative flex flex-col p-6 md:p-8 rounded-2xl border-2 transition-all duration-300 ${
+                      isPopular
+                        ? "border-amber-500 bg-white shadow-xl shadow-amber-100/60"
+                        : "border-zinc-200 bg-white shadow-sm hover:border-zinc-300 hover:shadow-md"
+                    }`}
+                  >
+                    {isPopular && (
+                      <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-md whitespace-nowrap">
+                        Melhor custo-benefício
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${isPopular ? "bg-amber-500 text-white" : "bg-zinc-100 text-zinc-600"}`}>
+                        {idx === 0 ? <Zap size={18} /> : idx === 1 ? <Crown size={18} /> : <Star size={18} />}
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-zinc-900 leading-none">{p.name}</h3>
+                        <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">Acesso completo</p>
                       </div>
                     </div>
-                    <ul className="space-y-4 pt-4 border-t border-zinc-100">
-                      {JSON.parse(p.features || "[]").slice(0, 6).map((f: string, i: number) => (
-                        <li key={i} className="flex items-start gap-3 text-sm text-zinc-600 font-bold leading-tight">
-                          <CheckCircle className="text-emerald-500 shrink-0 mt-0.5 w-4 h-4 md:w-[18px] md:h-[18px]" />
+
+                    <div className="mb-5">
+                      <div className="flex items-baseline gap-0.5">
+                        <span className="text-xs font-black text-zinc-400">R$</span>
+                        <span className="text-4xl font-black text-zinc-900 tracking-tighter">{Math.floor(p.price)}</span>
+                        <span className="text-[10px] font-bold text-zinc-400">/mês</span>
+                      </div>
+                      <div className={`inline-flex items-center gap-1.5 mt-3 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${isPopular ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-500"}`}>
+                        <Zap size={10} /> 30 dias grátis
+                      </div>
+                    </div>
+
+                    <ul className="space-y-2.5 mb-6 flex-1">
+                      {features.map((f, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-[11px] md:text-xs font-bold text-zinc-600">
+                          <CheckCircle className="text-emerald-500 shrink-0 mt-0.5 w-3.5 h-3.5" />
                           {f}
                         </li>
                       ))}
                     </ul>
+
+                    <Button
+                      onClick={() => openCheckout(p)}
+                      className={`w-full h-11 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
+                        isPopular
+                          ? "bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-200"
+                          : "bg-zinc-900 hover:bg-zinc-800 text-white"
+                      }`}
+                    >
+                      Escolher {p.name} <ArrowRight size={14} className="ml-1 inline" />
+                    </Button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            <div className="flex justify-center pt-8">
-              <Button size="lg" onClick={handleNext} iconRight={<ArrowRight size={20} />} className="w-full sm:w-auto h-16 md:h-20 px-14 rounded-[2rem] text-lg md:text-xl font-black shadow-2xl shadow-amber-500/20 bg-amber-500 hover:bg-amber-600 text-white">
-                CONTINUAR PARA DADOS DO ESTÚDIO
-              </Button>
-            </div>
+            <p className="text-center text-xs text-zinc-400 font-medium pt-2">
+              Sem fidelidade · Cancele quando quiser · Pagamento via Stripe
+            </p>
           </div>
         )}
 
