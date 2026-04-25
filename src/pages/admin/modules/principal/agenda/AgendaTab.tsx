@@ -684,18 +684,19 @@ function MinhaAgendaView({
                             )}
                           </div>
 
-                          {/* Mobile: just colored dots */}
-                          <div className="flex flex-wrap gap-0.5 sm:hidden">
-                            {dayApps.slice(0, 4).map((app) => (
-                              <div
-                                key={app.id}
-                                className={cn("w-1.5 h-1.5 rounded-full", appColor(app.type))}
-                              />
-                            ))}
-                            {dayApps.length > 4 && (
-                              <span className="text-[7px] text-zinc-400 font-black">+{dayApps.length - 4}</span>
-                            )}
-                          </div>
+                          {/* Mobile: single badge with count */}
+                          {dayApps.length > 0 && (
+                            <div className="flex justify-center sm:hidden mt-0.5">
+                              <span className={cn(
+                                "inline-flex items-center justify-center rounded-full w-5 h-5 text-[10px] font-bold text-white",
+                                dayApps.some(a => a.status === "confirmed") ? "bg-emerald-500" :
+                                dayApps.some(a => a.status === "noshow") ? "bg-red-500" :
+                                "bg-amber-400"
+                              )}>
+                                {dayApps.length}
+                              </span>
+                            </div>
+                          )}
 
                           {/* Hover add button */}
                           <button
