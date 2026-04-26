@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../prisma";
 import { signToken, requireAuth, type JwtPayload } from "../middleware/auth";
-import { randomUUID } from "crypto";
+import { randomUUID, randomBytes } from "crypto";
 import Stripe from "stripe";
 import { sendWelcomeEmail, sendResetPasswordEmail } from "../utils/emailService";
 
