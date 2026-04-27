@@ -8,7 +8,8 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER || "agendelle@develoi.com.br",
     pass: process.env.SMTP_PASS || "",
   },
-});
+  family: 4,
+} as any);
 
 const FROM = '"Agendelle" <agendelle@develoi.com.br>';
 const ADMIN_EMAIL = "contato@develoi.com.br";
