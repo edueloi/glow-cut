@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import dns from "node:dns";
+dns.setDefaultResultOrder("ipv4first");
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "mail.develoi.com.br",
@@ -10,6 +12,13 @@ const transporter = nodemailer.createTransport({
   },
   family: 4,
 } as any);
+
+const _originalSend = transporter.sendMail.bind(transporter);
+transporter.sendMail = async (opts: any) => {
+  const info = await _originalSend(opts);
+  console.log("[email] accepted:", info.accepted, "rejected:", info.rejected, "response:", info.response);
+  return info;
+};
 
 const FROM = '"Agendelle" <agendelle@develoi.com.br>';
 const ADMIN_EMAIL = "contato@develoi.com.br";
