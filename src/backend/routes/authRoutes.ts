@@ -78,6 +78,40 @@ authRouter.post("/login", async (req: Request, res: Response) => {
     include: { tenant: { include: { plan: true } } },
   });
   if (admin) {
+    // Bloqueia login se a assinatura do tenant ainda não foi ativada via pagamento
+    if (admin.tenant && !admin.tenant.isActive) {
+      let checkoutUrl: string | null = null;
+      try {
+        const plan = admin.tenant.plan;
+        if (plan?.stripePriceId) {
+          const appUrl = process.env.APP_URL || "https://agendelle.com.br";
+          const session = await stripe.checkout.sessions.create({
+            mode: "subscription",
+            line_items: [{ price: plan.stripePriceId, quantity: 1 }],
+            success_url: `${appUrl}/login?checkout=success&plan=${encodeURIComponent(plan.name)}`,
+            cancel_url: `${appUrl}/login`,
+            customer_email: admin.email,
+            subscription_data: {
+              trial_period_days: 30,
+              metadata: { planId: plan.id, planName: plan.name, tenantId: admin.tenantId },
+            },
+            metadata: { planId: plan.id, planName: plan.name, tenantId: admin.tenantId },
+            allow_promotion_codes: true,
+          });
+          checkoutUrl = session.url;
+        } else if (plan?.stripePaymentLink) {
+          checkoutUrl = plan.stripePaymentLink;
+        }
+      } catch (e: any) {
+        console.warn("[login] Erro ao gerar checkout para tenant inativo:", e.message);
+      }
+      return res.status(403).json({
+        error: "Sua assinatura está com pagamento pendente. Ative sua conta para acessar.",
+        paymentPending: true,
+        checkoutUrl,
+      });
+    }
+
     clearAttempts(ip);
     await (prisma as any).adminUser.update({
       where: { id: admin.id },
@@ -139,11 +173,55 @@ authRouter.get("/plans", async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/auth/check-slug?slug=xxx
+// Verifica disponibilidade de slug e retorna sugestões se já existir
+// ─────────────────────────────────────────────────────────────────────────────
+authRouter.get("/check-slug", async (req: Request, res: Response) => {
+  const { slug } = req.query;
+  if (!slug || typeof slug !== "string") {
+    return res.status(400).json({ error: "Slug inválido." });
+  }
+  const clean = slug.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  const existing = await (prisma as any).tenant.findFirst({ where: { slug: clean } });
+  if (!existing) return res.json({ available: true });
+
+  // Gera 3 sugestões únicas
+  const suggestions: string[] = [];
+  const bases = [`${clean}-studio`, `${clean}-oficial`, `${clean}-salon`];
+  for (const base of bases) {
+    const taken = await (prisma as any).tenant.findFirst({ where: { slug: base } });
+    if (!taken) suggestions.push(base);
+    if (suggestions.length === 3) break;
+  }
+  // Se ainda precisar de mais, usa sufixos numéricos
+  let n = 2;
+  while (suggestions.length < 3) {
+    const s = `${clean}-${n}`;
+    const taken = await (prisma as any).tenant.findFirst({ where: { slug: s } });
+    if (!taken) suggestions.push(s);
+    n++;
+    if (n > 99) break;
+  }
+  return res.json({ available: false, suggestions });
+});
+
 authRouter.post("/register-tenant", async (req, res) => {
-  const { name, slug, ownerName, ownerEmail, ownerPhone, planId, adminPassword, salesPersonId } = req.body;
+  const { name, slug, ownerName, ownerEmail, ownerPhone, ownerCpf, planId, adminPassword, salesPersonId } = req.body;
 
   if (!name || !slug || !ownerName || !ownerEmail || !planId || !adminPassword) {
     return res.status(400).json({ error: "Preencha todos os campos obrigatórios." });
+  }
+
+  // Validação de senha: mínimo 8 chars, 1 minúsculo, 1 caractere especial
+  if (adminPassword.length < 8) {
+    return res.status(400).json({ error: "A senha deve ter no mínimo 8 caracteres." });
+  }
+  if (!/[a-z]/.test(adminPassword)) {
+    return res.status(400).json({ error: "A senha deve conter pelo menos uma letra minúscula." });
+  }
+  if (!/[^a-zA-Z0-9]/.test(adminPassword)) {
+    return res.status(400).json({ error: "A senha deve conter pelo menos um caractere especial." });
   }
 
   try {
@@ -158,23 +236,26 @@ authRouter.post("/register-tenant", async (req, res) => {
 
     const tenantId = randomUUID();
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30); // 30 dias de teste ou ciclo inicial
+    expiresAt.setDate(expiresAt.getDate() + 30);
 
-    const tenant = await (prisma as any).tenant.create({
-      data: {
-        id: tenantId,
-        name,
-        slug,
-        ownerName,
-        ownerEmail,
-        ownerPhone,
-        planId,
-        isActive: true,
-        expiresAt,
-        salesPersonId: salesPersonId || null,
-        themeColor: "#c9a96e",
-      }
-    });
+    const tenantData: any = {
+      id: tenantId,
+      name,
+      slug,
+      ownerName,
+      ownerEmail,
+      ownerPhone,
+      planId,
+      isActive: false,
+      expiresAt,
+      salesPersonId: salesPersonId || null,
+      themeColor: "#c9a96e",
+    };
+    if (ownerCpf) {
+      try { tenantData.ownerCpf = ownerCpf; } catch {}
+    }
+
+    const tenant = await (prisma as any).tenant.create({ data: tenantData });
 
     await (prisma as any).adminUser.create({
       data: {
@@ -218,7 +299,34 @@ authRouter.post("/register-tenant", async (req, res) => {
       });
     }
 
-    res.json({ success: true, tenantId });
+    // Gera checkout URL para o plano selecionado (retorna para o frontend redirecionar)
+    let checkoutUrl: string | null = null;
+    try {
+      if (plan.stripePriceId) {
+        const appUrl = process.env.APP_URL || "https://agendelle.com.br";
+        const sessionParams: any = {
+          mode: "subscription",
+          line_items: [{ price: plan.stripePriceId, quantity: 1 }],
+          success_url: `${appUrl}/login?checkout=success&plan=${encodeURIComponent(plan.name)}`,
+          cancel_url: `${appUrl}/cadastro?step=pagamento&tenantId=${tenantId}`,
+          customer_email: ownerEmail,
+          subscription_data: {
+            trial_period_days: 30,
+            metadata: { planId: plan.id, planName: plan.name, tenantId, ...(salesPersonId && { salesPersonId }) },
+          },
+          metadata: { planId: plan.id, planName: plan.name, tenantId, ...(salesPersonId && { salesPersonId }) },
+          allow_promotion_codes: true,
+        };
+        const session = await stripe.checkout.sessions.create(sessionParams);
+        checkoutUrl = session.url;
+      } else if (plan.stripePaymentLink) {
+        checkoutUrl = plan.stripePaymentLink;
+      }
+    } catch (e: any) {
+      console.warn("[register-tenant] Erro ao gerar checkout:", e.message);
+    }
+
+    res.json({ success: true, tenantId, checkoutUrl });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

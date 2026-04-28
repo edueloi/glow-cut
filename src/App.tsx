@@ -21,7 +21,7 @@ import SetupAccountPage from "./pages/SetupAccountPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import PlatformLegalPage from "./pages/PlatformLegalPage";
-import { Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react";
 
 import logoFavicon from "./images/system/logo-favicon.png";
 
@@ -57,7 +57,7 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (identifier: string, password: string) => Promise<{ error?: string; user?: AuthUser }>;
+  login: (identifier: string, password: string) => Promise<{ error?: string; user?: AuthUser; paymentPending?: boolean; checkoutUrl?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -106,7 +106,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { loadUser(); }, [loadUser]);
 
-  const login = async (identifier: string, password: string): Promise<{ error?: string; user?: AuthUser }> => {
+  const login = async (identifier: string, password: string): Promise<{ error?: string; user?: AuthUser; paymentPending?: boolean; checkoutUrl?: string }> => {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -115,7 +115,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        return { error: d.error || "Usuário ou senha inválidos." };
+        return { error: d.error || "Usuário ou senha inválidos.", paymentPending: d.paymentPending, checkoutUrl: d.checkoutUrl };
       }
       const { token, user: userData } = await res.json();
       saveToken(token);
@@ -174,6 +174,7 @@ function LoginPage() {
   );
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
+  const [paymentPendingUrl, setPaymentPendingUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Esqueci a senha
@@ -214,12 +215,16 @@ function LoginPage() {
     if (!identifier || !pass) return;
     setSubmitting(true);
     setError("");
+    setPaymentPendingUrl(null);
 
     if (remember) localStorage.setItem("savedLoginUser", identifier);
     else localStorage.removeItem("savedLoginUser");
 
-    const { error: err, user: loggedUser } = await login(identifier, pass);
+    const { error: err, user: loggedUser, paymentPending, checkoutUrl } = await login(identifier, pass);
     if (err) {
+      if (paymentPending) {
+        setPaymentPendingUrl(checkoutUrl || null);
+      }
       setError(err);
       setSubmitting(false);
       return;
@@ -334,9 +339,25 @@ function LoginPage() {
               </div>
             </div>
 
-            {error && (
+            {error && !paymentPendingUrl && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-bold text-red-600">
                 {error}
+              </div>
+            )}
+
+            {error && paymentPendingUrl && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs font-bold text-amber-800">{error}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => window.open(paymentPendingUrl!, "_blank", "noopener,noreferrer")}
+                  className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl py-2.5 text-xs transition-all shadow-md shadow-amber-200 uppercase tracking-widest"
+                >
+                  Ativar assinatura agora <ArrowRight size={13} />
+                </button>
               </div>
             )}
 

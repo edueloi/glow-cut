@@ -238,6 +238,17 @@ async function initDb() {
     console.warn("[initDb] Tenant.siteCoverUrl:", e?.message);
   }
 
+  // ── Tenant.ownerCpf ───────────────────────────────────────────────────────
+  try {
+    const col: any[] = await (prisma as any).$queryRawUnsafe(`SHOW COLUMNS FROM \`Tenant\` LIKE 'ownerCpf'`);
+    if (!col.length) {
+      await (prisma as any).$executeRawUnsafe(`ALTER TABLE \`Tenant\` ADD COLUMN \`ownerCpf\` VARCHAR(20) NULL`);
+      console.log("[initDb] Tenant.ownerCpf added");
+    }
+  } catch (e: any) {
+    console.warn("[initDb] Tenant.ownerCpf:", e?.message);
+  }
+
   // ── WppBotConfig novos campos ─────────────────────────────────────────────
   const wppNewCols = [
     { name: "sendReminder60min",     def: "TINYINT(1) NOT NULL DEFAULT 1" },
