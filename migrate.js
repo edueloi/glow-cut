@@ -740,6 +740,41 @@ const MIGRATIONS = [
     ignoreIfExists: true,
   },
 
+  // 041 - QA: sessões de teste e resultados
+  {
+    name: '041_create_qa_test_run',
+    sql: `
+      CREATE TABLE IF NOT EXISTS QATestRun (
+        id           VARCHAR(36)   NOT NULL PRIMARY KEY,
+        title        VARCHAR(255)  NOT NULL,
+        testerName   VARCHAR(100)  NOT NULL,
+        testerEmail  VARCHAR(255)  NULL,
+        status       VARCHAR(20)   NOT NULL DEFAULT 'in_progress',
+        notes        TEXT          NULL,
+        createdAt    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+  {
+    name: '041_create_qa_test_result',
+    sql: `
+      CREATE TABLE IF NOT EXISTS QATestResult (
+        id        VARCHAR(36)   NOT NULL PRIMARY KEY,
+        runId     VARCHAR(36)   NOT NULL,
+        testId    VARCHAR(50)   NOT NULL,
+        section   VARCHAR(100)  NOT NULL DEFAULT '',
+        title     VARCHAR(255)  NOT NULL DEFAULT '',
+        status    VARCHAR(20)   NOT NULL DEFAULT 'pending',
+        notes     TEXT          NULL,
+        updatedAt DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_qar_run_test (runId, testId),
+        KEY idx_qar_run (runId),
+        CONSTRAINT fk_qar_run FOREIGN KEY (runId) REFERENCES QATestRun(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
 ];
 
 // ─────────────────────────────────────────────────────────────

@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glow & Cut — Roteiro de Testes do Sistema</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f8f9fa; color: #222; }
+  header { background: #fff; border-bottom: 2px solid #e0e0e0; padding: 20px 32px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 20px; font-weight: 700; }
+  header span { font-size: 13px; color: #666; }
+  #progress-bar-wrap { flex: 1; max-width: 300px; background: #eee; border-radius: 8px; height: 12px; overflow: hidden; }
+  #progress-bar { height: 100%; background: linear-gradient(90deg, #22c55e, #16a34a); width: 0%; transition: width 0.3s; border-radius: 8px; }
+  #progress-text { font-size: 13px; font-weight: 600; color: #22c55e; min-width: 60px; }
+  #btn-reset { margin-left: auto; background: #fff; border: 1px solid #e0e0e0; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; color: #666; }
+  #btn-reset:hover { background: #f0f0f0; }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+  .section { background: #fff; border: 1px solid #e8e8e8; border-radius: 12px; margin-bottom: 24px; overflow: hidden; }
+  .section-header { padding: 16px 20px; background: #f9fafb; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+  .section-header:hover { background: #f1f5f9; }
+  .section-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .section-title .emoji { font-size: 18px; }
+  .section-badge { font-size: 11px; background: #e2e8f0; color: #475569; padding: 2px 10px; border-radius: 20px; font-weight: 600; }
+  .section-badge.done { background: #dcfce7; color: #16a34a; }
+  .section-body { padding: 0; }
+  .section-body.collapsed { display: none; }
+  .test-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #f0f0f0; transition: background 0.15s; }
+  .test-item:last-child { border-bottom: none; }
+  .test-item:hover { background: #fafafa; }
+  .test-item.checked { background: #f0fdf4; }
+  .test-item.fail { background: #fff1f1; }
+  .checkbox-wrap { display: flex; gap: 6px; flex-shrink: 0; padding-top: 2px; }
+  input[type="checkbox"] { width: 17px; height: 17px; cursor: pointer; accent-color: #22c55e; }
+  input[type="checkbox"].fail-cb { accent-color: #ef4444; }
+  .test-content { flex: 1; }
+  .test-title { font-size: 13px; font-weight: 600; line-height: 1.4; }
+  .test-item.checked .test-title { text-decoration: line-through; color: #9ca3af; }
+  .test-item.fail .test-title { color: #dc2626; }
+  .test-desc { font-size: 12px; color: #6b7280; margin-top: 3px; line-height: 1.5; }
+  .test-steps { margin-top: 8px; font-size: 12px; color: #374151; background: #f8fafc; border-left: 3px solid #cbd5e1; padding: 8px 12px; border-radius: 0 6px 6px 0; line-height: 1.8; }
+  .test-steps ol { padding-left: 16px; }
+  .test-expected { font-size: 12px; color: #059669; margin-top: 6px; }
+  .test-expected::before { content: "✓ Esperado: "; font-weight: 600; }
+  .test-warning { font-size: 11px; color: #b45309; background: #fffbeb; border: 1px solid #fcd34d; padding: 4px 10px; border-radius: 4px; margin-top: 6px; display: inline-block; }
+  .notes-input { width: 100%; margin-top: 8px; font-size: 12px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 10px; color: #374151; background: #fff; resize: vertical; min-height: 36px; display: none; }
+  .test-item.fail .notes-input { display: block; }
+  .fail-btn { font-size: 11px; padding: 3px 10px; background: #fff; border: 1px solid #e5e7eb; border-radius: 4px; cursor: pointer; color: #6b7280; flex-shrink: 0; margin-top: 2px; }
+  .fail-btn:hover { background: #fef2f2; border-color: #fca5a5; color: #ef4444; }
+  .subsection-label { padding: 8px 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; background: #f8fafc; border-bottom: 1px solid #f0f0f0; }
+  .legend { display: flex; gap: 20px; font-size: 12px; color: #666; margin-bottom: 24px; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .summary { background: #fff; border: 1px solid #e8e8e8; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+  .summary h2 { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; }
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .summary-card { background: #f8fafc; border-radius: 8px; padding: 12px 16px; text-align: center; }
+  .summary-card .num { font-size: 28px; font-weight: 800; }
+  .summary-card .lbl { font-size: 11px; color: #666; margin-top: 2px; }
+  .summary-card.green .num { color: #22c55e; }
+  .summary-card.red .num { color: #ef4444; }
+  .summary-card.blue .num { color: #3b82f6; }
+  .summary-card.gray .num { color: #9ca3af; }
+  @media (max-width: 600px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } header { flex-wrap: wrap; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Glow &amp; Cut — Testes do Sistema</h1>
+    <span id="last-update">Gerado em 28/04/2026</span>
+  </div>
+  <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+  <span id="progress-text">0 / 0</span>
+  <button id="btn-reset" onclick="resetAll()">Zerar tudo</button>
+</header>
+
+<div class="container">
+
+  <div class="legend">
+    <span><span class="dot" style="background:#22c55e"></span> Passou</span>
+    <span><span class="dot" style="background:#ef4444"></span> Falhou</span>
+    <span><span class="dot" style="background:#e5e7eb"></span> Pendente</span>
+  </div>
+
+  <div class="summary">
+    <h2>Resumo</h2>
+    <div class="summary-grid">
+      <div class="summary-card blue"><div class="num" id="s-total">0</div><div class="lbl">Total</div></div>
+      <div class="summary-card green"><div class="num" id="s-pass">0</div><div class="lbl">Passaram</div></div>
+      <div class="summary-card red"><div class="num" id="s-fail">0</div><div class="lbl">Falharam</div></div>
+      <div class="summary-card gray"><div class="num" id="s-pend">0</div><div class="lbl">Pendentes</div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 1 — AUTENTICAÇÃO
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">🔐</span> 1. Autenticação e Acesso</div>
+      <span class="section-badge" id="badge-s1">0/6</span>
+    </div>
+    <div class="section-body" id="body-s1">
+
+      <div class="test-item" id="t1">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')" title="Passou">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')" title="Falhou">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Login com credenciais válidas (Admin)</div>
+          <div class="test-desc">Acesse /login e entre com um usuário admin ativo.</div>
+          <div class="test-steps"><ol><li>Abra a URL do sistema</li><li>Digite e-mail e senha válidos</li><li>Clique em "Entrar"</li></ol></div>
+          <div class="test-expected">Redireciona para /dashboard com o nome do usuário exibido na sidebar.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t2">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')" title="Passou">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')" title="Falhou">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Login com senha errada</div>
+          <div class="test-desc">Tente logar com senha incorreta.</div>
+          <div class="test-steps"><ol><li>Digite e-mail válido + senha errada</li><li>Clique em "Entrar"</li></ol></div>
+          <div class="test-expected">Mensagem de erro exibida, sem redirecionamento.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t3">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')" title="Passou">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')" title="Falhou">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Recuperação de senha</div>
+          <div class="test-steps"><ol><li>Clique em "Esqueci minha senha"</li><li>Informe o e-mail cadastrado</li><li>Verifique o e-mail recebido</li><li>Clique no link e defina nova senha</li><li>Faça login com a nova senha</li></ol></div>
+          <div class="test-expected">E-mail recebido, link funciona, nova senha funciona no login.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t4">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')" title="Passou">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')" title="Falhou">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Sessão expira / logout</div>
+          <div class="test-steps"><ol><li>Faça login</li><li>Clique em "Sair" no menu de perfil</li><li>Tente acessar /dashboard diretamente</li></ol></div>
+          <div class="test-expected">Redireciona para login. Sessão não persiste após fechar o browser (sessionStorage).</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t5">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')" title="Passou">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')" title="Falhou">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Login como Profissional</div>
+          <div class="test-desc">Use credenciais de um profissional (não admin).</div>
+          <div class="test-expected">Redireciona para /profissional com a view correta do profissional.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t6">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')" title="Passou">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')" title="Falhou">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Login como Super Admin</div>
+          <div class="test-expected">Redireciona para painel super-admin, com abas de plataforma visíveis.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 2 — DASHBOARD E NAVEGAÇÃO
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">🏠</span> 2. Dashboard e Navegação</div>
+      <span class="section-badge" id="badge-s2">0/7</span>
+    </div>
+    <div class="section-body collapsed" id="body-s2">
+
+      <div class="test-item" id="t7">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Dashboard carrega sem erros</div>
+          <div class="test-steps"><ol><li>Após login, verifique o painel principal</li><li>Cheque o console do browser (F12) — sem erros vermelhos</li></ol></div>
+          <div class="test-expected">Cards de estatísticas visíveis, sem loading infinito, sem erros no console.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t8">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Sidebar — navegação entre todas as abas</div>
+          <div class="test-steps"><ol><li>Clique em cada item do menu lateral: Agenda, Clientes, Comandas, Financeiro, Profissionais, Serviços, Produtos, Pacotes, Planos, Site, WhatsApp, Horários, Config, Permissões, Assinatura, Perfil</li><li>Verifique que a aba ativa fica destacada</li></ol></div>
+          <div class="test-expected">Cada aba abre sem erro de layout ou 404.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t9">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Sidebar — colapsar e expandir</div>
+          <div class="test-steps"><ol><li>Clique no botão de colapsar a sidebar</li><li>Verifique que apenas ícones ficam visíveis</li><li>Expanda novamente</li></ol></div>
+          <div class="test-expected">Layout não quebra em nenhum estado. Labels somem corretamente.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t10">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Responsividade — mobile (375px)</div>
+          <div class="test-steps"><ol><li>No DevTools (F12), ative o modo responsivo com 375px de largura</li><li>Navegue por dashboard, agenda, clientes e financeiro</li></ol></div>
+          <div class="test-expected">Menu hamburguer visível, sem texto cortado, sem scroll horizontal.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t11">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Notificações — sino de notificações</div>
+          <div class="test-steps"><ol><li>Clique no sino no topo</li><li>Verifique se notificações aparecem ou mensagem de "nenhuma notificação"</li></ol></div>
+          <div class="test-expected">Dropdown abre e fecha corretamente, sem travar o layout.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t12">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">URL — navegação direta por slug</div>
+          <div class="test-steps"><ol><li>Acesse /dashboard/agenda, /dashboard/clientes, /dashboard/financeiro diretamente na barra de endereço</li></ol></div>
+          <div class="test-expected">Abre a aba correta sem passar pelo dashboard inicial.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t13">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Cards de estatísticas do painel</div>
+          <div class="test-desc">Os cards de agendamentos, faturamento, novos clientes e pendências.</div>
+          <div class="test-expected">Números reais carregados da API, sem "NaN" ou "-".</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 3 — AGENDA
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">📅</span> 3. Agenda</div>
+      <span class="section-badge" id="badge-s3">0/10</span>
+    </div>
+    <div class="section-body collapsed" id="body-s3">
+
+      <div class="subsection-label">Calendário e Visualização</div>
+
+      <div class="test-item" id="t14">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Calendário carrega com slots do dia</div>
+          <div class="test-steps"><ol><li>Abra a aba Agenda</li><li>Verifique o calendário do dia atual</li></ol></div>
+          <div class="test-expected">Slots de horário visíveis para cada profissional ativo.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t15">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Navegar entre dias/semanas</div>
+          <div class="test-steps"><ol><li>Clique nos botões de avançar/voltar</li><li>Vá para amanhã, depois volte para hoje</li></ol></div>
+          <div class="test-expected">Data atualiza, agenda recarrega, botão "Hoje" funciona.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="subsection-label">Criar Agendamento</div>
+
+      <div class="test-item" id="t16">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Criar agendamento — fluxo completo</div>
+          <div class="test-steps"><ol><li>Clique em um slot vazio</li><li>Selecione um cliente existente</li><li>Selecione um profissional</li><li>Selecione um serviço</li><li>Confirme o agendamento</li></ol></div>
+          <div class="test-expected">Agendamento salvo, aparece no calendário na cor correta.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t17">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Criar agendamento com novo cliente</div>
+          <div class="test-steps"><ol><li>Na criação do agendamento, busque por nome que não existe</li><li>Use a opção de cadastrar novo cliente inline</li></ol></div>
+          <div class="test-expected">Cliente criado e agendamento salvo com sucesso.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="subsection-label">Editar e Cancelar</div>
+
+      <div class="test-item" id="t18">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Editar agendamento existente</div>
+          <div class="test-steps"><ol><li>Clique em um agendamento existente</li><li>Altere o horário ou serviço</li><li>Salve</li></ol></div>
+          <div class="test-expected">Agendamento atualizado no calendário sem duplicar.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t19">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Cancelar agendamento</div>
+          <div class="test-steps"><ol><li>Clique em um agendamento</li><li>Selecione "Cancelar"</li><li>Confirme no modal</li></ol></div>
+          <div class="test-expected">Agendamento removido ou marcado como cancelado no calendário.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="subsection-label">Submodules da Agenda</div>
+
+      <div class="test-item" id="t20">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Aba "Consultar Agendamentos" — filtros</div>
+          <div class="test-steps"><ol><li>Abra "Consultar Agendamentos"</li><li>Filtre por profissional e por período</li></ol></div>
+          <div class="test-expected">Lista filtra corretamente, paginação funciona.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t21">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Aba "Agenda por Cliente"</div>
+          <div class="test-steps"><ol><li>Busque um cliente pelo nome</li><li>Veja histórico de agendamentos</li></ol></div>
+          <div class="test-expected">Histórico exibido corretamente com datas e status.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t22">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">PAT Terminal — fila de atendimento</div>
+          <div class="test-steps"><ol><li>Abra a aba PAT na agenda</li><li>Verifique se a fila do dia está visível</li><li>Tente avançar o status de um atendimento</li></ol></div>
+          <div class="test-expected">Status atualiza em tempo real, layout não quebra.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t23">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Liberações de Horários</div>
+          <div class="test-steps"><ol><li>Abra "Liberações de Horários"</li><li>Crie uma liberação para um profissional</li></ol></div>
+          <div class="test-expected">Liberação salva, reflete na agenda principal.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 4 — CLIENTES
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">👥</span> 4. Gestão de Clientes</div>
+      <span class="section-badge" id="badge-s4">0/6</span>
+    </div>
+    <div class="section-body collapsed" id="body-s4">
+
+      <div class="test-item" id="t24">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Listar clientes — busca e paginação</div>
+          <div class="test-steps"><ol><li>Abra a aba Clientes</li><li>Busque por nome parcial</li><li>Navegue nas páginas</li></ol></div>
+          <div class="test-expected">Lista filtrada corretamente, paginação funciona.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t25">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Criar novo cliente</div>
+          <div class="test-steps"><ol><li>Clique em "+ Novo Cliente"</li><li>Preencha nome, telefone, e-mail, CPF</li><li>Salve</li></ol></div>
+          <div class="test-expected">Cliente aparece na lista, dados gravados corretamente.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t26">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Editar cliente existente</div>
+          <div class="test-steps"><ol><li>Clique em um cliente para abrir o modal</li><li>Altere algum campo</li><li>Salve</li></ol></div>
+          <div class="test-expected">Dados atualizados sem criar duplicata.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t27">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Excluir cliente</div>
+          <div class="test-steps"><ol><li>Clique em excluir um cliente</li><li>Confirme no modal de confirmação</li></ol></div>
+          <div class="test-expected">Cliente removido da lista. Modal de confirmação aparece antes de excluir.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t28">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Máscaras de campo — telefone, CPF, CEP</div>
+          <div class="test-steps"><ol><li>No modal de cliente, digite números nos campos de telefone, CPF e CEP</li></ol></div>
+          <div class="test-expected">Telefone formata como (XX) XXXXX-XXXX, CPF como XXX.XXX.XXX-XX, CEP como XXXXX-XXX.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t29">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Portal do cliente — login e visualização</div>
+          <div class="test-steps"><ol><li>Acesse a URL do portal do cliente</li><li>Faça login com credenciais de um cliente</li><li>Verifique agendamentos e histórico</li></ol></div>
+          <div class="test-expected">Portal carrega dados do cliente correto, sem dados de outros clientes.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 5 — PROFISSIONAIS E HORÁRIOS
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">✂️</span> 5. Profissionais e Horários</div>
+      <span class="section-badge" id="badge-s5">0/6</span>
+    </div>
+    <div class="section-body collapsed" id="body-s5">
+
+      <div class="test-item" id="t30">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Cadastrar profissional</div>
+          <div class="test-steps"><ol><li>Acesse Profissionais → "+ Novo"</li><li>Preencha nome, especialidade, e-mail, senha</li><li>Salve</li></ol></div>
+          <div class="test-expected">Profissional aparece na lista e pode fazer login.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t31">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Ativar / desativar profissional</div>
+          <div class="test-steps"><ol><li>Toggle o status de ativo/inativo de um profissional</li></ol></div>
+          <div class="test-expected">Status atualiza, profissional inativo não aparece na agenda.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t32">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Configurar horários de trabalho</div>
+          <div class="test-steps"><ol><li>Acesse Horários</li><li>Configure os dias e horários de um profissional</li><li>Salve</li></ol></div>
+          <div class="test-expected">Horários salvos, slots disponíveis na agenda refletem a configuração.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t33">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Dia fechado — bloqueio na agenda</div>
+          <div class="test-steps"><ol><li>Crie um dia fechado para um profissional</li><li>Verifique na agenda principal se o dia está bloqueado</li></ol></div>
+          <div class="test-expected">Slots do dia bloqueado não disponíveis para agendamento.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t34">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Dashboard do Profissional</div>
+          <div class="test-steps"><ol><li>Faça login como profissional</li><li>Verifique a view "Minha Agenda"</li></ol></div>
+          <div class="test-expected">Apenas agendamentos do profissional logado visíveis.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t35">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Minha Agenda Online — link público</div>
+          <div class="test-steps"><ol><li>Acesse "Minha Agenda Online" na sidebar</li><li>Copie o link gerado</li><li>Abra em aba anônima</li></ol></div>
+          <div class="test-expected">Página pública de agendamento carrega corretamente.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 6 — SERVIÇOS E PACOTES
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">🧴</span> 6. Serviços e Pacotes</div>
+      <span class="section-badge" id="badge-s6">0/6</span>
+    </div>
+    <div class="section-body collapsed" id="body-s6">
+
+      <div class="test-item" id="t36">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Criar serviço</div>
+          <div class="test-steps"><ol><li>Acesse Serviços → "+ Novo"</li><li>Preencha nome, preço, duração, comissão</li><li>Salve</li></ol></div>
+          <div class="test-expected">Serviço listado, disponível para seleção na criação de agendamentos.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t37">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Editar e desativar serviço</div>
+          <div class="test-steps"><ol><li>Edite preço de um serviço</li><li>Desative o serviço</li></ol></div>
+          <div class="test-expected">Serviço inativo não aparece nas opções de agendamento.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t38">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Vincular produto a serviço</div>
+          <div class="test-steps"><ol><li>Edite um serviço</li><li>Adicione um produto como insumo</li><li>Salve</li></ol></div>
+          <div class="test-expected">Produto vinculado aparece na listagem do serviço.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t39">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Criar pacote de serviços</div>
+          <div class="test-steps"><ol><li>Acesse Pacotes → "+ Novo"</li><li>Adicione 2+ serviços ao pacote</li><li>Defina preço e validade</li><li>Salve</li></ol></div>
+          <div class="test-expected">Pacote criado, disponível para venda a clientes.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t40">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Planos de assinatura — criar plano</div>
+          <div class="test-steps"><ol><li>Acesse Planos de Assinatura</li><li>Crie um novo plano com preço mensal</li><li>Vincule serviços</li><li>Salve</li></ol></div>
+          <div class="test-expected">Plano criado e visível na listagem.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t41">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Assinar plano para cliente</div>
+          <div class="test-steps"><ol><li>Abra um cliente</li><li>Adicione assinatura de plano</li><li>Verifique créditos gerados</li></ol></div>
+          <div class="test-expected">Assinatura ativa, créditos disponíveis para uso no agendamento.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 7 — PRODUTOS E ESTOQUE
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">📦</span> 7. Produtos e Estoque</div>
+      <span class="section-badge" id="badge-s7">0/7</span>
+    </div>
+    <div class="section-body collapsed" id="body-s7">
+
+      <div class="test-item" id="t42">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Cadastrar produto</div>
+          <div class="test-steps"><ol><li>Acesse Produtos → "+ Novo"</li><li>Preencha nome, setor, preço de custo/venda, estoque inicial</li><li>Salve</li></ol></div>
+          <div class="test-expected">Produto criado, estoque inicial registrado.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t43">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Movimentação de estoque — entrada</div>
+          <div class="test-steps"><ol><li>Acesse Produtos → Movimentação</li><li>Crie uma entrada de estoque</li></ol></div>
+          <div class="test-expected">Saldo de estoque atualizado corretamente.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t44">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Venda de produto</div>
+          <div class="test-steps"><ol><li>Acesse Produtos → Venda</li><li>Registre uma venda de produto</li></ol></div>
+          <div class="test-expected">Estoque reduzido, venda registrada no financeiro.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t45">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Posição de Estoque</div>
+          <div class="test-steps"><ol><li>Acesse Posição de Estoque</li><li>Verifique os saldos atuais</li></ol></div>
+          <div class="test-expected">Lista com saldo atual de cada produto, sem valores negativos sem explicação.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t46">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Cadastrar fabricante e fornecedor</div>
+          <div class="test-steps"><ol><li>Acesse Fabricantes → "+ Novo"</li><li>Depois acesse Fornecedores → "+ Novo"</li><li>Vincule ao produto</li></ol></div>
+          <div class="test-expected">Fabricante e fornecedor vinculados ao produto.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t47">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Inventário — ajuste de estoque</div>
+          <div class="test-steps"><ol><li>Acesse Inventário</li><li>Faça um ajuste de quantidade de um produto</li></ol></div>
+          <div class="test-expected">Saldo ajustado, movimentação registrada.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t48">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Ranking de produtos</div>
+          <div class="test-steps"><ol><li>Acesse Produtos → Ranking</li></ol></div>
+          <div class="test-expected">Lista ordenada por consumo/vendas carrega sem erro.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 8 — COMANDAS
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">🧾</span> 8. Comandas</div>
+      <span class="section-badge" id="badge-s8">0/5</span>
+    </div>
+    <div class="section-body collapsed" id="body-s8">
+
+      <div class="test-item" id="t49">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Abrir nova comanda</div>
+          <div class="test-steps"><ol><li>Acesse Comandas → "+ Nova Comanda"</li><li>Selecione cliente e profissional</li><li>Adicione serviços e/ou produtos</li></ol></div>
+          <div class="test-expected">Comanda criada com total calculado corretamente.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t50">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Aplicar desconto na comanda</div>
+          <div class="test-steps"><ol><li>Abra uma comanda</li><li>Aplique um desconto</li></ol></div>
+          <div class="test-expected">Valor final recalculado corretamente.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t51">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Fechar comanda — formas de pagamento</div>
+          <div class="test-steps"><ol><li>Feche uma comanda</li><li>Selecione forma de pagamento (dinheiro, cartão, PIX)</li><li>Confirme</li></ol></div>
+          <div class="test-expected">Comanda fechada, lançamento criado no caixa/financeiro.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t52">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Usar crédito de assinatura na comanda</div>
+          <div class="test-steps"><ol><li>Abra comanda para cliente com assinatura ativa</li><li>Selecione "usar crédito"</li></ol></div>
+          <div class="test-expected">Crédito deduzido, comanda fechada com desconto correto.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t53">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Histórico de comandas — filtros</div>
+          <div class="test-steps"><ol><li>Filtre por data, profissional, status</li></ol></div>
+          <div class="test-expected">Lista filtra corretamente, totais por período corretos.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 9 — FINANCEIRO
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">💰</span> 9. Financeiro</div>
+      <span class="section-badge" id="badge-s9">0/8</span>
+    </div>
+    <div class="section-body collapsed" id="body-s9">
+
+      <div class="test-item" id="t54">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Caixa — abrir e fechar caixa do dia</div>
+          <div class="test-steps"><ol><li>Acesse Financeiro → Caixa</li><li>Abra o caixa com saldo inicial</li><li>Ao final, feche o caixa</li></ol></div>
+          <div class="test-expected">Caixa aberto, lançamentos do dia visíveis, fechamento registra diferença.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t55">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Despesas — lançar despesa</div>
+          <div class="test-steps"><ol><li>Acesse Financeiro → Despesas</li><li>Lance uma despesa com categoria e valor</li></ol></div>
+          <div class="test-expected">Despesa salva, aparece no controle financeiro.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t56">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Controle — balanço receitas vs despesas</div>
+          <div class="test-steps"><ol><li>Acesse Financeiro → Controle</li><li>Selecione o mês atual</li></ol></div>
+          <div class="test-expected">Gráfico ou resumo mostra receitas, despesas e saldo corretamente.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t57">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Relatório de Profissionais — comissões</div>
+          <div class="test-steps"><ol><li>Acesse Financeiro → Relatório Profissionais</li><li>Selecione período</li></ol></div>
+          <div class="test-expected">Comissões calculadas corretamente por profissional.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t58">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Formas de pagamento — cadastrar nova</div>
+          <div class="test-steps"><ol><li>Acesse Financeiro → Formas de Pagamento</li><li>Adicione uma forma de pagamento customizada</li></ol></div>
+          <div class="test-expected">Nova forma disponível na seleção de pagamento em comandas.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t59">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Clientes em Débito</div>
+          <div class="test-steps"><ol><li>Acesse Financeiro → Clientes em Débito</li></ol></div>
+          <div class="test-expected">Lista de clientes com saldo devedor correto.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t60">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Exportação financeira</div>
+          <div class="test-steps"><ol><li>Acesse Financeiro → Exportação</li><li>Gere um relatório em PDF ou CSV</li></ol></div>
+          <div class="test-expected">Arquivo gerado e baixado corretamente com dados do período.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t61">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Contas a pagar/receber</div>
+          <div class="test-steps"><ol><li>Acesse Financeiro → Contas</li><li>Adicione uma conta</li></ol></div>
+          <div class="test-expected">Conta criada, vencimento correto, aparece no controle.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 10 — SISTEMA (Config, WhatsApp, Site, Permissões)
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">⚙️</span> 10. Sistema e Configurações</div>
+      <span class="section-badge" id="badge-s10">0/7</span>
+    </div>
+    <div class="section-body collapsed" id="body-s10">
+
+      <div class="test-item" id="t62">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Configurações gerais — salvar dados do negócio</div>
+          <div class="test-steps"><ol><li>Acesse Configurações</li><li>Altere nome do negócio, telefone, endereço</li><li>Salve</li></ol></div>
+          <div class="test-expected">Dados atualizados, refletem no site público e no header.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t63">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Permissões — criar perfil de permissão</div>
+          <div class="test-steps"><ol><li>Acesse Permissões</li><li>Crie um perfil com acesso restrito (ex: só agenda e clientes)</li><li>Atribua ao profissional</li></ol></div>
+          <div class="test-expected">Profissional com perfil restrito só vê as abas permitidas.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t64">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">WhatsApp — conectar instância</div>
+          <div class="test-steps"><ol><li>Acesse WhatsApp</li><li>Escaneie o QR Code no WhatsApp do celular</li><li>Verifique status "Conectado"</li></ol></div>
+          <div class="test-expected">Status muda para conectado, número exibido.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t65">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">WhatsApp — templates de mensagem</div>
+          <div class="test-steps"><ol><li>Edite o template de confirmação de agendamento</li><li>Crie um agendamento e verifique o envio</li></ol></div>
+          <div class="test-expected">Mensagem enviada com os dados corretos do agendamento.</div>
+          <div class="test-warning">Requer WhatsApp conectado</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t66">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Site Profissional — personalizar e salvar</div>
+          <div class="test-steps"><ol><li>Acesse Meu Site</li><li>Altere banner, cores, texto de apresentação</li><li>Salve e acesse o site público em aba anônima</li></ol></div>
+          <div class="test-expected">Alterações refletem no site público.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t67">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Perfil do admin — alterar senha</div>
+          <div class="test-steps"><ol><li>Acesse Meu Perfil</li><li>Altere a senha</li><li>Faça logout e login com a nova senha</li></ol></div>
+          <div class="test-expected">Login com nova senha funciona.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t68">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Assinatura da plataforma — ver plano atual</div>
+          <div class="test-steps"><ol><li>Acesse Assinatura</li><li>Verifique plano ativo e data de renovação</li></ol></div>
+          <div class="test-expected">Plano exibido corretamente com data e status Stripe.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 11 — AGENDAMENTO PÚBLICO (CLIENT BOOKING)
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">🌐</span> 11. Agendamento Online (Público)</div>
+      <span class="section-badge" id="badge-s11">0/5</span>
+    </div>
+    <div class="section-body collapsed" id="body-s11">
+
+      <div class="test-item" id="t69">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Página pública de agendamento carrega</div>
+          <div class="test-steps"><ol><li>Acesse a URL pública do negócio (ex: /booking/slug)</li></ol></div>
+          <div class="test-expected">Página carrega com nome do negócio, serviços e calendário disponível.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t70">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Fluxo completo de agendamento pelo cliente</div>
+          <div class="test-steps"><ol><li>Selecione um serviço</li><li>Escolha profissional</li><li>Escolha data e horário disponível</li><li>Informe nome e telefone</li><li>Confirme</li></ol></div>
+          <div class="test-expected">Agendamento criado, aparece no dashboard do admin.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t71">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Horário indisponível não aparece</div>
+          <div class="test-steps"><ol><li>Crie um agendamento em um horário</li><li>Tente agendar o mesmo horário na página pública</li></ol></div>
+          <div class="test-expected">Horário ocupado não aparece como disponível.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t72">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Site Profissional público</div>
+          <div class="test-steps"><ol><li>Acesse a URL pública do site profissional</li></ol></div>
+          <div class="test-expected">Landing page do negócio exibe serviços, galeria e botão de agendamento.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t73">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">PAT Queue — tela pública de fila</div>
+          <div class="test-steps"><ol><li>Acesse /terminal/pat-general/[slug] em uma TV ou tela secundária</li></ol></div>
+          <div class="test-expected">Fila de atendimento visível, atualiza automaticamente.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 12 — SUPER ADMIN
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">👑</span> 12. Super Admin</div>
+      <span class="section-badge" id="badge-s12">0/4</span>
+    </div>
+    <div class="section-body collapsed" id="body-s12">
+
+      <div class="test-item" id="t74">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Listar tenants (negócios cadastrados)</div>
+          <div class="test-steps"><ol><li>Faça login como super admin</li><li>Veja a lista de tenants</li></ol></div>
+          <div class="test-expected">Todos os negócios listados com status e plano.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t75">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Gestão de planos da plataforma</div>
+          <div class="test-steps"><ol><li>Acesse a aba de planos no super admin</li><li>Verifique preços e limites</li></ol></div>
+          <div class="test-expected">Planos listados com recursos e preços corretos.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t76">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Blog — criar e publicar post</div>
+          <div class="test-steps"><ol><li>No super admin, acesse Blog</li><li>Crie um novo post com título, texto, imagem</li><li>Publique</li></ol></div>
+          <div class="test-expected">Post visível em /blog na área pública.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t77">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">WhatsApp — aba super admin</div>
+          <div class="test-steps"><ol><li>Acesse a aba WhatsApp no super admin</li><li>Verifique as instâncias de todos os tenants</li></ol></div>
+          <div class="test-expected">Lista de instâncias por tenant visível com status.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 13 — QUEBRAS DE LAYOUT
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">🖥️</span> 13. Checklist de Layout</div>
+      <span class="section-badge" id="badge-s13">0/8</span>
+    </div>
+    <div class="section-body collapsed" id="body-s13">
+
+      <div class="test-item" id="t78">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Sem dark cards — fundos brancos/light</div>
+          <div class="test-desc">Percorra todas as abas verificando se não há cards escuros.</div>
+          <div class="test-expected">Todos os cards com fundo branco ou cinza claro, sem fundo escuro.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t79">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Modais — abrir e fechar sem travar layout</div>
+          <div class="test-desc">Abra e feche modais de cliente, serviço, produto, profissional.</div>
+          <div class="test-expected">Background scroll trava ao abrir, libera ao fechar. Sem modais empilhados.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t80">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Tabelas longas — sem overflow horizontal</div>
+          <div class="test-desc">Nas listas de clientes, produtos e comandas com muitos registros.</div>
+          <div class="test-expected">Tabelas com scroll interno, não vazam para fora do container.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t81">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Formulários — validação visual de campos obrigatórios</div>
+          <div class="test-desc">Tente salvar um formulário vazio (novo cliente, serviço, produto).</div>
+          <div class="test-expected">Campos obrigatórios marcados em vermelho, mensagem de erro clara.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t82">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Toast de notificação — aparece e some</div>
+          <div class="test-desc">Execute qualquer ação que gere toast (salvar, excluir).</div>
+          <div class="test-expected">Toast aparece no canto, desaparece após alguns segundos, não empilha infinitamente.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t83">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Loading states — spinners durante chamadas de API</div>
+          <div class="test-desc">Observe se há estados de carregamento ao abrir abas e submeter formulários.</div>
+          <div class="test-expected">Botões ficam disabled e spinners visíveis durante requisições.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t84">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Tela de 1280px — layout padrão desktop</div>
+          <div class="test-desc">Teste em resolução 1280×800, a mais comum em notebooks.</div>
+          <div class="test-expected">Sem elementos cortados, sidebar visível, conteúdo não está espremido.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t85">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Gráficos do dashboard — renderizam corretamente</div>
+          <div class="test-desc">Os gráficos de Recharts no painel de controle.</div>
+          <div class="test-expected">Gráficos renderizados, tooltips funcionam, sem gráficos com altura zero.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SEÇÃO 14 — COMUNICAÇÕES
+  ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><span class="emoji">📧</span> 14. E-mail e Comunicações</div>
+      <span class="section-badge" id="badge-s14">0/3</span>
+    </div>
+    <div class="section-body collapsed" id="body-s14">
+
+      <div class="test-item" id="t86">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">E-mail de confirmação de agendamento</div>
+          <div class="test-steps"><ol><li>Crie um agendamento para um cliente com e-mail cadastrado</li><li>Verifique o e-mail</li></ol></div>
+          <div class="test-expected">E-mail recebido com dados corretos do agendamento.</div>
+          <div class="test-warning">Requer SMTP Hostgator configurado</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t87">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">E-mail de nova assinatura (webhook Stripe)</div>
+          <div class="test-steps"><ol><li>Realize uma assinatura pelo Stripe (test mode)</li><li>Verifique o e-mail de boas-vindas com link de setup</li></ol></div>
+          <div class="test-expected">E-mail recebido com setupToken único, link abre a tela de cadastro.</div>
+          <div class="test-warning">Requer Stripe em modo teste</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+      <div class="test-item" id="t88">
+        <div class="checkbox-wrap">
+          <input type="checkbox" onchange="mark(this,'pass')">
+          <input type="checkbox" class="fail-cb" onchange="mark(this,'fail')">
+        </div>
+        <div class="test-content">
+          <div class="test-title">Setup via link de e-mail — cadastro completo</div>
+          <div class="test-steps"><ol><li>Acesse o link de setup do e-mail</li><li>Complete o cadastro do negócio</li><li>Faça login</li></ol></div>
+          <div class="test-expected">Tenant criado, admin logado, onboarding iniciado.</div>
+          <textarea class="notes-input" placeholder="Descreva o erro..."></textarea>
+        </div>
+        <button class="fail-btn" onclick="toggleNotes(this)">Bug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="height: 60px;"></div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'glow_cut_tests_v1';
+let state = {};
+
+function loadState() {
+  try { state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { state = {}; }
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+// ── Mark ───────────────────────────────────────────────────────────────
+function mark(cb, type) {
+  const item = cb.closest('.test-item');
+  const id = item.id;
+  const checks = item.querySelectorAll('input[type="checkbox"]');
+  const passBox = checks[0];
+  const failBox = checks[1];
+
+  if (type === 'pass') {
+    if (cb.checked) {
+      failBox.checked = false;
+      item.classList.add('checked');
+      item.classList.remove('fail');
+      state[id] = 'pass';
+    } else {
+      item.classList.remove('checked');
+      delete state[id];
+    }
+  } else {
+    if (cb.checked) {
+      passBox.checked = false;
+      item.classList.add('fail');
+      item.classList.remove('checked');
+      state[id] = 'fail';
+    } else {
+      item.classList.remove('fail');
+      delete state[id];
+    }
+  }
+
+  saveState();
+  updateAll();
+}
+
+function toggleNotes(btn) {
+  const textarea = btn.closest('.test-item').querySelector('.notes-input');
+  textarea.style.display = textarea.style.display === 'block' ? 'none' : 'block';
+  if (textarea.style.display === 'block') textarea.focus();
+}
+
+// ── Section toggle ────────────────────────────────────────────────────
+function toggleSection(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('collapsed');
+}
+
+// ── Update counters ───────────────────────────────────────────────────
+function updateAll() {
+  const sections = {
+    's1': { count: 6, start: 1 },
+    's2': { count: 7, start: 7 },
+    's3': { count: 10, start: 14 },
+    's4': { count: 6, start: 24 },
+    's5': { count: 6, start: 30 },
+    's6': { count: 6, start: 36 },
+    's7': { count: 7, start: 42 },
+    's8': { count: 5, start: 49 },
+    's9': { count: 8, start: 54 },
+    's10': { count: 7, start: 62 },
+    's11': { count: 5, start: 69 },
+    's12': { count: 4, start: 74 },
+    's13': { count: 8, start: 78 },
+    's14': { count: 3, start: 86 },
+  };
+
+  let totalPass = 0, totalFail = 0, totalPend = 0, total = 0;
+
+  for (const [sid, info] of Object.entries(sections)) {
+    let sPass = 0, sFail = 0;
+    for (let i = info.start; i < info.start + info.count; i++) {
+      const v = state['t' + i];
+      if (v === 'pass') sPass++;
+      else if (v === 'fail') sFail++;
+    }
+    const done = sPass + sFail;
+    const badge = document.getElementById('badge-' + sid);
+    if (badge) {
+      badge.textContent = done + '/' + info.count;
+      badge.className = 'section-badge' + (done === info.count ? ' done' : '');
+    }
+    totalPass += sPass;
+    totalFail += sFail;
+    totalPend += (info.count - done);
+    total += info.count;
+  }
+
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-pass').textContent = totalPass;
+  document.getElementById('s-fail').textContent = totalFail;
+  document.getElementById('s-pend').textContent = totalPend;
+
+  const pct = total > 0 ? Math.round(((totalPass + totalFail) / total) * 100) : 0;
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = (totalPass + totalFail) + ' / ' + total;
+}
+
+function resetAll() {
+  if (!confirm('Zerar todos os testes?')) return;
+  state = {};
+  saveState();
+  document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.test-item').forEach(item => {
+    item.classList.remove('checked', 'fail');
+  });
+  updateAll();
+}
+
+// ── Init ───────────────────────────────────────────────────────────────
+loadState();
+
+// Restore visual state
+for (const [id, val] of Object.entries(state)) {
+  const item = document.getElementById(id);
+  if (!item) continue;
+  const checks = item.querySelectorAll('input[type="checkbox"]');
+  if (val === 'pass') {
+    checks[0].checked = true;
+    item.classList.add('checked');
+  } else if (val === 'fail') {
+    checks[1].checked = true;
+    item.classList.add('fail');
+  }
+}
+
+updateAll();
+
+// Save notes
+document.querySelectorAll('.notes-input').forEach(ta => {
+  const id = ta.closest('.test-item').id;
+  if (state[id + '_note']) ta.value = state[id + '_note'];
+  ta.addEventListener('input', () => {
+    state[id + '_note'] = ta.value;
+    saveState();
+  });
+});
+</script>
+</body>
+</html>

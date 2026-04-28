@@ -1426,6 +1426,123 @@ superAdminRouter.delete("/finance/allocations/:id", async (req, res) => {
   }
 });
 
+// ═════════════════════════════════════════════════════════════
+//  SUPER-ADMIN — QA / Testes do Sistema
+// ═════════════════════════════════════════════════════════════
+
+// Listar todos os runs de teste
+superAdminRouter.get("/qa/runs", async (_req, res) => {
+  try {
+    const runs = await (prisma as any).qATestRun.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        results: { select: { status: true } }
+      }
+    });
+    const mapped = runs.map((r: any) => {
+      const total = r.results.length;
+      const pass  = r.results.filter((x: any) => x.status === "pass").length;
+      const fail  = r.results.filter((x: any) => x.status === "fail").length;
+      const { results, ...rest } = r;
+      return { ...rest, total, pass, fail, pending: total - pass - fail };
+    });
+    res.json(mapped);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Criar novo run de teste
+superAdminRouter.post("/qa/runs", async (req, res) => {
+  const { title, testerName, testerEmail, notes } = req.body;
+  if (!testerName) return res.status(400).json({ error: "Nome do testador é obrigatório" });
+  try {
+    const run = await (prisma as any).qATestRun.create({
+      data: {
+        id: randomUUID(),
+        title: title || `Teste ${new Date().toLocaleDateString("pt-BR")}`,
+        testerName,
+        testerEmail: testerEmail || null,
+        notes: notes || null,
+        status: "in_progress",
+      }
+    });
+    res.json(run);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Buscar run completo com todos os resultados
+superAdminRouter.get("/qa/runs/:id", async (req, res) => {
+  try {
+    const run = await (prisma as any).qATestRun.findUnique({
+      where: { id: req.params.id },
+      include: { results: { orderBy: { testId: "asc" } } }
+    });
+    if (!run) return res.status(404).json({ error: "Run não encontrado" });
+    res.json(run);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Atualizar status do run
+superAdminRouter.patch("/qa/runs/:id", async (req, res) => {
+  const { status, notes } = req.body;
+  try {
+    const run = await (prisma as any).qATestRun.update({
+      where: { id: req.params.id },
+      data: {
+        ...(status !== undefined && { status }),
+        ...(notes !== undefined && { notes }),
+      }
+    });
+    res.json(run);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Deletar run
+superAdminRouter.delete("/qa/runs/:id", async (req, res) => {
+  try {
+    await (prisma as any).qATestRun.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Salvar/atualizar resultado de um teste individual (upsert)
+superAdminRouter.post("/qa/runs/:id/results", async (req, res) => {
+  const { testId, section, title, status, notes } = req.body;
+  if (!testId) return res.status(400).json({ error: "testId é obrigatório" });
+  try {
+    const result = await (prisma as any).qATestResult.upsert({
+      where: { runId_testId: { runId: req.params.id, testId } },
+      create: {
+        id: randomUUID(),
+        runId: req.params.id,
+        testId,
+        section: section || "",
+        title: title || "",
+        status: status || "pending",
+        notes: notes || null,
+      },
+      update: {
+        status: status || "pending",
+        notes: notes !== undefined ? notes : undefined,
+        ...(section && { section }),
+        ...(title && { title }),
+      }
+    });
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Categorias de lançamento disponíveis
 superAdminRouter.get("/finance/categories", async (_req, res) => {
   res.json({

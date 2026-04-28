@@ -39,7 +39,7 @@ import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/per
 /* ═══════════════════════════════════════════
    TIPOS
 ═══════════════════════════════════════════ */
-type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp" | "blog" | "sales" | "settings" | "finance" | "commissions";
+type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp" | "blog" | "sales" | "settings" | "finance" | "commissions" | "qa";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
@@ -4320,6 +4320,436 @@ function SettingsTab() {
 }
 
 /* ═══════════════════════════════════════════
+   ABA: QA / TESTES DO SISTEMA
+═══════════════════════════════════════════ */
+
+const QA_TESTS: { id: string; section: string; title: string; steps: string; expected: string; warning?: string }[] = [
+  // 1. Autenticação
+  { id: "t1",  section: "Autenticação", title: "Login com credenciais válidas (Admin)", steps: "1. Abra o sistema\n2. Digite e-mail e senha válidos\n3. Clique em Entrar", expected: "Redireciona para /dashboard com nome do usuário na sidebar." },
+  { id: "t2",  section: "Autenticação", title: "Login com senha errada", steps: "1. Digite e-mail válido + senha errada\n2. Clique em Entrar", expected: "Mensagem de erro, sem redirecionamento." },
+  { id: "t3",  section: "Autenticação", title: "Recuperação de senha", steps: "1. Clique em 'Esqueci minha senha'\n2. Informe e-mail cadastrado\n3. Verifique e-mail\n4. Acesse link e defina nova senha\n5. Login com nova senha", expected: "E-mail recebido, link funciona, nova senha funciona no login." },
+  { id: "t4",  section: "Autenticação", title: "Sessão expira / logout", steps: "1. Faça login\n2. Clique em Sair\n3. Tente acessar /dashboard diretamente", expected: "Redireciona para login. Sessão não persiste após fechar o browser." },
+  { id: "t5",  section: "Autenticação", title: "Login como Profissional", steps: "Use credenciais de profissional (não admin)", expected: "Redireciona para /profissional com a view correta." },
+  { id: "t6",  section: "Autenticação", title: "Login como Super Admin", steps: "Use credenciais de super admin", expected: "Redireciona para painel super-admin." },
+  // 2. Dashboard e Navegação
+  { id: "t7",  section: "Dashboard e Navegação", title: "Dashboard carrega sem erros", steps: "1. Após login verifique o painel\n2. Cheque console do browser (F12)", expected: "Cards de estatísticas visíveis, sem loading infinito, sem erros no console." },
+  { id: "t8",  section: "Dashboard e Navegação", title: "Sidebar — navegação entre todas as abas", steps: "Clique em cada item do menu: Agenda, Clientes, Comandas, Financeiro, Profissionais, Serviços, Produtos, Pacotes, Planos, Site, WhatsApp, Horários, Config, Permissões, Assinatura, Perfil", expected: "Cada aba abre sem erro de layout ou 404." },
+  { id: "t9",  section: "Dashboard e Navegação", title: "Sidebar — colapsar e expandir", steps: "1. Clique no botão de colapsar\n2. Verifique que só ícones ficam visíveis\n3. Expanda novamente", expected: "Layout não quebra em nenhum estado." },
+  { id: "t10", section: "Dashboard e Navegação", title: "Responsividade — mobile (375px)", steps: "1. No DevTools (F12) ative modo 375px\n2. Navegue por dashboard, agenda, clientes", expected: "Menu hamburguer visível, sem texto cortado, sem scroll horizontal." },
+  { id: "t11", section: "Dashboard e Navegação", title: "Notificações — sino", steps: "1. Clique no sino no topo\n2. Verifique dropdown", expected: "Dropdown abre e fecha corretamente." },
+  { id: "t12", section: "Dashboard e Navegação", title: "URL — navegação direta por slug", steps: "Acesse /dashboard/agenda, /dashboard/clientes, /dashboard/financeiro diretamente", expected: "Abre a aba correta sem passar pelo dashboard inicial." },
+  { id: "t13", section: "Dashboard e Navegação", title: "Cards de estatísticas do painel", steps: "Verifique os cards de agendamentos, faturamento, novos clientes", expected: "Números reais da API, sem NaN ou -." },
+  // 3. Agenda
+  { id: "t14", section: "Agenda", title: "Calendário carrega com slots do dia", steps: "1. Abra a aba Agenda\n2. Verifique o calendário do dia atual", expected: "Slots de horário visíveis para cada profissional ativo." },
+  { id: "t15", section: "Agenda", title: "Navegar entre dias/semanas", steps: "1. Clique nos botões de avançar/voltar\n2. Vá para amanhã, depois volte para hoje", expected: "Data atualiza, agenda recarrega, botão Hoje funciona." },
+  { id: "t16", section: "Agenda", title: "Criar agendamento — fluxo completo", steps: "1. Clique em slot vazio\n2. Selecione cliente\n3. Selecione profissional\n4. Selecione serviço\n5. Confirme", expected: "Agendamento salvo, aparece no calendário na cor correta." },
+  { id: "t17", section: "Agenda", title: "Criar agendamento com novo cliente", steps: "1. Busque nome que não existe\n2. Use opção de cadastrar novo cliente inline", expected: "Cliente criado e agendamento salvo." },
+  { id: "t18", section: "Agenda", title: "Editar agendamento existente", steps: "1. Clique em agendamento existente\n2. Altere horário ou serviço\n3. Salve", expected: "Agendamento atualizado sem duplicar." },
+  { id: "t19", section: "Agenda", title: "Cancelar agendamento", steps: "1. Clique em agendamento\n2. Selecione Cancelar\n3. Confirme no modal", expected: "Agendamento removido ou marcado como cancelado." },
+  { id: "t20", section: "Agenda", title: "Consultar Agendamentos — filtros", steps: "1. Abra Consultar Agendamentos\n2. Filtre por profissional e período", expected: "Lista filtra corretamente, paginação funciona." },
+  { id: "t21", section: "Agenda", title: "Agenda por Cliente", steps: "1. Busque cliente pelo nome\n2. Veja histórico de agendamentos", expected: "Histórico exibido com datas e status." },
+  { id: "t22", section: "Agenda", title: "PAT Terminal — fila de atendimento", steps: "1. Abra aba PAT\n2. Verifique fila do dia\n3. Avance status de atendimento", expected: "Status atualiza em tempo real." },
+  { id: "t23", section: "Agenda", title: "Liberações de Horários", steps: "1. Abra Liberações\n2. Crie uma liberação para profissional", expected: "Liberação salva, reflete na agenda principal." },
+  // 4. Clientes
+  { id: "t24", section: "Clientes", title: "Listar clientes — busca e paginação", steps: "1. Abra aba Clientes\n2. Busque por nome parcial\n3. Navegue nas páginas", expected: "Lista filtrada corretamente, paginação funciona." },
+  { id: "t25", section: "Clientes", title: "Criar novo cliente", steps: "1. Clique em + Novo Cliente\n2. Preencha nome, telefone, e-mail, CPF\n3. Salve", expected: "Cliente aparece na lista, dados gravados corretamente." },
+  { id: "t26", section: "Clientes", title: "Editar cliente existente", steps: "1. Clique em cliente\n2. Altere campo\n3. Salve", expected: "Dados atualizados sem criar duplicata." },
+  { id: "t27", section: "Clientes", title: "Excluir cliente", steps: "1. Clique em excluir cliente\n2. Confirme no modal", expected: "Cliente removido. Modal de confirmação aparece antes." },
+  { id: "t28", section: "Clientes", title: "Máscaras — telefone, CPF, CEP", steps: "No modal de cliente, digite nos campos de telefone, CPF e CEP", expected: "Telefone (XX) XXXXX-XXXX, CPF XXX.XXX.XXX-XX, CEP XXXXX-XXX." },
+  { id: "t29", section: "Clientes", title: "Portal do cliente — login e visualização", steps: "1. Acesse URL do portal\n2. Login com credenciais de cliente\n3. Verifique agendamentos", expected: "Portal carrega dados do cliente correto apenas." },
+  // 5. Profissionais e Horários
+  { id: "t30", section: "Profissionais e Horários", title: "Cadastrar profissional", steps: "1. Profissionais → + Novo\n2. Preencha nome, especialidade, e-mail, senha\n3. Salve", expected: "Profissional aparece na lista e pode fazer login." },
+  { id: "t31", section: "Profissionais e Horários", title: "Ativar / desativar profissional", steps: "Toggle o status de ativo/inativo", expected: "Profissional inativo não aparece na agenda." },
+  { id: "t32", section: "Profissionais e Horários", title: "Configurar horários de trabalho", steps: "1. Acesse Horários\n2. Configure dias e horários de profissional\n3. Salve", expected: "Horários salvos, slots disponíveis refletem a configuração." },
+  { id: "t33", section: "Profissionais e Horários", title: "Dia fechado — bloqueio na agenda", steps: "1. Crie dia fechado para profissional\n2. Verifique na agenda", expected: "Slots do dia bloqueado não disponíveis para agendamento." },
+  { id: "t34", section: "Profissionais e Horários", title: "Dashboard do Profissional", steps: "1. Login como profissional\n2. Verifique Minha Agenda", expected: "Apenas agendamentos do profissional logado visíveis." },
+  { id: "t35", section: "Profissionais e Horários", title: "Minha Agenda Online — link público", steps: "1. Acesse Minha Agenda Online\n2. Copie o link\n3. Abra em aba anônima", expected: "Página pública de agendamento carrega." },
+  // 6. Serviços e Pacotes
+  { id: "t36", section: "Serviços e Pacotes", title: "Criar serviço", steps: "1. Serviços → + Novo\n2. Nome, preço, duração, comissão\n3. Salve", expected: "Serviço listado, disponível na criação de agendamentos." },
+  { id: "t37", section: "Serviços e Pacotes", title: "Editar e desativar serviço", steps: "1. Edite preço\n2. Desative serviço", expected: "Serviço inativo não aparece nas opções de agendamento." },
+  { id: "t38", section: "Serviços e Pacotes", title: "Vincular produto a serviço", steps: "1. Edite serviço\n2. Adicione produto como insumo\n3. Salve", expected: "Produto vinculado aparece na listagem do serviço." },
+  { id: "t39", section: "Serviços e Pacotes", title: "Criar pacote de serviços", steps: "1. Pacotes → + Novo\n2. Adicione 2+ serviços\n3. Preço e validade\n4. Salve", expected: "Pacote criado, disponível para venda." },
+  { id: "t40", section: "Serviços e Pacotes", title: "Planos de assinatura — criar plano", steps: "1. Planos de Assinatura\n2. Crie plano com preço mensal\n3. Vincule serviços\n4. Salve", expected: "Plano criado e visível na listagem." },
+  { id: "t41", section: "Serviços e Pacotes", title: "Assinar plano para cliente", steps: "1. Abra cliente\n2. Adicione assinatura\n3. Verifique créditos gerados", expected: "Assinatura ativa, créditos disponíveis." },
+  // 7. Produtos e Estoque
+  { id: "t42", section: "Produtos e Estoque", title: "Cadastrar produto", steps: "1. Produtos → + Novo\n2. Nome, setor, preços, estoque inicial\n3. Salve", expected: "Produto criado, estoque inicial registrado." },
+  { id: "t43", section: "Produtos e Estoque", title: "Movimentação — entrada de estoque", steps: "1. Produtos → Movimentação\n2. Crie uma entrada", expected: "Saldo de estoque atualizado." },
+  { id: "t44", section: "Produtos e Estoque", title: "Venda de produto", steps: "1. Produtos → Venda\n2. Registre venda", expected: "Estoque reduzido, venda registrada no financeiro." },
+  { id: "t45", section: "Produtos e Estoque", title: "Posição de Estoque", steps: "Acesse Posição de Estoque e verifique saldos", expected: "Lista com saldo atual de cada produto." },
+  { id: "t46", section: "Produtos e Estoque", title: "Cadastrar fabricante e fornecedor", steps: "1. Fabricantes → + Novo\n2. Fornecedores → + Novo\n3. Vincule ao produto", expected: "Fabricante e fornecedor vinculados ao produto." },
+  { id: "t47", section: "Produtos e Estoque", title: "Inventário — ajuste de estoque", steps: "1. Acesse Inventário\n2. Faça ajuste de quantidade", expected: "Saldo ajustado, movimentação registrada." },
+  { id: "t48", section: "Produtos e Estoque", title: "Ranking de produtos", steps: "Acesse Produtos → Ranking", expected: "Lista ordenada por consumo/vendas carrega sem erro." },
+  // 8. Comandas
+  { id: "t49", section: "Comandas", title: "Abrir nova comanda", steps: "1. Comandas → + Nova\n2. Selecione cliente e profissional\n3. Adicione serviços e/ou produtos", expected: "Comanda criada com total calculado corretamente." },
+  { id: "t50", section: "Comandas", title: "Aplicar desconto na comanda", steps: "1. Abra comanda\n2. Aplique desconto", expected: "Valor final recalculado corretamente." },
+  { id: "t51", section: "Comandas", title: "Fechar comanda — formas de pagamento", steps: "1. Feche comanda\n2. Selecione forma (dinheiro, cartão, PIX)\n3. Confirme", expected: "Comanda fechada, lançamento criado no caixa." },
+  { id: "t52", section: "Comandas", title: "Usar crédito de assinatura", steps: "1. Abra comanda para cliente com assinatura\n2. Selecione usar crédito", expected: "Crédito deduzido, comanda fechada com desconto correto." },
+  { id: "t53", section: "Comandas", title: "Histórico de comandas — filtros", steps: "Filtre por data, profissional, status", expected: "Lista filtra corretamente, totais por período corretos." },
+  // 9. Financeiro
+  { id: "t54", section: "Financeiro", title: "Caixa — abrir e fechar caixa do dia", steps: "1. Financeiro → Caixa\n2. Abra caixa com saldo inicial\n3. Feche ao final", expected: "Caixa aberto, lançamentos visíveis, fechamento registra diferença." },
+  { id: "t55", section: "Financeiro", title: "Despesas — lançar despesa", steps: "1. Financeiro → Despesas\n2. Lance despesa com categoria e valor", expected: "Despesa salva, aparece no controle financeiro." },
+  { id: "t56", section: "Financeiro", title: "Controle — balanço receitas vs despesas", steps: "1. Financeiro → Controle\n2. Selecione mês atual", expected: "Resumo mostra receitas, despesas e saldo corretamente." },
+  { id: "t57", section: "Financeiro", title: "Relatório Profissionais — comissões", steps: "1. Financeiro → Relatório Profissionais\n2. Selecione período", expected: "Comissões calculadas por profissional." },
+  { id: "t58", section: "Financeiro", title: "Formas de pagamento — cadastrar nova", steps: "1. Financeiro → Formas de Pagamento\n2. Adicione forma customizada", expected: "Nova forma disponível na seleção de pagamento em comandas." },
+  { id: "t59", section: "Financeiro", title: "Clientes em Débito", steps: "Acesse Financeiro → Clientes em Débito", expected: "Lista de clientes com saldo devedor correto." },
+  { id: "t60", section: "Financeiro", title: "Exportação financeira", steps: "1. Financeiro → Exportação\n2. Gere relatório em PDF ou CSV", expected: "Arquivo gerado e baixado com dados do período." },
+  { id: "t61", section: "Financeiro", title: "Contas a pagar/receber", steps: "1. Financeiro → Contas\n2. Adicione uma conta", expected: "Conta criada, vencimento correto, aparece no controle." },
+  // 10. Sistema
+  { id: "t62", section: "Sistema e Configurações", title: "Configurações gerais — salvar dados do negócio", steps: "1. Configurações\n2. Altere nome, telefone, endereço\n3. Salve", expected: "Dados atualizados, refletem no site público." },
+  { id: "t63", section: "Sistema e Configurações", title: "Permissões — criar perfil restrito", steps: "1. Permissões\n2. Crie perfil com acesso restrito\n3. Atribua ao profissional", expected: "Profissional só vê as abas permitidas." },
+  { id: "t64", section: "Sistema e Configurações", title: "WhatsApp — conectar instância", steps: "1. WhatsApp\n2. Escaneie QR Code\n3. Verifique status Conectado", expected: "Status muda para conectado, número exibido.", warning: "Requer celular com WhatsApp" },
+  { id: "t65", section: "Sistema e Configurações", title: "WhatsApp — templates de mensagem", steps: "1. Edite template de confirmação\n2. Crie agendamento e verifique envio", expected: "Mensagem enviada com dados corretos.", warning: "Requer WhatsApp conectado" },
+  { id: "t66", section: "Sistema e Configurações", title: "Site Profissional — personalizar e salvar", steps: "1. Meu Site\n2. Altere banner, cores, texto\n3. Salve e acesse site público", expected: "Alterações refletem no site público." },
+  { id: "t67", section: "Sistema e Configurações", title: "Perfil do admin — alterar senha", steps: "1. Meu Perfil\n2. Altere senha\n3. Logout e login com nova senha", expected: "Login com nova senha funciona." },
+  { id: "t68", section: "Sistema e Configurações", title: "Assinatura — ver plano atual", steps: "1. Assinatura\n2. Verifique plano ativo e data de renovação", expected: "Plano exibido com data e status Stripe." },
+  // 11. Agendamento Público
+  { id: "t69", section: "Agendamento Online Público", title: "Página pública de agendamento carrega", steps: "Acesse URL pública do negócio (/booking/slug)", expected: "Página carrega com nome, serviços e calendário disponível." },
+  { id: "t70", section: "Agendamento Online Público", title: "Fluxo completo pelo cliente", steps: "1. Selecione serviço\n2. Escolha profissional\n3. Data e horário\n4. Nome e telefone\n5. Confirme", expected: "Agendamento criado, aparece no dashboard do admin." },
+  { id: "t71", section: "Agendamento Online Público", title: "Horário indisponível não aparece", steps: "1. Crie agendamento em horário\n2. Tente agendar mesmo horário na página pública", expected: "Horário ocupado não aparece como disponível." },
+  { id: "t72", section: "Agendamento Online Público", title: "Site Profissional público", steps: "Acesse URL pública do site profissional", expected: "Landing page exibe serviços, galeria e botão de agendamento." },
+  { id: "t73", section: "Agendamento Online Público", title: "PAT Queue — tela pública de fila", steps: "Acesse /terminal/pat-general/[slug] em tela secundária", expected: "Fila de atendimento visível, atualiza automaticamente." },
+  // 12. Super Admin
+  { id: "t74", section: "Super Admin", title: "Listar tenants (negócios cadastrados)", steps: "1. Login como super admin\n2. Veja lista de tenants", expected: "Todos os negócios listados com status e plano." },
+  { id: "t75", section: "Super Admin", title: "Gestão de planos da plataforma", steps: "1. Aba planos no super admin\n2. Verifique preços e limites", expected: "Planos listados com recursos e preços corretos." },
+  { id: "t76", section: "Super Admin", title: "Blog — criar e publicar post", steps: "1. Super admin → Blog\n2. Crie post com título, texto, imagem\n3. Publique", expected: "Post visível em /blog na área pública." },
+  { id: "t77", section: "Super Admin", title: "WhatsApp — aba super admin", steps: "1. Super admin → WhatsApp\n2. Verifique instâncias de todos os tenants", expected: "Lista de instâncias por tenant com status." },
+  // 13. Layout
+  { id: "t78", section: "Checklist de Layout", title: "Sem dark cards — fundos brancos/light", steps: "Percorra todas as abas verificando se há cards escuros", expected: "Todos os cards com fundo branco ou cinza claro." },
+  { id: "t79", section: "Checklist de Layout", title: "Modais — abrir e fechar sem travar", steps: "Abra e feche modais de cliente, serviço, produto, profissional", expected: "Background scroll trava ao abrir, libera ao fechar. Sem modais empilhados." },
+  { id: "t80", section: "Checklist de Layout", title: "Tabelas longas — sem overflow horizontal", steps: "Listas de clientes, produtos e comandas com muitos registros", expected: "Tabelas com scroll interno, não vazam para fora do container." },
+  { id: "t81", section: "Checklist de Layout", title: "Formulários — validação visual de campos obrigatórios", steps: "Tente salvar formulário vazio (cliente, serviço, produto)", expected: "Campos obrigatórios marcados em vermelho, mensagem de erro clara." },
+  { id: "t82", section: "Checklist de Layout", title: "Toast — aparece e some", steps: "Execute qualquer ação que gere toast (salvar, excluir)", expected: "Toast aparece no canto, desaparece após alguns segundos." },
+  { id: "t83", section: "Checklist de Layout", title: "Loading states — spinners durante API", steps: "Observe estados de carregamento ao abrir abas e submeter forms", expected: "Botões disabled e spinners visíveis durante requisições." },
+  { id: "t84", section: "Checklist de Layout", title: "Tela de 1280px — layout desktop padrão", steps: "Teste em resolução 1280×800", expected: "Sem elementos cortados, sidebar visível, conteúdo não espremido." },
+  { id: "t85", section: "Checklist de Layout", title: "Gráficos do dashboard — renderizam", steps: "Gráficos Recharts no painel de controle", expected: "Gráficos renderizados, tooltips funcionam, sem altura zero." },
+  // 14. E-mail
+  { id: "t86", section: "E-mail e Comunicações", title: "E-mail de confirmação de agendamento", steps: "1. Crie agendamento para cliente com e-mail\n2. Verifique e-mail", expected: "E-mail recebido com dados corretos.", warning: "Requer SMTP configurado" },
+  { id: "t87", section: "E-mail e Comunicações", title: "E-mail de nova assinatura (webhook Stripe)", steps: "1. Realize assinatura no Stripe (test mode)\n2. Verifique e-mail de boas-vindas com link de setup", expected: "E-mail com setupToken único, link abre tela de cadastro.", warning: "Requer Stripe em modo teste" },
+  { id: "t88", section: "E-mail e Comunicações", title: "Setup via link de e-mail — cadastro completo", steps: "1. Acesse link de setup\n2. Complete cadastro\n3. Faça login", expected: "Tenant criado, admin logado, onboarding iniciado." },
+];
+
+const QA_SECTIONS = [...new Set(QA_TESTS.map(t => t.section))];
+
+const STATUS_CONFIG = {
+  pending: { label: "Pendente", color: "#9ca3af", bg: "#f3f4f6" },
+  pass:    { label: "Passou",   color: "#16a34a", bg: "#dcfce7" },
+  fail:    { label: "Falhou",   color: "#dc2626", bg: "#fee2e2" },
+};
+
+function QATab() {
+  const [runs, setRuns] = useState<any[]>([]);
+  const [activeRun, setActiveRun] = useState<any>(null);
+  const [results, setResults] = useState<Record<string, any>>({});
+  const [loadingRun, setLoadingRun] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [newRunModal, setNewRunModal] = useState(false);
+  const [newRunForm, setNewRunForm] = useState({ title: "", testerName: "", testerEmail: "" });
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [noteModal, setNoteModal] = useState<{ testId: string; title: string; current: string } | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const toast = useToast();
+
+  const loadRuns = () => {
+    apiFetch("/api/super-admin/qa/runs").then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setRuns(data);
+    });
+  };
+
+  useEffect(() => { loadRuns(); }, []);
+
+  const openRun = async (run: any) => {
+    setLoadingRun(true);
+    try {
+      const data = await apiFetch(`/api/super-admin/qa/runs/${run.id}`).then(r => r.json());
+      setActiveRun(data);
+      const map: Record<string, any> = {};
+      (data.results || []).forEach((r: any) => { map[r.testId] = r; });
+      setResults(map);
+      const exp: Record<string, boolean> = {};
+      QA_SECTIONS.forEach(s => { exp[s] = true; });
+      setExpandedSections(exp);
+    } finally {
+      setLoadingRun(false);
+    }
+  };
+
+  const createRun = async () => {
+    if (!newRunForm.testerName.trim()) return toast.error("Nome do testador é obrigatório");
+    try {
+      const run = await apiFetch("/api/super-admin/qa/runs", {
+        method: "POST",
+        body: JSON.stringify(newRunForm),
+      }).then(r => r.json());
+      setNewRunModal(false);
+      setNewRunForm({ title: "", testerName: "", testerEmail: "" });
+      loadRuns();
+      await openRun(run);
+    } catch { toast.error("Erro ao criar sessão de teste"); }
+  };
+
+  const saveResult = async (testId: string, section: string, title: string, status: string, notes?: string) => {
+    if (!activeRun) return;
+    setSavingId(testId);
+    try {
+      const res = await apiFetch(`/api/super-admin/qa/runs/${activeRun.id}/results`, {
+        method: "POST",
+        body: JSON.stringify({ testId, section, title, status, notes: notes ?? results[testId]?.notes ?? null }),
+      }).then(r => r.json());
+      setResults(prev => ({ ...prev, [testId]: res }));
+      loadRuns();
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const saveNote = async () => {
+    if (!noteModal) return;
+    await saveResult(noteModal.testId, "", "", results[noteModal.testId]?.status ?? "pending", noteText);
+    setNoteModal(null);
+  };
+
+  const finishRun = async () => {
+    if (!activeRun) return;
+    await apiFetch(`/api/super-admin/qa/runs/${activeRun.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "done" }),
+    });
+    loadRuns();
+    setActiveRun((prev: any) => prev ? { ...prev, status: "done" } : prev);
+    toast.success("Sessão de testes finalizada!");
+  };
+
+  const deleteRun = async (id: string) => {
+    await apiFetch(`/api/super-admin/qa/runs/${id}`, { method: "DELETE" });
+    if (activeRun?.id === id) { setActiveRun(null); setResults({}); }
+    loadRuns();
+  };
+
+  // Stats do run ativo
+  const totalTests = QA_TESTS.length;
+  const pass  = Object.values(results).filter((r: any) => r.status === "pass").length;
+  const fail  = Object.values(results).filter((r: any) => r.status === "fail").length;
+  const pend  = totalTests - pass - fail;
+  const pct   = Math.round(((pass + fail) / totalTests) * 100);
+
+  if (!activeRun) {
+    return (
+      <div className="space-y-6">
+        <SectionTitle title="QA — Testes do Sistema" description="Gerencie sessões de teste e acompanhe os resultados em tempo real" icon={CheckCircle} />
+
+        <div className="flex justify-end">
+          <Button onClick={() => setNewRunModal(true)} size="sm">
+            <Plus size={14} className="mr-1.5" /> Nova Sessão de Teste
+          </Button>
+        </div>
+
+        {runs.length === 0 && (
+          <EmptyState icon={CheckCircle} title="Nenhuma sessão de teste" description="Crie uma nova sessão e envie o link para o testador" />
+        )}
+
+        <div className="space-y-3">
+          {runs.map(run => {
+            const total = run.pass + run.fail;
+            const pctRun = run.total > 0 ? Math.round((total / run.total) * 100) : 0;
+            return (
+              <div key={run.id} className="bg-white border border-zinc-100 rounded-xl p-4 flex items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-zinc-800 truncate">{run.title}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: run.status === "done" ? "#dcfce7" : "#fef3c7", color: run.status === "done" ? "#16a34a" : "#d97706" }}>
+                      {run.status === "done" ? "Finalizado" : "Em andamento"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-0.5">Testador: <strong>{run.testerName}</strong> · {new Date(run.createdAt).toLocaleDateString("pt-BR")}</p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <span className="text-xs text-zinc-500">{run.total} testes</span>
+                    <span className="text-xs text-emerald-600 font-bold">{run.pass} passaram</span>
+                    <span className="text-xs text-red-500 font-bold">{run.fail} falharam</span>
+                    <span className="text-xs text-zinc-400">{run.total - run.pass - run.fail} pendentes</span>
+                  </div>
+                  <div className="mt-2 bg-zinc-100 rounded-full h-1.5 w-48">
+                    <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pctRun}%` }} />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="outline" size="sm" onClick={() => openRun(run)}>
+                    <Eye size={13} className="mr-1.5" /> {run.status === "done" ? "Ver" : "Abrir"}
+                  </Button>
+                  <IconButton variant="ghost" size="sm" onClick={() => deleteRun(run.id)} title="Excluir">
+                    <Trash2 size={14} className="text-red-400" />
+                  </IconButton>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <Modal isOpen={newRunModal} onClose={() => setNewRunModal(false)} title="Nova Sessão de Testes">
+          <div className="space-y-4 p-1">
+            <Input label="Título da sessão" value={newRunForm.title} onChange={e => setNewRunForm(f => ({ ...f, title: e.target.value }))} placeholder={`Teste ${new Date().toLocaleDateString("pt-BR")}`} />
+            <Input label="Nome do testador *" value={newRunForm.testerName} onChange={e => setNewRunForm(f => ({ ...f, testerName: e.target.value }))} placeholder="Ex: João Silva" />
+            <Input label="E-mail do testador" value={newRunForm.testerEmail} onChange={e => setNewRunForm(f => ({ ...f, testerEmail: e.target.value }))} placeholder="joao@email.com" />
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="ghost" onClick={() => setNewRunModal(false)}>Cancelar</Button>
+            <Button onClick={createRun}>Criar Sessão</Button>
+          </div>
+        </Modal>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header do run ativo */}
+      <div className="flex items-center gap-3">
+        <button onClick={() => { setActiveRun(null); setResults({}); }} className="text-zinc-400 hover:text-zinc-700 transition-colors flex items-center gap-1 text-xs font-bold">
+          <ArrowLeft size={14} /> Voltar
+        </button>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base font-black text-zinc-800 truncate">{activeRun.title}</h2>
+          <p className="text-xs text-zinc-500">Testador: <strong>{activeRun.testerName}</strong></p>
+        </div>
+        {activeRun.status !== "done" && (
+          <Button size="sm" onClick={finishRun}>
+            <Check size={13} className="mr-1.5" /> Finalizar Sessão
+          </Button>
+        )}
+        {activeRun.status === "done" && (
+          <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 20, background: "#dcfce7", color: "#16a34a" }}>Finalizado</span>
+        )}
+      </div>
+
+      {/* Barra de progresso */}
+      <div className="bg-white border border-zinc-100 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold text-zinc-600">Progresso: {pass + fail}/{totalTests} avaliados</span>
+          <span className="text-xs font-black text-zinc-800">{pct}%</span>
+        </div>
+        <div className="bg-zinc-100 rounded-full h-2 mb-3">
+          <div className="h-full rounded-full bg-amber-400 transition-all" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="flex gap-6">
+          <div className="text-center"><p className="text-xl font-black text-emerald-600">{pass}</p><p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Passaram</p></div>
+          <div className="text-center"><p className="text-xl font-black text-red-500">{fail}</p><p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Falharam</p></div>
+          <div className="text-center"><p className="text-xl font-black text-zinc-400">{pend}</p><p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Pendentes</p></div>
+          <div className="text-center"><p className="text-xl font-black text-zinc-800">{totalTests}</p><p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Total</p></div>
+        </div>
+      </div>
+
+      {loadingRun ? (
+        <div className="flex items-center justify-center h-40 text-zinc-400 text-sm font-semibold">Carregando...</div>
+      ) : (
+        <div className="space-y-3">
+          {QA_SECTIONS.map(section => {
+            const sectionTests = QA_TESTS.filter(t => t.section === section);
+            const sPass = sectionTests.filter(t => results[t.id]?.status === "pass").length;
+            const sFail = sectionTests.filter(t => results[t.id]?.status === "fail").length;
+            const expanded = expandedSections[section] !== false;
+
+            return (
+              <div key={section} className="bg-white border border-zinc-100 rounded-xl overflow-hidden">
+                <button
+                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-zinc-50 transition-colors"
+                  onClick={() => setExpandedSections(prev => ({ ...prev, [section]: !expanded }))}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-black text-zinc-800">{section}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 10px", borderRadius: 20, background: sPass + sFail === sectionTests.length ? "#dcfce7" : "#f3f4f6", color: sPass + sFail === sectionTests.length ? "#16a34a" : "#6b7280" }}>
+                      {sPass + sFail}/{sectionTests.length}
+                    </span>
+                    {sFail > 0 && (
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 10px", borderRadius: 20, background: "#fee2e2", color: "#dc2626" }}>{sFail} falha{sFail > 1 ? "s" : ""}</span>
+                    )}
+                  </div>
+                  <ChevronRight size={14} style={{ color: "#9ca3af", transform: expanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+                </button>
+
+                {expanded && (
+                  <div className="divide-y divide-zinc-50">
+                    {sectionTests.map(test => {
+                      const result = results[test.id];
+                      const status = result?.status ?? "pending";
+                      const cfg = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
+                      const isSaving = savingId === test.id;
+                      const isReadonly = activeRun.status === "done";
+
+                      return (
+                        <div key={test.id} style={{ background: status === "pass" ? "#f0fdf4" : status === "fail" ? "#fff1f1" : "#fff" }} className="px-5 py-4">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-bold text-zinc-800">{test.title}</span>
+                                <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 8px", borderRadius: 20, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+                                {test.warning && (
+                                  <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "#fffbeb", color: "#b45309", border: "1px solid #fcd34d" }}>{test.warning}</span>
+                                )}
+                              </div>
+                              <div className="mt-2 text-xs text-zinc-500 bg-zinc-50 rounded-lg p-3 border-l-2 border-zinc-200 whitespace-pre-line leading-relaxed">{test.steps}</div>
+                              <p className="mt-2 text-xs text-emerald-700 font-medium">✓ {test.expected}</p>
+                              {result?.notes && (
+                                <p className="mt-1.5 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 border border-red-100">📝 {result.notes}</p>
+                              )}
+                            </div>
+                            {!isReadonly && (
+                              <div className="flex flex-col gap-1.5 shrink-0">
+                                <button
+                                  disabled={isSaving}
+                                  onClick={() => saveResult(test.id, test.section, test.title, "pass")}
+                                  style={{ padding: "5px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 800, background: status === "pass" ? "#16a34a" : "#f0fdf4", color: status === "pass" ? "#fff" : "#16a34a", transition: "all 0.15s" }}
+                                >
+                                  ✓ Passou
+                                </button>
+                                <button
+                                  disabled={isSaving}
+                                  onClick={() => { setNoteModal({ testId: test.id, title: test.title, current: result?.notes ?? "" }); setNoteText(result?.notes ?? ""); }}
+                                  style={{ padding: "5px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 800, background: status === "fail" ? "#dc2626" : "#fff1f1", color: status === "fail" ? "#fff" : "#dc2626", transition: "all 0.15s" }}
+                                >
+                                  ✗ Falhou
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <Modal isOpen={!!noteModal} onClose={() => setNoteModal(null)} title={noteModal ? `Falhou: ${noteModal.title}` : ""}>
+        <div className="p-1 space-y-3">
+          <p className="text-xs text-zinc-500">Descreva o que aconteceu (opcional mas recomendado):</p>
+          <Textarea
+            value={noteText}
+            onChange={e => setNoteText(e.target.value)}
+            placeholder="Ex: Modal não fecha ao clicar fora, tela fica travada..."
+            rows={4}
+          />
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="ghost" onClick={() => setNoteModal(null)}>Cancelar</Button>
+          <Button
+            onClick={async () => {
+              if (!noteModal) return;
+              await saveResult(noteModal.testId, QA_TESTS.find(t => t.id === noteModal.testId)?.section ?? "", noteModal.title, "fail", noteText);
+              setNoteModal(null);
+            }}
+            style={{ background: "#dc2626", borderColor: "#dc2626" }}
+          >
+            Confirmar Falha
+          </Button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
    SIDEBAR
 ═══════════════════════════════════════════ */
 const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: string }[] = [
@@ -4333,6 +4763,7 @@ const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: stri
   { key: "sales",       icon: <TrendingUp size={17} />,      label: "Vendas e Afiliados", path: "/super-admin/vendas" },
   { key: "commissions", icon: <DollarSign size={17} />,      label: "Comissões",      path: "/super-admin/comissoes" },
   { key: "finance",     icon: <BarChart2 size={17} />,        label: "Financeiro",     path: "/super-admin/financeiro" },
+  { key: "qa",          icon: <CheckCircle size={17} />,      label: "Testes QA",      path: "/super-admin/qa" },
   { key: "staff",       icon: <Shield size={17} />,          label: "Minha Equipe",   path: "/super-admin/equipe" },
   { key: "settings",    icon: <Globe size={17} />,           label: "Configurações",   path: "/super-admin/configuracoes" },
   { key: "profile",     icon: <User size={17} />,            label: "Meu Perfil",     path: "/super-admin/perfil" },
@@ -4349,6 +4780,7 @@ function pathToTab(pathname: string): TabKey {
   if (pathname.includes("/vendas"))      return "sales";
   if (pathname.includes("/comissoes"))   return "commissions";
   if (pathname.includes("/financeiro"))  return "finance";
+  if (pathname.includes("/qa"))           return "qa";
   if (pathname.includes("/equipe"))      return "staff";
   if (pathname.includes("/configuracoes")) return "settings";
   if (pathname.includes("/perfil"))      return "profile";
@@ -4512,6 +4944,7 @@ export default function SuperAdminDashboard({ username, onLogout, permissions }:
           {tab === "sales"       && <SalesTab user={userData} />}
           {tab === "commissions" && <CommissionsTab />}
           {tab === "finance"     && <FinanceTab />}
+          {tab === "qa"          && <QATab />}
           {tab === "staff"       && <StaffTab username={username} userPermissions={permissions} />}
           {tab === "settings"    && <SettingsTab />}
           {tab === "profile"     && <ProfileTab username={username} />}

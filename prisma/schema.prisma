@@ -832,3 +832,32 @@ model SubscriptionPayment {
   @@index([tenantId], map: "idx_sp_tenant")
   @@index([status], map: "idx_sp_status")
 }
+
+// ── QA / Testes do Sistema ────────────────────────────────────────────────────
+
+model QATestRun {
+  id          String        @id @db.VarChar(36)
+  title       String        @db.VarChar(255)
+  testerName  String        @db.VarChar(100)
+  testerEmail String?       @db.VarChar(255)
+  status      String        @default("in_progress") @db.VarChar(20)
+  notes       String?       @db.Text
+  createdAt   DateTime      @default(now()) @db.DateTime(0)
+  updatedAt   DateTime      @updatedAt @db.DateTime(0)
+  results     QATestResult[]
+}
+
+model QATestResult {
+  id        String    @id @db.VarChar(36)
+  runId     String    @db.VarChar(36)
+  testId    String    @db.VarChar(50)
+  section   String    @db.VarChar(100)
+  title     String    @db.VarChar(255)
+  status    String    @default("pending") @db.VarChar(20)
+  notes     String?   @db.Text
+  updatedAt DateTime  @updatedAt @db.DateTime(0)
+  run       QATestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId], map: "idx_qar_run")
+  @@unique([runId, testId], map: "uq_qar_run_test")
+}
