@@ -778,22 +778,27 @@ export default function PlanosAssinaturaTab() {
     {
       header: "Status",
       render: (row) => (
-        <Badge color={statusColor(row.status)} className="text-[9px]">{statusLabel(row.status)}</Badge>
+        <div className="flex flex-col gap-1">
+          <Badge color={statusColor(row.status)} className="text-[9px]">{statusLabel(row.status)}</Badge>
+          {row.status === "pending" && (
+            <span className="text-[8px] text-amber-600 font-bold">Aguard. pagamento</span>
+          )}
+        </div>
       ),
     },
     {
-      header: "Créditos",
+      header: "Validade",
       hideOnMobile: true,
       render: (row) => {
-        const c = row.currentCredit;
-        if (!c) return <span className="text-[10px] text-zinc-300">—</span>;
-        return <CreditBar used={Number(c.usedCredits)} total={Number(c.totalCredits)} />;
-      },
-    },
-    {
-      header: "Vencimento",
-      hideOnMobile: true,
-      render: (row) => {
+        if (row.status === "pending") {
+          return (
+            <div>
+              <p className="text-[10px] text-zinc-400">Início:</p>
+              <p className="text-xs font-black text-zinc-700">{fmtDate(row.currentPeriodStart)}</p>
+              <p className="text-[9px] text-amber-600 font-bold mt-0.5">Ativar após pagamento</p>
+            </div>
+          );
+        }
         const d = row.currentPeriodEnd;
         if (!d) return <span className="text-[10px] text-zinc-300">—</span>;
         const diff = Math.ceil((new Date(d).getTime() - Date.now()) / 86400000);
@@ -801,16 +806,34 @@ export default function PlanosAssinaturaTab() {
         const soon = diff >= 0 && diff <= 5;
         return (
           <div>
+            <p className="text-[9px] text-zinc-400">Vence em:</p>
             <p className={`text-xs font-black ${expired ? "text-red-500" : soon ? "text-amber-600" : "text-zinc-700"}`}>
               {fmtDate(d)}
             </p>
-            {(expired || soon) && (
-              <p className={`text-[9px] font-bold ${expired ? "text-red-400" : "text-amber-500"}`}>
-                {expired ? `${Math.abs(diff)}d atrás` : `em ${diff}d`}
-              </p>
-            )}
+            <p className={`text-[9px] font-bold ${expired ? "text-red-400" : soon ? "text-amber-500" : "text-zinc-400"}`}>
+              {expired ? `Vencido há ${Math.abs(diff)}d` : `${diff}d restantes`}
+            </p>
           </div>
         );
+      },
+    },
+    {
+      header: "Créditos",
+      hideOnMobile: true,
+      render: (row) => {
+        if (row.status === "pending") {
+          return (
+            <button
+              onClick={(e) => { e.stopPropagation(); setDetailSub(row); }}
+              className="flex items-center gap-1 h-7 px-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black transition-colors whitespace-nowrap"
+            >
+              <DollarSign size={11} /> Confirmar pgto
+            </button>
+          );
+        }
+        const c = row.currentCredit;
+        if (!c) return <span className="text-[10px] text-zinc-300">—</span>;
+        return <CreditBar used={Number(c.usedCredits)} total={Number(c.totalCredits)} />;
       },
     },
     {

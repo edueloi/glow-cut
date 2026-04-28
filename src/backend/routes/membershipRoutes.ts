@@ -112,7 +112,9 @@ membershipRouter.get("/subscriptions", async (req: Request, res: Response) => {
     const { planId, status, clientId } = req.query;
 
     let sql = `
-      SELECT cs.*, c.name as clientName, c.phone as clientPhone, c.email as clientEmail,
+      SELECT cs.id, cs.status, cs.currentPeriodStart, cs.currentPeriodEnd, cs.nextChargeDate,
+             cs.clientId, cs.membershipPlanId, cs.notes, cs.createdAt,
+             c.name as clientName, c.phone as clientPhone, c.email as clientEmail,
              mp.name as planName, mp.price as planPrice, mp.billingCycle, mp.creditsPerCycle
       FROM ClientSubscription cs
       JOIN Client c ON c.id = cs.clientId
@@ -374,7 +376,7 @@ membershipRouter.post("/subscriptions/:id/payment", async (req: Request, res: Re
 membershipRouter.get("/stats", async (req: Request, res: Response) => {
   try {
     const tid = tenantId(req);
-    const [totals]: any[] = await (prisma as any).$queryRawUnsafe(
+    const [raw]: any[] = await (prisma as any).$queryRawUnsafe(
       `SELECT
          COUNT(*) as total,
          SUM(CASE WHEN cs.status='active' THEN 1 ELSE 0 END) as active,
@@ -386,7 +388,16 @@ membershipRouter.get("/stats", async (req: Request, res: Response) => {
        WHERE cs.tenantId=?`,
       tid
     );
-    const plans = await (prisma as any).$queryRawUnsafe(
+    // Converter BigInt para Number para serialização JSON
+    const totals = {
+      total: Number(raw?.total ?? 0),
+      active: Number(raw?.active ?? 0),
+      pending: Number(raw?.pending ?? 0),
+      cancelled: Number(raw?.cancelled ?? 0),
+      mrr: Number(raw?.mrr ?? 0),
+    };
+
+    const rawPlans: any[] = await (prisma as any).$queryRawUnsafe(
       `SELECT mp.id, mp.name, mp.price,
               COUNT(cs.id) as subscribers,
               SUM(CASE WHEN cs.status='active' THEN 1 ELSE 0 END) as activeSubscribers
@@ -397,6 +408,12 @@ membershipRouter.get("/stats", async (req: Request, res: Response) => {
        ORDER BY mp.createdAt DESC`,
       tid
     );
+    const plans = rawPlans.map((p: any) => ({
+      ...p,
+      subscribers: Number(p.subscribers ?? 0),
+      activeSubscribers: Number(p.activeSubscribers ?? 0),
+    }));
+
     res.json({ totals, plans });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
