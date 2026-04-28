@@ -2163,6 +2163,27 @@ function CommissionsTab() {
 /* ═══════════════════════════════════════════
    ABA: EQUIPE (STAFF)
 ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════
+   MÓDULOS DE PERMISSÃO — SUPER ADMIN
+   Definidos aqui para serem usados no modal e sidebar
+═══════════════════════════════════════════ */
+const SA_MODULES = [
+  { key: "dash",        label: "Dashboard",           icon: <LayoutDashboard size={14} /> },
+  { key: "plans",       label: "Planos",              icon: <CreditCard size={14} /> },
+  { key: "tenants",     label: "Parceiros",           icon: <Building2 size={14} /> },
+  { key: "users",       label: "Usuários Admin",      icon: <Users size={14} /> },
+  { key: "permissions", label: "Permissões",          icon: <Lock size={14} /> },
+  { key: "blog",        label: "Blog",                icon: <BookOpen size={14} /> },
+  { key: "wpp",         label: "WhatsApp",            icon: <MessageCircle size={14} /> },
+  { key: "sales",       label: "Vendas e Afiliados",  icon: <TrendingUp size={14} /> },
+  { key: "commissions", label: "Comissões",           icon: <DollarSign size={14} /> },
+  { key: "finance",     label: "Financeiro",          icon: <BarChart2 size={14} /> },
+  { key: "qa",          label: "Testes QA",           icon: <CheckCircle size={14} /> },
+  { key: "staff",       label: "Minha Equipe",        icon: <Shield size={14} /> },
+  { key: "settings",    label: "Configurações",        icon: <Globe size={14} /> },
+  { key: "profile",     label: "Meu Perfil",          icon: <User size={14} /> },
+];
+
 function StaffTab({ username, userPermissions }: { username: string; userPermissions: any }) {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [users, setUsers] = useState<any[]>([]);
@@ -2174,23 +2195,6 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
     birthday: "", role: "", bio: "", photo: "",
     permissions: {}
   });
-
-  const SA_MODULES = [
-    { key: "dash",        label: "Dashboard",      icon: <LayoutDashboard size={14} /> },
-    { key: "plans",       label: "Planos",         icon: <CreditCard size={14} /> },
-    { key: "tenants",     label: "Parceiros",      icon: <Building2 size={14} /> },
-    { key: "users",       label: "Usuários Admin", icon: <Users size={14} /> },
-    { key: "permissions", label: "Permissões",     icon: <Lock size={14} /> },
-    { key: "blog",        label: "Blog",           icon: <BookOpen size={14} /> },
-    { key: "wpp",         label: "WhatsApp",       icon: <MessageCircle size={14} /> },
-    { key: "sales",       label: "Vendas e Afiliados", icon: <TrendingUp size={14} /> },
-    { key: "commissions", label: "Comissões",      icon: <DollarSign size={14} /> },
-    { key: "finance",     label: "Financeiro",     icon: <BarChart2 size={14} /> },
-    { key: "qa",          label: "Testes QA",      icon: <CheckCircle size={14} /> },
-    { key: "staff",       label: "Minha Equipe",   icon: <Shield size={14} /> },
-    { key: "settings",    label: "Configurações",   icon: <Globe size={14} /> },
-    { key: "profile",     label: "Meu Perfil",     icon: <User size={14} /> },
-  ];
 
   const handlePhotoUpload = (file: File) => {
     const reader = new FileReader();
@@ -2327,7 +2331,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
       <Modal 
         isOpen={modal} 
         onClose={() => setModal(false)} 
-        title={editing ? "Editar Perfil da Equipe" : "Novo Acesso Equipe"} 
+        title={editing ? "Editar Perfil da Equipe v2" : "Novo Acesso Equipe v2"} 
         size="lg"
         footer={
           <div className="flex justify-end gap-3 w-full">
