@@ -260,3 +260,103 @@ clientPortalRouter.get("/:slug/payments", requirePortalAuth, async (req: Request
     res.status(500).json({ error: e.message });
   }
 });
+
+// POST /api/portal/:slug/subscribe  (cliente assina um plano pelo portal)
+clientPortalRouter.post("/:slug/subscribe", requirePortalAuth, async (req: Request, res: Response) => {
+  try {
+    const auth = (req as any).portalAuth;
+    const { membershipPlanId } = req.body;
+    if (!membershipPlanId) return res.status(400).json({ error: "Plano obrigatório." });
+
+    const [plan]: any[] = await (prisma as any).$queryRawUnsafe(
+      `SELECT * FROM MembershipPlan WHERE id=? AND tenantId=? AND status='active'`,
+      membershipPlanId, auth.tenantId
+    );
+    if (!plan) return res.status(404).json({ error: "Plano não encontrado." });
+
+    const [existing]: any[] = await (prisma as any).$queryRawUnsafe(
+      `SELECT id FROM ClientSubscription WHERE clientId=? AND membershipPlanId=? AND tenantId=? AND status IN ('active','pending')`,
+      auth.clientId, membershipPlanId, auth.tenantId
+    );
+    if (existing) return res.status(400).json({ error: "Você já possui uma assinatura ativa neste plano." });
+
+    const now = new Date();
+    const periodEnd = new Date(now);
+    if (plan.billingCycle === "monthly") periodEnd.setMonth(periodEnd.getMonth() + 1);
+    else if (plan.billingCycle === "quarterly") periodEnd.setMonth(periodEnd.getMonth() + 3);
+    else if (plan.billingCycle === "yearly") periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+    else periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+    const subId = randomUUID();
+    await (prisma as any).$executeRawUnsafe(
+      `INSERT INTO ClientSubscription (id, tenantId, clientId, membershipPlanId, status, currentPeriodStart, currentPeriodEnd, nextChargeDate)
+       VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)`,
+      subId, auth.tenantId, auth.clientId, membershipPlanId, now, periodEnd, periodEnd
+    );
+
+    res.status(201).json({ success: true, subscriptionId: subId, status: "pending", message: "Assinatura criada! Aguardando confirmação de pagamento pelo estabelecimento." });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/portal/:slug/booking-options  (serviços e profissionais disponíveis para agendamento)
+clientPortalRouter.get("/:slug/booking-options", requirePortalAuth, async (req: Request, res: Response) => {
+  try {
+    const auth = (req as any).portalAuth;
+
+    const services = await (prisma as any).$queryRawUnsafe(
+      `SELECT id, name, duration, price FROM Service WHERE tenantId=? ORDER BY name ASC`,
+      auth.tenantId
+    );
+    const professionals = await (prisma as any).$queryRawUnsafe(
+      `SELECT id, name FROM Professional WHERE tenantId=? ORDER BY name ASC`,
+      auth.tenantId
+    );
+
+    res.json({ services, professionals });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/portal/:slug/book  (cliente cria agendamento pelo portal)
+clientPortalRouter.post("/:slug/book", requirePortalAuth, async (req: Request, res: Response) => {
+  try {
+    const auth = (req as any).portalAuth;
+    const { serviceId, professionalId, date, startTime, notes } = req.body;
+    if (!serviceId || !date || !startTime) return res.status(400).json({ error: "Serviço, data e horário são obrigatórios." });
+
+    const [service]: any[] = await (prisma as any).$queryRawUnsafe(
+      `SELECT * FROM Service WHERE id=? AND tenantId=?`, serviceId, auth.tenantId
+    );
+    if (!service) return res.status(404).json({ error: "Serviço não encontrado." });
+
+    const duration = Number(service.duration) || 30;
+    const [h, m] = startTime.split(":").map(Number);
+    const endMin = h * 60 + m + duration;
+    const endTime = `${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
+
+    // Verificar conflito de horário
+    if (professionalId) {
+      const [conflict]: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT id FROM Appointment WHERE tenantId=? AND professionalId=? AND date=? AND status NOT IN ('cancelado','cancelled')
+         AND startTime < ? AND endTime > ?`,
+        auth.tenantId, professionalId, date, endTime, startTime
+      );
+      if (conflict) return res.status(409).json({ error: "Este horário já está ocupado. Escolha outro horário." });
+    }
+
+    const apptId = randomUUID();
+    await (prisma as any).$executeRawUnsafe(
+      `INSERT INTO Appointment (id, tenantId, clientId, serviceId, professionalId, date, startTime, endTime, status, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?)`,
+      apptId, auth.tenantId, auth.clientId, serviceId,
+      professionalId || null, date, startTime, endTime, notes || null
+    );
+
+    res.status(201).json({ success: true, appointmentId: apptId });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
