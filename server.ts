@@ -66,6 +66,7 @@ app.get("/terminal/availability", agendaController.getAvailability);
 
 // ── Autenticação (público — sem requireAuth) ──────────────────────────────────
 app.use("/api/auth", authRouter);
+app.use("/api/portal", clientPortalRouter);
 app.get("/api/public/platform-contacts", async (req, res) => {
   try {
     const contacts = await (prisma as any).platformContact.findMany({
@@ -106,9 +107,6 @@ app.use("/api", requireAuth, agendaRouter);
 
 // ── Planos de assinatura do salão (protegido) ─────────────────────────────────
 app.use("/api/memberships", requireAuth, membershipRouter);
-
-// ── Portal do cliente (público — usa JWT próprio) ─────────────────────────────
-app.use("/api/portal", clientPortalRouter);
 
 // Servir uploads
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
