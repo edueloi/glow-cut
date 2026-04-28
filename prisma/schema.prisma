@@ -712,3 +712,123 @@ model PlatformContact {
 
   @@map("platform_contacts")
 }
+
+
+model PlatformFinance {
+  id          String   @id @db.VarChar(36)
+  type        String   @default("income") @db.VarChar(20)
+  category    String   @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  amount      Float    @default(0)
+  date        DateTime @db.Date
+  recurrence  String?  @default("once") @db.VarChar(20)
+  tenantId    String?  @db.VarChar(36)
+  planId      String?  @db.VarChar(36)
+  notes       String?  @db.Text
+  createdBy   String?  @db.VarChar(36)
+  createdAt   DateTime @default(now()) @db.DateTime(0)
+  updatedAt   DateTime @default(now()) @db.DateTime(0) @updatedAt
+
+  @@index([type], map: "idx_pf_type")
+  @@index([date], map: "idx_pf_date")
+  @@index([category], map: "idx_pf_category")
+}
+
+model PlatformAllocation {
+  id         String   @id @db.VarChar(36)
+  name       String   @db.VarChar(100)
+  percentage Float    @default(0)
+  color      String   @default("#f59e0b") @db.VarChar(20)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.DateTime(0)
+}
+
+model MembershipPlan {
+  id               String               @id @db.VarChar(36)
+  tenantId         String               @db.VarChar(36)
+  name             String               @db.VarChar(255)
+  description      String?              @db.Text
+  price            Float                @default(0)
+  billingCycle     String               @default("monthly") @db.VarChar(20)
+  creditsPerCycle  Int                  @default(1)
+  includedServices String?              @db.Text
+  cancelRules      String?              @db.Text
+  status           String               @default("active") @db.VarChar(20)
+  createdAt        DateTime             @default(now()) @db.DateTime(0)
+  updatedAt        DateTime             @default(now()) @db.DateTime(0) @updatedAt
+  subscriptions    ClientSubscription[]
+
+  @@index([tenantId], map: "idx_mp_tenant")
+  @@index([status], map: "idx_mp_status")
+}
+
+model ClientSubscription {
+  id                 String                @id @db.VarChar(36)
+  tenantId           String                @db.VarChar(36)
+  clientId           String                @db.VarChar(36)
+  membershipPlanId   String                @db.VarChar(36)
+  status             String                @default("pending") @db.VarChar(20)
+  currentPeriodStart DateTime?             @db.DateTime(0)
+  currentPeriodEnd   DateTime?             @db.DateTime(0)
+  nextChargeDate     DateTime?             @db.DateTime(0)
+  cancelledAt        DateTime?             @db.DateTime(0)
+  notes              String?               @db.Text
+  createdAt          DateTime              @default(now()) @db.DateTime(0)
+  updatedAt          DateTime              @default(now()) @db.DateTime(0) @updatedAt
+  plan               MembershipPlan        @relation(fields: [membershipPlanId], references: [id])
+  credits            SubscriptionCredit[]
+  payments           SubscriptionPayment[]
+
+  @@index([tenantId], map: "idx_cs_tenant")
+  @@index([clientId], map: "idx_cs_client")
+  @@index([membershipPlanId], map: "idx_cs_plan")
+  @@index([status], map: "idx_cs_status")
+}
+
+model SubscriptionCredit {
+  id             String             @id @db.VarChar(36)
+  subscriptionId String             @db.VarChar(36)
+  tenantId       String             @db.VarChar(36)
+  totalCredits   Int                @default(0)
+  usedCredits    Int                @default(0)
+  cycleStart     DateTime?          @db.DateTime(0)
+  cycleEnd       DateTime?          @db.DateTime(0)
+  createdAt      DateTime           @default(now()) @db.DateTime(0)
+  subscription   ClientSubscription @relation(fields: [subscriptionId], references: [id])
+
+  @@index([subscriptionId], map: "idx_sc_sub")
+  @@index([tenantId], map: "idx_sc_tenant")
+}
+
+model ClientPortalUser {
+  id        String    @id @db.VarChar(36)
+  tenantId  String    @db.VarChar(36)
+  clientId  String    @db.VarChar(36)
+  email     String    @db.VarChar(255)
+  password  String    @db.VarChar(255)
+  isActive  Boolean   @default(true)
+  lastLogin DateTime? @db.DateTime(0)
+  createdAt DateTime  @default(now()) @db.DateTime(0)
+
+  @@unique([email, tenantId], map: "uq_portal_email_tenant")
+  @@index([clientId], map: "idx_cpu_client")
+  @@index([tenantId], map: "idx_cpu_tenant")
+}
+
+model SubscriptionPayment {
+  id             String             @id @db.VarChar(36)
+  subscriptionId String             @db.VarChar(36)
+  tenantId       String             @db.VarChar(36)
+  amount         Float              @default(0)
+  status         String             @default("pending") @db.VarChar(20)
+  method         String?            @db.VarChar(50)
+  paidAt         DateTime?          @db.DateTime(0)
+  dueDate        DateTime?          @db.DateTime(0)
+  notes          String?            @db.Text
+  createdAt      DateTime           @default(now()) @db.DateTime(0)
+  subscription   ClientSubscription @relation(fields: [subscriptionId], references: [id])
+
+  @@index([subscriptionId], map: "idx_sp_sub")
+  @@index([tenantId], map: "idx_sp_tenant")
+  @@index([status], map: "idx_sp_status")
+}
