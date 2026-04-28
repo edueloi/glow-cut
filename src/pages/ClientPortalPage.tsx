@@ -680,20 +680,75 @@ function PortalDashboard({ slug, tenantInfo, onLogout }: { slug: string; tenantI
               </div>
             )}
 
-            {/* Pendentes */}
+            {/* Pendentes — com instruções de pagamento */}
             {pendingSubs.length > 0 && (
-              <div>
-                <h2 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Aguardando confirmação</h2>
+              <div className="space-y-3">
+                <h2 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Aguardando pagamento</h2>
                 {pendingSubs.map((sub: any) => (
-                  <div key={sub.id} className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-center gap-3">
-                    <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-                      <Clock size={14} className="text-amber-600" />
+                  <div key={sub.id} className="bg-white rounded-2xl border-2 border-amber-300 overflow-hidden shadow-sm">
+                    {/* Cabeçalho do plano */}
+                    <div className="flex items-center gap-3 p-4 border-b border-amber-100">
+                      <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                        <Crown size={15} className="text-amber-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-zinc-900">{sub.planName}</p>
+                        <p className="text-[10px] text-zinc-400">{cycleLabel(sub.billingCycle)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-black text-amber-600">{fmt(sub.price ?? sub.planPrice)}</p>
+                        <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-lg">Pendente</span>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-zinc-900">{sub.planName}</p>
-                      <p className="text-[10px] text-amber-600 font-bold">Pendente — aguardando pagamento</p>
+
+                    {/* Instruções de pagamento */}
+                    <div className="p-4 bg-amber-50 space-y-3">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle size={14} className="text-amber-600 mt-0.5 shrink-0" />
+                        <p className="text-xs text-zinc-700 font-medium leading-relaxed">
+                          Para ativar sua assinatura, realize o pagamento de <strong className="text-amber-700">{fmt(sub.price ?? sub.planPrice)}</strong> diretamente ao estabelecimento usando uma das formas abaixo:
+                        </p>
+                      </div>
+
+                      {/* Formas de pagamento aceitas */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { icon: "💵", label: "Dinheiro", desc: "Presencialmente" },
+                          { icon: "📱", label: "Pix", desc: "Chave do estabelecimento" },
+                          { icon: "💳", label: "Cartão", desc: "Débito ou crédito" },
+                          { icon: "🔁", label: "Transferência", desc: "TED/DOC" },
+                        ].map(m => (
+                          <div key={m.label} className="bg-white rounded-xl p-2.5 border border-amber-200 flex items-center gap-2">
+                            <span className="text-base">{m.icon}</span>
+                            <div>
+                              <p className="text-[10px] font-black text-zinc-900">{m.label}</p>
+                              <p className="text-[9px] text-zinc-400">{m.desc}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Contato do estabelecimento */}
+                      <div className="bg-white rounded-xl p-3 border border-amber-200">
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1.5">Contato do estabelecimento</p>
+                        <p className="text-xs font-black text-zinc-900">{tenant?.name}</p>
+                        {tenant?.phone && (
+                          <a href={`tel:${tenant.phone}`} className="flex items-center gap-1.5 text-[11px] text-amber-700 font-bold mt-1">
+                            <Phone size={11} /> {tenant.phone}
+                          </a>
+                        )}
+                        {tenant?.instagram && (
+                          <p className="text-[11px] text-zinc-500 mt-0.5">📷 @{tenant.instagram.replace("@", "")}</p>
+                        )}
+                        {!tenant?.phone && !tenant?.instagram && (
+                          <p className="text-[10px] text-zinc-400 mt-1">Vá ao estabelecimento para confirmar o pagamento.</p>
+                        )}
+                      </div>
+
+                      <p className="text-[10px] text-zinc-400 text-center">
+                        Após o pagamento, o estabelecimento ativará sua assinatura e os créditos serão liberados.
+                      </p>
                     </div>
-                    <p className="text-xs font-black text-zinc-700 shrink-0">{fmt(sub.price ?? sub.planPrice)}</p>
                   </div>
                 ))}
               </div>

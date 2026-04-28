@@ -416,6 +416,30 @@ function SubscriptionDetailModal({ sub, onClose, onRefresh }: { sub: Subscriptio
             </div>
           </div>
 
+          {/* Banner de ação para pendentes */}
+          {detail.status === "pending" && !showPayment && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 space-y-3">
+              <div className="flex items-start gap-2.5">
+                <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                  <DollarSign size={15} className="text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-zinc-900">Pagamento pendente</p>
+                  <p className="text-[11px] text-zinc-600 mt-0.5">
+                    O cliente solicitou esta assinatura pelo portal. Confirme o recebimento de{" "}
+                    <strong className="text-amber-700">{fmt(detail.planPrice)}</strong> para ativar os créditos.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => setShowPayment(true)}
+                className="w-full h-10 text-xs font-black bg-amber-500 hover:bg-amber-600 text-white gap-2"
+              >
+                <CheckCircle size={14} /> Confirmar recebimento do pagamento
+              </Button>
+            </div>
+          )}
+
           {/* Créditos */}
           {credit ? (
             <div className="p-3.5 bg-white border border-zinc-200 rounded-xl">
@@ -438,9 +462,11 @@ function SubscriptionDetailModal({ sub, onClose, onRefresh }: { sub: Subscriptio
               <p className="text-[10px] text-zinc-400 mt-1.5">Vence em: <strong className="text-zinc-700">{fmtDate(credit.cycleEnd)}</strong></p>
             </div>
           ) : (
-            <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-center">
-              <p className="text-[10px] text-zinc-400 font-medium">Sem créditos no ciclo atual</p>
-            </div>
+            detail.status !== "pending" && (
+              <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-center">
+                <p className="text-[10px] text-zinc-400 font-medium">Sem créditos no ciclo atual</p>
+              </div>
+            )
           )}
 
           {/* Datas */}
@@ -819,6 +845,9 @@ export default function PlanosAssinaturaTab() {
                 <Link size={13} /> Copiar link do portal
               </Button>
             )}
+            <Button variant="ghost" onClick={load} className="h-9 w-9 p-0 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100" title="Atualizar">
+              <RefreshCw size={14} />
+            </Button>
             {view === "plans" ? (
               <Button onClick={() => setPlanModal("new")} className="h-9 text-xs font-black bg-amber-500 hover:bg-amber-600 text-white gap-1.5">
                 <Plus size={14} /> Novo Plano
