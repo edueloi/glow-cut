@@ -33,6 +33,7 @@ import {
   CheckCircle, Clock, Archive, DollarSign,
   Camera,
   ChevronRight,
+  AlertCircle,
 } from "lucide-react";
 import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/permissions";
 
@@ -4420,19 +4421,24 @@ const QA_TESTS: { id: string; section: string; title: string; steps: string; exp
   { id: "t75", section: "Super Admin", title: "Gestão de planos da plataforma", steps: "1. Aba planos no super admin\n2. Verifique preços e limites", expected: "Planos listados com recursos e preços corretos." },
   { id: "t76", section: "Super Admin", title: "Blog — criar e publicar post", steps: "1. Super admin → Blog\n2. Crie post com título, texto, imagem\n3. Publique", expected: "Post visível em /blog na área pública." },
   { id: "t77", section: "Super Admin", title: "WhatsApp — aba super admin", steps: "1. Super admin → WhatsApp\n2. Verifique instâncias de todos os tenants", expected: "Lista de instâncias por tenant com status." },
-  // 13. Layout
-  { id: "t78", section: "Checklist de Layout", title: "Sem dark cards — fundos brancos/light", steps: "Percorra todas as abas verificando se há cards escuros", expected: "Todos os cards com fundo branco ou cinza claro." },
-  { id: "t79", section: "Checklist de Layout", title: "Modais — abrir e fechar sem travar", steps: "Abra e feche modais de cliente, serviço, produto, profissional", expected: "Background scroll trava ao abrir, libera ao fechar. Sem modais empilhados." },
-  { id: "t80", section: "Checklist de Layout", title: "Tabelas longas — sem overflow horizontal", steps: "Listas de clientes, produtos e comandas com muitos registros", expected: "Tabelas com scroll interno, não vazam para fora do container." },
-  { id: "t81", section: "Checklist de Layout", title: "Formulários — validação visual de campos obrigatórios", steps: "Tente salvar formulário vazio (cliente, serviço, produto)", expected: "Campos obrigatórios marcados em vermelho, mensagem de erro clara." },
-  { id: "t82", section: "Checklist de Layout", title: "Toast — aparece e some", steps: "Execute qualquer ação que gere toast (salvar, excluir)", expected: "Toast aparece no canto, desaparece após alguns segundos." },
-  { id: "t83", section: "Checklist de Layout", title: "Loading states — spinners durante API", steps: "Observe estados de carregamento ao abrir abas e submeter forms", expected: "Botões disabled e spinners visíveis durante requisições." },
-  { id: "t84", section: "Checklist de Layout", title: "Tela de 1280px — layout desktop padrão", steps: "Teste em resolução 1280×800", expected: "Sem elementos cortados, sidebar visível, conteúdo não espremido." },
-  { id: "t85", section: "Checklist de Layout", title: "Gráficos do dashboard — renderizam", steps: "Gráficos Recharts no painel de controle", expected: "Gráficos renderizados, tooltips funcionam, sem altura zero." },
-  // 14. E-mail
-  { id: "t86", section: "E-mail e Comunicações", title: "E-mail de confirmação de agendamento", steps: "1. Crie agendamento para cliente com e-mail\n2. Verifique e-mail", expected: "E-mail recebido com dados corretos.", warning: "Requer SMTP configurado" },
-  { id: "t87", section: "E-mail e Comunicações", title: "E-mail de nova assinatura (webhook Stripe)", steps: "1. Realize assinatura no Stripe (test mode)\n2. Verifique e-mail de boas-vindas com link de setup", expected: "E-mail com setupToken único, link abre tela de cadastro.", warning: "Requer Stripe em modo teste" },
-  { id: "t88", section: "E-mail e Comunicações", title: "Setup via link de e-mail — cadastro completo", steps: "1. Acesse link de setup\n2. Complete cadastro\n3. Faça login", expected: "Tenant criado, admin logado, onboarding iniciado." },
+  // 13. Layout e Estética (Checklist Visual)
+  { id: "t78", section: "Layout e Estética", title: "Cores e Contraste — Padrão Agendelle", steps: "Percorra as abas principais: Dashboard, Agenda, Clientes, Financeiro.", expected: "Fundo branco/cinza claro, botões consistentes, sem 'dark cards' no meio do layout light." },
+  { id: "t79", section: "Layout e Estética", title: "Ortografia e Escrita — Revisão Geral", steps: "Leia títulos e descrições de modais e botões.", expected: "Nenhum erro de digitação, termos em português (pt-BR) consistentes." },
+  { id: "t80", section: "Layout e Estética", title: "Modais — Comportamento de abertura/fechamento", steps: "Abra e feche modais de cadastro (Cliente, Profissional, Serviço).", expected: "Scroll do fundo bloqueado, fecha no 'X' ou 'Cancelar', sem travar a tela." },
+  { id: "t81", section: "Layout e Estética", title: "Tabelas — Alinhamento e Overflow", steps: "Verifique listas longas em telas de 1280px e 1920px.", expected: "Textos não encavalam, alinhamento de números à direita, scroll horizontal apenas se necessário." },
+  { id: "t82", section: "Layout e Estética", title: "Toasts e Feedbacks — Posicionamento", steps: "Realize uma ação de sucesso e uma de erro.", expected: "Feedback visual claro, toast no canto superior direito, desaparece após 3s." },
+  { id: "t83", section: "Layout e Estética", title: "Responsividade — Tablets (iPad)", steps: "Use DevTools em modo Tablet (768px).", expected: "Sidebar colapsa automaticamente, conteúdo adaptado, sem quebras graves." },
+  { id: "t84", section: "Layout e Estética", title: "Ícones — Consistência Lucide", steps: "Verifique se os ícones fazem sentido com a ação.", expected: "Ícones de tamanho padrão (14-18px), cores suaves, alinhados com texto." },
+  { id: "t85", section: "Layout e Estética", title: "Empty States — Mensagens de lista vazia", steps: "Acesse uma conta nova ou delete itens para ver lista vazia.", expected: "Ilustração ou ícone centralizado, mensagem clara e botão de ação se aplicável." },
+
+  // 14. E-mail e Comunicações
+  { id: "t86", section: "Comunicações", title: "E-mail de boas-vindas (Setup)", steps: "Crie um novo Tenant no Super Admin.", expected: "E-mail enviado com link de setup funcional.", warning: "Requer SMTP ativo" },
+  { id: "t87", section: "Comunicações", title: "WhatsApp — Notificação de Agendamento", steps: "Agende um horário com WhatsApp conectado.", expected: "Mensagem chega no celular do cliente no formato configurado.", warning: "Requer instância conectada" },
+
+  // 15. Casos de Borda (Edge Cases)
+  { id: "t88", section: "Casos de Borda", title: "Upload de foto gigante (> 5MB)", steps: "Tente subir foto de 10MB no perfil.", expected: "Sistema deve tratar o erro ou avisar limite, sem dar 500." },
+  { id: "t89", section: "Casos de Borda", title: "Concorrência — Dois agendamentos simultâneos", steps: "Tente agendar mesmo horário em duas abas ao mesmo tempo.", expected: "O sistema deve validar e impedir o segundo, dando erro amigável." },
+  { id: "t90", section: "Casos de Borda", title: "Data Inválida — 31 de Fevereiro", steps: "Tente forçar data inexistente no input manual.", expected: "Input deve validar ou o banco deve rejeitar com erro tratado." },
 ];
 
 const QA_SECTIONS = [...new Set(QA_TESTS.map(t => t.section))];
@@ -4694,9 +4700,14 @@ function QATab() {
                               </div>
                               <div className="mt-2 text-xs text-zinc-500 bg-zinc-50 rounded-lg p-3 border-l-2 border-zinc-200 whitespace-pre-line leading-relaxed">{test.steps}</div>
                               <p className="mt-2 text-xs text-emerald-700 font-medium">✓ {test.expected}</p>
-                              {result?.notes && (
-                                <p className="mt-1.5 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 border border-red-100">📝 {result.notes}</p>
-                              )}
+                                {result?.notes && (
+                                  <div className="mt-2 p-3 bg-red-50 border border-red-100 rounded-lg">
+                                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                                      <AlertCircle size={10} /> Evidência do Erro
+                                    </p>
+                                    <p className="text-xs text-red-700 leading-relaxed italic">"{result.notes}"</p>
+                                  </div>
+                                )}
                             </div>
                             {!isReadonly && (
                               <div className="flex flex-col gap-1.5 shrink-0">
@@ -4725,30 +4736,60 @@ function QATab() {
               </div>
             );
           })}
+
+          {/* Relatório de Erros / Resumo */}
+          {fail > 0 && (
+            <div className="mt-10 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                <h3 className="text-xs font-black text-zinc-800 uppercase tracking-[0.2em]">Relatório de Falhas Encontradas</h3>
+                <div className="flex-1 h-px bg-red-100" />
+              </div>
+              
+              <div className="bg-red-50/30 border border-red-100 rounded-2xl p-6 space-y-4">
+                {QA_TESTS.filter(t => results[t.id]?.status === "fail").map(t => (
+                  <div key={t.id} className="bg-white p-4 rounded-xl border border-red-100 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-black text-red-600 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded-full">{t.section}</span>
+                      <span className="text-[10px] text-zinc-400 font-bold">ID: {t.id}</span>
+                    </div>
+                    <h4 className="text-sm font-black text-zinc-900 mb-1">{t.title}</h4>
+                    <p className="text-xs text-red-700 italic flex items-start gap-2">
+                      <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                      <span><strong>Erro reportado:</strong> {results[t.id]?.notes || "Nenhuma observação detalhada."}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      <Modal isOpen={!!noteModal} onClose={() => setNoteModal(null)} title={noteModal ? `Falhou: ${noteModal.title}` : ""}>
+      <Modal isOpen={!!noteModal} onClose={() => setNoteModal(null)} title={noteModal ? `Reportar Erro: ${noteModal.title}` : ""}>
         <div className="p-1 space-y-3">
-          <p className="text-xs text-zinc-500">Descreva o que aconteceu (opcional mas recomendado):</p>
+          <p className="text-xs text-zinc-500 font-medium leading-relaxed">
+            Descreva detalhadamente o erro encontrado, o comportamento observado e se possível, onde exatamente ocorreu (ex: botão X na aba Y).
+          </p>
           <Textarea
             value={noteText}
             onChange={e => setNoteText(e.target.value)}
-            placeholder="Ex: Modal não fecha ao clicar fora, tela fica travada..."
-            rows={4}
+            placeholder="Ex: O layout do botão está desalinhado em telas de 1366px..."
+            rows={5}
+            className="text-sm border-zinc-100 focus:border-red-200"
           />
         </div>
         <div className="flex justify-end gap-2 mt-4">
-          <Button variant="ghost" onClick={() => setNoteModal(null)}>Cancelar</Button>
+          <Button variant="ghost" onClick={() => setNoteModal(null)} className="text-zinc-500">Cancelar</Button>
           <Button
             onClick={async () => {
               if (!noteModal) return;
               await saveResult(noteModal.testId, QA_TESTS.find(t => t.id === noteModal.testId)?.section ?? "", noteModal.title, "fail", noteText);
               setNoteModal(null);
             }}
-            style={{ background: "#dc2626", borderColor: "#dc2626" }}
+            className="bg-red-600 hover:bg-red-700 text-white border-red-600 shadow-lg shadow-red-600/20"
           >
-            Confirmar Falha
+            Gravar Erro e Evidência
           </Button>
         </div>
       </Modal>
