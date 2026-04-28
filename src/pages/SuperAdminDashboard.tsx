@@ -2176,19 +2176,20 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
   });
 
   const SA_MODULES = [
-    { key: "dash", label: "Dashboard" },
-    { key: "plans", label: "Planos" },
-    { key: "tenants", label: "Parceiros" },
-    { key: "users", label: "Usuários Admin" },
-    { key: "permissions", label: "Permissões" },
-    { key: "blog", label: "Blog" },
-    { key: "wpp", label: "WhatsApp" },
-    { key: "sales", label: "Vendas e Afiliados" },
-    { key: "commissions", label: "Comissões de Vendedores" },
-    { key: "finance", label: "Financeiro" },
-    { key: "staff", label: "Minha Equipe" },
-    { key: "settings", label: "Configurações" },
-    { key: "profile", label: "Meu Perfil" },
+    { key: "dash",        label: "Dashboard",      icon: <LayoutDashboard size={14} /> },
+    { key: "plans",       label: "Planos",         icon: <CreditCard size={14} /> },
+    { key: "tenants",     label: "Parceiros",      icon: <Building2 size={14} /> },
+    { key: "users",       label: "Usuários Admin", icon: <Users size={14} /> },
+    { key: "permissions", label: "Permissões",     icon: <Lock size={14} /> },
+    { key: "blog",        label: "Blog",           icon: <BookOpen size={14} /> },
+    { key: "wpp",         label: "WhatsApp",       icon: <MessageCircle size={14} /> },
+    { key: "sales",       label: "Vendas e Afiliados", icon: <TrendingUp size={14} /> },
+    { key: "commissions", label: "Comissões",      icon: <DollarSign size={14} /> },
+    { key: "finance",     label: "Financeiro",     icon: <BarChart2 size={14} /> },
+    { key: "qa",          label: "Testes QA",      icon: <CheckCircle size={14} /> },
+    { key: "staff",       label: "Minha Equipe",   icon: <Shield size={14} /> },
+    { key: "settings",    label: "Configurações",   icon: <Globe size={14} /> },
+    { key: "profile",     label: "Meu Perfil",     icon: <User size={14} /> },
   ];
 
   const handlePhotoUpload = (file: File) => {
@@ -2492,7 +2493,9 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
                   blog: BookOpen,
                   wpp: MessageCircle,
                   sales: TrendingUp,
+                  commissions: DollarSign,
                   finance: BarChart2,
+                  qa: CheckCircle,
                   staff: Shield,
                   settings: Globe,
                   profile: User
