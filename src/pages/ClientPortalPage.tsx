@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const API = "/api/portal";
+const API = "/api/portal-client";
 function fmt(v: number) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0); }
 function fmtDate(d?: string | null) { if (!d) return "—"; return new Date(d).toLocaleDateString("pt-BR"); }
 function cycleLabel(c: string) { return ({ monthly: "Mensal", quarterly: "Trimestral", yearly: "Anual", weekly: "Semanal" } as any)[c] || c; }

@@ -108,8 +108,12 @@ clientPortalRouter.post("/:slug/register", async (req: Request, res: Response) =
   }
 });
 
-// GET /api/portal/:slug/tenant-info  (dados públicos do estabelecimento para o portal)
+// GET /api/portal-client/ping (teste de conectividade)
+clientPortalRouter.get("/ping", (_req, res) => res.json({ pong: true, time: new Date().toISOString() }));
+
+// GET /api/portal-client/:slug/tenant-info (dados públicos do estabelecimento para o portal)
 clientPortalRouter.get("/:slug/tenant-info", async (req: Request, res: Response) => {
+  console.log(`[Portal] Buscando tenant-info para slug: ${req.params.slug}`);
   try {
     const { slug } = req.params;
     const tenant = await (prisma as any).tenant.findFirst({

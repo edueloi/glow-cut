@@ -64,9 +64,13 @@ app.get("/terminal/pat-general/:slug", agendaController.getPatGeneral);
 app.patch("/terminal/pat-status/:appointmentId", agendaController.patchPatStatus);
 app.get("/terminal/availability", agendaController.getAvailability);
 
-// ── Autenticação (público — sem requireAuth) ──────────────────────────────────
+// ── Rotas Públicas ──────────────────────────────────────────────────────────
 app.use("/api/auth", authRouter);
-app.use("/api/portal", clientPortalRouter);
+app.use("/api/portal-client", clientPortalRouter);
+app.use("/api/public", publicBookingRouter);
+app.use("/api/blog", blogPublicRouter);
+app.get("/api/tenant-by-slug/:slug", adminController.getTenantBySlug);
+app.use("/api", agendaPublicRouter);
 app.get("/api/public/platform-contacts", async (req, res) => {
   try {
     const contacts = await (prisma as any).platformContact.findMany({
@@ -78,11 +82,7 @@ app.get("/api/public/platform-contacts", async (req, res) => {
     res.json([]);
   }
 });
-// Manter compatibilidade com clientes antigos (remove após deploy estável)
 app.post("/api/login", adminController.unifiedLogin);
-app.get("/api/tenant-by-slug/:slug", adminController.getTenantBySlug);
-app.use("/api/public", publicBookingRouter);
-app.use("/api/blog", blogPublicRouter);
 
 // ── Rotas que requerem autenticação ──────────────────────────────────────────
 // IMPORTANTE: rotas mais específicas ANTES das genéricas
@@ -101,8 +101,7 @@ app.use("/api/inventory", requireAuth, inventoryRouter);
 app.use("/api/preferences", requireAuth, preferencesRouter);
 app.use("/api/wpp", requireAuth, wppRouter);
 
-// ── Agenda: PAT e availability são públicos, o resto precisa de auth ─────────
-app.use("/api", agendaPublicRouter);
+// ── Agenda (protegido) ──────────────────────────────────────────────────────
 app.use("/api", requireAuth, agendaRouter);
 
 // ── Planos de assinatura do salão (protegido) ─────────────────────────────────
