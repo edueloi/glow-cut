@@ -13,18 +13,39 @@ async function fix() {
   
   const [tenants] = await conn.query("SELECT id FROM Tenant LIMIT 1");
   if (tenants.length === 0) {
-    console.log("ERRO: Nenhum Tenant encontrado para atribuir os órfãos.");
+    console.log("ERRO: Nenhum Tenant encontrado.");
     await conn.end();
     return;
   }
-  const defaultTenantId = tenants[0].id;
-  console.log(`Usando Tenant padrão: ${defaultTenantId}`);
+  const tid = tenants[0].id;
+  console.log(`Usando Tenant padrão: ${tid}`);
 
-  const [updProfs] = await conn.query("UPDATE Professional SET tenantId = ? WHERE tenantId IS NULL OR tenantId NOT IN (SELECT id FROM Tenant)", [defaultTenantId]);
-  console.log(`Profissionais corrigidos: ${updProfs.affectedRows}`);
+  // Professional
+  const [p] = await conn.query(`
+    UPDATE Professional p 
+    LEFT JOIN Tenant t ON p.tenantId = t.id 
+    SET p.tenantId = ? 
+    WHERE t.id IS NULL OR p.tenantId IS NULL OR p.tenantId = ''
+  `, [tid]);
+  console.log(`Profissionais corrigidos: ${p.affectedRows}`);
 
-  const [updServices] = await conn.query("UPDATE Service SET tenantId = ? WHERE tenantId IS NULL OR tenantId NOT IN (SELECT id FROM Tenant)", [defaultTenantId]);
-  console.log(`Serviços corrigidos: ${updServices.affectedRows}`);
+  // Service
+  const [s] = await conn.query(`
+    UPDATE Service s 
+    LEFT JOIN Tenant t ON s.tenantId = t.id 
+    SET s.tenantId = ? 
+    WHERE t.id IS NULL OR s.tenantId IS NULL OR s.tenantId = ''
+  `, [tid]);
+  console.log(`Serviços corrigidos: ${s.affectedRows}`);
+
+  // Client
+  const [c] = await conn.query(`
+    UPDATE Client c 
+    LEFT JOIN Tenant t ON c.tenantId = t.id 
+    SET c.tenantId = ? 
+    WHERE t.id IS NULL OR c.tenantId IS NULL OR c.tenantId = ''
+  `, [tid]);
+  console.log(`Clientes corrigidos: ${c.affectedRows}`);
 
   await conn.end();
 }

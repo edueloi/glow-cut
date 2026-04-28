@@ -11,22 +11,15 @@ const DB_CONFIG = {
 async function check() {
   const conn = await mysql.createConnection(DB_CONFIG);
   
-  console.log("--- PROJETOS SEM TENANT ---");
-  
-  const [profs] = await conn.query("SELECT COUNT(*) as count FROM Professional WHERE tenantId IS NULL OR tenantId NOT IN (SELECT id FROM Tenant)");
-  console.log(`Profissionais órfãos: ${profs[0].count}`);
-  
-  const [clients] = await conn.query("SELECT COUNT(*) as count FROM Client WHERE tenantId IS NULL OR tenantId NOT IN (SELECT id FROM Tenant)");
-  console.log(`Clientes órfãos: ${clients[0].count}`);
-  
-  const [services] = await conn.query("SELECT COUNT(*) as count FROM Service WHERE tenantId IS NULL OR tenantId NOT IN (SELECT id FROM Tenant)");
-  console.log(`Serviços órfãos: ${services[0].count}`);
-
-  const [tenants] = await conn.query("SELECT id, name FROM Tenant LIMIT 1");
-  if (tenants.length > 0) {
-    console.log(`Exemplo de Tenant válido: ${tenants[0].name} (${tenants[0].id})`);
-  } else {
-    console.log("AVISO: Nenhum Tenant encontrado no banco!");
+  const tables = ["Professional", "Client", "Service"];
+  for (const table of tables) {
+    const [rows] = await conn.query(`
+      SELECT COUNT(*) as count 
+      FROM ${table} t 
+      LEFT JOIN Tenant ten ON t.tenantId = ten.id 
+      WHERE ten.id IS NULL OR t.tenantId IS NULL OR t.tenantId = ''
+    `);
+    console.log(`${table} órfãos: ${rows[0].count}`);
   }
 
   await conn.end();
