@@ -1,16 +1,15 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Plus, Edit2, Trash2, Users, Crown,
   CheckCircle, XCircle, Clock, RefreshCw, Copy,
   TrendingUp, Check, X, DollarSign, Link, Zap,
-  ChevronRight, BarChart2, AlertCircle, MoreVertical,
-  UserCheck, Repeat, Star,
+  ChevronRight, AlertCircle, UserCheck,
 } from "lucide-react";
 import {
   PageWrapper, SectionTitle, StatCard,
   Button, Badge, Modal, EmptyState,
-  FilterLine, FilterLineSection, FilterLineSearch, FilterLineSegmented,
-  GridTable, usePagination, Pagination, useToast, ContentCard,
+  FilterLineSearch, FilterLineSegmented,
+  GridTable, usePagination, useToast, ContentCard,
 } from "@/src/components/ui";
 import type { Column } from "@/src/components/ui/GridTable";
 import { apiFetch } from "@/src/lib/api";
@@ -860,52 +859,61 @@ export default function PlanosAssinaturaTab() {
         </div>
       )}
 
-      {/* Toggle + filtros */}
-      <FilterLine>
-        <FilterLineSection>
-          <FilterLineSegmented
-            value={view}
-            onChange={v => { setView(v as any); setSearch(""); setFilterStatus("all"); setFilterPlan("all"); pagination.setPage(1); }}
-            options={[
-              { value: "plans", label: `Planos (${plans.length})` },
-              { value: "subscriptions", label: `Assinantes (${totalSubs})` },
-            ]}
-          />
-        </FilterLineSection>
-        <FilterLineSearch
-          value={search}
-          onChange={v => { setSearch(v); pagination.setPage(1); }}
-          placeholder={view === "plans" ? "Buscar plano..." : "Buscar cliente, plano ou telefone..."}
+      {/* Linha 1: Toggle planos/assinantes */}
+      <div className="bg-white border border-zinc-200 rounded-2xl p-3 shadow-sm flex flex-col sm:flex-row sm:items-center gap-3">
+        <FilterLineSegmented
+          value={view}
+          onChange={v => { setView(v as any); setSearch(""); setFilterStatus("all"); setFilterPlan("all"); pagination.setPage(1); }}
+          options={[
+            { value: "plans", label: `Planos (${plans.length})` },
+            { value: "subscriptions", label: `Assinantes (${totalSubs})` },
+          ]}
         />
-        {view === "subscriptions" && (
-          <>
-            <FilterLineSection>
-              <FilterLineSegmented
-                value={filterStatus}
-                onChange={v => { setFilterStatus(String(v)); pagination.setPage(1); }}
-                options={[
-                  { value: "all", label: "Todos" },
-                  { value: "active", label: "Ativos" },
-                  { value: "pending", label: "Pendentes" },
-                  { value: "cancelled", label: "Cancelados" },
-                ]}
-              />
-            </FilterLineSection>
-            {plans.length > 1 && (
-              <FilterLineSection>
-                <select
-                  className="text-xs font-bold border border-zinc-200 rounded-xl px-3 h-9 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400"
-                  value={filterPlan}
-                  onChange={e => { setFilterPlan(e.target.value); pagination.setPage(1); }}
-                >
-                  <option value="all">Todos os planos</option>
-                  {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </FilterLineSection>
-            )}
-          </>
-        )}
-      </FilterLine>
+        <div className="flex-1 relative">
+          <FilterLineSearch
+            value={search}
+            onChange={v => { setSearch(v); pagination.setPage(1); }}
+            placeholder={view === "plans" ? "Buscar plano..." : "Buscar cliente, plano ou telefone..."}
+          />
+        </div>
+      </div>
+
+      {/* Linha 2: Filtros de status (só na aba assinantes) */}
+      {view === "subscriptions" && (
+        <div className="bg-white border border-zinc-200 rounded-2xl px-3 py-2.5 shadow-sm flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest shrink-0">Status:</span>
+          {(["all", "active", "pending", "cancelled", "paused"] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => { setFilterStatus(s); pagination.setPage(1); }}
+              className={`h-7 px-3 rounded-xl text-[11px] font-black transition-all ${
+                filterStatus === s
+                  ? s === "all" ? "bg-zinc-900 text-white"
+                  : s === "active" ? "bg-emerald-500 text-white"
+                  : s === "pending" ? "bg-amber-500 text-white"
+                  : s === "cancelled" ? "bg-red-500 text-white"
+                  : "bg-zinc-400 text-white"
+                  : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
+              }`}
+            >
+              {s === "all" ? "Todos" : s === "active" ? `Ativos${activeSubs > 0 ? ` (${activeSubs})` : ""}` : s === "pending" ? `Pendentes${pendingSubs > 0 ? ` (${pendingSubs})` : ""}` : s === "cancelled" ? "Cancelados" : "Pausados"}
+            </button>
+          ))}
+          {plans.length > 1 && (
+            <>
+              <div className="w-px h-5 bg-zinc-200 mx-1 shrink-0" />
+              <select
+                className="h-7 text-[11px] font-bold border border-zinc-200 rounded-xl px-2 bg-white focus:outline-none"
+                value={filterPlan}
+                onChange={e => { setFilterPlan(e.target.value); pagination.setPage(1); }}
+              >
+                <option value="all">Todos os planos</option>
+                {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── PLANOS ─────────────────────────────────────────────────────────────── */}
       {view === "plans" && (
@@ -941,95 +949,124 @@ export default function PlanosAssinaturaTab() {
       )}
 
       {/* ── ASSINANTES ─────────────────────────────────────────────────────────── */}
-      {view === "subscriptions" && (
-        loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-7 h-7 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : filteredSubs.length === 0 ? (
-          <EmptyState
-            icon={Users}
-            title={search || filterStatus !== "all" || filterPlan !== "all" ? "Nenhuma assinatura encontrada" : "Nenhum assinante ainda"}
-            description={
-              search || filterStatus !== "all" || filterPlan !== "all"
-                ? "Tente ajustar os filtros."
-                : activePlans === 0
-                  ? "Crie um plano de assinatura primeiro."
-                  : "Adicione clientes aos planos para começar a gerenciar assinaturas."
-            }
-            action={
-              !search && filterStatus === "all" && filterPlan === "all" && activePlans > 0 ? (
-                <Button onClick={() => setNewSubModal(true)} className="h-9 text-xs font-black bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5">
-                  <Plus size={14} /> Nova Assinatura
-                </Button>
-              ) : undefined
-            }
-          />
-        ) : (
-          <>
-            <GridTable
-              data={pagedSubs}
-              columns={subColumns}
-              keyExtractor={row => row.id}
-              onRowClick={row => setDetailSub(row)}
-              getMobileBorderClass={row =>
-                row.status === "active" ? "border-emerald-200"
-                : row.status === "pending" ? "border-amber-200"
-                : "border-zinc-200"
-              }
-              renderMobileAvatar={row => (
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0
-                  ${row.status === "active" ? "bg-emerald-100 text-emerald-700" : row.status === "pending" ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-500"}`}>
-                  {row.clientName?.charAt(0)?.toUpperCase() || "?"}
-                </div>
-              )}
-              renderMobileItem={row => (
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-xs font-black text-zinc-900">{row.clientName}</p>
-                    <Badge color={statusColor(row.status)} className="text-[8px]">{statusLabel(row.status)}</Badge>
-                  </div>
-                  <p className="text-[10px] text-zinc-500">{row.planName} · {fmt(row.planPrice)}/{cycleLabel(row.billingCycle)}</p>
-                  {row.currentCredit && (
-                    <div className="mt-1.5">
-                      <CreditBar
-                        used={Number(row.currentCredit.usedCredits)}
-                        total={Number(row.currentCredit.totalCredits)}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-              renderMobileExpandedContent={row => (
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <div className="bg-zinc-50 rounded-xl p-2 border border-zinc-100">
-                    <p className="text-[9px] text-zinc-400 font-bold uppercase">Vencimento</p>
-                    <p className="text-xs font-black text-zinc-800 mt-0.5">{fmtDate(row.currentPeriodEnd)}</p>
-                  </div>
-                  <div className="bg-zinc-50 rounded-xl p-2 border border-zinc-100">
-                    <p className="text-[9px] text-zinc-400 font-bold uppercase">Próx. cobrança</p>
-                    <p className="text-xs font-black text-zinc-800 mt-0.5">{fmtDate(row.nextChargeDate)}</p>
-                  </div>
-                  <button
-                    onClick={() => setDetailSub(row)}
-                    className="col-span-2 h-8 text-[10px] font-black bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors"
-                  >
-                    Ver detalhes
-                  </button>
-                </div>
-              )}
-              emptyMessage="Nenhum assinante"
-              pagination={filteredSubs.length > pagination.pageSize ? {
-                total: filteredSubs.length,
-                page: pagination.page,
-                pageSize: pagination.pageSize,
-                onPageChange: pagination.setPage,
-                onPageSizeChange: pagination.setPageSize,
-              } : undefined}
-            />
-          </>
-        )
+      {view === "subscriptions" && loading && (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-7 h-7 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        </div>
       )}
+
+      {view === "subscriptions" && !loading && (() => {
+        const allPending = subs.filter(s => s.status === "pending");
+        return (
+          <div className="space-y-4">
+            {/* Banner de pendentes */}
+            {allPending.length > 0 && filterStatus !== "pending" && (
+              <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3.5 flex items-center gap-3">
+                <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                  <Clock size={15} className="text-amber-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-black text-zinc-900">
+                    {allPending.length} assinatura{allPending.length > 1 ? "s" : ""} aguardando confirmação
+                  </p>
+                  <p className="text-[10px] text-amber-700 font-medium">
+                    Clique no assinante para confirmar o pagamento e ativar.
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setFilterStatus("pending"); pagination.setPage(1); }}
+                  className="shrink-0 text-[10px] font-black text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-xl transition-colors"
+                >
+                  Ver pendentes
+                </button>
+              </div>
+            )}
+
+            {/* Lista ou empty */}
+            {filteredSubs.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title={search || filterStatus !== "all" || filterPlan !== "all" ? "Nenhuma assinatura encontrada" : "Nenhum assinante ainda"}
+                description={
+                  search || filterStatus !== "all" || filterPlan !== "all"
+                    ? "Tente ajustar os filtros."
+                    : activePlans === 0
+                      ? "Crie um plano de assinatura primeiro."
+                      : "Adicione clientes aos planos para começar a gerenciar assinaturas."
+                }
+                action={
+                  !search && filterStatus === "all" && filterPlan === "all" && activePlans > 0 ? (
+                    <Button onClick={() => setNewSubModal(true)} className="h-9 text-xs font-black bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5">
+                      <Plus size={14} /> Nova Assinatura
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <GridTable
+                data={pagedSubs}
+                columns={subColumns}
+                keyExtractor={row => row.id}
+                onRowClick={row => setDetailSub(row)}
+                getMobileBorderClass={row =>
+                  row.status === "active" ? "border-emerald-200"
+                  : row.status === "pending" ? "border-amber-200"
+                  : "border-zinc-200"
+                }
+                renderMobileAvatar={row => (
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0
+                    ${row.status === "active" ? "bg-emerald-100 text-emerald-700" : row.status === "pending" ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-500"}`}>
+                    {row.clientName?.charAt(0)?.toUpperCase() || "?"}
+                  </div>
+                )}
+                renderMobileItem={row => (
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs font-black text-zinc-900">{row.clientName}</p>
+                      <Badge color={statusColor(row.status)} className="text-[8px]">{statusLabel(row.status)}</Badge>
+                    </div>
+                    <p className="text-[10px] text-zinc-500">{row.planName} · {fmt(row.planPrice)}/{cycleLabel(row.billingCycle)}</p>
+                    {row.currentCredit && (
+                      <div className="mt-1.5">
+                        <CreditBar
+                          used={Number(row.currentCredit.usedCredits)}
+                          total={Number(row.currentCredit.totalCredits)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+                renderMobileExpandedContent={row => (
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div className="bg-zinc-50 rounded-xl p-2 border border-zinc-100">
+                      <p className="text-[9px] text-zinc-400 font-bold uppercase">Vencimento</p>
+                      <p className="text-xs font-black text-zinc-800 mt-0.5">{fmtDate(row.currentPeriodEnd)}</p>
+                    </div>
+                    <div className="bg-zinc-50 rounded-xl p-2 border border-zinc-100">
+                      <p className="text-[9px] text-zinc-400 font-bold uppercase">Próx. cobrança</p>
+                      <p className="text-xs font-black text-zinc-800 mt-0.5">{fmtDate(row.nextChargeDate)}</p>
+                    </div>
+                    <button
+                      onClick={() => setDetailSub(row)}
+                      className="col-span-2 h-8 text-[10px] font-black bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors"
+                    >
+                      Ver detalhes
+                    </button>
+                  </div>
+                )}
+                emptyMessage="Nenhum assinante"
+                pagination={filteredSubs.length > pagination.pageSize ? {
+                  total: filteredSubs.length,
+                  page: pagination.page,
+                  pageSize: pagination.pageSize,
+                  onPageChange: pagination.setPage,
+                  onPageSizeChange: pagination.setPageSize,
+                } : undefined}
+              />
+            )}
+          </div>
+        );
+      })()}
 
       {/* Modais */}
       {planModal !== null && (
