@@ -10,6 +10,7 @@ export { ProductsTab } from "./operacional/produtos/ProductsTab";
 export { FinanceiroTab } from "./operacional/financeiro/FinanceiroTab";
 export { ClientsTab } from "./operacional/clientes/ClientsTab";
 export { ProfessionalsTab } from "./operacional/profissionais/ProfessionalsTab";
+export { default as PlanosAssinaturaTab } from "./operacional/planos-assinatura/PlanosAssinaturaTab";
 
 export { HorariosTab } from "./sistema/horarios/HorariosTab";
 export { WppTab } from "./sistema/whatsapp/WppTab";

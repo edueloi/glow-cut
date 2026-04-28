@@ -27,6 +27,8 @@ import { publicBookingRouter } from "./src/backend/routes/publicBookingRoutes";
 import { preferencesRouter } from "./src/backend/routes/preferencesRoutes";
 import { blogPublicRouter, blogAdminRouter } from "./src/backend/routes/blogRoutes";
 import { stripeWebhookRouter } from "./src/backend/routes/stripeWebhookRoutes";
+import { membershipRouter } from "./src/backend/routes/membershipRoutes";
+import { clientPortalRouter } from "./src/backend/routes/clientPortalRoutes";
 
 // Import middleware
 import { requireAuth, requireSuperAdmin } from "./src/backend/middleware/auth";
@@ -101,6 +103,12 @@ app.use("/api/wpp", requireAuth, wppRouter);
 // ── Agenda: PAT e availability são públicos, o resto precisa de auth ─────────
 app.use("/api", agendaPublicRouter);
 app.use("/api", requireAuth, agendaRouter);
+
+// ── Planos de assinatura do salão (protegido) ─────────────────────────────────
+app.use("/api/memberships", requireAuth, membershipRouter);
+
+// ── Portal do cliente (público — usa JWT próprio) ─────────────────────────────
+app.use("/api/portal", clientPortalRouter);
 
 // Servir uploads
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
@@ -397,6 +405,115 @@ async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
   } catch (e: any) { console.warn("[initDb] PlatformAllocation:", e?.message); }
+
+  // ── MembershipPlan (Planos de assinatura do salão para seus clientes) ────────
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS MembershipPlan (
+        id                VARCHAR(36)   NOT NULL PRIMARY KEY,
+        tenantId          VARCHAR(36)   NOT NULL,
+        name              VARCHAR(255)  NOT NULL,
+        description       TEXT          NULL,
+        price             DOUBLE        NOT NULL DEFAULT 0,
+        billingCycle      VARCHAR(20)   NOT NULL DEFAULT 'monthly',
+        creditsPerCycle   INT           NOT NULL DEFAULT 1,
+        includedServices  TEXT          NULL,
+        cancelRules       TEXT          NULL,
+        status            VARCHAR(20)   NOT NULL DEFAULT 'active',
+        createdAt         DATETIME(0)   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt         DATETIME(0)   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        KEY idx_mp_tenant (tenantId),
+        KEY idx_mp_status (status)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log("[initDb] MembershipPlan OK");
+  } catch (e: any) { console.warn("[initDb] MembershipPlan:", e?.message); }
+
+  // ── ClientSubscription (Assinaturas dos clientes) ────────────────────────────
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS ClientSubscription (
+        id                     VARCHAR(36)   NOT NULL PRIMARY KEY,
+        tenantId               VARCHAR(36)   NOT NULL,
+        clientId               VARCHAR(36)   NOT NULL,
+        membershipPlanId       VARCHAR(36)   NOT NULL,
+        status                 VARCHAR(20)   NOT NULL DEFAULT 'pending',
+        currentPeriodStart     DATETIME(0)   NULL,
+        currentPeriodEnd       DATETIME(0)   NULL,
+        nextChargeDate         DATETIME(0)   NULL,
+        cancelledAt            DATETIME(0)   NULL,
+        notes                  TEXT          NULL,
+        createdAt              DATETIME(0)   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt              DATETIME(0)   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        KEY idx_cs_tenant (tenantId),
+        KEY idx_cs_client (clientId),
+        KEY idx_cs_plan (membershipPlanId),
+        KEY idx_cs_status (status)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log("[initDb] ClientSubscription OK");
+  } catch (e: any) { console.warn("[initDb] ClientSubscription:", e?.message); }
+
+  // ── SubscriptionCredit (Créditos por ciclo) ───────────────────────────────────
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS SubscriptionCredit (
+        id               VARCHAR(36)   NOT NULL PRIMARY KEY,
+        subscriptionId   VARCHAR(36)   NOT NULL,
+        tenantId         VARCHAR(36)   NOT NULL,
+        totalCredits     INT           NOT NULL DEFAULT 0,
+        usedCredits      INT           NOT NULL DEFAULT 0,
+        cycleStart       DATETIME(0)   NULL,
+        cycleEnd         DATETIME(0)   NULL,
+        createdAt        DATETIME(0)   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_sc_sub (subscriptionId),
+        KEY idx_sc_tenant (tenantId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log("[initDb] SubscriptionCredit OK");
+  } catch (e: any) { console.warn("[initDb] SubscriptionCredit:", e?.message); }
+
+  // ── ClientPortalUser (Login do cliente no portal) ─────────────────────────────
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS ClientPortalUser (
+        id          VARCHAR(36)   NOT NULL PRIMARY KEY,
+        tenantId    VARCHAR(36)   NOT NULL,
+        clientId    VARCHAR(36)   NOT NULL,
+        email       VARCHAR(255)  NOT NULL,
+        password    VARCHAR(255)  NOT NULL,
+        isActive    TINYINT(1)    NOT NULL DEFAULT 1,
+        lastLogin   DATETIME(0)   NULL,
+        createdAt   DATETIME(0)   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_portal_email_tenant (email, tenantId),
+        KEY idx_cpu_client (clientId),
+        KEY idx_cpu_tenant (tenantId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log("[initDb] ClientPortalUser OK");
+  } catch (e: any) { console.warn("[initDb] ClientPortalUser:", e?.message); }
+
+  // ── SubscriptionPayment (Histórico de pagamentos) ─────────────────────────────
+  try {
+    await (prisma as any).$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS SubscriptionPayment (
+        id               VARCHAR(36)   NOT NULL PRIMARY KEY,
+        subscriptionId   VARCHAR(36)   NOT NULL,
+        tenantId         VARCHAR(36)   NOT NULL,
+        amount           DOUBLE        NOT NULL DEFAULT 0,
+        status           VARCHAR(20)   NOT NULL DEFAULT 'pending',
+        method           VARCHAR(50)   NULL,
+        paidAt           DATETIME(0)   NULL,
+        dueDate          DATETIME(0)   NULL,
+        notes            TEXT          NULL,
+        createdAt        DATETIME(0)   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_sp_sub (subscriptionId),
+        KEY idx_sp_tenant (tenantId),
+        KEY idx_sp_status (status)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log("[initDb] SubscriptionPayment OK");
+  } catch (e: any) { console.warn("[initDb] SubscriptionPayment:", e?.message); }
 
   try {
     const sa = await (prisma as any).superAdmin.findFirst({ where: { username: "Admin" } });

@@ -4,6 +4,7 @@ import {
   Calendar,
   CheckCircle,
   Clock,
+  Crown,
   Globe,
   LayoutDashboard,
   MessageCircle,
@@ -36,6 +37,7 @@ export type AdminTabId =
   | "financeiro"
   | "permissoes"
   | "assinatura"
+  | "planos"
   | "site";
 
 
@@ -82,6 +84,7 @@ export const ADMIN_TAB_SLUGS: Record<AdminTabId, string> = {
   financeiro: "financeiro",
   permissoes: "permissoes",
   assinatura: "assinatura",
+  planos: "planos-assinatura",
   site: "meu-site",
 };
 
@@ -108,6 +111,7 @@ export const ADMIN_TAB_TITLES: Record<AdminTabId, string> = {
   financeiro: "Financeiro",
   permissoes: "Perfis de Permissão",
   assinatura: "Assinatura & Planos",
+  planos: "Planos de Assinatura",
   site: "Configurar Site Profissional",
 };
 
@@ -201,6 +205,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
       },
       { tab: "clients",       label: "Gestão de Clientes", icon: Users,   permModule: "clientes" },
       { tab: "professionals", label: "Profissionais",      icon: UserCog, permModule: "profissionais" },
+      { tab: "planos",        label: "Planos de Assinatura", icon: Crown, permModule: "configuracoes" },
     ],
   },
   {

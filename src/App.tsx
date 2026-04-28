@@ -21,6 +21,7 @@ import SetupAccountPage from "./pages/SetupAccountPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import PlatformLegalPage from "./pages/PlatformLegalPage";
+import ClientPortalPage from "./pages/ClientPortalPage";
 import { Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react";
 
 import logoFavicon from "./images/system/logo-favicon.png";
@@ -606,6 +607,7 @@ function App() {
           <Route path="/:slug/termos" element={<SiteLegalPage type="terms" />} />
           <Route path="/:slug/agendar" element={<ClientBooking />} />
           <Route path="/agendar/:slug" element={<ClientBooking />} />
+          <Route path="/portal/:slug" element={<ClientPortalPage />} />
           <Route path="/assinar" element={<RegistrationPage />} />
           <Route path="/setup-account" element={<SetupAccountPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />

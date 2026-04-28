@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Building2, User, Lock, Mail, Phone, CheckCircle,
-  ArrowRight, Crown, Shield, MessageCircle,
+  ArrowRight, Crown, Shield, MessageCircle, ArrowLeft,
   CreditCard, Star, Zap, Users,
   Smartphone, Bell, Calendar, Wallet,
   XCircle, ChevronDown, ChevronUp, BarChart3, Package,

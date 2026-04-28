@@ -13,6 +13,7 @@ import {
   FinanceiroTab,
   MinhaAgendaTab,
   PackagesTab,
+  PlanosAssinaturaTab,
   ProductsTab,
   ProfessionalsTab,
   ServicesTab,
@@ -394,6 +395,10 @@ export function AdminTabContent(props: any) {
         ))}
         {activeTab === "assinatura" && (!guard("configuracoes") ? <AccessDenied tabLabel="Assinatura" /> : (
           <AssinaturaTab />
+        ))}
+
+        {activeTab === "planos" && (!guard("configuracoes") ? <AccessDenied tabLabel="Planos de Assinatura" /> : (
+          <PlanosAssinaturaTab />
         ))}
 
       </motion.div>
