@@ -17,6 +17,14 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/src/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import logoFavicon from "@/src/images/system/logo-favicon.png";
+import {
+  Button, IconButton,
+  Modal, ModalFooter,
+  Input, Select,
+  Badge,
+  EmptyState,
+  useToast, ToastProvider,
+} from "@/src/components/ui";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -93,11 +101,11 @@ function canDo(
   return !!perms[mod]?.[action];
 }
 
-const statusColor = (s: string) => {
-  if (s === "confirmed") return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (s === "cancelled") return "bg-red-50 text-red-500 border-red-200";
-  return "bg-amber-50 text-amber-700 border-amber-200";
-};
+function statusBadgeColor(s: string): "success" | "danger" | "warning" {
+  if (s === "confirmed") return "success";
+  if (s === "cancelled") return "danger";
+  return "warning";
+}
 
 const statusLabel = (s: string) => {
   if (s === "confirmed") return "Confirmado";
@@ -120,24 +128,6 @@ function Spinner() {
   return (
     <div className="flex items-center justify-center py-12">
       <div className="w-7 h-7 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
-}
-
-function EmptyBox({
-  icon: Icon,
-  title,
-  sub,
-}: {
-  icon: any;
-  title: string;
-  sub?: string;
-}) {
-  return (
-    <div className="py-16 flex flex-col items-center justify-center text-zinc-400 bg-white rounded-[28px] border-2 border-dashed border-zinc-200">
-      <Icon size={36} className="mb-3 opacity-20" />
-      <p className="text-sm font-bold text-zinc-500">{title}</p>
-      {sub && <p className="text-xs mt-1 text-zinc-400">{sub}</p>}
     </div>
   );
 }
@@ -236,14 +226,9 @@ function DashboardSection({
                 </div>
               )}
             </div>
-            <span
-              className={cn(
-                "text-[9px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border shrink-0",
-                statusColor(nextAppt.status)
-              )}
-            >
+            <Badge color={statusBadgeColor(nextAppt.status)} size="sm">
               {statusLabel(nextAppt.status)}
-            </span>
+            </Badge>
           </div>
         </div>
       ) : (
@@ -282,14 +267,9 @@ function DashboardSection({
                   <p className="text-[10px] text-zinc-400">{a.service.name}</p>
                 )}
               </div>
-              <span
-                className={cn(
-                  "text-[9px] font-bold px-2 py-1 rounded-full border",
-                  statusColor(a.status)
-                )}
-              >
+              <Badge color={statusBadgeColor(a.status)} size="sm">
                 {statusLabel(a.status)}
-              </span>
+              </Badge>
             </div>
           ))}
           {todayAppts.length > 3 && (
@@ -328,6 +308,7 @@ function AgendaSection({
   canSeeAll: boolean;
   canCreate?: boolean;
 }) {
+  const toast = useToast();
   const [showModal, setShowModal] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
@@ -349,12 +330,12 @@ function AgendaSection({
       ]);
       const [cData, sData] = await Promise.all([cRes.json(), sRes.json()]);
       setClients(Array.isArray(cData) ? cData : []);
-      
+
       const sAll = Array.isArray(sData) ? sData : [];
       const sFiltered = sAll.filter(s => {
         try {
-          const ids = typeof s.professionalIds === "string" 
-            ? JSON.parse(s.professionalIds || "[]") 
+          const ids = typeof s.professionalIds === "string"
+            ? JSON.parse(s.professionalIds || "[]")
             : (Array.isArray(s.professionalIds) ? s.professionalIds : []);
           return ids.includes(prof.id);
         } catch { return false; }
@@ -384,18 +365,20 @@ function AgendaSection({
         }),
       });
       if (res.ok) {
+        toast.success("Agendamento criado com sucesso!");
         setShowModal(false);
         onRefresh();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao agendar");
+        toast.error(err.error || "Erro ao agendar");
       }
     } catch {
-      alert("Erro de conexão");
+      toast.error("Erro de conexão");
     } finally {
       setModalLoading(false);
     }
   };
+
   const weekDays = Array.from({ length: 7 }, (_, i) =>
     addDays(view === "week" ? selectedDate : selectedDate, i)
   );
@@ -424,26 +407,30 @@ function AgendaSection({
             </button>
           ))}
         </div>
-        
+
         {canCreate && (
-          <button
+          <Button
+            variant="primary"
+            size="sm"
+            iconLeft={<Plus size={15} />}
             onClick={() => {
               setForm({ ...form, date: format(selectedDate, "yyyy-MM-dd") });
               setShowModal(true);
             }}
-            className="h-11 px-4 bg-zinc-900 text-white rounded-2xl flex items-center gap-2 font-black text-[10px] uppercase tracking-wider hover:bg-zinc-800 transition-all shadow-md active:scale-95"
+            className="h-11 px-4 rounded-2xl text-[10px] uppercase tracking-wider"
           >
-            <Plus size={15} />
-            <span>Agendar</span>
-          </button>
+            Agendar
+          </Button>
         )}
 
-        <button
+        <IconButton
           onClick={onRefresh}
-          className="w-11 h-11 bg-white border border-zinc-200 rounded-2xl flex items-center justify-center text-zinc-400 hover:text-amber-500 transition-colors shadow-sm"
+          variant="outline"
+          size="sm"
+          className="w-11 h-11 rounded-2xl"
         >
           <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-        </button>
+        </IconButton>
       </div>
 
       {/* Date navigation */}
@@ -492,12 +479,15 @@ function AgendaSection({
 
       {/* Today button */}
       {!isToday(selectedDate) && (
-        <button
+        <Button
+          variant="outline"
+          size="sm"
+          fullWidth
           onClick={() => setSelectedDate(new Date())}
-          className="w-full py-2.5 rounded-xl text-[10px] font-black bg-white border border-zinc-200 text-zinc-500 shadow-sm uppercase tracking-wider"
+          className="rounded-xl text-[10px] uppercase tracking-wider"
         >
           Voltar para Hoje
-        </button>
+        </Button>
       )}
 
       {/* Week strip */}
@@ -575,10 +565,10 @@ function AgendaSection({
       {loading ? (
         <Spinner />
       ) : displayApps.length === 0 ? (
-        <EmptyBox
+        <EmptyState
           icon={CalendarIcon}
           title="Nenhum agendamento"
-          sub={
+          description={
             view === "day"
               ? "Você está livre neste dia"
               : "Nenhum agendamento esta semana"
@@ -641,14 +631,9 @@ function AgendaSection({
                 </div>
 
                 {/* Status */}
-                <span
-                  className={cn(
-                    "text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border shrink-0",
-                    statusColor(app.status)
-                  )}
-                >
+                <Badge color={statusBadgeColor(app.status)} size="sm">
                   {statusLabel(app.status)}
-                </span>
+                </Badge>
               </motion.div>
             ))}
           </div>
@@ -656,152 +641,103 @@ function AgendaSection({
       )}
 
       {/* ── Appointment Modal ── */}
-      <AnimatePresence>
-        {showModal && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowModal(false)}
-              className="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm z-[100]"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed inset-x-4 bottom-4 sm:inset-x-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg bg-white rounded-[40px] p-8 z-[110] shadow-2xl overflow-y-auto max-h-[90vh]"
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="Novo Agendamento"
+        size="md"
+        footer={
+          <ModalFooter>
+            <Button variant="ghost" onClick={() => setShowModal(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              loading={modalLoading}
+              onClick={(e) => {
+                const form = document.getElementById("appt-form") as HTMLFormElement;
+                form?.requestSubmit();
+              }}
+              className="flex-1"
             >
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h3 className="text-xl font-black text-zinc-900">Novo Agendamento</h3>
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Defina os detalhes do serviço</p>
-                </div>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="w-10 h-10 flex items-center justify-center hover:bg-zinc-50 rounded-full text-zinc-400 transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
+              Confirmar Agendamento
+            </Button>
+          </ModalFooter>
+        }
+      >
+        <form id="appt-form" onSubmit={handleSave} className="space-y-5">
+          <Select
+            label="Cliente"
+            required
+            value={form.clientId}
+            onChange={e => setForm({ ...form, clientId: e.target.value })}
+            options={[
+              { value: "", label: "Selecione um cliente..." },
+              ...clients.map(c => ({ value: c.id, label: c.name })),
+            ]}
+          />
 
-              <form onSubmit={handleSave} className="space-y-6">
-                <div className="space-y-4">
-                  {/* Client */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Cliente</label>
-                    <select
-                      required
-                      value={form.clientId}
-                      onChange={e => setForm({...form, clientId: e.target.value})}
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20"
-                    >
-                      <option value="">Selecione um cliente...</option>
-                      {clients.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
+          <Select
+            label="Serviço"
+            required
+            value={form.serviceId}
+            onChange={e => setForm({ ...form, serviceId: e.target.value })}
+            options={[
+              { value: "", label: "Selecione um serviço..." },
+              ...services.map(s => ({ value: s.id, label: `${s.name} — ${formatMoney(s.price)}` })),
+            ]}
+          />
 
-                  {/* Service */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Serviço</label>
-                    <select
-                      required
-                      value={form.serviceId}
-                      onChange={e => setForm({...form, serviceId: e.target.value})}
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20"
-                    >
-                      <option value="">Selecione um serviço...</option>
-                      {services.map(s => (
-                        <option key={s.id} value={s.id}>{s.name} — {formatMoney(s.price)}</option>
-                      ))}
-                    </select>
-                  </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Data"
+              type="date"
+              required
+              value={form.date}
+              onChange={e => setForm({ ...form, date: e.target.value })}
+            />
+            <Input
+              label="Horário"
+              type="time"
+              required
+              value={form.startTime}
+              onChange={e => setForm({ ...form, startTime: e.target.value })}
+            />
+          </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Data</label>
-                      <input
-                        type="date"
-                        required
-                        value={form.date}
-                        onChange={e => setForm({...form, date: e.target.value})}
-                        className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Horário</label>
-                      <input
-                        type="time"
-                        required
-                        value={form.startTime}
-                        onChange={e => setForm({...form, startTime: e.target.value})}
-                        className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none"
-                      />
-                    </div>
-                  </div>
+          <div className="pt-4 border-t border-zinc-100">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-1.5 h-4 bg-amber-400 rounded-full" />
+              <h4 className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">Repetição / Recorrência</h4>
+            </div>
 
-                  {/* Recurrence */}
-                  <div className="pt-4 border-t border-zinc-100">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="w-1.5 h-4 bg-amber-400 rounded-full" />
-                      <h4 className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">Repetição / Recorrência</h4>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Tipo</label>
-                        <select
-                          value={form.recurrence}
-                          onChange={e => setForm({...form, recurrence: e.target.value as any})}
-                          className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none"
-                        >
-                          <option value="none">Não repetir</option>
-                          <option value="daily">Diário</option>
-                          <option value="weekly">Semanal</option>
-                          <option value="monthly">Mensal</option>
-                        </select>
-                      </div>
-                      
-                      {form.recurrence !== "none" && (
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Sessões</label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={52}
-                            value={form.sessions}
-                            onChange={e => setForm({...form, sessions: parseInt(e.target.value) || 1})}
-                            className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Tipo"
+                value={form.recurrence}
+                onChange={e => setForm({ ...form, recurrence: e.target.value as any })}
+                options={[
+                  { value: "none", label: "Não repetir" },
+                  { value: "daily", label: "Diário" },
+                  { value: "weekly", label: "Semanal" },
+                  { value: "monthly", label: "Mensal" },
+                ]}
+              />
 
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowModal(false)}
-                    className="flex-1 py-4 text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-600 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={modalLoading}
-                    className="flex-[2] bg-zinc-900 text-white rounded-2xl py-4 text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg shadow-zinc-900/20"
-                  >
-                    {modalLoading ? "Agendando..." : "Confirmar Agendamento"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+              {form.recurrence !== "none" && (
+                <Input
+                  label="Sessões"
+                  type="number"
+                  min={1}
+                  max={52}
+                  value={String(form.sessions)}
+                  onChange={e => setForm({ ...form, sessions: parseInt(e.target.value) || 1 })}
+                />
+              )}
+            </div>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
@@ -904,7 +840,10 @@ function ComandasSection({
       {loading ? (
         <Spinner />
       ) : filtered.length === 0 ? (
-        <EmptyBox icon={FileText} title="Nenhuma comanda" />
+        <EmptyState
+          icon={FileText}
+          title="Nenhuma comanda"
+        />
       ) : (
         <div className="space-y-3">
           {filtered.map((c, idx) => (
@@ -941,16 +880,12 @@ function ComandasSection({
                 <p className="text-sm font-black text-zinc-900">
                   {formatMoney(c.total)}
                 </p>
-                <span
-                  className={cn(
-                    "text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full",
-                    c.status === "open"
-                      ? "text-amber-600 bg-amber-50"
-                      : "text-emerald-600 bg-emerald-50"
-                  )}
+                <Badge
+                  color={c.status === "open" ? "warning" : "success"}
+                  size="sm"
                 >
                   {c.status === "open" ? "Aberta" : "Paga"}
-                </span>
+                </Badge>
               </div>
             </motion.div>
           ))}
@@ -969,10 +904,12 @@ function ClientesSection({
   prof: ProfData;
   canCreate?: boolean;
 }) {
+  const toast = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
 
   const fetchClients = async () => {
@@ -996,7 +933,7 @@ function ClientesSection({
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setSaving(true);
     try {
       const res = await fetch("/api/clients", {
         method: "POST",
@@ -1007,17 +944,18 @@ function ClientesSection({
         body: JSON.stringify(form),
       });
       if (res.ok) {
+        toast.success("Cliente cadastrado com sucesso!");
         setShowCreate(false);
         setForm({ name: "", phone: "", email: "" });
         fetchClients();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao criar cliente");
+        toast.error(err.error || "Erro ao criar cliente");
       }
     } catch {
-      alert("Erro de conexão");
+      toast.error("Erro de conexão");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -1029,130 +967,96 @@ function ClientesSection({
     <div className="space-y-4">
       {/* Search */}
       <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search
-            size={15}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400"
-          />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar cliente..."
-            className="w-full bg-white border border-zinc-200 rounded-2xl pl-10 pr-4 py-3.5 text-sm font-bold text-zinc-900 placeholder:text-zinc-400 placeholder:font-normal outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 transition-all"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400"
-            >
-              <X size={14} />
+        <Input
+          placeholder="Buscar cliente..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          iconLeft={<Search size={15} />}
+          iconRight={search ? (
+            <button onClick={() => setSearch("")}>
+              <X size={14} className="text-zinc-400 hover:text-zinc-600" />
             </button>
-          )}
-        </div>
+          ) : undefined}
+          wrapperClassName="flex-1"
+        />
         {canCreate && (
-          <button
+          <Button
+            variant="primary"
+            size="sm"
+            iconLeft={<Plus size={16} />}
             onClick={() => setShowCreate(true)}
-            className="h-[52px] px-5 bg-amber-500 text-white rounded-2xl flex items-center gap-2 font-black text-xs uppercase tracking-wider hover:bg-amber-600 transition-all shadow-md shadow-amber-500/20 active:scale-95"
+            className="h-[44px] px-4 rounded-2xl shrink-0"
           >
-            <Plus size={16} />
             <span className="hidden sm:inline">Novo</span>
-          </button>
+          </Button>
         )}
       </div>
 
-      <AnimatePresence>
-        {showCreate && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowCreate(false)}
-              className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[100]"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="fixed inset-x-4 top-[15%] sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-md bg-white rounded-[32px] p-6 z-[110] shadow-2xl"
+      {/* Create Client Modal */}
+      <Modal
+        isOpen={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="Novo Cliente"
+        size="sm"
+        footer={
+          <ModalFooter>
+            <Button variant="ghost" onClick={() => setShowCreate(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              loading={saving}
+              onClick={() => {
+                const form = document.getElementById("client-form") as HTMLFormElement;
+                form?.requestSubmit();
+              }}
+              className="flex-1"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-black text-zinc-900">Novo Cliente</h3>
-                <button
-                  onClick={() => setShowCreate(false)}
-                  className="p-2 hover:bg-zinc-100 rounded-xl text-zinc-400 transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
+              Cadastrar Cliente
+            </Button>
+          </ModalFooter>
+        }
+      >
+        <form id="client-form" onSubmit={handleCreate} className="space-y-4">
+          <Input
+            label="Nome Completo"
+            type="text"
+            required
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="Nome do cliente"
+          />
 
-              <form onSubmit={handleCreate} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">
-                    Nome Completo
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400"
-                    placeholder="Nome do cliente"
-                  />
-                </div>
+          <Input
+            label="Telefone"
+            type="text"
+            value={form.phone}
+            onChange={(e) => {
+              let v = e.target.value.replace(/\D/g, "");
+              if (v.length > 11) v = v.slice(0, 11);
+              if (v.length > 10) {
+                v = v.replace(/^(\d{2})(\d{5})(\d{4}).*/, "($1) $2-$3");
+              } else if (v.length > 6) {
+                v = v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, "($1) $2-$3");
+              } else if (v.length > 2) {
+                v = v.replace(/^(\d{2})(\d{0,4}).*/, "($1) $2");
+              } else if (v.length > 0) {
+                v = v.replace(/^(\d{0,2}).*/, "($1");
+              }
+              setForm({ ...form, phone: v });
+            }}
+            placeholder="(00) 00000-0000"
+          />
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">
-                    Telefone
-                  </label>
-                  <input
-                    type="text"
-                    value={form.phone}
-                    onChange={(e) => {
-                      let v = e.target.value.replace(/\D/g, "");
-                      if (v.length > 11) v = v.slice(0, 11);
-                      if (v.length > 10) {
-                        v = v.replace(/^(\d{2})(\d{5})(\d{4}).*/, "($1) $2-$3");
-                      } else if (v.length > 6) {
-                        v = v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, "($1) $2-$3");
-                      } else if (v.length > 2) {
-                        v = v.replace(/^(\d{2})(\d{0,4}).*/, "($1) $2");
-                      } else if (v.length > 0) {
-                        v = v.replace(/^(\d{0,2}).*/, "($1");
-                      }
-                      setForm({ ...form, phone: v });
-                    }}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400"
-                    placeholder="(00) 00000-0000"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">
-                    E-mail (Opcional)
-                  </label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400"
-                    placeholder="cliente@email.com"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-zinc-900 text-white rounded-2xl py-4 text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-[0.98] disabled:opacity-50 mt-2"
-                >
-                  {loading ? "Criando..." : "Cadastrar Cliente"}
-                </button>
-              </form>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+          <Input
+            label="E-mail (Opcional)"
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            placeholder="cliente@email.com"
+          />
+        </form>
+      </Modal>
 
       <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.12em] px-1">
         {filtered.length} cliente(s)
@@ -1161,9 +1065,15 @@ function ClientesSection({
       {loading ? (
         <Spinner />
       ) : filtered.length === 0 ? (
-        <EmptyBox
+        <EmptyState
           icon={Users}
           title={search ? "Nenhum cliente encontrado" : "Sem clientes"}
+          description={search ? undefined : "Cadastre o primeiro cliente"}
+          action={canCreate && !search ? (
+            <Button variant="outline" size="sm" iconLeft={<Plus size={14} />} onClick={() => setShowCreate(true)}>
+              Novo Cliente
+            </Button>
+          ) : undefined}
         />
       ) : (
         <div className="space-y-2">
@@ -1211,37 +1121,38 @@ function ServicesSection({ prof }: { prof: ProfData }) {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchServices = useCallback(async () => {
+    if (!prof?.id || !prof?.tenantId) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/services", {
+        headers: { "x-tenant-id": prof.tenantId },
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const all = Array.isArray(data) ? data : [];
+      const filtered = all.filter(s => {
+        try {
+          const rawIds = s.professionalIds;
+          const ids = typeof rawIds === "string"
+            ? JSON.parse(rawIds || "[]")
+            : (Array.isArray(rawIds) ? rawIds : []);
+          return ids.includes(prof.id);
+        } catch {
+          return false;
+        }
+      });
+      setServices(filtered);
+    } catch {
+      setServices([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [prof?.tenantId, prof?.id]);
+
   useEffect(() => {
-    const fetchServices = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/services", {
-          headers: { "x-tenant-id": prof.tenantId },
-        });
-        const data = await res.json();
-        const all = Array.isArray(data) ? data : [];
-        
-        // Filtrar apenas serviços que este profissional realiza
-        const filtered = all.filter(s => {
-          try {
-            const ids = typeof s.professionalIds === "string" 
-              ? JSON.parse(s.professionalIds || "[]") 
-              : (Array.isArray(s.professionalIds) ? s.professionalIds : []);
-            return ids.includes(prof.id);
-          } catch {
-            return false;
-          }
-        });
-        
-        setServices(filtered);
-      } catch {
-        setServices([]);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchServices();
-  }, [prof.tenantId, prof.id]);
+  }, [fetchServices]);
 
   return (
     <div className="space-y-4">
@@ -1249,43 +1160,23 @@ function ServicesSection({ prof }: { prof: ProfData }) {
         <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.12em]">
           {services.length} serviço(s)
         </p>
-        <button
-          onClick={() => {
-            const fetchServices = async () => {
-              setLoading(true);
-              try {
-                const res = await fetch("/api/services", {
-                  headers: { "x-tenant-id": prof.tenantId },
-                });
-                const data = await res.json();
-                const all = Array.isArray(data) ? data : [];
-                const filtered = all.filter(s => {
-                  try {
-                    const ids = typeof s.professionalIds === "string" 
-                      ? JSON.parse(s.professionalIds || "[]") 
-                      : (Array.isArray(s.professionalIds) ? s.professionalIds : []);
-                    return ids.includes(prof.id);
-                  } catch { return false; }
-                });
-                setServices(filtered);
-              } catch { setServices([]); } finally { setLoading(false); }
-            };
-            fetchServices();
-          }}
+        <IconButton
+          onClick={fetchServices}
+          variant="ghost"
+          size="sm"
           disabled={loading}
-          className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-800 transition-colors"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-        </button>
+        </IconButton>
       </div>
 
       {loading ? (
         <Spinner />
       ) : services.length === 0 ? (
-        <EmptyBox 
-          icon={Scissors} 
-          title="Nenhum serviço vinculado" 
-          sub="Você ainda não foi associado a nenhum serviço pelo administrador." 
+        <EmptyState
+          icon={Scissors}
+          title="Nenhum serviço vinculado"
+          description="Você ainda não foi associado a nenhum serviço pelo administrador."
         />
       ) : (
         <div className="space-y-2.5">
@@ -1326,6 +1217,7 @@ function ServicesSection({ prof }: { prof: ProfData }) {
 // ─── SECTION: Perfil ──────────────────────────────────────────────────────────
 
 function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => void }) {
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [editPassword, setEditPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -1367,14 +1259,14 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => vo
         body: JSON.stringify(form),
       });
       if (res.ok) {
-        alert("Perfil atualizado com sucesso!");
+        toast.success("Perfil atualizado com sucesso!");
         onUpdate();
       } else {
         const d = await res.json();
-        alert(d.error || "Erro ao atualizar");
+        toast.error(d.error || "Erro ao atualizar");
       }
     } catch {
-      alert("Erro de conexão");
+      toast.error("Erro de conexão");
     } finally {
       setLoading(false);
     }
@@ -1394,9 +1286,9 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => vo
             </div>
             <label className="absolute bottom-0 right-0 w-8 h-8 bg-white border border-zinc-200 rounded-full flex items-center justify-center shadow-md cursor-pointer hover:bg-zinc-50 transition-colors">
               <Plus size={16} className="text-zinc-600" />
-              <input 
-                type="file" 
-                className="hidden" 
+              <input
+                type="file"
+                className="hidden"
                 accept="image/*"
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
@@ -1407,7 +1299,7 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => vo
                     const res = await fetch("/api/upload", { method: "POST", body: formData });
                     const data = await res.json();
                     if (data.url) setForm({ ...form, photo: data.url });
-                  } catch { alert("Erro no upload"); }
+                  } catch { toast.error("Erro no upload da foto"); }
                 }}
               />
             </label>
@@ -1418,37 +1310,29 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => vo
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Nome Completo</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })}
-                className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 transition-all"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">E-mail (Não editável)</label>
-              <input
-                type="email"
-                value={form.email}
-                readOnly
-                className="w-full bg-zinc-100 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-400 outline-none cursor-not-allowed"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Telefone / WhatsApp</label>
-            <input
+            <Input
+              label="Nome Completo"
               type="text"
-              value={form.phone}
-              onChange={handlePhoneChange}
-              className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 transition-all"
-              placeholder="(00) 00000-0000"
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+              required
+            />
+            <Input
+              label="E-mail (Não editável)"
+              type="email"
+              value={form.email}
+              readOnly
+              disabled
             />
           </div>
+
+          <Input
+            label="Telefone / WhatsApp"
+            type="text"
+            value={form.phone}
+            onChange={handlePhoneChange}
+            placeholder="(00) 00000-0000"
+          />
 
           <div className="pt-2">
             {!editPassword ? (
@@ -1463,64 +1347,67 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => vo
               <div className="space-y-4 bg-zinc-50 border border-zinc-200 rounded-2xl p-4 mt-2">
                 <div className="flex items-center justify-between">
                   <h4 className="text-[10px] font-black text-zinc-900 uppercase tracking-wider">Alterar Senha</h4>
-                  <button type="button" onClick={() => { setEditPassword(false); setForm({...form, password: "", currentPassword: ""}); }} className="text-zinc-400 hover:text-zinc-600">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditPassword(false);
+                      setForm({ ...form, password: "", currentPassword: "" });
+                    }}
+                    className="text-zinc-400 hover:text-zinc-600"
+                  >
                     <X size={14} />
                   </button>
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider">Senha Atual</label>
-                    <div className="relative">
-                      <input
-                        type={showCurrentPassword ? "text" : "password"}
-                        value={form.currentPassword}
-                        onChange={e => setForm({ ...form, currentPassword: e.target.value })}
-                        className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 pr-10 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20"
-                        placeholder="••••••••"
-                        required={editPassword}
-                      />
+                  <Input
+                    label="Senha Atual"
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={form.currentPassword}
+                    onChange={e => setForm({ ...form, currentPassword: e.target.value })}
+                    placeholder="••••••••"
+                    required={editPassword}
+                    iconRight={
                       <button
                         type="button"
                         onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                        className="text-zinc-400 hover:text-zinc-600"
                       >
                         {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider">Nova Senha</label>
-                    <div className="relative">
-                      <input
-                        type={showNewPassword ? "text" : "password"}
-                        value={form.password}
-                        onChange={e => setForm({ ...form, password: e.target.value })}
-                        className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 pr-10 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20"
-                        placeholder="••••••••"
-                        required={editPassword}
-                      />
+                    }
+                  />
+                  <Input
+                    label="Nova Senha"
+                    type={showNewPassword ? "text" : "password"}
+                    value={form.password}
+                    onChange={e => setForm({ ...form, password: e.target.value })}
+                    placeholder="••••••••"
+                    required={editPassword}
+                    iconRight={
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                        className="text-zinc-400 hover:text-zinc-600"
                       >
                         {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
-                    </div>
-                  </div>
+                    }
+                  />
                 </div>
               </div>
             )}
           </div>
 
-          <button
+          <Button
             type="submit"
-            disabled={loading}
-            className="w-full bg-zinc-900 text-white rounded-2xl py-4 text-sm font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-[0.98] disabled:opacity-50 mt-4 flex items-center justify-center gap-2"
+            variant="primary"
+            fullWidth
+            loading={loading}
+            className="mt-4"
           >
-            {loading ? <RefreshCw className="animate-spin" size={18} /> : "Salvar Alterações"}
-          </button>
+            Salvar Alterações
+          </Button>
         </form>
       </div>
     </div>
@@ -1529,7 +1416,7 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => vo
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
-export default function ProfessionalDashboard() {
+function ProfessionalDashboardInner() {
   const { user: authUser, logout, refreshUser } = useAuth();
   const [prof, setProf] = useState<ProfData | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -1540,14 +1427,12 @@ export default function ProfessionalDashboard() {
   const [activeTab, setActiveTab] = useState<string>("dashboard");
   const [showMenu, setShowMenu] = useState(false);
 
-  // Carrega prof do AuthContext (já validado pelo RequireProfessional)
   useEffect(() => {
     if (authUser) {
       setProf(authUser as any);
     }
   }, [authUser]);
 
-  // Parse permissions
   const perms = prof ? parsePerms(prof.permissions) : {};
   const canSeeDashboard = canDo(perms, "dashboard");
   const canSeeAgenda = canDo(perms, "agenda");
@@ -1561,7 +1446,6 @@ export default function ProfessionalDashboard() {
     canDo(perms, "agenda", "editar_todos");
   const canCreateComandas = canDo(perms, "comandas", "criar");
 
-  // Build nav tabs based on permissions
   const tabs = [
     { id: "dashboard", label: "Início", icon: LayoutDashboard, always: true },
     { id: "agenda", label: "Agenda", icon: CalendarIcon, perm: canSeeAgenda },
@@ -1571,7 +1455,6 @@ export default function ProfessionalDashboard() {
     { id: "perfil", label: "Meu Perfil", icon: User, always: true },
   ].filter((t) => t.always || t.perm);
 
-  // Set default tab after permissions resolve
   useEffect(() => {
     if (!prof) return;
     if (tabs.length > 0 && !tabs.find((t) => t.id === activeTab)) {
@@ -1579,7 +1462,6 @@ export default function ProfessionalDashboard() {
     }
   }, [prof]);
 
-  // Fetch appointments
   const fetchAppointments = useCallback(async () => {
     if (!prof?.tenantId) return;
     setLoading(true);
@@ -1613,7 +1495,6 @@ export default function ProfessionalDashboard() {
     if (prof && canSeeAgenda) fetchAppointments();
   }, [prof, selectedDate, view, canSeeAgenda]);
 
-  // Fetch today's appointments for dashboard
   const fetchTodayAppointments = useCallback(async () => {
     if (!prof?.tenantId) return;
     const start = startOfToday();
@@ -1629,7 +1510,6 @@ export default function ProfessionalDashboard() {
     } catch {}
   }, [prof]);
 
-  // Fetch comandas for dashboard summary
   useEffect(() => {
     if (!prof?.tenantId || !canSeeComandas) return;
     fetch("/api/comandas", {
@@ -1640,7 +1520,6 @@ export default function ProfessionalDashboard() {
       .catch(() => {});
   }, [prof, canSeeComandas]);
 
-  // When switching to dashboard, load today
   useEffect(() => {
     if (activeTab === "dashboard" && prof) {
       fetchTodayAppointments();
@@ -1654,8 +1533,6 @@ export default function ProfessionalDashboard() {
   const todayCount = appointments.filter(
     (a) => isToday(parseISO(a.date)) && a.status !== "cancelled"
   ).length;
-
-  // ── Render ────────────────────────────────────────────────────────────────
 
   const PageContent = (
     <AnimatePresence mode="wait">
@@ -1706,11 +1583,11 @@ export default function ProfessionalDashboard() {
         {activeTab === "servicos" && <ServicesSection prof={prof} />}
 
         {activeTab === "perfil" && (
-          <ProfileSection 
-            prof={prof} 
+          <ProfileSection
+            prof={prof}
             onUpdate={async () => {
               await refreshUser();
-            }} 
+            }}
           />
         )}
       </motion.div>
@@ -1957,7 +1834,7 @@ export default function ProfessionalDashboard() {
                 className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[40px] z-[70] lg:hidden p-8 pb-12 shadow-2xl overflow-hidden"
               >
                 <div className="w-12 h-1.5 bg-zinc-100 rounded-full mx-auto mb-8" />
-                
+
                 <div className="grid grid-cols-3 gap-6">
                   {tabs.map((tab) => {
                     const Icon = tab.icon;
@@ -1973,8 +1850,8 @@ export default function ProfessionalDashboard() {
                       >
                         <div className={cn(
                           "w-14 h-14 rounded-[22px] flex items-center justify-center transition-all duration-300 shadow-sm border",
-                          active 
-                            ? "bg-amber-500 text-white border-amber-500 shadow-amber-500/20 scale-110" 
+                          active
+                            ? "bg-amber-500 text-white border-amber-500 shadow-amber-500/20 scale-110"
                             : "bg-white text-zinc-400 border-zinc-100 group-active:scale-95"
                         )}>
                           <Icon size={24} />
@@ -1988,7 +1865,7 @@ export default function ProfessionalDashboard() {
                       </button>
                     );
                   })}
-                  
+
                   <button
                     onClick={() => { handleLogout(); setShowMenu(false); }}
                     className="flex flex-col items-center gap-3 group"
@@ -2007,5 +1884,13 @@ export default function ProfessionalDashboard() {
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+export default function ProfessionalDashboard() {
+  return (
+    <ToastProvider>
+      <ProfessionalDashboardInner />
+    </ToastProvider>
   );
 }
