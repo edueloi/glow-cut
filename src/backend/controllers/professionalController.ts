@@ -374,7 +374,12 @@ export const professionalController = {
         ...(req.body.attendsSchedule !== undefined && { attendsSchedule: asBoolean(req.body.attendsSchedule, true) }),
       };
 
-      if (password) data.password = password;
+      if (password) {
+        if (req.body.currentPassword && current.password !== req.body.currentPassword) {
+          return res.status(400).json({ error: "A senha atual está incorreta." });
+        }
+        data.password = password;
+      }
 
       await (prisma as any).professional.update({
         where: { id: current.id },

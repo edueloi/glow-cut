@@ -906,13 +906,30 @@ function ServicesSection({ prof }: { prof: ProfData }) {
 
 function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => Promise<void> }) {
   const [loading, setLoading] = useState(false);
+  const [editPassword, setEditPassword] = useState(false);
   const [form, setForm] = useState({
     name: prof.name || "",
     email: prof.email || "",
-    phone: prof.phone || "",
+    phone: prof.phone ? formatPhone(prof.phone) : "",
     photo: prof.photo || "",
+    currentPassword: "",
     password: "",
   });
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let v = e.target.value.replace(/\D/g, "");
+    if (v.length > 11) v = v.slice(0, 11);
+    if (v.length > 10) {
+      v = v.replace(/^(\d{2})(\d{5})(\d{4}).*/, "($1) $2-$3");
+    } else if (v.length > 6) {
+      v = v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, "($1) $2-$3");
+    } else if (v.length > 2) {
+      v = v.replace(/^(\d{2})(\d{0,4}).*/, "($1) $2");
+    } else if (v.length > 0) {
+      v = v.replace(/^(\d{0,2}).*/, "($1");
+    }
+    setForm({ ...form, phone: v });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -989,12 +1006,12 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => Pr
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">E-mail</label>
+              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">E-mail (Não editável)</label>
               <input
                 type="email"
                 value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 transition-all"
+                readOnly
+                className="w-full bg-zinc-100 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-400 outline-none cursor-not-allowed"
               />
             </div>
           </div>
@@ -1004,21 +1021,56 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => Pr
             <input
               type="text"
               value={form.phone}
-              onChange={e => setForm({ ...form, phone: e.target.value })}
+              onChange={handlePhoneChange}
               className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 transition-all"
               placeholder="(00) 00000-0000"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Nova Senha (deixe em branco para manter)</label>
-            <input
-              type="password"
-              value={form.password}
-              onChange={e => setForm({ ...form, password: e.target.value })}
-              className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 transition-all"
-              placeholder="••••••••"
-            />
+          <div className="pt-2">
+            {!editPassword ? (
+              <button
+                type="button"
+                onClick={() => setEditPassword(true)}
+                className="text-[10px] font-black text-amber-600 uppercase tracking-wider flex items-center gap-1.5 hover:text-amber-700 transition-colors"
+              >
+                <RefreshCw size={12} /> Alterar minha senha
+              </button>
+            ) : (
+              <div className="space-y-4 bg-zinc-50 border border-zinc-200 rounded-2xl p-4 mt-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-black text-zinc-900 uppercase tracking-wider">Alterar Senha</h4>
+                  <button type="button" onClick={() => { setEditPassword(false); setForm({...form, password: "", currentPassword: ""}); }} className="text-zinc-400 hover:text-zinc-600">
+                    <X size={14} />
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider">Senha Atual</label>
+                    <input
+                      type="password"
+                      value={form.currentPassword}
+                      onChange={e => setForm({ ...form, currentPassword: e.target.value })}
+                      className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20"
+                      placeholder="••••••••"
+                      required={editPassword}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider">Nova Senha</label>
+                    <input
+                      type="password"
+                      value={form.password}
+                      onChange={e => setForm({ ...form, password: e.target.value })}
+                      className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20"
+                      placeholder="••••••••"
+                      required={editPassword}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <button
