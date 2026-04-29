@@ -1088,6 +1088,167 @@ superAdminRouter.get("/wpp/stats", async (req, res) => {
   }
 });
 
+// ═════════════════════════════════════════════════════════════
+//  SUPER-ADMIN — Bot Central (Setores, Conversas, Fila)
+// ═════════════════════════════════════════════════════════════
+
+// Lista todos os setores do bot central (tenantId = "system")
+superAdminRouter.get("/bot/sectors", async (_req, res) => {
+  try {
+    const sectors = await (prisma as any).wppBotSector.findMany({
+      where: { tenantId: "system" },
+      orderBy: { sortOrder: "asc" },
+    });
+    const result = sectors.map((s: any) => ({
+      ...s,
+      attendants: JSON.parse(s.attendants || "[]"),
+    }));
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Cria setor
+superAdminRouter.post("/bot/sectors", async (req, res) => {
+  const { name, menuKey, description, attendants, sortOrder } = req.body;
+  if (!name || !menuKey) return res.status(400).json({ error: "name e menuKey são obrigatórios." });
+  try {
+    const sector = await (prisma as any).wppBotSector.create({
+      data: {
+        tenantId: "system",
+        name,
+        menuKey: String(menuKey),
+        description: description || null,
+        attendants: JSON.stringify(Array.isArray(attendants) ? attendants : []),
+        sortOrder: sortOrder ?? 0,
+        isActive: true,
+      },
+    });
+    res.json({ ...sector, attendants: JSON.parse(sector.attendants) });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Atualiza setor
+superAdminRouter.patch("/bot/sectors/:id", async (req, res) => {
+  const { name, menuKey, description, attendants, isActive, sortOrder } = req.body;
+  try {
+    const data: any = {};
+    if (name !== undefined) data.name = name;
+    if (menuKey !== undefined) data.menuKey = String(menuKey);
+    if (description !== undefined) data.description = description;
+    if (attendants !== undefined) data.attendants = JSON.stringify(Array.isArray(attendants) ? attendants : []);
+    if (isActive !== undefined) data.isActive = !!isActive;
+    if (sortOrder !== undefined) data.sortOrder = sortOrder;
+
+    const sector = await (prisma as any).wppBotSector.update({
+      where: { id: req.params.id },
+      data,
+    });
+    res.json({ ...sector, attendants: JSON.parse(sector.attendants) });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Remove setor
+superAdminRouter.delete("/bot/sectors/:id", async (req, res) => {
+  try {
+    await (prisma as any).wppBotSector.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Lista conversas (fila) — com filtros opcionais
+superAdminRouter.get("/bot/conversations", async (req, res) => {
+  const { status, sectorId } = req.query;
+  try {
+    const where: any = { tenantId: "system" };
+    if (status) where.status = status;
+    if (sectorId) where.sectorId = sectorId;
+
+    const conversations = await (prisma as any).wppConversation.findMany({
+      where,
+      include: {
+        sector: { select: { id: true, name: true, menuKey: true } },
+        messages: { orderBy: { sentAt: "asc" } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+    res.json(conversations);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Detalhes de uma conversa com histórico
+superAdminRouter.get("/bot/conversations/:id", async (req, res) => {
+  try {
+    const conv = await (prisma as any).wppConversation.findUnique({
+      where: { id: req.params.id },
+      include: {
+        sector: true,
+        messages: { orderBy: { sentAt: "asc" } },
+      },
+    });
+    if (!conv) return res.status(404).json({ error: "Conversa não encontrada." });
+    res.json(conv);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Encerra uma conversa manualmente (super-admin)
+superAdminRouter.patch("/bot/conversations/:id/close", async (req, res) => {
+  try {
+    const conv = await (prisma as any).wppConversation.update({
+      where: { id: req.params.id },
+      data: { status: "closed", closedBy: "system", closedAt: new Date() },
+    });
+    res.json({ success: true, conversationId: conv.id });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Estatísticas do bot central
+superAdminRouter.get("/bot/stats", async (_req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [totalWaiting, totalActive, totalClosedToday, totalConversations] = await Promise.all([
+      (prisma as any).wppConversation.count({ where: { tenantId: "system", status: "waiting" } }),
+      (prisma as any).wppConversation.count({ where: { tenantId: "system", status: "active" } }),
+      (prisma as any).wppConversation.count({ where: { tenantId: "system", status: "closed", closedAt: { gte: today } } }),
+      (prisma as any).wppConversation.count({ where: { tenantId: "system", createdAt: { gte: today } } }),
+    ]);
+
+    const sectorStats = await (prisma as any).wppBotSector.findMany({
+      where: { tenantId: "system", isActive: true },
+      select: { id: true, name: true },
+    });
+
+    const sectorCounts = await Promise.all(
+      sectorStats.map(async (s: any) => ({
+        sectorId: s.id,
+        name: s.name,
+        waiting: await (prisma as any).wppConversation.count({ where: { sectorId: s.id, status: "waiting" } }),
+        active: await (prisma as any).wppConversation.count({ where: { sectorId: s.id, status: "active" } }),
+      }))
+    );
+
+    res.json({ totalWaiting, totalActive, totalClosedToday, totalConversations, sectorCounts });
+  } catch (e: any) {
+    res.json({ totalWaiting: 0, totalActive: 0, totalClosedToday: 0, totalConversations: 0, sectorCounts: [] });
+  }
+});
+
 // ─── FINANCEIRO DA PLATAFORMA ──────────────────────────────────────────────
 
 // Helper para gerar entradas virtuais das assinaturas ativas

@@ -775,6 +775,69 @@ const MIGRATIONS = [
     `,
   },
 
+  // 042 — Bot Central: setores de atendimento
+  {
+    name: '042_create_wpp_bot_sector',
+    sql: `
+      CREATE TABLE IF NOT EXISTS WppBotSector (
+        id          VARCHAR(36)   NOT NULL PRIMARY KEY,
+        tenantId    VARCHAR(36)   NOT NULL DEFAULT 'system',
+        name        VARCHAR(100)  NOT NULL,
+        menuKey     VARCHAR(10)   NOT NULL,
+        description VARCHAR(255)  NULL,
+        attendants  TEXT          NOT NULL DEFAULT '[]',
+        isActive    TINYINT(1)    NOT NULL DEFAULT 1,
+        sortOrder   INT           NOT NULL DEFAULT 0,
+        createdAt   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_wppbotsector_tenant_key (tenantId, menuKey),
+        KEY idx_wppbotsector_tenant (tenantId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
+  // 043 — Bot Central: conversas / fila
+  {
+    name: '043_create_wpp_conversation',
+    sql: `
+      CREATE TABLE IF NOT EXISTS WppConversation (
+        id             VARCHAR(36)   NOT NULL PRIMARY KEY,
+        tenantId       VARCHAR(36)   NOT NULL DEFAULT 'system',
+        sectorId       VARCHAR(36)   NULL,
+        clientPhone    VARCHAR(30)   NOT NULL,
+        clientName     VARCHAR(255)  NULL,
+        attendantPhone VARCHAR(30)   NULL,
+        status         VARCHAR(20)   NOT NULL DEFAULT 'waiting',
+        firstMessage   VARCHAR(1000) NULL,
+        closedBy       VARCHAR(20)   NULL,
+        closedAt       DATETIME      NULL,
+        createdAt      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        KEY idx_wppconv_tenant_status (tenantId, status),
+        KEY idx_wppconv_client (clientPhone, tenantId),
+        KEY idx_wppconv_sector (sectorId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
+  // 044 — Bot Central: mensagens das conversas
+  {
+    name: '044_create_wpp_conversation_message',
+    sql: `
+      CREATE TABLE IF NOT EXISTS WppConversationMessage (
+        id             VARCHAR(36)  NOT NULL PRIMARY KEY,
+        conversationId VARCHAR(36)  NOT NULL,
+        fromRole       VARCHAR(20)  NOT NULL,
+        fromPhone      VARCHAR(30)  NULL,
+        body           TEXT         NOT NULL,
+        sentAt         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_wppconvmsg_conv (conversationId),
+        KEY idx_wppconvmsg_sent (sentAt),
+        CONSTRAINT fk_wppconvmsg_conv FOREIGN KEY (conversationId) REFERENCES WppConversation(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
 ];
 
 // ─────────────────────────────────────────────────────────────

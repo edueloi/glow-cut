@@ -1029,7 +1029,7 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
   const selectPlan = (p: any) => {
     setSelectedPlan(p);
     setSelectedUser(null);
-    let perms = {};
+    let perms: Record<string, any> = {};
     try { perms = typeof p.permissions === "string" ? JSON.parse(p.permissions) : (p.permissions || {}); } catch { perms = {}; }
     setPermissions(perms);
     setSaved(false);
@@ -1038,7 +1038,7 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
   const selectUser = (u: any) => {
     setSelectedUser(u);
     setSelectedPlan(null);
-    let perms = {};
+    let perms: Record<string, any> = {};
     try { perms = typeof u.permissions === "string" ? JSON.parse(u.permissions) : (u.permissions || {}); } catch { perms = {}; }
     
     if (Object.keys(perms).length === 0) {
@@ -2209,7 +2209,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
         });
         if (r.ok) {
           const data = await r.json();
-          setForm(f => ({ ...f, photo: data.url || data.path || "" }));
+          setForm((f: any) => ({ ...f, photo: data.url || data.path || "" }));
         }
       } catch (err) {
         console.error("Erro ao fazer upload da foto:", err);
@@ -2380,7 +2380,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
                 {form.photo && (
                   <button 
                     type="button" 
-                    onClick={() => setForm(f => ({ ...f, photo: "" }))} 
+                    onClick={() => setForm((f: any) => ({ ...f, photo: "" }))} 
                     className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-white shadow-lg border border-zinc-100 flex items-center justify-center text-red-500 hover:text-red-600 hover:scale-110 transition-all z-10"
                   >
                     <Trash2 size={14} />
@@ -2395,14 +2395,14 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
                 <Input 
                   label="Nome Completo" 
                   value={form.name} 
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))} 
+                  onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} 
                   placeholder="Ex: Amanda Silva" 
                   className="bg-zinc-50/50 border-zinc-100 focus:bg-white"
                 />
                 <Input 
                   label="Cargo / Função" 
                   value={form.role} 
-                  onChange={e => setForm(f => ({ ...f, role: e.target.value }))} 
+                  onChange={e => setForm((f: any) => ({ ...f, role: e.target.value }))} 
                   placeholder="Ex: Suporte, Vendas..." 
                   className="bg-zinc-50/50 border-zinc-100 focus:bg-white"
                 />
@@ -2413,7 +2413,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
                   label="E-mail" 
                   type="email" 
                   value={form.email} 
-                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))} 
+                  onChange={e => setForm((f: any) => ({ ...f, email: e.target.value }))} 
                   placeholder="email@agendelle.com" 
                   iconLeft={<Mail size={14} className="text-zinc-400" />}
                   className="bg-zinc-50/50 border-zinc-100 focus:bg-white"
@@ -2421,7 +2421,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
                 <Input 
                   label="Telefone" 
                   value={form.phone} 
-                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} 
+                  onChange={e => setForm((f: any) => ({ ...f, phone: e.target.value }))} 
                   placeholder="(00) 00000-0000" 
                   className="bg-zinc-50/50 border-zinc-100 focus:bg-white"
                 />
@@ -2441,7 +2441,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
               <Input 
                 label="Usuário (Login) *" 
                 value={form.username} 
-                onChange={e => setForm(f => ({ ...f, username: e.target.value }))} 
+                onChange={e => setForm((f: any) => ({ ...f, username: e.target.value }))} 
                 placeholder="amanda_admin" 
                 disabled={editing && form.username === "admin"}
                 className="bg-zinc-50/50 border-zinc-100 focus:bg-white font-bold"
@@ -2450,7 +2450,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
                 label={editing ? "Alterar Senha" : "Senha *"} 
                 type={showPass ? "text" : "password"}
                 value={form.password}
-                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                onChange={e => setForm((f: any) => ({ ...f, password: e.target.value }))}
                 placeholder={editing ? "Manter atual" : "••••••"}
                 className="bg-zinc-50/50 border-zinc-100 focus:bg-white"
                 iconRight={
@@ -2463,7 +2463,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
                 label="Data de Aniversário" 
                 type="date" 
                 value={form.birthday} 
-                onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} 
+                onChange={e => setForm((f: any) => ({ ...f, birthday: e.target.value }))} 
                 className="bg-zinc-50/50 border-zinc-100 focus:bg-white"
               />
             </div>
@@ -2471,7 +2471,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
             <Textarea 
               label="Biografia ou Observações Internas" 
               value={form.bio} 
-              onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} 
+              onChange={e => setForm((f: any) => ({ ...f, bio: e.target.value }))} 
               rows={2} 
               placeholder="Breve descrição sobre o membro da equipe..." 
               className="bg-zinc-50/50 border-zinc-100 focus:bg-white text-sm"
@@ -2545,7 +2545,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
                         } else {
                           delete newPerms[m.key];
                         }
-                        setForm(f => ({ ...f, permissions: newPerms }));
+                        setForm((f: any) => ({ ...f, permissions: newPerms }));
                       }}
                       className="hidden"
                     />
@@ -2990,6 +2990,7 @@ function SystemBotPanel() {
    ABA: WHATSAPP
 ═══════════════════════════════════════════ */
 function WppTab({ plans, onUpdatePlans }: { plans: any[]; onUpdatePlans?: () => void }) {
+  const [wppSubTab, setWppSubTab] = useState<"connections" | "bot">("connections");
   const [instances, setInstances] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -3054,8 +3055,8 @@ function WppTab({ plans, onUpdatePlans }: { plans: any[]; onUpdatePlans?: () => 
       {qrRow && <QrModal row={qrRow} onClose={() => setQrRow(null)} onConnected={handleConnected} />}
 
       <SectionTitle
-        title="WhatsApp Bot"
-        description="Gerencie conexões e permissões de todos os parceiros"
+        title="WhatsApp"
+        description="Gerencie conexões, permissões e o Bot Central de atendimento"
         icon={MessageCircle}
         action={
           <IconButton variant="ghost" onClick={load} title="Atualizar">
@@ -3063,6 +3064,22 @@ function WppTab({ plans, onUpdatePlans }: { plans: any[]; onUpdatePlans?: () => 
           </IconButton>
         }
       />
+
+      {/* Sub-abas principais */}
+      <div className="flex gap-1 bg-zinc-100 rounded-xl p-1">
+        <button onClick={() => setWppSubTab("connections")}
+          className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${wppSubTab === "connections" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}>
+          Conexões & Parceiros
+        </button>
+        <button onClick={() => setWppSubTab("bot")}
+          className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${wppSubTab === "bot" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}>
+          Bot Central de Atendimento
+        </button>
+      </div>
+
+      {wppSubTab === "bot" && <BotCentralTab />}
+
+      {wppSubTab === "connections" && <>
 
       <StatGrid cols={3}>
         <StatCard icon={MessageCircle} title="Enviadas Hoje"   value={stats?.totalToday ?? "—"} color="success" delay={0}    />
@@ -3207,6 +3224,381 @@ function WppTab({ plans, onUpdatePlans }: { plans: any[]; onUpdatePlans?: () => 
         </div>
         <p className="text-[9px] text-zinc-600">⚡ Scheduler roda a cada 60s. 24h: janela 23h–25h. 60min: janela 55–65min. Deduplicação automática.</p>
       </div>
+
+      </>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   BOT CENTRAL — componente completo
+═══════════════════════════════════════════ */
+function BotCentralTab() {
+  const [subView, setSubView] = useState<"dashboard" | "sectors" | "queue">("dashboard");
+  const [sectors, setSectors] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [botStats, setBotStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Modal de setor
+  const [sectorModal, setSectorModal] = useState<{ open: boolean; data: any | null }>({ open: false, data: null });
+  const [sectorForm, setSectorForm] = useState({ name: "", menuKey: "", description: "", attendants: "", sortOrder: 0, isActive: true });
+
+  // Filtro de fila
+  const [queueFilter, setQueueFilter] = useState<"waiting" | "active" | "closed" | "all">("all");
+  const [selectedConv, setSelectedConv] = useState<any | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [secR, convR, statsR] = await Promise.all([
+        apiFetch("/api/super-admin/bot/sectors"),
+        apiFetch("/api/super-admin/bot/conversations"),
+        apiFetch("/api/super-admin/bot/stats"),
+      ]);
+      setSectors(Array.isArray(await secR.clone().json()) ? await secR.json() : []);
+      setConversations(Array.isArray(await convR.clone().json()) ? await convR.json() : []);
+      setBotStats(await statsR.json());
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Intervalo de atualização da fila a cada 15s
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (subView === "queue" || subView === "dashboard") {
+        apiFetch("/api/super-admin/bot/conversations").then(r => r.json()).then(d => { if (Array.isArray(d)) setConversations(d); }).catch(() => {});
+        apiFetch("/api/super-admin/bot/stats").then(r => r.json()).then(d => setBotStats(d)).catch(() => {});
+      }
+    }, 15000);
+    return () => clearInterval(t);
+  }, [subView]);
+
+  const openNewSector = () => {
+    setSectorForm({ name: "", menuKey: "", description: "", attendants: "", sortOrder: sectors.length + 1, isActive: true });
+    setSectorModal({ open: true, data: null });
+  };
+
+  const openEditSector = (s: any) => {
+    setSectorForm({ name: s.name, menuKey: s.menuKey, description: s.description || "", attendants: (s.attendants || []).join(", "), sortOrder: s.sortOrder, isActive: s.isActive });
+    setSectorModal({ open: true, data: s });
+  };
+
+  const saveSector = async () => {
+    setSaving(true);
+    try {
+      const attendants = sectorForm.attendants.split(",").map(p => p.trim().replace(/\D/g, "")).filter(Boolean);
+      const payload = { ...sectorForm, attendants };
+      if (sectorModal.data) {
+        await apiFetch(`/api/super-admin/bot/sectors/${sectorModal.data.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      } else {
+        await apiFetch("/api/super-admin/bot/sectors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      }
+      setSectorModal({ open: false, data: null });
+      await load();
+    } catch {}
+    setSaving(false);
+  };
+
+  const deleteSector = async (id: string) => {
+    if (!confirm("Remover este setor? As conversas existentes não serão apagadas.")) return;
+    await apiFetch(`/api/super-admin/bot/sectors/${id}`, { method: "DELETE" });
+    await load();
+  };
+
+  const closeConversation = async (id: string) => {
+    await apiFetch(`/api/super-admin/bot/conversations/${id}/close`, { method: "PATCH" });
+    setConversations(prev => prev.map(c => c.id === id ? { ...c, status: "closed" } : c));
+    if (selectedConv?.id === id) setSelectedConv((p: any) => p ? { ...p, status: "closed" } : null);
+  };
+
+  const filteredConvs = conversations.filter(c => queueFilter === "all" || c.status === queueFilter);
+
+  const statusBadge = (s: string) => {
+    if (s === "waiting") return <Badge color="warning" dot>Na fila</Badge>;
+    if (s === "active")  return <Badge color="success" dot>Em atendimento</Badge>;
+    return <Badge color="default" dot>Encerrada</Badge>;
+  };
+
+  const SUB_TABS = [
+    { key: "dashboard", label: "Visão Geral" },
+    { key: "sectors",   label: "Setores" },
+    { key: "queue",     label: `Fila / Conversas${botStats?.totalWaiting ? ` (${botStats.totalWaiting})` : ""}` },
+  ] as const;
+
+  return (
+    <div className="space-y-5">
+      {/* Modal de setor */}
+      {sectorModal.open && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 24, width: 480, maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto" }}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-sm font-black text-zinc-900">{sectorModal.data ? "Editar Setor" : "Novo Setor"}</h3>
+              <button onClick={() => setSectorModal({ open: false, data: null })}><X size={16} /></button>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-black text-zinc-700 block mb-1">Nome do Setor *</label>
+                  <Input placeholder="Ex: Vendas" value={sectorForm.name} onChange={e => setSectorForm(p => ({ ...p, name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs font-black text-zinc-700 block mb-1">Tecla do Menu *</label>
+                  <Input placeholder="Ex: 1" value={sectorForm.menuKey} onChange={e => setSectorForm(p => ({ ...p, menuKey: e.target.value }))} maxLength={3} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-black text-zinc-700 block mb-1">Descrição (exibida no menu)</label>
+                <Input placeholder="Ex: Falar sobre nossos planos e serviços" value={sectorForm.description} onChange={e => setSectorForm(p => ({ ...p, description: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs font-black text-zinc-700 block mb-1">Atendentes (números, separados por vírgula)</label>
+                <Input placeholder="Ex: 5511999991111, 5511999992222" value={sectorForm.attendants} onChange={e => setSectorForm(p => ({ ...p, attendants: e.target.value }))} />
+                <p className="text-[10px] text-zinc-400 mt-1">Somente dígitos com DDI (ex: 5511...). Estes números receberão notificação de novo atendimento.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-black text-zinc-700 block mb-1">Ordem no menu</label>
+                  <Input type="number" value={sectorForm.sortOrder} onChange={e => setSectorForm(p => ({ ...p, sortOrder: Number(e.target.value) }))} />
+                </div>
+                <div className="flex items-end gap-2 pb-1">
+                  <Switch checked={sectorForm.isActive} onCheckedChange={v => setSectorForm(p => ({ ...p, isActive: v }))} />
+                  <span className="text-xs text-zinc-600">Ativo</span>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <Button variant="ghost" onClick={() => setSectorModal({ open: false, data: null })}>Cancelar</Button>
+                <Button variant="primary" onClick={saveSector} loading={saving} disabled={!sectorForm.name || !sectorForm.menuKey}>Salvar</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de detalhes da conversa */}
+      {selectedConv && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 24, width: 560, maxWidth: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+            <div className="flex items-center justify-between mb-4 shrink-0">
+              <div>
+                <h3 className="text-sm font-black text-zinc-900">Conversa — {selectedConv.clientPhone}</h3>
+                <p className="text-xs text-zinc-400">{selectedConv.sector?.name || "Sem setor"} · {statusBadge(selectedConv.status)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {selectedConv.status !== "closed" && (
+                  <Button size="xs" variant="danger" onClick={() => { closeConversation(selectedConv.id); }}>Encerrar</Button>
+                )}
+                <button onClick={() => setSelectedConv(null)}><X size={16} /></button>
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", background: "#f9fafb", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+              {(selectedConv.messages || []).length === 0 && <p className="text-xs text-zinc-400 text-center py-4">Sem mensagens registradas</p>}
+              {(selectedConv.messages || []).map((m: any) => (
+                <div key={m.id} className={`flex ${m.fromRole === "client" ? "justify-start" : "justify-end"}`}>
+                  <div style={{ maxWidth: "75%", background: m.fromRole === "client" ? "#fff" : m.fromRole === "bot" ? "#fef3c7" : "#d1fae5", borderRadius: 10, padding: "6px 10px", border: "1px solid #f3f4f6" }}>
+                    <p className={`text-[9px] font-black mb-1 ${m.fromRole === "client" ? "text-zinc-400" : m.fromRole === "bot" ? "text-amber-600" : "text-emerald-600"}`}>
+                      {m.fromRole === "client" ? "Cliente" : m.fromRole === "bot" ? "Bot" : "Atendente"}
+                      {m.fromPhone ? ` · ${m.fromPhone}` : ""}
+                    </p>
+                    <p className="text-xs text-zinc-800 whitespace-pre-wrap">{m.body}</p>
+                    <p className="text-[9px] text-zinc-300 mt-1">{new Date(m.sentAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <SectionTitle title="Bot Central de Atendimento" description="Configure setores, acompanhe filas e histórico de conversas" icon={MessageCircle}
+        action={<IconButton variant="ghost" onClick={load} title="Atualizar"><RefreshCw size={16} /></IconButton>}
+      />
+
+      {/* Sub-tabs */}
+      <div className="flex gap-1 bg-zinc-100 rounded-xl p-1">
+        {SUB_TABS.map(t => (
+          <button key={t.key} onClick={() => setSubView(t.key)}
+            className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${subView === t.key ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── VISÃO GERAL ─────────────────────────────────── */}
+      {subView === "dashboard" && (
+        <div className="space-y-4">
+          <StatGrid cols={4}>
+            <StatCard icon={MessageCircle} title="Na Fila Agora"     value={botStats?.totalWaiting ?? "—"}     color="warning" delay={0}    />
+            <StatCard icon={MessageCircle} title="Em Atendimento"    value={botStats?.totalActive ?? "—"}      color="success" delay={0.05} />
+            <StatCard icon={MessageCircle} title="Encerradas Hoje"   value={botStats?.totalClosedToday ?? "—"} color="info"    delay={0.1}  />
+            <StatCard icon={MessageCircle} title="Conversas Hoje"    value={botStats?.totalConversations ?? "—"} color="purple" delay={0.15} />
+          </StatGrid>
+
+          {/* Por setor */}
+          {(botStats?.sectorCounts || []).length > 0 && (
+            <ContentCard padding="none">
+              <div className="px-5 py-4 border-b border-zinc-100">
+                <h3 className="text-sm font-black text-zinc-800">Status por Setor</h3>
+              </div>
+              <div className="divide-y divide-zinc-100">
+                {(botStats.sectorCounts || []).map((sc: any) => (
+                  <div key={sc.sectorId} className="flex items-center justify-between px-5 py-3">
+                    <p className="text-sm font-black text-zinc-800">{sc.name}</p>
+                    <div className="flex gap-2">
+                      <Badge color="warning">{sc.waiting} na fila</Badge>
+                      <Badge color="success">{sc.active} em atendimento</Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ContentCard>
+          )}
+
+          <ContentCard>
+            <div className="space-y-3">
+              <h3 className="text-sm font-black text-zinc-800">Como funciona o Bot Central</h3>
+              <div className="space-y-2 text-xs text-zinc-600">
+                <p>1. O número do sistema (conectado na aba <strong>WhatsApp</strong>) recebe mensagens de clientes.</p>
+                <p>2. O bot exibe um menu com os setores cadastrados abaixo.</p>
+                <p>3. O cliente digita o número do setor desejado e é colocado na fila.</p>
+                <p>4. Os atendentes do setor recebem uma notificação via WhatsApp com os dados do cliente.</p>
+                <p>5. O primeiro atendente que responder assume o atendimento.</p>
+                <p>6. Qualquer parte pode digitar <strong>&SAIR</strong> para encerrar a conversa.</p>
+                <p>7. O cliente pode digitar <strong>0</strong> ou <strong>menu</strong> para voltar ao menu principal.</p>
+              </div>
+            </div>
+          </ContentCard>
+        </div>
+      )}
+
+      {/* ── SETORES ─────────────────────────────────────── */}
+      {subView === "sectors" && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button variant="primary" size="sm" iconLeft={<Plus size={14} />} onClick={openNewSector}>Novo Setor</Button>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center h-32 text-zinc-400 text-sm">Carregando...</div>
+          ) : sectors.length === 0 ? (
+            <ContentCard>
+              <div className="text-center py-8">
+                <MessageCircle size={32} className="text-zinc-200 mx-auto mb-3" />
+                <p className="text-sm font-black text-zinc-400">Nenhum setor cadastrado</p>
+                <p className="text-xs text-zinc-300 mt-1">Crie setores para o bot redirecionar clientes</p>
+                <Button variant="primary" size="sm" className="mt-4" onClick={openNewSector}>Criar primeiro setor</Button>
+              </div>
+            </ContentCard>
+          ) : (
+            <ContentCard padding="none">
+              <div className="divide-y divide-zinc-100">
+                {sectors.map((s, idx) => (
+                  <div key={s.id} className="flex items-center gap-4 px-5 py-4 hover:bg-zinc-50/60 transition-colors">
+                    <div className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center shrink-0">
+                      <span className="text-sm font-black text-zinc-600">{s.menuKey}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-black text-zinc-900">{s.name}</p>
+                        <Badge color={s.isActive ? "success" : "default"}>{s.isActive ? "Ativo" : "Inativo"}</Badge>
+                      </div>
+                      {s.description && <p className="text-xs text-zinc-400 mt-0.5">{s.description}</p>}
+                      <p className="text-[10px] text-zinc-300 mt-1">
+                        {(s.attendants || []).length === 0
+                          ? "Sem atendentes cadastrados"
+                          : `${(s.attendants || []).length} atendente(s): ${(s.attendants || []).join(", ")}`}
+                      </p>
+                    </div>
+                    <div className="flex gap-1.5 shrink-0">
+                      <IconButton variant="ghost" onClick={() => openEditSector(s)} title="Editar"><Edit2 size={14} /></IconButton>
+                      <IconButton variant="ghost" onClick={() => deleteSector(s.id)} title="Remover"><Trash2 size={14} /></IconButton>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ContentCard>
+          )}
+
+          <ContentCard>
+            <div className="space-y-2">
+              <h3 className="text-xs font-black text-zinc-600 uppercase tracking-wider">Preview do Menu</h3>
+              <div style={{ background: "#075E54", borderRadius: 12, padding: 14, fontFamily: "monospace" }}>
+                <p style={{ color: "#ECE5DD", fontSize: 12, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                  {sectors.filter(s => s.isActive).length === 0
+                    ? "Cadastre setores para ver o preview do menu aqui."
+                    : `Bom dia! 😊 Bem-vindo(a) ao nosso atendimento via WhatsApp.\n\nComo posso te ajudar hoje? Responda com o *número* da opção desejada:\n\n${sectors.filter(s => s.isActive).sort((a,b) => a.sortOrder - b.sortOrder).map(s => `*${s.menuKey}* — ${s.name}${s.description ? `\n   _${s.description}_` : ""}`).join("\n")}\n\n*0* — 🏠 Voltar ao menu principal\n\n_Digite *&SAIR* a qualquer momento para encerrar o atendimento._`}
+                </p>
+              </div>
+            </div>
+          </ContentCard>
+        </div>
+      )}
+
+      {/* ── FILA / CONVERSAS ─────────────────────────────── */}
+      {subView === "queue" && (
+        <div className="space-y-4">
+          {/* Filtros */}
+          <div className="flex gap-2 flex-wrap">
+            {(["all", "waiting", "active", "closed"] as const).map(f => (
+              <button key={f} onClick={() => setQueueFilter(f)}
+                className={`px-3 py-1.5 text-xs font-black rounded-lg border transition-all ${queueFilter === f ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400"}`}>
+                {f === "all" ? "Todas" : f === "waiting" ? "Na Fila" : f === "active" ? "Em Atendimento" : "Encerradas"}
+                {f !== "all" && ` (${conversations.filter(c => c.status === f).length})`}
+              </button>
+            ))}
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center h-32 text-zinc-400 text-sm">Carregando...</div>
+          ) : filteredConvs.length === 0 ? (
+            <ContentCard>
+              <div className="text-center py-8">
+                <p className="text-sm font-black text-zinc-400">Nenhuma conversa encontrada</p>
+              </div>
+            </ContentCard>
+          ) : (
+            <ContentCard padding="none">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-zinc-50 border-b border-zinc-100">
+                    <tr>
+                      {["Cliente", "Setor", "Atendente", "Status", "Início", "Mensagens", "Ações"].map(h => (
+                        <th key={h} className="text-left px-4 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {filteredConvs.map(conv => (
+                      <tr key={conv.id} className="hover:bg-zinc-50/60 transition-colors">
+                        <td className="px-4 py-3.5">
+                          <p className="text-sm font-black text-zinc-900">{conv.clientName || conv.clientPhone}</p>
+                          <p className="text-[10px] text-zinc-400 font-mono">{conv.clientPhone}</p>
+                        </td>
+                        <td className="px-4 py-3.5 text-xs font-semibold text-zinc-600 whitespace-nowrap">{conv.sector?.name || "—"}</td>
+                        <td className="px-4 py-3.5 text-xs text-zinc-500 font-mono whitespace-nowrap">{conv.attendantPhone || "—"}</td>
+                        <td className="px-4 py-3.5">{statusBadge(conv.status)}</td>
+                        <td className="px-4 py-3.5 text-[10px] text-zinc-400 whitespace-nowrap">{new Date(conv.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
+                        <td className="px-4 py-3.5 text-xs text-zinc-500">{(conv.messages || []).length}</td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex gap-1.5">
+                            <Button size="xs" variant="ghost" onClick={() => setSelectedConv(conv)}>Ver</Button>
+                            {conv.status !== "closed" && (
+                              <Button size="xs" variant="danger" onClick={() => closeConversation(conv.id)}>Encerrar</Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </ContentCard>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -3550,7 +3942,7 @@ function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => vo
           a.name?.toLowerCase() === (user?.name || user?.username || "")?.toLowerCase() ||
           a.name?.toLowerCase().includes((user?.name || "").toLowerCase())
         );
-        if (match) setForm(f => ({ ...f, authorId: match.id }));
+        if (match) setForm((f: any) => ({ ...f, authorId: match.id }));
       }
     });
   }, []);
@@ -3580,13 +3972,13 @@ function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => vo
     reader.readAsDataURL(file);
   };
 
-  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
   const handleSave = async (publishNow = false) => {
     if (!form.title || !form.content) { toast.error("Título e conteúdo são obrigatórios"); return; }
     setSaving(true);
     try {
-      const tagsArr = form.tags.split(",").map(t => t.trim()).filter(Boolean);
+      const tagsArr = form.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
       const body = {
         ...form,
         tags: JSON.stringify(tagsArr),
@@ -3874,18 +4266,18 @@ function BlogCategoriesView({ onNav }: { onNav: (v: BlogView) => void }) {
 
       <Modal isOpen={modal.open} onClose={() => setModal({ open: false, item: null })} title={modal.item ? "Editar Categoria" : "Nova Categoria"}>
         <div className="space-y-3 p-5">
-          <Input label="Nome *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Gestão, Marketing..." />
-          <Input label="Descrição" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+          <Input label="Nome *" value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="Ex: Gestão, Marketing..." />
+          <Input label="Descrição" value={form.description} onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))} />
           <div>
             <p className="text-xs font-bold text-zinc-700 mb-1.5">Cor</p>
             <div className="flex items-center gap-2">
-              <input type="color" value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="w-10 h-10 rounded-lg border border-zinc-200 cursor-pointer" />
-              <Input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} />
+              <input type="color" value={form.color} onChange={e => setForm((f: any) => ({ ...f, color: e.target.value }))} className="w-10 h-10 rounded-lg border border-zinc-200 cursor-pointer" />
+              <Input value={form.color} onChange={e => setForm((f: any) => ({ ...f, color: e.target.value }))} />
             </div>
           </div>
           <div className="flex items-center justify-between">
             <p className="text-xs font-bold text-zinc-700">Categoria ativa</p>
-            <Switch checked={form.isActive} onCheckedChange={v => setForm(f => ({ ...f, isActive: v }))} />
+            <Switch checked={form.isActive} onCheckedChange={v => setForm((f: any) => ({ ...f, isActive: v }))} />
           </div>
         </div>
         <div className="flex justify-end gap-2 px-5 pb-5">
@@ -3918,7 +4310,7 @@ function BlogAuthorsView({ onNav }: { onNav: (v: BlogView) => void }) {
         });
         if (r.ok) {
           const data = await r.json();
-          setForm(f => ({ ...f, photo: data.url || data.path || "" }));
+          setForm((f: any) => ({ ...f, photo: data.url || data.path || "" }));
         }
       } catch (err) {
         console.error("Erro ao fazer upload da foto do autor:", err);
@@ -3998,10 +4390,10 @@ function BlogAuthorsView({ onNav }: { onNav: (v: BlogView) => void }) {
 
       <Modal isOpen={modal.open} onClose={() => setModal({ open: false, item: null })} title={modal.item ? "Editar Autor" : "Novo Autor"}>
         <div className="space-y-3 p-5">
-          <Input label="Nome *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-          <Input label="Cargo / Função" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} placeholder="Ex: Redatora de Conteúdo" />
-          <Textarea label="Bio" value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={3} />
-          <Input label="Instagram" value={form.instagram} onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))} placeholder="@usuario" />
+          <Input label="Nome *" value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} />
+          <Input label="Cargo / Função" value={form.role} onChange={e => setForm((f: any) => ({ ...f, role: e.target.value }))} placeholder="Ex: Redatora de Conteúdo" />
+          <Textarea label="Bio" value={form.bio} onChange={e => setForm((f: any) => ({ ...f, bio: e.target.value }))} rows={3} />
+          <Input label="Instagram" value={form.instagram} onChange={e => setForm((f: any) => ({ ...f, instagram: e.target.value }))} placeholder="@usuario" />
           <div>
             <p className="text-xs font-bold text-zinc-700 mb-1.5">Foto do autor</p>
             <input ref={photoInputRef} type="file" accept="image/*" className="hidden"
@@ -4012,7 +4404,7 @@ function BlogAuthorsView({ onNav }: { onNav: (v: BlogView) => void }) {
                 <div className="flex flex-col gap-1.5">
                   <button type="button" onClick={() => photoInputRef.current?.click()}
                     className="text-xs font-bold text-amber-600 hover:text-amber-700 text-left">Trocar foto</button>
-                  <button type="button" onClick={() => setForm(f => ({ ...f, photo: "" }))}
+                  <button type="button" onClick={() => setForm((f: any) => ({ ...f, photo: "" }))}
                     className="text-xs font-bold text-red-400 hover:text-red-500 text-left">Remover</button>
                 </div>
               </div>

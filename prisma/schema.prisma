@@ -619,6 +619,74 @@ model WppMessageSent {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// BOT CENTRAL — Setores, Filas e Conversas (somente super-admin / tenantId="system")
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Setor de atendimento cadastrado pelo super-admin
+model WppBotSector {
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  // null = setor global do sistema (tenantId="system")
+  tenantId     String   @default("system") @db.VarChar(36)
+  name         String   @db.VarChar(100)           // Ex: "Vendas", "Agendamentos"
+  menuKey      String   @db.VarChar(10)             // Ex: "1", "2", "3"
+  description  String?  @db.VarChar(255)
+  // JSON array de phones dos atendentes: ["5511999999999"]
+  attendants   String   @default("[]") @db.Text
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now()) @db.DateTime(0)
+  updatedAt    DateTime @updatedAt @db.DateTime(0)
+
+  conversations WppConversation[]
+
+  @@unique([tenantId, menuKey])
+  @@index([tenantId], map: "idx_wppbotsector_tenant")
+}
+
+// Conversa ativa entre um cliente e um atendente de um setor
+model WppConversation {
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  tenantId     String    @default("system") @db.VarChar(36)
+  sectorId     String?   @db.VarChar(36)
+  // Número do cliente (somente dígitos, com DDI)
+  clientPhone  String    @db.VarChar(30)
+  clientName   String?   @db.VarChar(255)
+  // Número do atendente que aceitou
+  attendantPhone String? @db.VarChar(30)
+  // waiting = na fila; active = em atendimento; closed = encerrada
+  status       String    @default("waiting") @db.VarChar(20)
+  // Mensagem que o cliente enviou ao entrar no setor
+  firstMessage String?   @db.VarChar(1000)
+  closedBy     String?   @db.VarChar(20)  // "attendant" | "client" | "system"
+  closedAt     DateTime? @db.DateTime(0)
+  createdAt    DateTime  @default(now()) @db.DateTime(0)
+  updatedAt    DateTime  @updatedAt @db.DateTime(0)
+
+  sector   WppBotSector?        @relation(fields: [sectorId], references: [id])
+  messages WppConversationMessage[]
+
+  @@index([tenantId, status], map: "idx_wppconv_tenant_status")
+  @@index([clientPhone, tenantId], map: "idx_wppconv_client")
+  @@index([sectorId], map: "idx_wppconv_sector")
+}
+
+// Histórico de mensagens de uma conversa
+model WppConversationMessage {
+  id             String   @id @default(uuid()) @db.VarChar(36)
+  conversationId String   @db.VarChar(36)
+  // "client" | "attendant" | "bot"
+  fromRole       String   @db.VarChar(20)
+  fromPhone      String?  @db.VarChar(30)
+  body           String   @db.Text
+  sentAt         DateTime @default(now()) @db.DateTime(0)
+
+  conversation WppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId], map: "idx_wppconvmsg_conv")
+  @@index([sentAt], map: "idx_wppconvmsg_sent")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // BLOG
 // ─────────────────────────────────────────────────────────────────────────────
 
