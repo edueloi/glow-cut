@@ -25,7 +25,7 @@ import {
   EmptyState,
   useToast, ToastProvider,
 } from "@/src/components/ui";
-import { apiFetch, getToken } from "@/src/lib/api";
+import { apiFetch } from "@/src/lib/api";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1415,13 +1415,20 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => vo
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  const formData = new FormData();
-                  formData.append("file", file);
                   try {
-                    const token = getToken();
-                    const res = await fetch("/api/admin/upload", { method: "POST", body: formData, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                    const base64 = await new Promise<string>((resolve, reject) => {
+                      const reader = new FileReader();
+                      reader.onload = () => resolve(reader.result as string);
+                      reader.onerror = reject;
+                      reader.readAsDataURL(file);
+                    });
+                    const res = await apiFetch("/api/admin/upload", {
+                      method: "POST",
+                      body: JSON.stringify({ data: base64, mimeType: file.type }),
+                    });
                     const data = await res.json();
-                    if (data.url) setForm({ ...form, photo: data.url });
+                    if (data.url) setForm(f => ({ ...f, photo: data.url }));
+                    else toast.error(data.error || "Erro no upload da foto");
                   } catch { toast.error("Erro no upload da foto"); }
                 }}
               />
