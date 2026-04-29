@@ -785,7 +785,7 @@ const MIGRATIONS = [
         name        VARCHAR(100)  NOT NULL,
         menuKey     VARCHAR(10)   NOT NULL,
         description VARCHAR(255)  NULL,
-        attendants  TEXT          NOT NULL DEFAULT '[]',
+        attendants  TEXT          NOT NULL,
         isActive    TINYINT(1)    NOT NULL DEFAULT 1,
         sortOrder   INT           NOT NULL DEFAULT 0,
         createdAt   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,

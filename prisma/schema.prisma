@@ -631,7 +631,7 @@ model WppBotSector {
   menuKey      String   @db.VarChar(10)             // Ex: "1", "2", "3"
   description  String?  @db.VarChar(255)
   // JSON array de phones dos atendentes: ["5511999999999"]
-  attendants   String   @default("[]") @db.Text
+  attendants   String   @db.Text
   isActive     Boolean  @default(true)
   sortOrder    Int      @default(0)
   createdAt    DateTime @default(now()) @db.DateTime(0)
