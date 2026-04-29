@@ -171,9 +171,9 @@ function DashboardSection({
   return (
     <div className="space-y-5">
       {/* Greeting */}
-      <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-[28px] p-6 text-white shadow-lg shadow-amber-500/20">
-        <p className="text-sm font-bold opacity-80">{greeting},</p>
-        <h2 className="text-2xl font-black mt-0.5 leading-tight">
+      <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-[24px] sm:rounded-[28px] p-5 sm:p-6 text-white shadow-lg shadow-amber-500/20">
+        <p className="text-xs sm:text-sm font-bold opacity-80">{greeting},</p>
+        <h2 className="text-xl sm:text-2xl font-black mt-0.5 leading-tight">
           {prof.name.split(" ")[0]} 👋
         </h2>
         <div className="flex items-center gap-1.5 mt-3">
@@ -183,25 +183,25 @@ function DashboardSection({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-[20px] border border-zinc-200 p-4 shadow-sm">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+        <div className="bg-white rounded-[20px] border border-zinc-200 p-3 sm:p-4 shadow-sm">
           <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.15em]">
             Hoje
           </p>
           {loadingAppts ? (
             <div className="h-7 w-8 bg-zinc-100 rounded-lg animate-pulse mt-1" />
           ) : (
-            <p className="text-3xl font-black text-zinc-900 mt-1">
+            <p className="text-2xl sm:text-3xl font-black text-zinc-900 mt-1">
               {todayAppts.length}
             </p>
           )}
           <p className="text-[10px] text-zinc-400 mt-0.5">agendamento(s)</p>
         </div>
-        <div className="bg-white rounded-[20px] border border-zinc-200 p-4 shadow-sm">
+        <div className="bg-white rounded-[20px] border border-zinc-200 p-3 sm:p-4 shadow-sm">
           <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.15em]">
             Em Aberto
           </p>
-          <p className="text-3xl font-black text-amber-500 mt-1">
+          <p className="text-2xl sm:text-3xl font-black text-amber-500 mt-1">
             {openComandas.length}
           </p>
           <p className="text-[10px] text-zinc-400 mt-0.5">
@@ -212,13 +212,13 @@ function DashboardSection({
 
       {/* Próximo atendimento */}
       {nextAppt ? (
-        <div className="bg-white rounded-[24px] border border-zinc-200 p-5 shadow-sm">
+        <div className="bg-white rounded-[20px] sm:rounded-[24px] border border-zinc-200 p-4 sm:p-5 shadow-sm">
           <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.15em] mb-3">
             Próximo Atendimento
           </p>
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col items-center justify-center shrink-0">
-              <span className="text-base font-black text-amber-600">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-amber-50 border border-amber-200 flex flex-col items-center justify-center shrink-0">
+              <span className="text-sm sm:text-base font-black text-amber-600">
                 {nextAppt.startTime}
               </span>
             </div>
@@ -246,8 +246,8 @@ function DashboardSection({
           </div>
         </div>
       ) : (
-        <div className="bg-zinc-50 rounded-[24px] border border-zinc-200 p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-white border border-zinc-200 flex items-center justify-center shrink-0">
+        <div className="bg-zinc-50 rounded-[20px] sm:rounded-[24px] border border-zinc-200 p-4 sm:p-5 flex items-center gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white border border-zinc-200 flex items-center justify-center shrink-0">
             <CheckCircle2 size={22} className="text-emerald-400" />
           </div>
           <div>
@@ -417,7 +417,7 @@ function AgendaSection({
 
       {/* Week strip */}
       {view === "week" && (
-        <div className="grid grid-cols-7 gap-1.5">
+        <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
           {weekDays.map((day) => {
             const dayApps = appointments.filter(
               (a) => isSameDay(parseISO(a.date), day) && a.status !== "cancelled"
@@ -431,7 +431,7 @@ function AgendaSection({
                   setView("day");
                 }}
                 className={cn(
-                  "flex flex-col items-center p-2 rounded-2xl border transition-all cursor-pointer",
+                  "flex flex-col items-center p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border transition-all cursor-pointer",
                   selected
                     ? "bg-amber-500 border-amber-500"
                     : "bg-white border-zinc-200",
@@ -440,15 +440,15 @@ function AgendaSection({
               >
                 <span
                   className={cn(
-                    "text-[8px] font-black uppercase tracking-wider",
+                    "text-[7px] sm:text-[8px] font-black uppercase tracking-wider",
                     selected ? "text-white/70" : "text-zinc-400"
                   )}
                 >
-                  {format(day, "EEE", { locale: ptBR })}
+                  {format(day, "EEE", { locale: ptBR }).replace(".", "")}
                 </span>
                 <span
                   className={cn(
-                    "text-base font-black mt-0.5",
+                    "text-sm sm:text-base font-black leading-none mt-0.5",
                     selected
                       ? "text-white"
                       : isToday(day)
@@ -461,7 +461,7 @@ function AgendaSection({
                 {dayApps.length > 0 && (
                   <span
                     className={cn(
-                      "text-[8px] font-black mt-0.5 rounded-full px-1",
+                      "text-[7px] sm:text-[8px] font-black mt-1 rounded-full px-1",
                       selected
                         ? "bg-white/20 text-white"
                         : "bg-amber-100 text-amber-600"
@@ -508,18 +508,18 @@ function AgendaSection({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.04 }}
-                className="bg-white rounded-[24px] border border-zinc-200 p-4 flex items-center gap-4 active:scale-[0.98] transition-transform"
+                className="bg-white rounded-[20px] sm:rounded-[24px] border border-zinc-200 p-3 sm:p-4 flex items-center gap-3 sm:gap-4 active:scale-[0.98] transition-transform"
               >
                 {/* Time */}
-                <div className="flex flex-col items-center min-w-[52px] bg-zinc-50 rounded-2xl p-2.5 border border-zinc-100">
-                  <p className="text-sm font-black text-zinc-900">
+                <div className="flex flex-col items-center min-w-[48px] sm:min-w-[52px] bg-zinc-50 rounded-xl sm:rounded-2xl p-2 sm:p-2.5 border border-zinc-100">
+                  <p className="text-xs sm:text-sm font-black text-zinc-900">
                     {app.startTime}
                   </p>
-                  <p className="text-[9px] text-zinc-400 font-bold">
+                  <p className="text-[8px] sm:text-[9px] text-zinc-400 font-bold">
                     {app.endTime}
                   </p>
                   {view === "week" && (
-                    <p className="text-[8px] text-amber-500 font-bold mt-0.5">
+                    <p className="text-[7px] sm:text-[8px] text-amber-500 font-bold mt-0.5">
                       {format(parseISO(app.date), "dd/MM")}
                     </p>
                   )}
@@ -558,7 +558,7 @@ function AgendaSection({
                 {/* Status */}
                 <span
                   className={cn(
-                    "text-[9px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-full border shrink-0",
+                    "text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border shrink-0",
                     statusColor(app.status)
                   )}
                 >
