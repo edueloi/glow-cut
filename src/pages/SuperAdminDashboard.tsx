@@ -4439,6 +4439,12 @@ const QA_TESTS: { id: string; section: string; title: string; steps: string; exp
   { id: "t88", section: "Casos de Borda", title: "Upload de foto gigante (> 5MB)", steps: "Tente subir foto de 10MB no perfil.", expected: "Sistema deve tratar o erro ou avisar limite, sem dar 500." },
   { id: "t89", section: "Casos de Borda", title: "Concorrência — Dois agendamentos simultâneos", steps: "Tente agendar mesmo horário em duas abas ao mesmo tempo.", expected: "O sistema deve validar e impedir o segundo, dando erro amigável." },
   { id: "t90", section: "Casos de Borda", title: "Data Inválida — 31 de Fevereiro", steps: "Tente forçar data inexistente no input manual.", expected: "Input deve validar ou o banco deve rejeitar com erro tratado." },
+
+  // 16. Fluxos Avançados (Agenda & Comanda)
+  { id: "t91", section: "Fluxos Avançados", title: "Agenda — Troca de Profissional e Serviço", steps: "1. Clique em agendamento existente\n2. Mude o profissional e o serviço\n3. Salve", expected: "Agendamento move para a coluna do novo profissional com o novo serviço e valor atualizado." },
+  { id: "t92", section: "Fluxos Avançados", title: "Agenda → Criar Comanda", steps: "1. Clique em agendamento 'scheduled'\n2. Use botão 'Abrir Comanda'\n3. Verifique se dados (cliente, serviço, valor) foram importados", expected: "Comanda aberta automaticamente com todos os dados do agendamento, status do agendamento muda para 'atendido'." },
+  { id: "t93", section: "Fluxos Avançados", title: "Comanda — Pagamento Parcial (Débito)", steps: "1. Abra comanda de R$ 100\n2. Receba R$ 40 em dinheiro\n3. Salve como parcial", expected: "Comanda continua aberta, saldo devedor de R$ 60 visível, lançamento de R$ 40 no caixa." },
+  { id: "t94", section: "Fluxos Avançados", title: "Comanda — Múltiplos Itens (Serviço + 3 Produtos)", steps: "1. Crie comanda\n2. Adicione 1 serviço e 3 produtos diferentes\n3. Verifique o somatório", expected: "Total da comanda reflete exatamente a soma de todos os itens e quantidades." },
 ];
 
 const QA_SECTIONS = [...new Set(QA_TESTS.map(t => t.section))];
