@@ -314,14 +314,26 @@ function AgendaSection({
   const [modalLoading, setModalLoading] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [clientSearch, setClientSearch] = useState("");
   const [form, setForm] = useState({
     clientId: "",
     serviceId: "",
     date: format(selectedDate, "yyyy-MM-dd"),
     startTime: "09:00",
+    duration: 60,
+    notes: "",
     recurrence: "none" as "none" | "daily" | "weekly" | "monthly",
     sessions: 1,
   });
+
+  const selectedService = services.find(s => s.id === form.serviceId);
+  const endTime = (() => {
+    try {
+      const [h, m] = form.startTime.split(":").map(Number);
+      const total = h * 60 + m + form.duration;
+      return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+    } catch { return "--:--"; }
+  })();
 
   const fetchModalData = async () => {
     try {
@@ -346,17 +358,40 @@ function AgendaSection({
   };
 
   useEffect(() => {
-    if (showModal) fetchModalData();
+    if (showModal) {
+      fetchModalData();
+      setForm(f => ({ ...f, date: format(selectedDate, "yyyy-MM-dd") }));
+      setClientSearch("");
+    }
   }, [showModal]);
+
+  useEffect(() => {
+    if (selectedService) setForm(f => ({ ...f, duration: selectedService.duration }));
+  }, [form.serviceId]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.clientId) {
+      toast.error("Selecione um cliente");
+      return;
+    }
+    if (!form.serviceId) {
+      toast.error("Selecione um serviço");
+      return;
+    }
     setModalLoading(true);
     try {
       const res = await apiFetch("/api/appointments", {
         method: "POST",
         body: JSON.stringify({
-          ...form,
+          clientId: form.clientId,
+          serviceId: form.serviceId,
+          date: form.date,
+          startTime: form.startTime,
+          duration: form.duration,
+          notes: form.notes,
+          recurrence: form.recurrence,
+          sessions: form.sessions,
           professionalId: prof.id,
           status: "confirmed",
         }),
@@ -375,6 +410,10 @@ function AgendaSection({
       setModalLoading(false);
     }
   };
+
+  const filteredClients = clients.filter(c =>
+    c.name.toLowerCase().includes(clientSearch.toLowerCase())
+  );
 
   const weekDays = Array.from({ length: 7 }, (_, i) =>
     addDays(view === "week" ? selectedDate : selectedDate, i)
@@ -642,7 +681,7 @@ function AgendaSection({
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title="Novo Agendamento"
-        size="md"
+        size="lg"
         footer={
           <ModalFooter>
             <Button variant="ghost" onClick={() => setShowModal(false)}>
@@ -651,9 +690,9 @@ function AgendaSection({
             <Button
               variant="primary"
               loading={modalLoading}
-              onClick={(e) => {
-                const form = document.getElementById("appt-form") as HTMLFormElement;
-                form?.requestSubmit();
+              onClick={() => {
+                const f = document.getElementById("appt-form") as HTMLFormElement;
+                f?.requestSubmit();
               }}
               className="flex-1"
             >
@@ -663,74 +702,166 @@ function AgendaSection({
         }
       >
         <form id="appt-form" onSubmit={handleSave} className="space-y-5">
-          <Select
-            label="Cliente"
-            required
-            value={form.clientId}
-            onChange={e => setForm({ ...form, clientId: e.target.value })}
-            options={[
-              { value: "", label: "Selecione um cliente..." },
-              ...clients.map(c => ({ value: c.id, label: c.name })),
-            ]}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* ── Coluna esquerda ── */}
+            <div className="space-y-4">
+              {/* Cliente — busca + dropdown */}
+              <div>
+                <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1.5">
+                  Cliente <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Input
+                    placeholder="Buscar cliente..."
+                    value={clientSearch}
+                    onChange={e => {
+                      setClientSearch(e.target.value);
+                      setForm(f => ({ ...f, clientId: "" }));
+                    }}
+                    iconLeft={<Search size={14} />}
+                    iconRight={clientSearch ? (
+                      <button type="button" onClick={() => { setClientSearch(""); setForm(f => ({ ...f, clientId: "" })); }}>
+                        <X size={13} className="text-zinc-400 hover:text-zinc-600" />
+                      </button>
+                    ) : undefined}
+                  />
+                  {clientSearch && !form.clientId && filteredClients.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-2xl shadow-lg z-20 overflow-hidden max-h-48 overflow-y-auto">
+                      {filteredClients.slice(0, 8).map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setForm(f => ({ ...f, clientId: c.id }));
+                            setClientSearch(c.name);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50 text-left transition-colors"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-black text-xs shrink-0">
+                            {c.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-zinc-800 truncate">{c.name}</p>
+                            {c.phone && <p className="text-[10px] text-zinc-400">{formatPhone(c.phone)}</p>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {clientSearch && !form.clientId && filteredClients.length === 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-2xl shadow-lg z-20 px-4 py-3">
+                      <p className="text-xs text-zinc-400">Nenhum cliente encontrado</p>
+                    </div>
+                  )}
+                </div>
+                {form.clientId && (
+                  <p className="text-[10px] text-emerald-600 font-bold mt-1 flex items-center gap-1">
+                    <Check size={11} /> Cliente selecionado
+                  </p>
+                )}
+              </div>
 
-          <Select
-            label="Serviço"
-            required
-            value={form.serviceId}
-            onChange={e => setForm({ ...form, serviceId: e.target.value })}
-            options={[
-              { value: "", label: "Selecione um serviço..." },
-              ...services.map(s => ({ value: s.id, label: `${s.name} — ${formatMoney(s.price)}` })),
-            ]}
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Data"
-              type="date"
-              required
-              value={form.date}
-              onChange={e => setForm({ ...form, date: e.target.value })}
-            />
-            <Input
-              label="Horário"
-              type="time"
-              required
-              value={form.startTime}
-              onChange={e => setForm({ ...form, startTime: e.target.value })}
-            />
-          </div>
-
-          <div className="pt-4 border-t border-zinc-100">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-1.5 h-4 bg-amber-400 rounded-full" />
-              <h4 className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">Repetição / Recorrência</h4>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+              {/* Serviço */}
               <Select
-                label="Tipo"
-                value={form.recurrence}
-                onChange={e => setForm({ ...form, recurrence: e.target.value as any })}
+                label="Serviço"
+                required
+                value={form.serviceId}
+                onChange={e => setForm(f => ({ ...f, serviceId: e.target.value }))}
                 options={[
-                  { value: "none", label: "Não repetir" },
-                  { value: "daily", label: "Diário" },
-                  { value: "weekly", label: "Semanal" },
-                  { value: "monthly", label: "Mensal" },
+                  { value: "", label: "Selecione um serviço..." },
+                  ...services.map(s => ({ value: s.id, label: `${s.name} — ${formatMoney(s.price)}` })),
                 ]}
               />
 
-              {form.recurrence !== "none" && (
-                <Input
-                  label="Sessões"
-                  type="number"
-                  min={1}
-                  max={52}
-                  value={String(form.sessions)}
-                  onChange={e => setForm({ ...form, sessions: parseInt(e.target.value) || 1 })}
+              {/* Observações */}
+              <div>
+                <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1.5">
+                  Observações
+                </label>
+                <textarea
+                  rows={3}
+                  value={form.notes}
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Preferências, anotações..."
+                  className="w-full px-3 py-2.5 text-sm border border-zinc-200 rounded-2xl bg-white text-zinc-900 placeholder-zinc-400 resize-none focus:outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 transition-all"
                 />
-              )}
+              </div>
+            </div>
+
+            {/* ── Coluna direita ── */}
+            <div className="space-y-4">
+              {/* Data */}
+              <Input
+                label="Data"
+                type="date"
+                required
+                value={form.date}
+                onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+              />
+
+              {/* Hora */}
+              <Input
+                label="Horário de início"
+                type="time"
+                required
+                value={form.startTime}
+                onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))}
+              />
+
+              {/* Duração */}
+              <Input
+                label="Duração (minutos)"
+                type="number"
+                min={5}
+                max={480}
+                value={String(form.duration)}
+                onChange={e => setForm(f => ({ ...f, duration: parseInt(e.target.value) || 60 }))}
+              />
+
+              {/* Término previsto — display only */}
+              <div>
+                <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1.5">
+                  Término Previsto
+                </label>
+                <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 rounded-2xl px-3 py-2.5">
+                  <Clock size={14} className="text-amber-500 shrink-0" />
+                  <span className="text-sm font-black text-zinc-900">{endTime}</span>
+                  {selectedService && (
+                    <span className="text-[10px] text-zinc-400 ml-auto">{form.duration} min</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Recorrência */}
+              <div className="pt-1 border-t border-zinc-100 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-3.5 bg-amber-400 rounded-full" />
+                  <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Recorrência</h4>
+                </div>
+
+                <Select
+                  label="Tipo"
+                  value={form.recurrence}
+                  onChange={e => setForm(f => ({ ...f, recurrence: e.target.value as any }))}
+                  options={[
+                    { value: "none", label: "Não repetir" },
+                    { value: "daily", label: "Diário" },
+                    { value: "weekly", label: "Semanal" },
+                    { value: "monthly", label: "Mensal" },
+                  ]}
+                />
+
+                {form.recurrence !== "none" && (
+                  <Input
+                    label="Número de sessões"
+                    type="number"
+                    min={2}
+                    max={52}
+                    value={String(form.sessions)}
+                    onChange={e => setForm(f => ({ ...f, sessions: parseInt(e.target.value) || 2 }))}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </form>
@@ -755,7 +886,7 @@ function ComandasSection({
   const fetchComandas = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch("/api/comandas");
+      const res = await apiFetch(`/api/comandas?professionalId=${prof.id}`);
       const data = await res.json();
       setComandas(Array.isArray(data) ? data : []);
     } catch {
@@ -1494,7 +1625,7 @@ function ProfessionalDashboardInner() {
 
   useEffect(() => {
     if (!prof?.tenantId || !canSeeComandas) return;
-    apiFetch("/api/comandas")
+    apiFetch(`/api/comandas?professionalId=${prof.id}`)
       .then((r) => r.json())
       .then((d) => setComandasForDash(Array.isArray(d) ? d : []))
       .catch(() => {});

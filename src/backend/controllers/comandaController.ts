@@ -8,16 +8,28 @@ export const comandaController = {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     try {
-      const rows: any[] = await (prisma as any).$queryRawUnsafe(
-        `SELECT c.*, cl.name as clientName, cl.phone as clientPhone,
-                pr.name as professionalName
-         FROM Comanda c
-         LEFT JOIN Client cl ON c.clientId = cl.id
-         LEFT JOIN Professional pr ON c.professionalId = pr.id
-         WHERE c.tenantId = ?
-         ORDER BY c.createdAt DESC`,
-        tenantId
-      );
+      const { professionalId } = req.query;
+      const rows: any[] = professionalId
+        ? await (prisma as any).$queryRawUnsafe(
+            `SELECT c.*, cl.name as clientName, cl.phone as clientPhone,
+                    pr.name as professionalName
+             FROM Comanda c
+             LEFT JOIN Client cl ON c.clientId = cl.id
+             LEFT JOIN Professional pr ON c.professionalId = pr.id
+             WHERE c.tenantId = ? AND c.professionalId = ?
+             ORDER BY c.createdAt DESC`,
+            tenantId, professionalId
+          )
+        : await (prisma as any).$queryRawUnsafe(
+            `SELECT c.*, cl.name as clientName, cl.phone as clientPhone,
+                    pr.name as professionalName
+             FROM Comanda c
+             LEFT JOIN Client cl ON c.clientId = cl.id
+             LEFT JOIN Professional pr ON c.professionalId = pr.id
+             WHERE c.tenantId = ?
+             ORDER BY c.createdAt DESC`,
+            tenantId
+          );
 
       const itemRows: any[] = rows.length > 0
         ? await (prisma as any).$queryRawUnsafe(
