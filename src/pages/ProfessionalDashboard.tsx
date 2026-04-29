@@ -15,6 +15,7 @@ import {
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/src/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
+import logoFavicon from "@/src/images/system/logo-favicon.png";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -22,6 +23,9 @@ interface ProfData {
   id: string;
   name: string;
   role: string | null;
+  email: string | null;
+  phone: string | null;
+  photo: string | null;
   tenantId: string;
   permissions: string | Record<string, Record<string, boolean>> | null;
 }
@@ -898,10 +902,142 @@ function ServicesSection({ prof }: { prof: ProfData }) {
   );
 }
 
+// ─── SECTION: Perfil ──────────────────────────────────────────────────────────
+
+function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => Promise<void> }) {
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    name: prof.name || "",
+    email: prof.email || "",
+    phone: prof.phone || "",
+    photo: prof.photo || "",
+    password: "",
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/professionals/${prof.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant-id": prof.tenantId,
+        },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        alert("Perfil atualizado com sucesso!");
+        onUpdate();
+      } else {
+        const d = await res.json();
+        alert(d.error || "Erro ao atualizar");
+      }
+    } catch {
+      alert("Erro de conexão");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="bg-white rounded-[32px] border border-zinc-200 p-6 sm:p-8 shadow-sm">
+        <div className="flex flex-col items-center mb-8">
+          <div className="relative group">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-3xl font-black shadow-lg overflow-hidden border-4 border-white">
+              {form.photo ? (
+                <img src={form.photo} alt={form.name} className="w-full h-full object-cover" />
+              ) : (
+                form.name.charAt(0).toUpperCase()
+              )}
+            </div>
+            <label className="absolute bottom-0 right-0 w-8 h-8 bg-white border border-zinc-200 rounded-full flex items-center justify-center shadow-md cursor-pointer hover:bg-zinc-50 transition-colors">
+              <Plus size={16} className="text-zinc-600" />
+              <input 
+                type="file" 
+                className="hidden" 
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const formData = new FormData();
+                  formData.append("file", file);
+                  try {
+                    const res = await fetch("/api/upload", { method: "POST", body: formData });
+                    const data = await res.json();
+                    if (data.url) setForm({ ...form, photo: data.url });
+                  } catch { alert("Erro no upload"); }
+                }}
+              />
+            </label>
+          </div>
+          <h3 className="text-lg font-black text-zinc-900 mt-4">{form.name}</h3>
+          <p className="text-xs text-zinc-400 font-bold uppercase tracking-wider">{prof.role || "Profissional"}</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Nome Completo</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={e => setForm({ ...form, name: e.target.value })}
+                className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 transition-all"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">E-mail</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })}
+                className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Telefone / WhatsApp</label>
+            <input
+              type="text"
+              value={form.phone}
+              onChange={e => setForm({ ...form, phone: e.target.value })}
+              className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 transition-all"
+              placeholder="(00) 00000-0000"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Nova Senha (deixe em branco para manter)</label>
+            <input
+              type="password"
+              value={form.password}
+              onChange={e => setForm({ ...form, password: e.target.value })}
+              className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 transition-all"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-zinc-900 text-white rounded-2xl py-4 text-sm font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-[0.98] disabled:opacity-50 mt-4 flex items-center justify-center gap-2"
+          >
+            {loading ? <RefreshCw className="animate-spin" size={18} /> : "Salvar Alterações"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
 export default function ProfessionalDashboard() {
-  const { user: authUser, logout } = useAuth();
+  const { user: authUser, logout, refreshUser } = useAuth();
   const [prof, setProf] = useState<ProfData | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [comandasForDash, setComandasForDash] = useState<Comanda[]>([]);
@@ -936,6 +1072,7 @@ export default function ProfessionalDashboard() {
     { id: "comandas", label: "Comandas", icon: FileText, perm: canSeeComandas },
     { id: "clientes", label: "Clientes", icon: Users, perm: canSeeClients },
     { id: "servicos", label: "Serviços", icon: Scissors, perm: canSeeServices },
+    { id: "perfil", label: "Meu Perfil", icon: User, always: true },
   ].filter((t) => t.always || t.perm);
 
   // Set default tab after permissions resolve
@@ -1070,6 +1207,15 @@ export default function ProfessionalDashboard() {
         {activeTab === "clientes" && <ClientesSection prof={prof} />}
 
         {activeTab === "servicos" && <ServicesSection prof={prof} />}
+
+        {activeTab === "perfil" && (
+          <ProfileSection 
+            prof={prof} 
+            onUpdate={async () => {
+              await refreshUser();
+            }} 
+          />
+        )}
       </motion.div>
     </AnimatePresence>
   );
@@ -1085,7 +1231,7 @@ export default function ProfessionalDashboard() {
         <div className="px-5 py-5 border-b border-zinc-100 flex items-center gap-3">
           <div className="w-9 h-9 bg-white border border-zinc-200 rounded-xl flex items-center justify-center shadow-sm overflow-hidden p-1.5 shrink-0">
             <img
-              src="/src/images/system/logo-favicon.png"
+              src={logoFavicon}
               alt="Agendelle"
               className="w-full h-full object-contain"
             />
@@ -1103,8 +1249,12 @@ export default function ProfessionalDashboard() {
         {/* Profile card */}
         <div className="px-4 py-4 border-b border-zinc-100">
           <div className="flex items-center gap-3 bg-zinc-50 rounded-2xl p-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-black text-base shrink-0">
-              {prof.name.charAt(0).toUpperCase()}
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-black text-base shrink-0 overflow-hidden shadow-inner">
+              {prof.photo ? (
+                <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover" />
+              ) : (
+                prof.name.charAt(0).toUpperCase()
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-black text-zinc-900 truncate">{prof.name}</p>
@@ -1167,7 +1317,7 @@ export default function ProfessionalDashboard() {
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-white border border-zinc-200 rounded-xl flex items-center justify-center shadow-sm overflow-hidden p-1.5">
               <img
-                src="/src/images/system/logo-favicon.png"
+                src={logoFavicon}
                 alt="Agendelle"
                 className="w-full h-full object-contain"
               />
@@ -1185,8 +1335,12 @@ export default function ProfessionalDashboard() {
               </div>
             )}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-black text-xs shrink-0">
-                {prof.name.charAt(0).toUpperCase()}
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-black text-xs shrink-0 overflow-hidden shadow-inner">
+                {prof.photo ? (
+                  <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover" />
+                ) : (
+                  prof.name.charAt(0).toUpperCase()
+                )}
               </div>
               <span className="hidden sm:block text-xs font-black text-zinc-800 max-w-[100px] truncate">
                 {prof.name.split(" ")[0]}
