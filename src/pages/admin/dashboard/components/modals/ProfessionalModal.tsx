@@ -102,8 +102,11 @@ export function ProfessionalModal({
   }, [isProfessionalModalOpen, editingProfessional]);
 
   // Dono do sistema: pula step de Permissões
+  const isOwner = !!editingProfessional?.isOwner;
   const isSelfAdd = !editingProfessional && selfChoice === true;
-  const STEPS = isSelfAdd ? ALL_STEPS.filter(s => s.id !== 2) : ALL_STEPS;
+  const hidePermissions = isOwner || isSelfAdd;
+  
+  const STEPS = hidePermissions ? ALL_STEPS.filter(s => s.id !== 2) : ALL_STEPS;
   // currentStep é o índice dentro de STEPS (1-based); realStep é o id do step real (conteúdo)
   const realStep = STEPS[currentStep - 1]?.id ?? currentStep;
 
@@ -187,29 +190,33 @@ export function ProfessionalModal({
         Voltar
       </Button>
 
-      {currentStep < STEPS.length ? (
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={nextStep}
-          disabled={currentStep === 1 && !newProfessional.name}
-          iconRight={<ChevronRight size={16} />}
-          className="bg-zinc-900 hover:bg-black border-zinc-800 shadow-lg shadow-zinc-900/20"
-        >
-          Próximo
-        </Button>
-      ) : (
-        <Button
-          variant="success"
-          size="lg"
-          onClick={handleCreateProfessional}
-          disabled={!newProfessional.name || (!editingProfessional && !isSelfAdd && !newProfessional.password)}
-          iconRight={<Check size={16} strokeWidth={3} />}
-          className="shadow-lg shadow-emerald-500/20"
-        >
-          {editingProfessional ? "Salvar" : "Cadastrar"}
-        </Button>
-      )}
+      <div className="flex items-center gap-2">
+        {currentStep < STEPS.length && (
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={nextStep}
+            disabled={currentStep === 1 && !newProfessional.name}
+            iconRight={<ChevronRight size={16} />}
+            className="bg-zinc-900 hover:bg-black border-zinc-800 shadow-lg shadow-zinc-900/20"
+          >
+            Próximo
+          </Button>
+        )}
+
+        {(currentStep === STEPS.length || editingProfessional) && (
+          <Button
+            variant="success"
+            size="lg"
+            onClick={handleCreateProfessional}
+            disabled={!newProfessional.name || (!editingProfessional && !hidePermissions && !newProfessional.password)}
+            iconRight={<Check size={16} strokeWidth={3} />}
+            className="shadow-lg shadow-emerald-500/20"
+          >
+            {editingProfessional ? "Salvar" : "Cadastrar"}
+          </Button>
+        )}
+      </div>
     </ModalFooter>
   );
 
@@ -232,7 +239,7 @@ export function ProfessionalModal({
             <React.Fragment key={step.id}>
               <button
                 type="button"
-                onClick={() => (completed || active) && setCurrentStep(step.id)}
+                onClick={() => (completed || active || editingProfessional) && setCurrentStep(idx + 1)}
                 className={cn(
                   "flex items-center gap-1.5 sm:gap-2 transition-all",
                   (completed || active) ? "cursor-pointer" : "cursor-default"
@@ -440,6 +447,7 @@ export function ProfessionalModal({
                 type="email"
                 placeholder="email@exemplo.com"
                 value={newProfessional.email}
+                disabled={isOwner}
                 onChange={e => setNewProfessional((p: any) => ({ ...p, email: e.target.value }))}
               />
             </div>
@@ -476,7 +484,7 @@ export function ProfessionalModal({
                 onChange={e => setNewProfessional((p: any) => ({ ...p, role: e.target.value }))}
               />
 
-              {!isSelfAdd && (
+              {!hidePermissions && (
                 <div className="flex flex-col gap-1.5">
                   <label className="ds-label">
                     {editingProfessional ? "Alterar Senha" : "Senha *"}
