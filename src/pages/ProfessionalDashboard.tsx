@@ -25,6 +25,7 @@ import {
   EmptyState,
   useToast, ToastProvider,
 } from "@/src/components/ui";
+import { apiFetch } from "@/src/lib/api";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -325,8 +326,8 @@ function AgendaSection({
   const fetchModalData = async () => {
     try {
       const [cRes, sRes] = await Promise.all([
-        fetch("/api/clients", { headers: { "x-tenant-id": prof.tenantId } }),
-        fetch("/api/services", { headers: { "x-tenant-id": prof.tenantId } }),
+        apiFetch("/api/clients"),
+        apiFetch("/api/services"),
       ]);
       const [cData, sData] = await Promise.all([cRes.json(), sRes.json()]);
       setClients(Array.isArray(cData) ? cData : []);
@@ -352,12 +353,8 @@ function AgendaSection({
     e.preventDefault();
     setModalLoading(true);
     try {
-      const res = await fetch("/api/appointments", {
+      const res = await apiFetch("/api/appointments", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-tenant-id": prof.tenantId,
-        },
         body: JSON.stringify({
           ...form,
           professionalId: prof.id,
@@ -758,9 +755,7 @@ function ComandasSection({
   const fetchComandas = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/comandas", {
-        headers: { "x-tenant-id": prof.tenantId },
-      });
+      const res = await apiFetch("/api/comandas");
       const data = await res.json();
       setComandas(Array.isArray(data) ? data : []);
     } catch {
@@ -915,9 +910,7 @@ function ClientesSection({
   const fetchClients = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/clients", {
-        headers: { "x-tenant-id": prof.tenantId },
-      });
+      const res = await apiFetch("/api/clients");
       const data = await res.json();
       setClients(Array.isArray(data) ? data : []);
     } catch {
@@ -935,12 +928,8 @@ function ClientesSection({
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch("/api/clients", {
+      const res = await apiFetch("/api/clients", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-tenant-id": prof.tenantId,
-        },
         body: JSON.stringify(form),
       });
       if (res.ok) {
@@ -1125,9 +1114,7 @@ function ServicesSection({ prof }: { prof: ProfData }) {
     if (!prof?.id || !prof?.tenantId) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/services", {
-        headers: { "x-tenant-id": prof.tenantId },
-      });
+      const res = await apiFetch("/api/services");
       if (!res.ok) throw new Error();
       const data = await res.json();
       const all = Array.isArray(data) ? data : [];
@@ -1250,12 +1237,8 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => vo
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`/api/professionals/${prof.id}`, {
+      const res = await apiFetch(`/api/professionals/${prof.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "x-tenant-id": prof.tenantId,
-        },
         body: JSON.stringify(form),
       });
       if (res.ok) {
@@ -1296,7 +1279,8 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => vo
                   const formData = new FormData();
                   formData.append("file", file);
                   try {
-                    const res = await fetch("/api/upload", { method: "POST", body: formData });
+                    const token = (await import("@/src/lib/api")).getToken();
+                    const res = await fetch("/api/upload", { method: "POST", body: formData, headers: token ? { Authorization: `Bearer ${token}` } : {} });
                     const data = await res.json();
                     if (data.url) setForm({ ...form, photo: data.url });
                   } catch { toast.error("Erro no upload da foto"); }
@@ -1478,9 +1462,8 @@ function ProfessionalDashboardInner() {
       end.setHours(23, 59, 59, 999);
     }
     try {
-      const res = await fetch(
-        `/api/appointments?start=${start.toISOString()}&end=${end.toISOString()}&professionalId=${prof.id}`,
-        { headers: { "x-tenant-id": prof.tenantId } }
+      const res = await apiFetch(
+        `/api/appointments?start=${start.toISOString()}&end=${end.toISOString()}&professionalId=${prof.id}`
       );
       const data = await res.json();
       setAppointments(Array.isArray(data) ? data : []);
@@ -1501,9 +1484,8 @@ function ProfessionalDashboardInner() {
     const end = new Date(start);
     end.setHours(23, 59, 59, 999);
     try {
-      const res = await fetch(
-        `/api/appointments?start=${start.toISOString()}&end=${end.toISOString()}&professionalId=${prof.id}`,
-        { headers: { "x-tenant-id": prof.tenantId } }
+      const res = await apiFetch(
+        `/api/appointments?start=${start.toISOString()}&end=${end.toISOString()}&professionalId=${prof.id}`
       );
       const data = await res.json();
       if (Array.isArray(data)) setAppointments(data);
@@ -1512,9 +1494,7 @@ function ProfessionalDashboardInner() {
 
   useEffect(() => {
     if (!prof?.tenantId || !canSeeComandas) return;
-    fetch("/api/comandas", {
-      headers: { "x-tenant-id": prof.tenantId },
-    })
+    apiFetch("/api/comandas")
       .then((r) => r.json())
       .then((d) => setComandasForDash(Array.isArray(d) ? d : []))
       .catch(() => {});
