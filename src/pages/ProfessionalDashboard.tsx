@@ -25,7 +25,7 @@ import {
   EmptyState,
   useToast, ToastProvider,
 } from "@/src/components/ui";
-import { apiFetch } from "@/src/lib/api";
+import { apiFetch, getToken } from "@/src/lib/api";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1279,7 +1279,7 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => vo
                   const formData = new FormData();
                   formData.append("file", file);
                   try {
-                    const token = (await import("@/src/lib/api")).getToken();
+                    const token = getToken();
                     const res = await fetch("/api/upload", { method: "POST", body: formData, headers: token ? { Authorization: `Bearer ${token}` } : {} });
                     const data = await res.json();
                     if (data.url) setForm({ ...form, photo: data.url });
