@@ -39,7 +39,14 @@ function VendaModal({ isOpen, onClose, products, onSaved }: {
   const toast = useToast();
 
   useEffect(() => {
-    if (!isOpen) { setItems([]); setClientName(""); setPayMethod("pix"); setProductId(""); setQty("1"); }
+    if (!isOpen) { 
+      setItems([]); 
+      setClientName(""); 
+      setPayMethod("pix"); 
+      setProductId(""); 
+      setQty("1"); 
+      setSaving(false);
+    }
   }, [isOpen]);
 
   const forSaleProducts = products.filter(p => p.isForSale === true || p.isForSale === 1);
@@ -66,15 +73,22 @@ function VendaModal({ isOpen, onClose, products, onSaved }: {
     setSaving(true);
     try {
       for (const item of items) {
-        await apiFetch("/api/inventory/sell", {
+        const r = await apiFetch("/api/inventory/sell", {
           method: "POST",
           body: JSON.stringify({ productId: item.productId, quantity: item.qty, clientName: clientName || undefined, paymentMethod: payMethod }),
         });
+        if (!r.ok) {
+           throw new Error("Erro na API");
+        }
       }
       toast.success(`Venda de ${formatBRL(total)} registrada!`);
-      onSaved(); onClose();
-    } catch { toast.error("Erro ao registrar venda."); }
-    finally { setSaving(false); }
+      onSaved(); 
+      onClose();
+    } catch { 
+      toast.error("Erro ao registrar venda."); 
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   return (
