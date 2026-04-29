@@ -846,7 +846,21 @@ function ServicesSection({ prof }: { prof: ProfData }) {
           headers: { "x-tenant-id": prof.tenantId },
         });
         const data = await res.json();
-        setServices(Array.isArray(data) ? data : []);
+        const all = Array.isArray(data) ? data : [];
+        
+        // Filtrar apenas serviços que este profissional realiza
+        const filtered = all.filter(s => {
+          try {
+            const ids = typeof s.professionalIds === "string" 
+              ? JSON.parse(s.professionalIds || "[]") 
+              : (Array.isArray(s.professionalIds) ? s.professionalIds : []);
+            return ids.includes(prof.id);
+          } catch {
+            return false;
+          }
+        });
+        
+        setServices(filtered);
       } catch {
         setServices([]);
       } finally {
@@ -854,18 +868,52 @@ function ServicesSection({ prof }: { prof: ProfData }) {
       }
     };
     fetchServices();
-  }, [prof.tenantId]);
+  }, [prof.tenantId, prof.id]);
 
   return (
     <div className="space-y-4">
-      <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.12em] px-1">
-        {services.length} serviço(s)
-      </p>
+      <div className="flex items-center justify-between px-1">
+        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.12em]">
+          {services.length} serviço(s)
+        </p>
+        <button
+          onClick={() => {
+            const fetchServices = async () => {
+              setLoading(true);
+              try {
+                const res = await fetch("/api/services", {
+                  headers: { "x-tenant-id": prof.tenantId },
+                });
+                const data = await res.json();
+                const all = Array.isArray(data) ? data : [];
+                const filtered = all.filter(s => {
+                  try {
+                    const ids = typeof s.professionalIds === "string" 
+                      ? JSON.parse(s.professionalIds || "[]") 
+                      : (Array.isArray(s.professionalIds) ? s.professionalIds : []);
+                    return ids.includes(prof.id);
+                  } catch { return false; }
+                });
+                setServices(filtered);
+              } catch { setServices([]); } finally { setLoading(false); }
+            };
+            fetchServices();
+          }}
+          disabled={loading}
+          className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-800 transition-colors"
+        >
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+        </button>
+      </div>
 
       {loading ? (
         <Spinner />
       ) : services.length === 0 ? (
-        <EmptyBox icon={Scissors} title="Nenhum serviço cadastrado" />
+        <EmptyBox 
+          icon={Scissors} 
+          title="Nenhum serviço vinculado" 
+          sub="Você ainda não foi associado a nenhum serviço pelo administrador." 
+        />
       ) : (
         <div className="space-y-2.5">
           {services.map((s, idx) => (
