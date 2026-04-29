@@ -315,6 +315,17 @@ function AgendaSection({
   const [clients, setClients] = useState<Client[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [clientSearch, setClientSearch] = useState("");
+  const [showRepeatModal, setShowRepeatModal] = useState(false);
+  const [showCustomRepeatModal, setShowCustomRepeatModal] = useState(false);
+  const [repeatLabel, setRepeatLabel] = useState("Não Repete");
+  const [customRepeat, setCustomRepeat] = useState({
+    frequency: "Semanalmente",
+    interval: 1,
+    unit: "SEMANA(S)",
+    endType: "count" as "count" | "date",
+    count: 4,
+    endDate: "",
+  });
   const [form, setForm] = useState({
     clientId: "",
     serviceId: "",
@@ -322,8 +333,7 @@ function AgendaSection({
     startTime: "09:00",
     duration: 60,
     notes: "",
-    recurrence: "none" as "none" | "daily" | "weekly" | "monthly",
-    sessions: 1,
+    recurrence: { type: "none", count: 0, interval: 0 } as { type: string; count: number; interval: number },
   });
 
   const selectedService = services.find(s => s.id === form.serviceId);
@@ -360,8 +370,18 @@ function AgendaSection({
   useEffect(() => {
     if (showModal) {
       fetchModalData();
-      setForm(f => ({ ...f, date: format(selectedDate, "yyyy-MM-dd") as string | null }));
+      setForm(f => ({
+        ...f,
+        date: format(selectedDate, "yyyy-MM-dd") as string | null,
+        clientId: "",
+        serviceId: "",
+        startTime: "09:00",
+        duration: 60,
+        notes: "",
+        recurrence: { type: "none", count: 0, interval: 0 },
+      }));
       setClientSearch("");
+      setRepeatLabel("Não Repete");
     }
   }, [showModal]);
 
@@ -395,7 +415,7 @@ function AgendaSection({
           duration: form.duration,
           notes: form.notes,
           recurrence: form.recurrence,
-          sessions: form.sessions,
+          sessions: form.recurrence.count || 1,
           professionalId: prof.id,
           status: "confirmed",
         }),
@@ -840,40 +860,182 @@ function AgendaSection({
                 </div>
               </div>
 
-              {/* Recorrência */}
-              <div className="pt-1 border-t border-zinc-100 space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-3.5 bg-amber-400 rounded-full" />
-                  <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Recorrência</h4>
-                </div>
-
-                <Select
-                  label="Tipo"
-                  value={form.recurrence}
-                  onChange={e => setForm(f => ({ ...f, recurrence: e.target.value as any }))}
-                  options={[
-                    { value: "none", label: "Não repetir" },
-                    { value: "daily", label: "Diário" },
-                    { value: "weekly", label: "Semanal" },
-                    { value: "monthly", label: "Mensal" },
-                  ]}
-                />
-
-                {form.recurrence !== "none" && (
-                  <Input
-                    label="Número de sessões"
-                    type="number"
-                    min={2}
-                    max={52}
-                    value={String(form.sessions)}
-                    onChange={e => setForm(f => ({ ...f, sessions: parseInt(e.target.value) || 2 }))}
-                  />
-                )}
+              {/* Recorrência — botão que abre modal */}
+              <div className="pt-1 border-t border-zinc-100">
+                <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1.5">
+                  Repetição
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowRepeatModal(true)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-2xl hover:border-amber-400 hover:bg-amber-50 transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-amber-500">
+                      <path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 014-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 01-4 4H3" />
+                    </svg>
+                    <span className="text-xs font-bold text-zinc-700">{repeatLabel}</span>
+                  </div>
+                  <ChevronRight size={14} className="text-zinc-400" />
+                </button>
               </div>
             </div>
           </div>
         </form>
       </Modal>
+
+      {/* ── Modal de Recorrência ── */}
+      <AnimatePresence>
+        {showRepeatModal && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowRepeatModal(false)} className="fixed inset-0 bg-black/30" style={{ zIndex: 10100 }} />
+            <div className="pointer-events-none fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 10100 }}>
+              <motion.div initial={{ opacity: 0, scale: 0.97, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 8 }} transition={{ duration: 0.15 }} className="pointer-events-auto w-full max-w-sm rounded-2xl border border-zinc-200 bg-white shadow-2xl overflow-hidden">
+                <div className="flex items-start justify-between px-5 pb-3 pt-5">
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-900">Seleção Atual</h3>
+                    <p className="mt-0.5 text-[11px] text-zinc-400">Escolha uma opção abaixo para mudar a seleção</p>
+                  </div>
+                  <button type="button" onClick={() => setShowRepeatModal(false)} className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 transition-all">
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="px-5 pb-3">
+                  <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3.5">
+                    <div className="rounded-lg bg-blue-100 p-1.5">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-blue-600">
+                        <path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 014-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 01-4 4H3" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-blue-400">Opção Atual</p>
+                      <p className="text-sm font-bold text-blue-800">{repeatLabel}</p>
+                    </div>
+                  </div>
+                  <p className="mt-2 px-1 text-[10px] italic text-blue-500">Dica: Escolha repetição semanal caso queira que sempre caia no mesmo dia da semana</p>
+                </div>
+                <div className="max-h-64 overflow-y-auto border-t border-zinc-100 divide-y divide-zinc-100">
+                  {[
+                    { label: "Não Repete", type: "none", interval: 0, count: 0 },
+                    { label: "Semanal — 4 vezes", type: "weekly", interval: 7, count: 4 },
+                    { label: "Semanal — 8 vezes", type: "weekly", interval: 7, count: 8 },
+                    { label: "Semanal — 12 vezes", type: "weekly", interval: 7, count: 12 },
+                    { label: "Semanal — 16 vezes", type: "weekly", interval: 7, count: 16 },
+                    { label: "Semanal — 20 vezes", type: "weekly", interval: 7, count: 20 },
+                    { label: "A cada 15 dias — 4 vezes", type: "biweekly", interval: 15, count: 4 },
+                    { label: "A cada 15 dias — 8 vezes", type: "biweekly", interval: 15, count: 8 },
+                    { label: "Mensal — 3 vezes", type: "monthly", interval: 30, count: 3 },
+                    { label: "Mensal — 6 vezes", type: "monthly", interval: 30, count: 6 },
+                    { label: "Mensal — 12 vezes", type: "monthly", interval: 30, count: 12 },
+                    { label: "Personalizado...", type: "custom", interval: 0, count: 0 },
+                  ].map((option) => (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() => {
+                        if (option.type === "custom") {
+                          setShowRepeatModal(false);
+                          setShowCustomRepeatModal(true);
+                          return;
+                        }
+                        setRepeatLabel(option.label);
+                        setForm(f => ({ ...f, recurrence: { type: option.type, count: option.count, interval: option.interval } }));
+                        setShowRepeatModal(false);
+                      }}
+                      className={cn("flex w-full items-center justify-between px-5 py-3.5 text-xs font-bold transition-all hover:bg-zinc-50", repeatLabel === option.label ? "bg-blue-50 text-blue-600" : "text-zinc-700")}
+                    >
+                      <span className="uppercase tracking-widest">{option.label}</span>
+                      <ChevronRight size={14} className="text-zinc-400" />
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Modal Personalizado ── */}
+      <AnimatePresence>
+        {showCustomRepeatModal && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCustomRepeatModal(false)} className="fixed inset-0 bg-black/30" style={{ zIndex: 10100 }} />
+            <div className="pointer-events-none fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 10100 }}>
+              <motion.div initial={{ opacity: 0, scale: 0.97, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 8 }} transition={{ duration: 0.15 }} className="pointer-events-auto w-full max-w-sm rounded-2xl border border-zinc-200 bg-white shadow-2xl">
+                <div className="flex items-start justify-between px-5 pb-4 pt-5">
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-900">Configurar Repetição</h3>
+                    <p className="mt-0.5 text-[11px] text-zinc-400">Defina como este agendamento irá se repetir</p>
+                  </div>
+                  <button type="button" onClick={() => setShowCustomRepeatModal(false)} className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 transition-all">
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="space-y-5 px-5 pb-5">
+                  <div className="overflow-hidden rounded-xl border border-zinc-200">
+                    <p className="border-b border-zinc-100 bg-zinc-50 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Frequência de Repetição</p>
+                    <div className="p-3">
+                      <select
+                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs font-bold text-zinc-800 outline-none"
+                        value={customRepeat.frequency}
+                        onChange={e => setCustomRepeat(p => ({ ...p, frequency: e.target.value, unit: ({ "Semanalmente": "SEMANA(S)", "Mensalmente": "MÊS(ES)", "Diariamente": "DIA(S)", "A cada 15 dias": "SEMANA(S)" } as any)[e.target.value] || "SEMANA(S)" }))}
+                      >
+                        {["Semanalmente", "Mensalmente", "Diariamente", "A cada 15 dias"].map(f => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-400">A Cada</p>
+                          <input type="number" min={1} className="w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-center text-xs font-bold text-zinc-800 outline-none" value={customRepeat.interval} onChange={e => setCustomRepeat(p => ({ ...p, interval: parseInt(e.target.value) || 1 }))} />
+                        </div>
+                        <div>
+                          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-400">Unidade</p>
+                          <div className="rounded-xl border border-zinc-200 bg-zinc-100 p-3 text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">{customRepeat.unit}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-zinc-400"><path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 014-4h14" /></svg>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Terminar Em</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button type="button" onClick={() => setCustomRepeat(p => ({ ...p, endType: "count" }))} className={cn("rounded-xl border-2 p-4 text-center transition-all", customRepeat.endType === "count" ? "border-amber-400 bg-amber-50" : "border-zinc-200 bg-zinc-50 hover:border-zinc-300")}>
+                        <p className={cn("mb-2 text-[9px] font-black uppercase tracking-widest", customRepeat.endType === "count" ? "text-amber-500" : "text-zinc-400")}>Por Vezes</p>
+                        <div className="flex items-center justify-center gap-2">
+                          <input type="number" min={1} className="w-12 rounded-lg border border-zinc-200 bg-white p-1 text-center text-sm font-black outline-none" value={customRepeat.count} onClick={e => { e.stopPropagation(); setCustomRepeat(p => ({ ...p, endType: "count" })); }} onChange={e => setCustomRepeat(p => ({ ...p, count: parseInt(e.target.value) || 1 }))} />
+                          <span className="text-[9px] font-bold uppercase text-zinc-400">Vezes</span>
+                        </div>
+                      </button>
+                      <button type="button" onClick={() => setCustomRepeat(p => ({ ...p, endType: "date" }))} className={cn("rounded-xl border-2 p-4 text-center transition-all", customRepeat.endType === "date" ? "border-amber-400 bg-amber-50" : "border-zinc-200 bg-zinc-50 hover:border-zinc-300")}>
+                        <p className={cn("mb-2 text-[9px] font-black uppercase tracking-widest", customRepeat.endType === "date" ? "text-amber-500" : "text-zinc-400")}>Por Data</p>
+                        <input type="date" className="w-full rounded-lg border border-zinc-200 bg-white p-1 text-center text-[10px] font-bold outline-none" value={customRepeat.endDate} onClick={e => { e.stopPropagation(); setCustomRepeat(p => ({ ...p, endType: "date" })); }} onChange={e => setCustomRepeat(p => ({ ...p, endDate: e.target.value }))} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-1">
+                    <button type="button" onClick={() => { setShowCustomRepeatModal(false); setShowRepeatModal(true); }} className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-500 hover:text-zinc-700 transition-all">
+                      Voltar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const label = `${customRepeat.frequency} — ${customRepeat.endType === "count" ? `${customRepeat.count} vezes` : `até ${customRepeat.endDate}`}`;
+                        setRepeatLabel(label);
+                        setForm(f => ({ ...f, recurrence: { type: "custom", count: customRepeat.count, interval: customRepeat.interval } }));
+                        setShowCustomRepeatModal(false);
+                      }}
+                      className="flex-1 rounded-xl bg-amber-500 py-3 text-xs font-bold text-white shadow-sm hover:bg-amber-600 transition-all"
+                    >
+                      Salvar
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
