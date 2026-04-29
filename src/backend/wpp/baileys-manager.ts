@@ -383,8 +383,21 @@ async function handleClient(tenantId: string, sock: any, remoteJid: string, clie
   }
 }
 
+interface AttendantEntry { phone: string; name: string; }
+
+function parseAttendants(raw: string): AttendantEntry[] {
+  try {
+    const arr = JSON.parse(raw || "[]");
+    return arr.map((a: any) =>
+      typeof a === "object" && a !== null
+        ? { phone: String(a.phone || "").replace(/\D/g, ""), name: String(a.name || "").trim() }
+        : { phone: String(a).replace(/\D/g, ""), name: "" }
+    ).filter((a: AttendantEntry) => a.phone.length >= 10);
+  } catch { return []; }
+}
+
 async function enterSector(tenantId: string, sock: any, clientKey: string, state: ClientState, sector: any) {
-  const attendants: string[] = JSON.parse(sector.attendants || "[]");
+  const attendants = parseAttendants(sector.attendants);
 
   if (attendants.length === 0) {
     await send(sock, state.remoteJid, `😔 O setor *${sector.name}* não tem atendentes disponíveis no momento.\n\nEscolha outro setor:`);
@@ -411,13 +424,33 @@ async function enterSector(tenantId: string, sock: any, clientKey: string, state
 
   // Só notifica atendentes se for o 1° da fila (os demais chegam depois)
   if (pos === 1) {
-    for (const attPhone of attendants) {
-      const attJid = phoneToJid(attPhone);
+    for (const att of attendants) {
+      const attJid = phoneToJid(att.phone);
       try {
         await sock.sendMessage(attJid, { text: msgNotifAtendente(state.name!, state.subject!, clientKey, sector.name, pos, total) });
-      } catch (e) { console.warn(`[Bot] Notif atendente ${attPhone}:`, e); }
+      } catch (e) { console.warn(`[Bot] Notif atendente ${att.phone}:`, e); }
     }
   }
+}
+
+/** Retorna o nome registrado do atendente no setor, ou fallback para pushName */
+async function resolveAttendantName(tenantId: string, attJid: string, pushName: string, sectorId?: string): Promise<string> {
+  const attPhone = jidToPhone(attJid).replace(/\D/g, "");
+  try {
+    const sectors = sectorId
+      ? [await (prisma as any).wppBotSector.findUnique({ where: { id: sectorId } })]
+      : await (prisma as any).wppBotSector.findMany({ where: { tenantId, isActive: true } });
+    for (const sector of sectors) {
+      if (!sector) continue;
+      const attendants = parseAttendants(sector.attendants);
+      const found = attendants.find(a => {
+        const ad = a.phone.replace(/\D/g, "");
+        return ad === attPhone || ad === `55${attPhone}` || `55${ad}` === attPhone;
+      });
+      if (found?.name) return found.name;
+    }
+  } catch {}
+  return pushName; // fallback: nome do contato no WhatsApp
 }
 
 // ── Fluxo do atendente ────────────────────────────────────────────────────────
@@ -432,7 +465,8 @@ async function handleAttendant(tenantId: string, sock: any, attJid: string, attN
     if (!state || state.step !== "in_chat") { unlinkAtt(tenantId, attJid); return false; }
 
     if (EXIT_CMD.test(trimmed)) { await doExit(tenantId, sock, clientKey, "attendant"); return true; }
-    await send(sock, state.remoteJid, `💬 *${attName}*: ${trimmed}`);
+    const displayName = await resolveAttendantName(tenantId, attJid, attName, state.sectorId);
+    await send(sock, state.remoteJid, `💬 *${displayName}*: ${trimmed}`);
     if (state.conversationId) await saveMsg(state.conversationId, "attendant", attJid, trimmed);
     touch(tenantId, clientKey);
     return true;
@@ -465,13 +499,14 @@ async function handleAttendant(tenantId: string, sock: any, attJid: string, attN
     }
 
     // ACEITAR — liga ponte
+    const displayName = await resolveAttendantName(tenantId, attJid, attName, state.sectorId);
     linkAtt(tenantId, attJid, waiting);
     removeFromQueue(tenantId, state.sectorId!, waiting);
     setState(tenantId, waiting, { ...state, step: "in_chat", attendantJid: attJid, queuePos: undefined });
     await (prisma as any).wppConversation.update({ where: { id: state.conversationId }, data: { status: "active", attendantPhone: jidToPhone(attJid) } }).catch(() => {});
-    if (state.conversationId) await saveMsg(state.conversationId, "bot", undefined, `${attName} aceitou.`);
+    if (state.conversationId) await saveMsg(state.conversationId, "bot", undefined, `${displayName} aceitou.`);
 
-    await send(sock, state.remoteJid, `🎉 *${attName}* aceitou seu atendimento!\n\nPode enviar sua mensagem normalmente.\n_Digite *&SAIR* ou *0* para encerrar._`);
+    await send(sock, state.remoteJid, `🎉 *${displayName}* aceitou seu atendimento!\n\nPode enviar sua mensagem normalmente.\n_Digite *&SAIR* ou *0* para encerrar._`);
     await send(sock, attJid, `✅ Atendendo *${state.name}*.\n💬 Assunto: _${state.subject}_\n\n_Digite *&SAIR* para encerrar._`);
 
     // Atualiza posições dos que ficaram na fila
@@ -484,7 +519,7 @@ async function handleAttendant(tenantId: string, sock: any, attJid: string, attN
 
 /** Busca o 1° da fila em qualquer setor que contenha este atendente */
 async function findWaitingForAttendant(tenantId: string, attJid: string): Promise<string | undefined> {
-  const attPhone = jidToPhone(attJid);
+  const attPhone = jidToPhone(attJid).replace(/\D/g, "");
   const map = sectorQueues.get(tenantId);
   if (!map) return undefined;
 
@@ -493,12 +528,10 @@ async function findWaitingForAttendant(tenantId: string, attJid: string): Promis
     try {
       const sector = await (prisma as any).wppBotSector.findUnique({ where: { id: sectorId } });
       if (!sector) continue;
-      const attendants: string[] = JSON.parse(sector.attendants || "[]");
-      // Aceita se o phone do atendente está na lista (com ou sem DDI)
+      const attendants = parseAttendants(sector.attendants);
       const match = attendants.some(a => {
-        const ad = a.replace(/\D/g, "");
-        const pd = attPhone.replace(/\D/g, "");
-        return ad === pd || ad === `55${pd}` || `55${ad}` === pd;
+        const ad = a.phone.replace(/\D/g, "");
+        return ad === attPhone || ad === `55${attPhone}` || `55${ad}` === attPhone;
       });
       if (match) return queue[0];
     } catch {}
@@ -516,10 +549,10 @@ async function callNextInQueue(tenantId: string, sock: any, sectorId: string, se
   try {
     const sector = await (prisma as any).wppBotSector.findUnique({ where: { id: sectorId } });
     if (!sector) return;
-    const attendants: string[] = JSON.parse(sector.attendants || "[]");
+    const attendants = parseAttendants(sector.attendants);
     const total = getQueue(tenantId, sectorId).length;
-    for (const attPhone of attendants) {
-      const attJid = phoneToJid(attPhone);
+    for (const att of attendants) {
+      const attJid = phoneToJid(att.phone);
       try {
         await sock.sendMessage(attJid, { text: msgNotifAtendente(state.name!, state.subject!, nextKey, sectorName, 1, total) });
       } catch {}

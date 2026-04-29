@@ -3243,7 +3243,8 @@ function BotCentralTab() {
 
   // Modal de setor
   const [sectorModal, setSectorModal] = useState<{ open: boolean; data: any | null }>({ open: false, data: null });
-  const [sectorForm, setSectorForm] = useState({ name: "", menuKey: "", description: "", attendants: "", sortOrder: 0, isActive: true });
+  const [sectorForm, setSectorForm] = useState({ name: "", menuKey: "", description: "", sortOrder: 0, isActive: true });
+  const [attendantList, setAttendantList] = useState<{ name: string; phone: string }[]>([{ name: "", phone: "" }]);
 
   // Filtro de fila
   const [queueFilter, setQueueFilter] = useState<"waiting" | "active" | "closed" | "all">("all");
@@ -3278,19 +3279,26 @@ function BotCentralTab() {
   }, [subView]);
 
   const openNewSector = () => {
-    setSectorForm({ name: "", menuKey: "", description: "", attendants: "", sortOrder: sectors.length + 1, isActive: true });
+    setSectorForm({ name: "", menuKey: "", description: "", sortOrder: sectors.length + 1, isActive: true });
+    setAttendantList([{ name: "", phone: "" }]);
     setSectorModal({ open: true, data: null });
   };
 
   const openEditSector = (s: any) => {
-    setSectorForm({ name: s.name, menuKey: s.menuKey, description: s.description || "", attendants: (s.attendants || []).join(", "), sortOrder: s.sortOrder, isActive: s.isActive });
+    setSectorForm({ name: s.name, menuKey: s.menuKey, description: s.description || "", sortOrder: s.sortOrder, isActive: s.isActive });
+    const att = (s.attendants || []).map((a: any) =>
+      typeof a === "object" ? a : { name: "", phone: String(a) }
+    );
+    setAttendantList(att.length ? att : [{ name: "", phone: "" }]);
     setSectorModal({ open: true, data: s });
   };
 
   const saveSector = async () => {
     setSaving(true);
     try {
-      const attendants = sectorForm.attendants.split(",").map(p => p.trim().replace(/\D/g, "")).filter(Boolean);
+      const attendants = attendantList
+        .filter(a => a.phone.replace(/\D/g, "").length >= 10)
+        .map(a => ({ name: a.name.trim(), phone: a.phone.replace(/\D/g, "") }));
       const payload = { ...sectorForm, attendants };
       if (sectorModal.data) {
         await apiFetch(`/api/super-admin/bot/sectors/${sectorModal.data.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -3355,9 +3363,40 @@ function BotCentralTab() {
                 <Input placeholder="Ex: Falar sobre nossos planos e serviços" value={sectorForm.description} onChange={e => setSectorForm(p => ({ ...p, description: e.target.value }))} />
               </div>
               <div>
-                <label className="text-xs font-black text-zinc-700 block mb-1">Atendentes (números, separados por vírgula)</label>
-                <Input placeholder="Ex: 5511999991111, 5511999992222" value={sectorForm.attendants} onChange={e => setSectorForm(p => ({ ...p, attendants: e.target.value }))} />
-                <p className="text-[10px] text-zinc-400 mt-1">Somente dígitos com DDI (ex: 5511...). Estes números receberão notificação de novo atendimento.</p>
+                <label className="text-xs font-black text-zinc-700 block mb-1">Atendentes</label>
+                <div className="space-y-2">
+                  {attendantList.map((att, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <Input
+                        placeholder="Nome do atendente"
+                        value={att.name}
+                        onChange={e => setAttendantList(prev => prev.map((a, i) => i === idx ? { ...a, name: e.target.value } : a))}
+                        style={{ flex: 1 }}
+                      />
+                      <Input
+                        placeholder="Ex: 5515999990000"
+                        value={att.phone}
+                        onChange={e => setAttendantList(prev => prev.map((a, i) => i === idx ? { ...a, phone: e.target.value } : a))}
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setAttendantList(prev => prev.length === 1 ? [{ name: "", phone: "" }] : prev.filter((_, i) => i !== idx))}
+                        className="text-zinc-300 hover:text-red-400 shrink-0"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setAttendantList(prev => [...prev, { name: "", phone: "" }])}
+                    className="text-xs text-zinc-400 hover:text-zinc-600 flex items-center gap-1"
+                  >
+                    <span>+ Adicionar atendente</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-400 mt-1">Nome exibido no bot ao aceitar. Telefone com DDI (ex: 5515...). Receberão notificações de novo atendimento.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -3509,7 +3548,7 @@ function BotCentralTab() {
                       <p className="text-[10px] text-zinc-300 mt-1">
                         {(s.attendants || []).length === 0
                           ? "Sem atendentes cadastrados"
-                          : `${(s.attendants || []).length} atendente(s): ${(s.attendants || []).join(", ")}`}
+                          : `${(s.attendants || []).length} atendente(s): ${(s.attendants || []).map((a: any) => typeof a === "object" ? (a.name || a.phone) : a).join(", ")}`}
                       </p>
                     </div>
                     <div className="flex gap-1.5 shrink-0">
