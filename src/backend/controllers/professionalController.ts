@@ -417,13 +417,31 @@ export const professionalController = {
       if (!professional) return res.status(404).json({ error: "Profissional não encontrado." });
       if (professional.isOwner) return res.status(403).json({ error: "O profissional do proprietário não pode ser excluído." });
 
-      await syncProfessionalServices(tenantId, professional.id, []);
-      await (prisma as any).workingHours.deleteMany({ where: { professionalId: professional.id } });
+      // Verificar dependências críticas (Agendamentos)
+      const apptCount = await (prisma as any).appointment.count({
+        where: { professionalId: professional.id }
+      });
+
+      if (apptCount > 0) {
+        return res.status(400).json({ 
+          error: `Não é possível excluir este profissional pois ele possui ${apptCount} agendamento(s) vinculado(s). Recomenda-se apenas desativá-lo.` 
+        });
+      }
+
+      // Limpar outras tabelas que não impedem o delete mas devem ser limpas
+      await Promise.all([
+        syncProfessionalServices(tenantId, professional.id, []),
+        (prisma as any).workingHours.deleteMany({ where: { professionalId: professional.id } }),
+        (prisma as any).scheduleRelease.deleteMany({ where: { professionalId: professional.id } }),
+        (prisma as any).specialScheduleDay.deleteMany({ where: { professionalId: professional.id } }),
+      ]);
+
       await (prisma as any).professional.delete({ where: { id: professional.id } });
 
       res.json({ success: true });
     } catch (e: any) {
-      res.status(400).json({ error: e?.message || "Erro ao excluir profissional." });
+      console.error("[Professional] Error deleting:", e);
+      res.status(400).json({ error: "Erro ao excluir profissional. Verifique se existem vínculos pendentes." });
     }
   },
 };
