@@ -1427,8 +1427,17 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => vo
                       body: JSON.stringify({ data: base64, mimeType: file.type }),
                     });
                     const data = await res.json();
-                    if (data.url) setForm(f => ({ ...f, photo: data.url }));
-                    else toast.error(data.error || "Erro no upload da foto");
+                    if (data.url) {
+                      setForm(f => ({ ...f, photo: data.url }));
+                      await apiFetch(`/api/professionals/${prof.id}`, {
+                        method: "PUT",
+                        body: JSON.stringify({ photo: data.url }),
+                      });
+                      toast.success("Foto atualizada!");
+                      onUpdate();
+                    } else {
+                      toast.error(data.error || "Erro no upload da foto");
+                    }
                   } catch { toast.error("Erro no upload da foto"); }
                 }}
               />
