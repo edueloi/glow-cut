@@ -20,7 +20,7 @@ import logoFavicon from "@/src/images/system/logo-favicon.png";
 import {
   Button, IconButton,
   Modal, ModalFooter,
-  Input, Select,
+  Input, Select, DatePicker,
   Badge,
   EmptyState,
   useToast, ToastProvider,
@@ -318,7 +318,7 @@ function AgendaSection({
   const [form, setForm] = useState({
     clientId: "",
     serviceId: "",
-    date: format(selectedDate, "yyyy-MM-dd"),
+    date: format(selectedDate, "yyyy-MM-dd") as string | null,
     startTime: "09:00",
     duration: 60,
     notes: "",
@@ -360,7 +360,7 @@ function AgendaSection({
   useEffect(() => {
     if (showModal) {
       fetchModalData();
-      setForm(f => ({ ...f, date: format(selectedDate, "yyyy-MM-dd") }));
+      setForm(f => ({ ...f, date: format(selectedDate, "yyyy-MM-dd") as string | null }));
       setClientSearch("");
     }
   }, [showModal]);
@@ -377,6 +377,10 @@ function AgendaSection({
     }
     if (!form.serviceId) {
       toast.error("Selecione um serviço");
+      return;
+    }
+    if (!form.date) {
+      toast.error("Selecione uma data");
       return;
     }
     setModalLoading(true);
@@ -450,7 +454,7 @@ function AgendaSection({
             size="sm"
             iconLeft={<Plus size={15} />}
             onClick={() => {
-              setForm({ ...form, date: format(selectedDate, "yyyy-MM-dd") });
+              setForm(f => ({ ...f, date: format(selectedDate, "yyyy-MM-dd") }));
               setShowModal(true);
             }}
             className="h-11 px-4 rounded-2xl text-[10px] uppercase tracking-wider"
@@ -791,21 +795,25 @@ function AgendaSection({
             {/* ── Coluna direita ── */}
             <div className="space-y-4">
               {/* Data */}
-              <Input
+              <DatePicker
                 label="Data"
-                type="date"
-                required
                 value={form.date}
-                onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                onChange={v => setForm(f => ({ ...f, date: v }))}
               />
 
               {/* Hora */}
               <Input
                 label="Horário de início"
-                type="time"
-                required
+                type="text"
+                placeholder="HH:MM"
                 value={form.startTime}
-                onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))}
+                onChange={e => {
+                  let v = e.target.value.replace(/\D/g, "");
+                  if (v.length > 4) v = v.slice(0, 4);
+                  if (v.length > 2) v = `${v.slice(0, 2)}:${v.slice(2)}`;
+                  setForm(f => ({ ...f, startTime: v }));
+                }}
+                iconLeft={<Clock size={14} className="text-zinc-400" />}
               />
 
               {/* Duração */}
@@ -1411,7 +1419,7 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => vo
                   formData.append("file", file);
                   try {
                     const token = getToken();
-                    const res = await fetch("/api/upload", { method: "POST", body: formData, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                    const res = await fetch("/api/admin/upload", { method: "POST", body: formData, headers: token ? { Authorization: `Bearer ${token}` } : {} });
                     const data = await res.json();
                     if (data.url) setForm({ ...form, photo: data.url });
                   } catch { toast.error("Erro no upload da foto"); }
