@@ -37,6 +37,7 @@ interface ProfessionalModalProps {
   emptyProfessional: any;
   services: any[];
   adminUser?: any;
+  professionals?: any[];
 }
 
 const ALL_STEPS = [
@@ -63,6 +64,7 @@ export function ProfessionalModal({
   emptyProfessional,
   services,
   adminUser,
+  professionals,
 }: ProfessionalModalProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -109,6 +111,8 @@ export function ProfessionalModal({
   const STEPS = hidePermissions ? ALL_STEPS.filter(s => s.id !== 2) : ALL_STEPS;
   // currentStep é o índice dentro de STEPS (1-based); realStep é o id do step real (conteúdo)
   const realStep = STEPS[currentStep - 1]?.id ?? currentStep;
+  
+  const ownerAlreadyExists = !editingProfessional && (professionals || []).some((p: any) => p.isOwner);
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
@@ -290,7 +294,9 @@ export function ProfessionalModal({
                 {/* Sim, sou eu */}
                 <button
                   type="button"
+                  disabled={ownerAlreadyExists}
                   onClick={() => {
+                    if (ownerAlreadyExists) return;
                     setSelfChoice(true);
                     setNewProfessional((p: any) => ({
                       ...p,
@@ -300,13 +306,15 @@ export function ProfessionalModal({
                       photo: adminUser.photo || "",
                       accessLevel: "full",
                       attendsSchedule: true,
+                      isOwner: true,
                     }));
                   }}
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-2xl border-2 text-left transition-all flex-1",
                     selfChoice === true
                       ? "bg-zinc-900 border-zinc-900 text-white shadow-md"
-                      : "bg-white border-zinc-200 hover:border-zinc-400"
+                      : "bg-white border-zinc-200 hover:border-zinc-400",
+                    ownerAlreadyExists && "opacity-50 grayscale cursor-not-allowed"
                   )}
                 >
                   <div className={cn(
@@ -317,7 +325,9 @@ export function ProfessionalModal({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={cn("text-xs font-black", selfChoice === true ? "text-white" : "text-zinc-900")}>Sim, sou eu</p>
-                    <p className={cn("text-[10px] font-medium", selfChoice === true ? "text-white/60" : "text-zinc-400")}>Usar meus dados</p>
+                    <p className={cn("text-[10px] font-medium", selfChoice === true ? "text-white/60" : "text-zinc-400")}>
+                      {ownerAlreadyExists ? "Já cadastrado" : "Usar meus dados"}
+                    </p>
                   </div>
                   {selfChoice === true && <Check size={14} strokeWidth={3} className="text-emerald-400 shrink-0" />}
                 </button>
@@ -441,16 +451,18 @@ export function ProfessionalModal({
               onChange={e => setNewProfessional((p: any) => ({ ...p, phone: maskPhone(e.target.value) }))}
             />
 
-            <div className="col-span-2">
-              <Input
-                label="E-mail"
-                type="email"
-                placeholder="email@exemplo.com"
-                value={newProfessional.email}
-                disabled={isOwner}
-                onChange={e => setNewProfessional((p: any) => ({ ...p, email: e.target.value }))}
-              />
-            </div>
+            {!isSelfAdd && (
+              <div className="col-span-2">
+                <Input
+                  label="E-mail"
+                  type="email"
+                  placeholder="email@exemplo.com"
+                  value={newProfessional.email}
+                  disabled={isOwner}
+                  onChange={e => setNewProfessional((p: any) => ({ ...p, email: e.target.value }))}
+                />
+              </div>
+            )}
 
             <div className="col-span-2">
               <Input
@@ -471,7 +483,7 @@ export function ProfessionalModal({
               <div>
                 <h4 className="text-xs font-black text-zinc-900 uppercase tracking-tight">Segurança</h4>
                 <p className="text-[10px] text-zinc-400 font-medium">
-                  {isSelfAdd ? "Cargo — login pelo e-mail do sistema" : "Cargo e credenciais"}
+                  {isSelfAdd ? "Login vinculado ao e-mail do sistema" : "Cargo e credenciais"}
                 </p>
               </div>
             </div>

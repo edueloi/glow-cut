@@ -2596,6 +2596,7 @@ export default function AdminDashboard() {
         emptyProfessional={emptyProfessional}
         services={services}
         adminUser={adminUser}
+        professionals={professionals}
       />
 
       <ClientModal
