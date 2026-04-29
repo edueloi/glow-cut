@@ -81,11 +81,18 @@ async function ensureAgendaSettingsRecord(tenantId: string) {
 export const adminController = {
   // Atualizar perfil do próprio admin (dashboard)
   async updateProfile(req: Request, res: Response) {
-    const { name, jobTitle, bio, phone, password, photo, cpf, birthDate } = req.body;
+    const { name, jobTitle, bio, phone, password, currentPassword, photo, cpf, birthDate } = req.body;
 
     console.log(`[Profile] Atualizando perfil usuário ${req.params.id}`, { name, photo: photo ? (photo.substring(0, 30) + "...") : null });
 
     try {
+      if (password) {
+        const currentUser = await (prisma as any).adminUser.findUnique({ where: { id: req.params.id } });
+        if (currentUser.password !== currentPassword) {
+          return res.status(400).json({ error: "A senha atual está incorreta." });
+        }
+      }
+
       // Remove foto antiga do disco ao trocar
       if (photo !== undefined) {
         const current = await (prisma as any).adminUser.findUnique({ where: { id: req.params.id }, select: { photo: true } });

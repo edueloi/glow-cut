@@ -25,6 +25,28 @@ import { DeleteConfirmModal } from "@/src/pages/admin/dashboard/components/modal
 
 import { AnimatePresence, motion } from "motion/react";
 
+const formatCPF = (v: string) => {
+  v = v.replace(/\D/g, "");
+  if (v.length <= 11) {
+    v = v.replace(/(\d{3})(\d)/, "$1.$2");
+    v = v.replace(/(\d{3})(\d)/, "$1.$2");
+    v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
+  return v.substring(0, 14);
+};
+
+const formatPhone = (v: string) => {
+  v = v.replace(/\D/g, "");
+  if (v.length <= 10) {
+    v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
+    v = v.replace(/(\d{4})(\d)/, "$1-$2");
+  } else {
+    v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
+    v = v.replace(/(\d{5})(\d)/, "$1-$2");
+  }
+  return v.substring(0, 15);
+};
+
 /* ═══════════════════════════════════════════════════════
    PERMISSÕES — mapa completo por módulo
 ═══════════════════════════════════════════════════════ */
@@ -325,9 +347,9 @@ function UserModal({
   useEffect(() => {
     if (open) {
       if (editing) {
-        const perms: string[] = editing.permissions
+        const perms: string[] = typeof editing.permissions === "string"
           ? (() => { try { return JSON.parse(editing.permissions); } catch { return PRESETS[editing.role] ?? PRESETS["manager"]; } })()
-          : PRESETS[editing.role] ?? PRESETS["manager"];
+          : (Array.isArray(editing.permissions) ? editing.permissions : (PRESETS[editing.role] ?? PRESETS["manager"]));
         setForm({
           name: editing.name ?? "",
           email: editing.email ?? "",
@@ -411,13 +433,13 @@ function UserModal({
                    onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
                    iconRight={<button type="button" onClick={() => setShowPass(v => !v)} className="text-zinc-400 hover:text-zinc-600 transition-colors">{showPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>}
                  />
-                 <Input label="Telefone" placeholder="(11) 99999-9999" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} iconLeft={<Phone size={14} className="text-zinc-400" />} />
+                 <Input label="Telefone" placeholder="(11) 99999-9999" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: formatPhone(e.target.value) }))} iconLeft={<Phone size={14} className="text-zinc-400" />} />
               </div>
 
               <Input label="Cargo / Função" placeholder="Ex: Master Barber, Recepcionista..." value={form.jobTitle} onChange={e => setForm(p => ({ ...p, jobTitle: e.target.value }))} iconLeft={<Briefcase size={14} className="text-zinc-400" />} />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <Input label="CPF" placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm(p => ({ ...p, cpf: e.target.value }))} iconLeft={<FileText size={14} className="text-zinc-400" />} />
+                 <Input label="CPF" placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm(p => ({ ...p, cpf: formatCPF(e.target.value) }))} iconLeft={<FileText size={14} className="text-zinc-400" />} />
                  <Input label="Data de Nascimento" type="date" value={form.birthDate} onChange={e => setForm(p => ({ ...p, birthDate: e.target.value }))} iconLeft={<Calendar size={14} className="text-zinc-400" />} />
               </div>
               
@@ -461,7 +483,7 @@ function UserModal({
               <div className="space-y-3">
                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Ajuste Fino de Permissões:</p>
                  <PermissionMatrix
-                   permissions={form.permissions}
+                   permissions={Array.isArray(form.permissions) ? form.permissions : []}
                    onChange={perms => setForm(p => ({ ...p, permissions: perms }))}
                  />
               </div>
@@ -616,6 +638,9 @@ export function AdminProfileTab() {
   const [photo, setPhoto] = useState<string | null>(adminUser?.photo ?? null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
@@ -626,6 +651,7 @@ export function AdminProfileTab() {
     phone: adminUser?.phone ?? "",
     cpf: (adminUser as any)?.cpf ?? "",
     birthDate: (adminUser as any)?.birthDate ?? "",
+    currentPassword: "",
     password: "",
     confirmPassword: "",
   });
@@ -669,9 +695,15 @@ export function AdminProfileTab() {
 
   const handleSaveProfile = async () => {
     setProfileError("");
-    if (form.password && form.password !== form.confirmPassword) {
-      setProfileError("As senhas não coincidem.");
-      return;
+    if (form.password) {
+      if (!form.currentPassword) {
+        setProfileError("Informe a senha atual para alterar a senha.");
+        return;
+      }
+      if (form.password !== form.confirmPassword) {
+        setProfileError("As novas senhas não coincidem.");
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -684,23 +716,29 @@ export function AdminProfileTab() {
         cpf: form.cpf,
         birthDate: form.birthDate
       };
-      if (form.password) body.password = form.password;
+      if (form.password) {
+        body.password = form.password;
+        body.currentPassword = form.currentPassword;
+      }
       if (adminUser?.id) {
         const r = await apiFetch(`/api/admin/profile/${adminUser.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (!r.ok) throw new Error();
+        if (!r.ok) {
+          const errData = await r.json().catch(() => ({}));
+          throw new Error(errData.error || "Erro ao salvar. Tente novamente.");
+        }
       }
       // Atualiza contexto via API (não localStorage)
       await refreshUser();
-      setForm(f => ({ ...f, password: "", confirmPassword: "" }));
+      setForm(f => ({ ...f, currentPassword: "", password: "", confirmPassword: "" }));
       setEditingProfile(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-    } catch {
-      setProfileError("Erro ao salvar. Tente novamente.");
+    } catch (err: any) {
+      setProfileError(err.message || "Erro ao salvar. Tente novamente.");
     } finally {
       setSaving(false);
     }
@@ -1012,10 +1050,10 @@ export function AdminProfileTab() {
                           <Input label="Nome Completo" placeholder="Seu nome" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
                           <FormRow>
                             <Input label="Cargo / Função" placeholder="Ex: Proprietário" value={form.jobTitle} onChange={e => setForm(p => ({ ...p, jobTitle: e.target.value }))} />
-                            <Input label="Telefone de Contato" placeholder="(11) 99999-9999" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
+                            <Input label="Telefone de Contato" placeholder="(11) 99999-9999" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: formatPhone(e.target.value) }))} />
                           </FormRow>
                           <FormRow>
-                            <Input label="CPF" placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm(p => ({ ...p, cpf: e.target.value }))} />
+                            <Input label="CPF" placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm(p => ({ ...p, cpf: formatCPF(e.target.value) }))} />
                             <Input label="Data de Nascimento" type="date" value={form.birthDate} onChange={e => setForm(p => ({ ...p, birthDate: e.target.value }))} />
                           </FormRow>
                           <Textarea
@@ -1033,19 +1071,31 @@ export function AdminProfileTab() {
                         <div className="space-y-4">
                           <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-2">Segurança da Conta</p>
                           <Input 
+                            label="Senha Atual" 
+                            type={showCurrentPass ? "text" : "password"}
+                            value={form.currentPassword}
+                            onChange={e => setForm(p => ({ ...p, currentPassword: e.target.value }))}
+                            placeholder="Sua senha atual"
+                            autoComplete="current-password"
+                            iconRight={<button type="button" onClick={() => setShowCurrentPass(v => !v)} className="text-zinc-400 hover:text-zinc-600 transition-colors">{showCurrentPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>}
+                          />
+                          <Input 
                             label="Nova Senha" 
-                            type={showPass ? "text" : "password"}
+                            type={showNewPass ? "text" : "password"}
                             value={form.password}
                             onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
                             placeholder="Deixe vazio para não alterar"
-                            iconRight={<button type="button" onClick={() => setShowPass(v => !v)}>{showPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>}
+                            autoComplete="new-password"
+                            iconRight={<button type="button" onClick={() => setShowNewPass(v => !v)} className="text-zinc-400 hover:text-zinc-600 transition-colors">{showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>}
                           />
                           <Input 
                             label="Confirmar Nova Senha" 
-                            type={showPass ? "text" : "password"}
+                            type={showConfirmPass ? "text" : "password"}
                             value={form.confirmPassword}
                             onChange={e => setForm(p => ({ ...p, confirmPassword: e.target.value }))}
                             placeholder="Repita a nova senha"
+                            autoComplete="new-password"
+                            iconRight={<button type="button" onClick={() => setShowConfirmPass(v => !v)} className="text-zinc-400 hover:text-zinc-600 transition-colors">{showConfirmPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>}
                           />
                           <div className="pt-2">
                              <div className="flex items-center gap-2 text-[10px] text-zinc-400 italic">
