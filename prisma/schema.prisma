@@ -16,6 +16,8 @@ model AdminUser {
   jobTitle         String?   @db.VarChar(100)
   bio              String?   @db.VarChar(1000)
   phone            String?   @db.VarChar(30)
+  cpf              String?   @db.VarChar(20)
+  birthDate        String?   @db.VarChar(20)
   photo            String?   @db.LongText
   canCreateUsers   Boolean   @default(false)
   canDeleteAccount Boolean   @default(false)

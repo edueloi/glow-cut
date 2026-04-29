@@ -315,6 +315,8 @@ function UserModal({
     password: "",
     jobTitle: "",
     phone: "",
+    cpf: "",
+    birthDate: "",
     bio: "",
     role: "manager",
     permissions: PRESETS["manager"],
@@ -332,12 +334,14 @@ function UserModal({
           password: "",
           jobTitle: editing.jobTitle ?? "",
           phone: editing.phone ?? "",
+          cpf: editing.cpf ?? "",
+          birthDate: editing.birthDate ?? "",
           bio: editing.bio ?? "",
           role: editing.role ?? "manager",
           permissions: perms,
         });
       } else {
-        setForm({ name: "", email: "", password: "", jobTitle: "", phone: "", bio: "", role: "manager", permissions: PRESETS["manager"] });
+        setForm({ name: "", email: "", password: "", jobTitle: "", phone: "", cpf: "", birthDate: "", bio: "", role: "manager", permissions: PRESETS["manager"] });
       }
       setActiveSection("info");
       setShowPass(false);
@@ -411,6 +415,11 @@ function UserModal({
               </div>
 
               <Input label="Cargo / Função" placeholder="Ex: Master Barber, Recepcionista..." value={form.jobTitle} onChange={e => setForm(p => ({ ...p, jobTitle: e.target.value }))} iconLeft={<Briefcase size={14} className="text-zinc-400" />} />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <Input label="CPF" placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm(p => ({ ...p, cpf: e.target.value }))} iconLeft={<FileText size={14} className="text-zinc-400" />} />
+                 <Input label="Data de Nascimento" type="date" value={form.birthDate} onChange={e => setForm(p => ({ ...p, birthDate: e.target.value }))} iconLeft={<Calendar size={14} className="text-zinc-400" />} />
+              </div>
               
               <Textarea
                 label="Observações Internas (Bio)"
@@ -584,6 +593,7 @@ function RoleBadge({ role, pill = true, className }: { role: string; pill?: bool
     owner:   { label: "Proprietário", color: "primary", icon: <Shield size={10} /> },
     admin:   { label: "Administrador", color: "primary", icon: <CheckCircle size={10} /> },
     manager: { label: "Gerente", color: "info", icon: <UserCog size={10} /> },
+    professional: { label: "Profissional", color: "amber", icon: <Scissors size={10} /> },
     viewer:  { label: "Visualizador", color: "default", icon: <Eye size={10} /> },
   };
   const r = map[role] ?? map["viewer"];
@@ -614,6 +624,8 @@ export function AdminProfileTab() {
     jobTitle: adminUser?.jobTitle ?? "",
     bio: (adminUser as any)?.bio ?? "",
     phone: adminUser?.phone ?? "",
+    cpf: (adminUser as any)?.cpf ?? "",
+    birthDate: (adminUser as any)?.birthDate ?? "",
     password: "",
     confirmPassword: "",
   });
@@ -626,11 +638,31 @@ export function AdminProfileTab() {
   const [viewPermsUser, setViewPermsUser] = useState<any>(null);
 
   const loadTeam = useCallback(async () => {
-      const r = await apiFetch("/api/admin/team");
-    if (!r.ok) return;
-    const all = await r.json();
+    const [adminRes, profRes] = await Promise.all([
+      apiFetch("/api/admin/team"),
+      apiFetch("/api/professionals")
+    ]);
+    
+    if (!adminRes.ok) return;
+    const admins = await adminRes.json();
+    const profs = profRes.ok ? await profRes.json() : [];
+    
     const tenantId = adminUser?.tenantId;
-    setTeamUsers(all.filter((u: any) => u.tenantId === tenantId && u.id !== adminUser?.id));
+    
+    // Filtra admins do tenant (exceto o próprio)
+    const filteredAdmins = admins.filter((u: any) => u.tenantId === tenantId && u.id !== adminUser?.id);
+    
+    // Mapeia profissionais para o formato de usuário para exibição na lista
+    const mappedProfs = profs
+      .filter((p: any) => p.tenantId === tenantId && (!admins.some((a: any) => a.email === p.email && a.id !== adminUser?.id)))
+      .map((p: any) => ({
+        ...p,
+        isProfessional: true,
+        jobTitle: p.role,
+        role: p.isOwner ? "owner" : "professional"
+      }));
+
+    setTeamUsers([...filteredAdmins, ...mappedProfs]);
   }, [adminUser]);
 
   useEffect(() => { if (isOwner) loadTeam(); }, [isOwner, loadTeam]);
@@ -643,7 +675,15 @@ export function AdminProfileTab() {
     }
     setSaving(true);
     try {
-      const body: any = { name: form.name, jobTitle: form.jobTitle, bio: form.bio, phone: form.phone, photo };
+      const body: any = { 
+        name: form.name, 
+        jobTitle: form.jobTitle, 
+        bio: form.bio, 
+        phone: form.phone, 
+        photo,
+        cpf: form.cpf,
+        birthDate: form.birthDate
+      };
       if (form.password) body.password = form.password;
       if (adminUser?.id) {
         const r = await apiFetch(`/api/admin/profile/${adminUser.id}`, {
@@ -679,6 +719,8 @@ export function AdminProfileTab() {
       canCreateUsers: data.permissions.includes("usuarios.criar"),
       canDeleteAccount: false,
       permissions: JSON.stringify(data.permissions),
+      cpf: data.cpf,
+      birthDate: data.birthDate,
     };
     if (editingUser) {
       await apiFetch(`/api/admin/team/${editingUser.id}`, {
@@ -851,11 +893,20 @@ export function AdminProfileTab() {
                              </div>
                              <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-zinc-400">
-                                   <Briefcase size={14} />
+                                   <FileText size={14} />
                                 </div>
                                 <div className="min-w-0">
-                                   <p className="text-[9px] font-black text-zinc-400 uppercase">Cargo</p>
-                                   <p className="text-sm font-bold text-zinc-700">{form.jobTitle || "Admin"}</p>
+                                   <p className="text-[9px] font-black text-zinc-400 uppercase">CPF</p>
+                                   <p className="text-sm font-bold text-zinc-700">{form.cpf || "Não informado"}</p>
+                                </div>
+                             </div>
+                             <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-zinc-400">
+                                   <Calendar size={14} />
+                                </div>
+                                <div className="min-w-0">
+                                   <p className="text-[9px] font-black text-zinc-400 uppercase">Nascimento</p>
+                                   <p className="text-sm font-bold text-zinc-700">{form.birthDate || "Não informado"}</p>
                                 </div>
                              </div>
                           </div>
@@ -962,6 +1013,10 @@ export function AdminProfileTab() {
                           <FormRow>
                             <Input label="Cargo / Função" placeholder="Ex: Proprietário" value={form.jobTitle} onChange={e => setForm(p => ({ ...p, jobTitle: e.target.value }))} />
                             <Input label="Telefone de Contato" placeholder="(11) 99999-9999" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
+                          </FormRow>
+                          <FormRow>
+                            <Input label="CPF" placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm(p => ({ ...p, cpf: e.target.value }))} />
+                            <Input label="Data de Nascimento" type="date" value={form.birthDate} onChange={e => setForm(p => ({ ...p, birthDate: e.target.value }))} />
                           </FormRow>
                           <Textarea
                             label="Sobre você (Bio)"

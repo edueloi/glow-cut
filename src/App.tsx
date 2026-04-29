@@ -40,6 +40,8 @@ export interface AuthUser {
   jobTitle?: string;
   phone?: string;
   photo?: string;
+  cpf?: string;
+  birthDate?: string;
   tenantId?: string;
   tenantName?: string;
   tenantSlug?: string;

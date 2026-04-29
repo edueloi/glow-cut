@@ -81,7 +81,7 @@ async function ensureAgendaSettingsRecord(tenantId: string) {
 export const adminController = {
   // Atualizar perfil do próprio admin (dashboard)
   async updateProfile(req: Request, res: Response) {
-    const { name, jobTitle, bio, phone, password, photo } = req.body;
+    const { name, jobTitle, bio, phone, password, photo, cpf, birthDate } = req.body;
 
     console.log(`[Profile] Atualizando perfil usuário ${req.params.id}`, { name, photo: photo ? (photo.substring(0, 30) + "...") : null });
 
@@ -101,6 +101,8 @@ export const adminController = {
           ...(phone !== undefined && { phone }),
           ...(password !== undefined && { password }),
           ...(photo !== undefined && { photo }),
+          ...(cpf !== undefined && { cpf }),
+          ...(birthDate !== undefined && { birthDate }),
         },
       });
 
@@ -119,6 +121,8 @@ export const adminController = {
             ...(bio !== undefined && { bio }),
             ...(phone !== undefined && { phone }),
             ...(photo !== undefined && { photo }),
+            ...(cpf !== undefined && { cpf }),
+            ...(birthDate !== undefined && { birthDate }),
           }
         });
       } catch (syncErr) {
@@ -146,6 +150,7 @@ export const adminController = {
       tenantName: user.tenant.name, planName: user.tenant.plan.name,
       canCreateUsers: user.canCreateUsers, canDeleteAccount: user.canDeleteAccount,
       permissions: user.permissions,
+      cpf: user.cpf, birthDate: user.birthDate,
     });
   },
 
@@ -261,6 +266,7 @@ export const adminController = {
         tenantSlug: adminUser.tenant.slug, planName: adminUser.tenant.plan.name,
         canCreateUsers: adminUser.canCreateUsers, canDeleteAccount: adminUser.canDeleteAccount,
         permissions: adminUser.permissions,
+        cpf: adminUser.cpf, birthDate: adminUser.birthDate,
       });
     }
 
@@ -343,7 +349,7 @@ export const adminController = {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
 
-    const { name, email, password, role, jobTitle, phone, photo, canCreateUsers, canDeleteAccount, permissions } = req.body;
+    const { name, email, password, role, jobTitle, phone, photo, canCreateUsers, canDeleteAccount, permissions, cpf, birthDate } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ error: "name, email e password são obrigatórios." });
     }
@@ -367,6 +373,8 @@ export const adminController = {
           canDeleteAccount: !!canDeleteAccount,
           isActive: true,
           permissions: permissions ? (typeof permissions === "string" ? permissions : JSON.stringify(permissions)) : null,
+          cpf: cpf || null,
+          birthDate: birthDate || null,
         },
       });
       res.json(user);
@@ -379,7 +387,7 @@ export const adminController = {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
 
-    const { name, email, password, role, jobTitle, phone, photo, isActive, canCreateUsers, canDeleteAccount, permissions } = req.body;
+    const { name, email, password, role, jobTitle, phone, photo, isActive, canCreateUsers, canDeleteAccount, permissions, cpf, birthDate } = req.body;
 
     try {
       const current = await (prisma as any).adminUser.findFirst({
@@ -404,6 +412,8 @@ export const adminController = {
           ...(canCreateUsers !== undefined && { canCreateUsers: !!canCreateUsers }),
           ...(canDeleteAccount !== undefined && { canDeleteAccount: !!canDeleteAccount }),
           ...(permissions !== undefined && { permissions: typeof permissions === "string" ? permissions : JSON.stringify(permissions) }),
+          ...(cpf !== undefined && { cpf }),
+          ...(birthDate !== undefined && { birthDate }),
         },
       });
       res.json(user);
