@@ -24,6 +24,8 @@ interface WppInstance {
   qrCode?: string;
   isActive: boolean;
   wppAllowed?: boolean;
+  canConnectOwnBot?: boolean;
+  canUseSystemBot?: boolean;
 }
 
 interface WppTemplate {
@@ -320,104 +322,122 @@ export function WppTab() {
           action={statusBadge}
         />
 
-        {/* Card: Conexão */}
-        <PanelCard
-          icon={QrCode}
-          iconWrapClassName="bg-zinc-50 border-zinc-100"
-          iconClassName="text-zinc-600"
-          title="Conexão do Dispositivo"
-          action={
-            isConnected ? (
-              <button
-                onClick={handleDisconnect}
-                className="text-[11px] font-black text-rose-500 uppercase tracking-widest hover:underline"
-              >
-                Desconectar
-              </button>
-            ) : undefined
-          }
-        >
-          {isConnected ? (
-            /* ── Conectado ── */
-            <div className="flex flex-col sm:flex-row items-center gap-5 py-2">
-              <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center shrink-0">
-                <Wifi size={32} className="text-emerald-500 animate-pulse" />
-              </div>
-              <div className="space-y-2 text-center sm:text-left">
-                <h4 className="text-lg font-black text-zinc-900">Seu WhatsApp está pronto! 🚀</h4>
-                <p className="text-sm text-zinc-500 leading-relaxed">
-                  Notificações serão enviadas pelo número <strong>+{instance?.phone}</strong>.
-                </p>
-                <button
-                  onClick={handleCheckStatus}
-                  disabled={statusLoading}
-                  className="text-xs font-black text-zinc-400 flex items-center gap-2 hover:text-zinc-900 transition-colors uppercase tracking-widest mx-auto sm:mx-0"
-                >
-                  <RefreshCw size={12} className={cn(statusLoading && "animate-spin")} />
-                  Verificar conexão
-                </button>
-              </div>
+        {/* Aviso de Bot do Sistema */}
+        {!isConnected && instance?.canUseSystemBot && (
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm shrink-0">
+              <MessageCircle size={20} className="text-blue-500" />
             </div>
-          ) : (
-            /* ── Desconectado / QR ── */
-            <div className="flex flex-col lg:flex-row gap-8 items-center">
-              <div className="flex-1 space-y-6 w-full">
-                <div className="space-y-2">
-                  <h4 className="text-xl sm:text-2xl font-black text-zinc-900 leading-tight">
-                    Conecte seu WhatsApp em segundos
-                  </h4>
-                  <p className="text-sm text-zinc-500 leading-relaxed">
-                    Envie mensagens profissionais automáticas. É seguro, rápido e usa o seu próprio número.
-                  </p>
-                </div>
+            <div>
+              <h4 className="text-sm font-bold text-blue-900">Bot Agendelle Ativo</h4>
+              <p className="text-xs text-blue-700 mt-0.5 leading-relaxed">
+                Você não tem um WhatsApp conectado, então o sistema enviará notificações através do <strong>Bot Agendelle</strong> por padrão.
+              </p>
+            </div>
+          </div>
+        )}
 
-                <div className="space-y-3">
-                  {["Abra o WhatsApp no seu celular", "Toque em Aparelhos Conectados", "Aponte a câmera para o código ao lado"].map((step, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <span className="w-7 h-7 rounded-xl bg-zinc-900 text-white flex items-center justify-center text-xs font-black shrink-0">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm text-zinc-600 font-semibold">{step}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <Button
-                  onClick={handleConnect}
-                  disabled={connectLoading}
-                  loading={connectLoading}
-                  className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 text-white font-black uppercase tracking-widest"
+        {/* Card: Conexão */}
+        {instance?.canConnectOwnBot && (
+          <PanelCard
+            icon={QrCode}
+            iconWrapClassName="bg-zinc-50 border-zinc-100"
+            iconClassName="text-zinc-600"
+            title="Conectar seu Próprio WhatsApp"
+            description="Use seu próprio número para enviar mensagens aos seus clientes."
+            action={
+              isConnected ? (
+                <button
+                  onClick={handleDisconnect}
+                  className="text-[11px] font-black text-rose-500 uppercase tracking-widest hover:underline"
                 >
-                  <QrCode size={16} className="mr-2" />
-                  {instance?.qrCode ? "Gerar Novo QR Code" : "Começar Conexão Agora"}
-                </Button>
+                  Desconectar
+                </button>
+              ) : undefined
+            }
+          >
+            {isConnected ? (
+              /* ── Conectado ── */
+              <div className="flex flex-col sm:flex-row items-center gap-5 py-2">
+                <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center shrink-0">
+                  <Wifi size={32} className="text-emerald-500 animate-pulse" />
+                </div>
+                <div className="space-y-2 text-center sm:text-left">
+                  <h4 className="text-lg font-black text-zinc-900">Seu WhatsApp está conectado! 🚀</h4>
+                  <p className="text-sm text-zinc-500 leading-relaxed">
+                    Notificações serão enviadas pelo seu número <strong>+{instance?.phone}</strong>.
+                  </p>
+                  <button
+                    onClick={handleCheckStatus}
+                    disabled={statusLoading}
+                    className="text-xs font-black text-zinc-400 flex items-center gap-2 hover:text-zinc-900 transition-colors uppercase tracking-widest mx-auto sm:mx-0"
+                  >
+                    <RefreshCw size={12} className={cn(statusLoading && "animate-spin")} />
+                    Verificar conexão
+                  </button>
+                </div>
               </div>
-
-              {/* QR Code */}
-              <div className="shrink-0 flex justify-center">
-                {instance?.qrCode ? (
-                  <div className="p-4 bg-white border-4 border-zinc-100 rounded-3xl shadow-lg">
-                    <img
-                      src={instance.qrCode.startsWith("data:") ? instance.qrCode : `data:image/png;base64,${instance.qrCode}`}
-                      alt="QR Code"
-                      className="w-44 h-44 sm:w-56 sm:h-56 object-contain rounded-xl"
-                    />
-                    <div className="mt-3 flex justify-center">
-                      <Badge color="warning">Aguardando leitura</Badge>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-44 h-44 sm:w-56 sm:h-56 bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-3xl flex flex-col items-center justify-center gap-3 text-zinc-300">
-                    <QrCode size={40} className="opacity-20" />
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40 text-center px-6 leading-relaxed">
-                      QR Code aparecerá aqui
+            ) : (
+              /* ── Desconectado / QR ── */
+              <div className="flex flex-col lg:flex-row gap-8 items-center">
+                <div className="flex-1 space-y-6 w-full">
+                  <div className="space-y-2">
+                    <h4 className="text-xl sm:text-2xl font-black text-zinc-900 leading-tight">
+                      Conecte seu WhatsApp em segundos
+                    </h4>
+                    <p className="text-sm text-zinc-500 leading-relaxed">
+                      Envie mensagens profissionais automáticas. É seguro, rápido e usa o seu próprio número.
                     </p>
                   </div>
-                )}
+
+                  <div className="space-y-3">
+                    {["Abra o WhatsApp no seu celular", "Toque em Aparelhos Conectados", "Aponte a câmera para o código ao lado"].map((step, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <span className="w-7 h-7 rounded-xl bg-zinc-900 text-white flex items-center justify-center text-xs font-black shrink-0">
+                          {i + 1}
+                        </span>
+                        <span className="text-sm text-zinc-600 font-semibold">{step}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    onClick={handleConnect}
+                    disabled={connectLoading}
+                    loading={connectLoading}
+                    className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 text-white font-black uppercase tracking-widest"
+                  >
+                    <QrCode size={16} className="mr-2" />
+                    {instance?.qrCode ? "Gerar Novo QR Code" : "Começar Conexão Agora"}
+                  </Button>
+                </div>
+
+                {/* QR Code */}
+                <div className="shrink-0 flex justify-center">
+                  {instance?.qrCode ? (
+                    <div className="p-4 bg-white border-4 border-zinc-100 rounded-3xl shadow-lg">
+                      <img
+                        src={instance.qrCode.startsWith("data:") ? instance.qrCode : `data:image/png;base64,${instance.qrCode}`}
+                        alt="QR Code"
+                        className="w-44 h-44 sm:w-56 sm:h-56 object-contain rounded-xl"
+                      />
+                      <div className="mt-3 flex justify-center">
+                        <Badge color="warning">Aguardando leitura</Badge>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-44 h-44 sm:w-56 sm:h-56 bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-3xl flex flex-col items-center justify-center gap-3 text-zinc-300">
+                      <QrCode size={40} className="opacity-20" />
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-40 text-center px-6 leading-relaxed">
+                        QR Code aparecerá aqui
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </PanelCard>
+            )}
+          </PanelCard>
+        )}
 
         {/* Card: Configurações de Disparo */}
         <PanelCard

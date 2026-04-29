@@ -698,7 +698,7 @@ export const agendaController = {
             notes: isPublicRequest ? null : (notes || null),
             tenantId, sessionNumber: createdCount, totalSessions: count - skipDatesList.length, repeatGroupId: groupId,
           },
-          include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true } }, professional: { select: { id: true, name: true, phone: true } } }
+          include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true, phone: true } } }
         });
         results.push(appt);
 

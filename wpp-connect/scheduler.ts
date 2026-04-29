@@ -117,9 +117,14 @@ async function tenantHasWpp(tenantId: string): Promise<boolean> {
 
     const plan = await (prisma as any).plan.findUnique({
       where: { id: tenant.planId },
-      select: { wppEnabled: true },
+      select: { 
+        wppEnabled: true,
+        systemBotEnabled: true,
+        qrCodeBotEnabled: true
+      },
     });
-    return !!plan?.wppEnabled;
+    
+    return !!(plan?.wppEnabled || plan?.systemBotEnabled || plan?.qrCodeBotEnabled);
   } catch {
     return false;
   }
@@ -289,8 +294,8 @@ async function processBirthdays(): Promise<void> {
   const brHourStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo", hour: "numeric", hour12: false });
   const brHour = parseInt(brHourStr, 10);
 
-  // Somente envia feliz aniversário entre as 09:00 e 18:00
-  if (brHour < 9 || brHour > 18) return;
+  // Somente envia feliz aniversário entre as 08:00 e 18:00
+  if (brHour < 8 || brHour > 18) return;
 
   const currentMonthNum = now.getMonth() + 1;
   const currentDay = now.getDate();

@@ -651,7 +651,7 @@ export async function initSession(tenantId: string): Promise<void> {
       if (!text) continue;
       const clientKey = normalizeForKey(remoteJid);
       const pushName: string = msg.pushName || clientKey;
-      if (tenantId !== "system") continue;
+      // if (tenantId !== "system") continue;
       console.log(`[Bot] ${clientKey} (${pushName}): ${text}`);
       try {
         const handled = await handleAttendant(tenantId, sock, remoteJid, pushName, text);

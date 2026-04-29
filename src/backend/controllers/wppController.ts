@@ -97,12 +97,23 @@ export async function sendWppToPhone(tenantId: string, phone: string, text: stri
     // 1. Checa se o tenant tem permissão (Plano ou Override)
     const tenant = await (prisma as any).tenant.findUnique({
       where: { id: tenantId },
-      select: { wppOverride: true, plan: { select: { wppEnabled: true } } }
+      select: { 
+        wppOverride: true, 
+        plan: { 
+          select: { 
+            wppEnabled: true,
+            systemBotEnabled: true,
+            qrCodeBotEnabled: true
+          } 
+        } 
+      }
     });
     
-    const wppAllowed = tenant?.wppOverride !== null ? tenant?.wppOverride : tenant?.plan?.wppEnabled;
+    const plan = tenant?.plan;
+    const wppAllowed = tenant?.wppOverride ?? (plan?.systemBotEnabled || plan?.qrCodeBotEnabled || plan?.wppEnabled);
+    
     if (!wppAllowed) {
-      console.log(`[WPP][${tenantId}] Envio bloqueado: parceiro não tem o módulo WhatsApp ativo.`);
+      console.log(`[WPP][${tenantId}] Envio bloqueado: parceiro não tem o módulo WhatsApp ativo no plano.`);
       return;
     }
 
@@ -131,8 +142,15 @@ export async function getTemplateBody(tenantId: string, type: string): Promise<s
     const t = await (prisma as any).wppMessageTemplate.findUnique({
       where: { tenantId_type: { tenantId, type } },
     });
-    return t?.isActive && t?.body ? t.body : null;
-  } catch { return null; }
+    if (t?.isActive && t?.body) return t.body;
+    
+    // Fallback para o template padrão se não houver um customizado/ativo
+    const defaultTpl = DEFAULT_TEMPLATES.find(d => d.type === type);
+    return defaultTpl?.body || null;
+  } catch {
+    const defaultTpl = DEFAULT_TEMPLATES.find(d => d.type === type);
+    return defaultTpl?.body || null;
+  }
 }
 
 export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Promise<void> {
@@ -146,12 +164,14 @@ export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Pro
   });
 
   try {
-    const [config, tenant] = await Promise.all([
-      (prisma as any).wppBotConfig.findUnique({ where: { tenantId } }),
-      (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
-    ]);
+    const tenant = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
+    let config = await (prisma as any).wppBotConfig.findUnique({ where: { tenantId } });
+    if (!config) {
+      config = await ensureBotConfig(tenantId);
+    }
+
     if (!config?.botEnabled || !config?.sendProfNewBooking) {
-      console.log(`[WPP] IGNORANDO prof_new_booking: botEnabled=${config?.botEnabled}, sendProfNewBooking=${config?.sendProfNewBooking}`);
+      console.log(`[WPP] IGNORANDO prof_new_booking para ${tenantId}: botEnabled=${config?.botEnabled}, sendProfNewBooking=${config?.sendProfNewBooking}`);
       return;
     }
     if (!appt?.professional?.phone) {
@@ -222,12 +242,14 @@ export async function fireWppConfirmation(tenantId: string, appts: any[]): Promi
   if (!appt) return;
 
   try {
-    const [config, tenant] = await Promise.all([
-      (prisma as any).wppBotConfig.findUnique({ where: { tenantId } }),
-      (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true, address: true } }),
-    ]);
+    const tenant = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true, address: true } });
+    let config = await (prisma as any).wppBotConfig.findUnique({ where: { tenantId } });
+    if (!config) {
+      config = await ensureBotConfig(tenantId);
+    }
+
     if (!config?.botEnabled || !config?.sendConfirmation) {
-      console.log(`[WPP] IGNORANDO confirmation: botEnabled=${config?.botEnabled}, sendConfirmation=${config?.sendConfirmation}`);
+      console.log(`[WPP] IGNORANDO confirmation para ${tenantId}: botEnabled=${config?.botEnabled}, sendConfirmation=${config?.sendConfirmation}`);
       return;
     }
     if (!appt?.client?.phone) {
@@ -290,11 +312,24 @@ export const wppController = {
         (prisma as any).wppInstance.findUnique({ where: { tenantId } }),
         (prisma as any).tenant.findUnique({ 
           where: { id: tenantId }, 
-          select: { wppOverride: true, plan: { select: { wppEnabled: true } } } 
+          select: { 
+            wppOverride: true, 
+            plan: { 
+              select: { 
+                wppEnabled: true,
+                systemBotEnabled: true,
+                qrCodeBotEnabled: true
+              } 
+            } 
+          } 
         }),
       ]);
 
-      const wppAllowed = tenant?.wppOverride !== null ? tenant?.wppOverride : tenant?.plan?.wppEnabled;
+      const plan = tenant?.plan;
+      const canConnectOwnBot = tenant?.wppOverride ?? (plan?.qrCodeBotEnabled || plan?.wppEnabled);
+      const canUseSystemBot = tenant?.wppOverride ?? (plan?.systemBotEnabled || plan?.wppEnabled);
+      const wppAllowed = canConnectOwnBot || canUseSystemBot;
+      
       const sessionInfo = getSessionInfo(tenantId);
       
       res.json(record ? { 
@@ -302,10 +337,14 @@ export const wppController = {
         status: sessionInfo.status, 
         phone: sessionInfo.phone, 
         qrCode: sessionInfo.qrDataUrl,
-        wppAllowed: !!wppAllowed
+        wppAllowed: !!wppAllowed,
+        canConnectOwnBot: !!canConnectOwnBot,
+        canUseSystemBot: !!canUseSystemBot
       } : { 
         status: "not_configured", 
-        wppAllowed: !!wppAllowed 
+        wppAllowed: !!wppAllowed,
+        canConnectOwnBot: !!canConnectOwnBot,
+        canUseSystemBot: !!canUseSystemBot
       });
     } catch (e: any) {
       res.status(500).json({ error: e?.message });
@@ -345,8 +384,30 @@ export const wppController = {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     try {
-      const record = await (prisma as any).wppInstance.findUnique({ where: { tenantId } });
+      const [record, tenant] = await Promise.all([
+        (prisma as any).wppInstance.findUnique({ where: { tenantId } }),
+        (prisma as any).tenant.findUnique({ 
+          where: { id: tenantId }, 
+          select: { 
+            wppOverride: true, 
+            plan: { 
+              select: { 
+                wppEnabled: true,
+                qrCodeBotEnabled: true
+              } 
+            } 
+          } 
+        }),
+      ]);
+
       if (!record) return res.status(404).json({ error: "Instância não configurada. Salve primeiro." });
+
+      const plan = tenant?.plan;
+      const canConnectOwnBot = tenant?.wppOverride ?? (plan?.qrCodeBotEnabled || plan?.wppEnabled);
+      
+      if (!canConnectOwnBot) {
+        return res.status(403).json({ error: "Seu plano não permite conectar bot próprio via QR Code." });
+      }
 
       const info = await connectSession(tenantId);
       res.json({
