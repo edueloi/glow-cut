@@ -83,16 +83,28 @@ function ensureDir(dir: string) {
 }
 
 function normalizePhone(raw: string): string {
-  const digits = String(raw || "").replace(/\D/g, "");
-  const clean = digits.split(":")[0].replace(/@.*/, "");
-  if (clean.startsWith("55") && clean.length === 15) return clean.slice(0, 13);
-  return clean;
+  // Remove tudo que não é dígito, remove sufixo :X e @domínio
+  let digits = String(raw || "").replace(/\D/g, "");
+  digits = digits.split(":")[0];
+  // Números BR de 15 dígitos: 55 + DDD(2) + 9(1) + 8 = 13 → corta para 13
+  if (digits.startsWith("55") && digits.length === 15) return digits.slice(0, 13);
+  return digits;
 }
 
 function phoneToJid(phone: string): string {
   const digits = String(phone).replace(/\D/g, "");
-  const num = digits.startsWith("55") ? digits : `55${digits}`;
+  // Garante DDI 55 para números brasileiros (10 ou 11 dígitos sem DDI)
+  let num = digits;
+  if (!num.startsWith("55") && (num.length === 10 || num.length === 11)) {
+    num = `55${num}`;
+  }
   return `${num}@s.whatsapp.net`;
+}
+
+// Extrai phone limpo do remoteJid do Baileys (que pode vir como "5511...@s.whatsapp.net" ou "283...@s.whatsapp.net")
+function jidToPhone(jid: string): string {
+  const raw = jid.replace(/@.*/, "").replace(/:[0-9]+$/, "");
+  return normalizePhone(raw);
 }
 
 function saudacao(): string {
@@ -652,7 +664,7 @@ export async function initSession(tenantId: string): Promise<void> {
       const text = (msg.message.conversation || msg.message.extendedTextMessage?.text || "").trim();
       if (!text) continue;
 
-      const phone = normalizePhone(remoteJid);
+      const phone = jidToPhone(remoteJid);
       const pushName: string = msg.pushName || phone;
 
       // Só processa bot para o tenant "system"
