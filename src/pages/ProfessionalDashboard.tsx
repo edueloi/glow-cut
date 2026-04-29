@@ -730,28 +730,64 @@ function ComandasSection({
 
 // ─── SECTION: Clientes ───────────────────────────────────────────────────────
 
-function ClientesSection({ prof }: { prof: ProfData }) {
+function ClientesSection({
+  prof,
+  canCreate,
+}: {
+  prof: ProfData;
+  canCreate?: boolean;
+}) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ name: "", phone: "", email: "" });
+
+  const fetchClients = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/clients", {
+        headers: { "x-tenant-id": prof.tenantId },
+      });
+      const data = await res.json();
+      setClients(Array.isArray(data) ? data : []);
+    } catch {
+      setClients([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchClients = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/clients", {
-          headers: { "x-tenant-id": prof.tenantId },
-        });
-        const data = await res.json();
-        setClients(Array.isArray(data) ? data : []);
-      } catch {
-        setClients([]);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchClients();
   }, [prof.tenantId]);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch("/api/clients", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant-id": prof.tenantId,
+        },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        setShowCreate(false);
+        setForm({ name: "", phone: "", email: "" });
+        fetchClients();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Erro ao criar cliente");
+      }
+    } catch {
+      alert("Erro de conexão");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = clients.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase())
@@ -760,27 +796,131 @@ function ClientesSection({ prof }: { prof: ProfData }) {
   return (
     <div className="space-y-4">
       {/* Search */}
-      <div className="relative">
-        <Search
-          size={15}
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400"
-        />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar cliente..."
-          className="w-full bg-white border border-zinc-200 rounded-2xl pl-10 pr-4 py-3.5 text-sm font-bold text-zinc-900 placeholder:text-zinc-400 placeholder:font-normal outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 transition-all"
-        />
-        {search && (
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search
+            size={15}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400"
+          />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar cliente..."
+            className="w-full bg-white border border-zinc-200 rounded-2xl pl-10 pr-4 py-3.5 text-sm font-bold text-zinc-900 placeholder:text-zinc-400 placeholder:font-normal outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 transition-all"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        {canCreate && (
           <button
-            onClick={() => setSearch("")}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400"
+            onClick={() => setShowCreate(true)}
+            className="h-[52px] px-5 bg-amber-500 text-white rounded-2xl flex items-center gap-2 font-black text-xs uppercase tracking-wider hover:bg-amber-600 transition-all shadow-md shadow-amber-500/20 active:scale-95"
           >
-            <X size={14} />
+            <Plus size={16} />
+            <span className="hidden sm:inline">Novo</span>
           </button>
         )}
       </div>
+
+      <AnimatePresence>
+        {showCreate && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCreate(false)}
+              className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[100]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="fixed inset-x-4 top-[15%] sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-md bg-white rounded-[32px] p-6 z-[110] shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-black text-zinc-900">Novo Cliente</h3>
+                <button
+                  onClick={() => setShowCreate(false)}
+                  className="p-2 hover:bg-zinc-100 rounded-xl text-zinc-400 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreate} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">
+                    Nome Completo
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400"
+                    placeholder="Nome do cliente"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">
+                    Telefone
+                  </label>
+                  <input
+                    type="text"
+                    value={form.phone}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/\D/g, "");
+                      if (v.length > 11) v = v.slice(0, 11);
+                      if (v.length > 10) {
+                        v = v.replace(/^(\d{2})(\d{5})(\d{4}).*/, "($1) $2-$3");
+                      } else if (v.length > 6) {
+                        v = v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, "($1) $2-$3");
+                      } else if (v.length > 2) {
+                        v = v.replace(/^(\d{2})(\d{0,4}).*/, "($1) $2");
+                      } else if (v.length > 0) {
+                        v = v.replace(/^(\d{0,2}).*/, "($1");
+                      }
+                      setForm({ ...form, phone: v });
+                    }}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400"
+                    placeholder="(00) 00000-0000"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">
+                    E-mail (Opcional)
+                  </label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400"
+                    placeholder="cliente@email.com"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-zinc-900 text-white rounded-2xl py-4 text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-[0.98] disabled:opacity-50 mt-2"
+                >
+                  {loading ? "Criando..." : "Cadastrar Cliente"}
+                </button>
+              </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.12em] px-1">
         {filtered.length} cliente(s)
@@ -1182,6 +1322,7 @@ export default function ProfessionalDashboard() {
   const canSeeComandas = canDo(perms, "comandas");
   const canSeeClients = canDo(perms, "clients");
   const canSeeServices = canDo(perms, "services");
+  const canCreateClients = canDo(perms, "clients", "criar");
   const canSeeAllAgenda =
     canDo(perms, "agenda", "ver_todos") ||
     canDo(perms, "agenda", "editar_todos");
@@ -1326,7 +1467,7 @@ export default function ProfessionalDashboard() {
           <ComandasSection prof={prof} canCreate={canCreateComandas} />
         )}
 
-        {activeTab === "clientes" && <ClientesSection prof={prof} />}
+        {activeTab === "clientes" && <ClientesSection prof={prof} canCreate={canCreateClients} />}
 
         {activeTab === "servicos" && <ServicesSection prof={prof} />}
 
