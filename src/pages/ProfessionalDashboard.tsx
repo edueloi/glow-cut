@@ -7,6 +7,7 @@ import {
   Phone, Plus, X, DollarSign, CheckCircle2,
   AlertCircle, ChevronDown, Search, Star,
   User, Bell, RefreshCw,
+  Menu, Eye, EyeOff,
 } from "lucide-react";
 import {
   format, addDays, subDays, isToday, parseISO, isSameDay,
@@ -952,9 +953,11 @@ function ServicesSection({ prof }: { prof: ProfData }) {
 
 // ─── SECTION: Perfil ──────────────────────────────────────────────────────────
 
-function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => Promise<void> }) {
+function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => void }) {
   const [loading, setLoading] = useState(false);
   const [editPassword, setEditPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [form, setForm] = useState({
     name: prof.name || "",
     email: prof.email || "",
@@ -1096,25 +1099,43 @@ function ProfileSection({ prof, onUpdate }: { prof: ProfData; onUpdate: () => Pr
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider">Senha Atual</label>
-                    <input
-                      type="password"
-                      value={form.currentPassword}
-                      onChange={e => setForm({ ...form, currentPassword: e.target.value })}
-                      className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20"
-                      placeholder="••••••••"
-                      required={editPassword}
-                    />
+                    <div className="relative">
+                      <input
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={form.currentPassword}
+                        onChange={e => setForm({ ...form, currentPassword: e.target.value })}
+                        className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 pr-10 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20"
+                        placeholder="••••••••"
+                        required={editPassword}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                      >
+                        {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider">Nova Senha</label>
-                    <input
-                      type="password"
-                      value={form.password}
-                      onChange={e => setForm({ ...form, password: e.target.value })}
-                      className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20"
-                      placeholder="••••••••"
-                      required={editPassword}
-                    />
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        value={form.password}
+                        onChange={e => setForm({ ...form, password: e.target.value })}
+                        className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 pr-10 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20"
+                        placeholder="••••••••"
+                        required={editPassword}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                      >
+                        {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1145,6 +1166,7 @@ export default function ProfessionalDashboard() {
   const [view, setView] = useState<"day" | "week">("day");
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("dashboard");
+  const [showMenu, setShowMenu] = useState(false);
 
   // Carrega prof do AuthContext (já validado pelo RequireProfessional)
   useEffect(() => {
@@ -1486,49 +1508,128 @@ export default function ProfessionalDashboard() {
 
         {/* ── Bottom Nav — mobile/tablet only (hidden on lg+) ─────────────── */}
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-zinc-200 shadow-[0_-4px_24px_rgba(0,0,0,0.07)]">
-          <div
-            className={cn(
-              "grid max-w-lg mx-auto px-2 pb-safe",
-              tabs.length === 1 && "grid-cols-1",
-              tabs.length === 2 && "grid-cols-2",
-              tabs.length === 3 && "grid-cols-3",
-              tabs.length === 4 && "grid-cols-4",
-              tabs.length >= 5 && "grid-cols-5"
-            )}
-          >
-            {tabs.map((tab) => {
+          <div className={cn(
+            "grid h-20 items-center px-2",
+            tabs.length > 4 ? "grid-cols-5" : `grid-cols-${tabs.length}`
+          )}>
+            {tabs.slice(0, tabs.length > 4 ? 4 : tabs.length).map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 transition-all",
-                    active ? "text-amber-500" : "text-zinc-400"
-                  )}
+                  className="flex flex-col items-center justify-center gap-1 transition-all relative"
                 >
                   <div
                     className={cn(
-                      "w-12 h-7 rounded-full flex items-center justify-center transition-all",
-                      active ? "bg-amber-100" : "hover:bg-zinc-100"
+                      "w-10 h-10 rounded-full flex items-center justify-center transition-all",
+                      active ? "bg-amber-100 text-amber-600 scale-110" : "text-zinc-400"
                     )}
                   >
-                    <Icon size={19} strokeWidth={active ? 2.5 : 1.8} />
+                    <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
                   </div>
                   <span
                     className={cn(
                       "text-[9px] font-black uppercase tracking-wider",
-                      active ? "text-amber-500" : "text-zinc-400"
+                      active ? "text-amber-600" : "text-zinc-400"
                     )}
                   >
                     {tab.label}
                   </span>
+                  {active && (
+                    <motion.div
+                      layoutId="bottom-nav-indicator"
+                      className="absolute -top-1 w-8 h-1 bg-amber-500 rounded-full"
+                    />
+                  )}
                 </button>
               );
             })}
+
+            {tabs.length > 4 && (
+              <button
+                onClick={() => setShowMenu(true)}
+                className="flex flex-col items-center justify-center gap-1 transition-all relative"
+              >
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-400">
+                  <Menu size={20} />
+                </div>
+                <span className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
+                  Menu
+                </span>
+              </button>
+            )}
           </div>
         </nav>
+
+        {/* ── Mobile Menu Overlay ────────────────────────────────────────── */}
+        <AnimatePresence>
+          {showMenu && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowMenu(false)}
+                className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[60] lg:hidden"
+              />
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[40px] z-[70] lg:hidden p-8 pb-12 shadow-2xl overflow-hidden"
+              >
+                <div className="w-12 h-1.5 bg-zinc-100 rounded-full mx-auto mb-8" />
+                
+                <div className="grid grid-cols-3 gap-6">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const active = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => {
+                          setActiveTab(tab.id);
+                          setShowMenu(false);
+                        }}
+                        className="flex flex-col items-center gap-3 group"
+                      >
+                        <div className={cn(
+                          "w-14 h-14 rounded-[22px] flex items-center justify-center transition-all duration-300 shadow-sm border",
+                          active 
+                            ? "bg-amber-500 text-white border-amber-500 shadow-amber-500/20 scale-110" 
+                            : "bg-white text-zinc-400 border-zinc-100 group-active:scale-95"
+                        )}>
+                          <Icon size={24} />
+                        </div>
+                        <span className={cn(
+                          "text-[10px] font-black uppercase tracking-widest text-center",
+                          active ? "text-zinc-900" : "text-zinc-500"
+                        )}>
+                          {tab.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  
+                  <button
+                    onClick={() => { handleLogout(); setShowMenu(false); }}
+                    className="flex flex-col items-center gap-3 group"
+                  >
+                    <div className="w-14 h-14 rounded-[22px] bg-red-50 text-red-500 border border-red-100 flex items-center justify-center shadow-sm group-active:scale-95 transition-all">
+                      <LogOut size={24} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-red-500 text-center">
+                      Sair
+                    </span>
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
