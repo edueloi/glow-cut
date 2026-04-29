@@ -315,6 +315,7 @@ function AgendaSection({
   setView,
   onRefresh,
   canSeeAll,
+  canCreate,
 }: {
   prof: ProfData;
   appointments: Appointment[];
@@ -325,7 +326,76 @@ function AgendaSection({
   setView: (v: "day" | "week") => void;
   onRefresh: () => void;
   canSeeAll: boolean;
+  canCreate?: boolean;
 }) {
+  const [showModal, setShowModal] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [form, setForm] = useState({
+    clientId: "",
+    serviceId: "",
+    date: format(selectedDate, "yyyy-MM-dd"),
+    startTime: "09:00",
+    recurrence: "none" as "none" | "daily" | "weekly" | "monthly",
+    sessions: 1,
+  });
+
+  const fetchModalData = async () => {
+    try {
+      const [cRes, sRes] = await Promise.all([
+        fetch("/api/clients", { headers: { "x-tenant-id": prof.tenantId } }),
+        fetch("/api/services", { headers: { "x-tenant-id": prof.tenantId } }),
+      ]);
+      const [cData, sData] = await Promise.all([cRes.json(), sRes.json()]);
+      setClients(Array.isArray(cData) ? cData : []);
+      
+      const sAll = Array.isArray(sData) ? sData : [];
+      const sFiltered = sAll.filter(s => {
+        try {
+          const ids = typeof s.professionalIds === "string" 
+            ? JSON.parse(s.professionalIds || "[]") 
+            : (Array.isArray(s.professionalIds) ? s.professionalIds : []);
+          return ids.includes(prof.id);
+        } catch { return false; }
+      });
+      setServices(sFiltered);
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (showModal) fetchModalData();
+  }, [showModal]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setModalLoading(true);
+    try {
+      const res = await fetch("/api/appointments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant-id": prof.tenantId,
+        },
+        body: JSON.stringify({
+          ...form,
+          professionalId: prof.id,
+          status: "confirmed",
+        }),
+      });
+      if (res.ok) {
+        setShowModal(false);
+        onRefresh();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Erro ao agendar");
+      }
+    } catch {
+      alert("Erro de conexão");
+    } finally {
+      setModalLoading(false);
+    }
+  };
   const weekDays = Array.from({ length: 7 }, (_, i) =>
     addDays(view === "week" ? selectedDate : selectedDate, i)
   );
@@ -354,6 +424,20 @@ function AgendaSection({
             </button>
           ))}
         </div>
+        
+        {canCreate && (
+          <button
+            onClick={() => {
+              setForm({ ...form, date: format(selectedDate, "yyyy-MM-dd") });
+              setShowModal(true);
+            }}
+            className="h-11 px-4 bg-zinc-900 text-white rounded-2xl flex items-center gap-2 font-black text-[10px] uppercase tracking-wider hover:bg-zinc-800 transition-all shadow-md active:scale-95"
+          >
+            <Plus size={15} />
+            <span>Agendar</span>
+          </button>
+        )}
+
         <button
           onClick={onRefresh}
           className="w-11 h-11 bg-white border border-zinc-200 rounded-2xl flex items-center justify-center text-zinc-400 hover:text-amber-500 transition-colors shadow-sm"
@@ -570,6 +654,154 @@ function AgendaSection({
           </div>
         </AnimatePresence>
       )}
+
+      {/* ── Appointment Modal ── */}
+      <AnimatePresence>
+        {showModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowModal(false)}
+              className="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm z-[100]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed inset-x-4 bottom-4 sm:inset-x-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg bg-white rounded-[40px] p-8 z-[110] shadow-2xl overflow-y-auto max-h-[90vh]"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-xl font-black text-zinc-900">Novo Agendamento</h3>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Defina os detalhes do serviço</p>
+                </div>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="w-10 h-10 flex items-center justify-center hover:bg-zinc-50 rounded-full text-zinc-400 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSave} className="space-y-6">
+                <div className="space-y-4">
+                  {/* Client */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Cliente</label>
+                    <select
+                      required
+                      value={form.clientId}
+                      onChange={e => setForm({...form, clientId: e.target.value})}
+                      className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20"
+                    >
+                      <option value="">Selecione um cliente...</option>
+                      {clients.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Service */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Serviço</label>
+                    <select
+                      required
+                      value={form.serviceId}
+                      onChange={e => setForm({...form, serviceId: e.target.value})}
+                      className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-amber-400/20"
+                    >
+                      <option value="">Selecione um serviço...</option>
+                      {services.map(s => (
+                        <option key={s.id} value={s.id}>{s.name} — {formatMoney(s.price)}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Data</label>
+                      <input
+                        type="date"
+                        required
+                        value={form.date}
+                        onChange={e => setForm({...form, date: e.target.value})}
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Horário</label>
+                      <input
+                        type="time"
+                        required
+                        value={form.startTime}
+                        onChange={e => setForm({...form, startTime: e.target.value})}
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Recurrence */}
+                  <div className="pt-4 border-t border-zinc-100">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-1.5 h-4 bg-amber-400 rounded-full" />
+                      <h4 className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">Repetição / Recorrência</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Tipo</label>
+                        <select
+                          value={form.recurrence}
+                          onChange={e => setForm({...form, recurrence: e.target.value as any})}
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none"
+                        >
+                          <option value="none">Não repetir</option>
+                          <option value="daily">Diário</option>
+                          <option value="weekly">Semanal</option>
+                          <option value="monthly">Mensal</option>
+                        </select>
+                      </div>
+                      
+                      {form.recurrence !== "none" && (
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider ml-1">Sessões</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={52}
+                            value={form.sessions}
+                            onChange={e => setForm({...form, sessions: parseInt(e.target.value) || 1})}
+                            className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 py-4 text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-600 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={modalLoading}
+                    className="flex-[2] bg-zinc-900 text-white rounded-2xl py-4 text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg shadow-zinc-900/20"
+                  >
+                    {modalLoading ? "Agendando..." : "Confirmar Agendamento"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1323,6 +1555,7 @@ export default function ProfessionalDashboard() {
   const canSeeClients = canDo(perms, "clients");
   const canSeeServices = canDo(perms, "services");
   const canCreateClients = canDo(perms, "clients", "criar");
+  const canCreateAgenda = canDo(perms, "agenda", "criar");
   const canSeeAllAgenda =
     canDo(perms, "agenda", "ver_todos") ||
     canDo(perms, "agenda", "editar_todos");
@@ -1454,6 +1687,7 @@ export default function ProfessionalDashboard() {
               setView={setView}
               onRefresh={fetchAppointments}
               canSeeAll={canSeeAllAgenda}
+              canCreate={canCreateAgenda}
             />
           ) : (
             <div className="py-24 flex flex-col items-center justify-center text-zinc-400">
