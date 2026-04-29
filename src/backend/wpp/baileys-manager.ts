@@ -1,16 +1,15 @@
 /**
- * baileys-manager.ts
+ * baileys-manager.ts — Bot Central de Atendimento
  *
- * Gerenciador central de sessões Baileys (multi-tenant).
- * Cada tenant tem sua própria conexão WebSocket com o WhatsApp.
- * Auth é salvo em disco: wpp-sessions/<tenantId>/creds.json + keys/
- *
- * Bot Central (tenantId = "system"):
- *  - Menu interativo com setores cadastrados pelo super-admin
- *  - Fila de espera por setor
- *  - Encaminhamento para atendente com notificação
- *  - Comando &SAIR encerra a conversa a qualquer momento
- *  - Retorno ao menu principal com "0" ou "menu"
+ * Fluxo do cliente:
+ *  1. Manda qualquer msg → bot pede o nome
+ *  2. Bot pede o assunto
+ *  3. Bot exibe menu de setores
+ *  4. Cliente escolhe setor → bot notifica atendente: "Aceitar / Recusar"
+ *  5a. Atendente aceita → bot vira ponte bidirecional (msgs chegam como nome do atendente)
+ *  5b. Atendente recusa → cliente recebe aviso de setor ocupado, volta ao menu
+ *  6. &SAIR ou 0 encerra a conversa a qualquer momento
+ *  7. Inatividade 30 min → encerra automaticamente
  */
 
 import path from "path";
@@ -37,22 +36,41 @@ interface ActiveSession {
   listeners: Set<(info: SessionInfo) => void>;
 }
 
-// Estado em memória de quem está aguardando menu ou em qual etapa está
-// key = clientPhone, value = estado da conversa em memória
-interface BotState {
-  step: "menu" | "in_sector" | "waiting_attendant";
+// Etapas do cliente no fluxo do bot
+type ClientStep =
+  | "ask_name"       // aguardando nome
+  | "ask_subject"    // aguardando assunto
+  | "menu"           // exibindo menu de setores
+  | "waiting"        // aguardando atendente aceitar/recusar
+  | "in_chat";       // em atendimento ativo (ponte bidirecional)
+
+interface ClientState {
+  step: ClientStep;
+  name?: string;
+  subject?: string;
   sectorId?: string;
+  sectorName?: string;
+  attendantPhone?: string;
   conversationId?: string;
-  lastMenuAt?: number; // timestamp para evitar loop infinito
+  lastActivity: number; // timestamp ms — para timeout de inatividade
 }
 
-const sessions = new Map<string, ActiveSession>();
-// Estados do bot por tenant: Map<tenantId, Map<clientPhone, BotState>>
-const botStates = new Map<string, Map<string, BotState>>();
+// Map<tenantId, Map<clientPhone, ClientState>>
+const clientStates = new Map<string, Map<string, ClientState>>();
+// Map<tenantId, Map<attendantPhone, clientPhone>> — para ponte reversa
+const attendantToClient = new Map<string, Map<string, string>>();
 
+const INACTIVITY_MS = 30 * 60 * 1000; // 30 minutos
+const EXIT_CMD = /^&sair$/i;
+const BACK_CMD = /^(0|menu|inicio|início|voltar|cancelar)$/i;
+const ACCEPT_CMD = /^(aceitar|1)$/i;
+const REFUSE_CMD = /^(recusar|2)$/i;
+
+// Limpeza de sessões inativas a cada 5 minutos
+setInterval(() => cleanInactiveSessions(), 5 * 60 * 1000);
+
+const sessions = new Map<string, ActiveSession>();
 const SESSIONS_DIR = path.join(process.cwd(), "wpp-sessions");
-const EXIT_COMMAND = "&SAIR";
-const MENU_COMMAND_RE = /^(0|menu|inicio|início|voltar)$/i;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -67,9 +85,7 @@ function ensureDir(dir: string) {
 function normalizePhone(raw: string): string {
   const digits = String(raw || "").replace(/\D/g, "");
   const clean = digits.split(":")[0].replace(/@.*/, "");
-  if (clean.startsWith("55") && clean.length === 15) {
-    return clean.slice(0, 13);
-  }
+  if (clean.startsWith("55") && clean.length === 15) return clean.slice(0, 13);
   return clean;
 }
 
@@ -80,10 +96,9 @@ function phoneToJid(phone: string): string {
 }
 
 function saudacao(): string {
-  const h = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "numeric", hour12: false });
-  const n = parseInt(h);
-  if (n >= 5 && n < 12) return "Bom dia";
-  if (n >= 12 && n < 18) return "Boa tarde";
+  const h = parseInt(new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "numeric", hour12: false }));
+  if (h >= 5 && h < 12) return "Bom dia";
+  if (h >= 12 && h < 18) return "Boa tarde";
   return "Boa noite";
 }
 
@@ -91,17 +106,14 @@ async function qrToDataUrl(qrText: string): Promise<string | null> {
   try {
     const QRCode = await import("qrcode");
     return await QRCode.default.toDataURL(qrText, { width: 300, margin: 2 });
-  } catch (e) {
-    console.warn("[Baileys] qrcode package not available:", e);
-    return null;
-  }
+  } catch { return null; }
 }
 
 function makeLogger(): any {
   const noop = () => {};
-  const logger: any = { level: "silent", trace: noop, debug: noop, info: noop, warn: noop, error: noop };
-  logger.child = () => makeLogger();
-  return logger;
+  const l: any = { level: "silent", trace: noop, debug: noop, info: noop, warn: noop, error: noop };
+  l.child = () => makeLogger();
+  return l;
 }
 
 function broadcast(tenantId: string) {
@@ -117,35 +129,78 @@ async function updateDb(tenantId: string, status: WppStatus, phone: string | nul
       where: { tenantId },
       data: { status, phone, isActive: status === "connected", qrCode: status === "connected" ? null : qrCode },
     });
-  } catch (e) {
-    console.warn("[Baileys] updateDb error:", e);
+  } catch {}
+}
+
+// ── Estado do cliente ─────────────────────────────────────────────────────────
+
+function getClientState(tenantId: string, phone: string): ClientState | undefined {
+  return clientStates.get(tenantId)?.get(phone);
+}
+
+function setClientState(tenantId: string, phone: string, state: ClientState) {
+  if (!clientStates.has(tenantId)) clientStates.set(tenantId, new Map());
+  clientStates.get(tenantId)!.set(phone, { ...state, lastActivity: Date.now() });
+}
+
+function clearClientState(tenantId: string, phone: string) {
+  const state = clientStates.get(tenantId)?.get(phone);
+  if (state?.attendantPhone) {
+    attendantToClient.get(tenantId)?.delete(state.attendantPhone);
+  }
+  clientStates.get(tenantId)?.delete(phone);
+}
+
+function touchActivity(tenantId: string, phone: string) {
+  const s = clientStates.get(tenantId)?.get(phone);
+  if (s) s.lastActivity = Date.now();
+}
+
+function getClientByAttendant(tenantId: string, attendantPhone: string): string | undefined {
+  return attendantToClient.get(tenantId)?.get(attendantPhone);
+}
+
+function linkAttendant(tenantId: string, attendantPhone: string, clientPhone: string) {
+  if (!attendantToClient.has(tenantId)) attendantToClient.set(tenantId, new Map());
+  attendantToClient.get(tenantId)!.set(attendantPhone, clientPhone);
+}
+
+function unlinkAttendant(tenantId: string, attendantPhone: string) {
+  attendantToClient.get(tenantId)?.delete(attendantPhone);
+}
+
+async function cleanInactiveSessions() {
+  const now = Date.now();
+  for (const [tenantId, map] of clientStates.entries()) {
+    const sock = sessions.get(tenantId)?.sock;
+    for (const [phone, state] of map.entries()) {
+      if (now - state.lastActivity > INACTIVITY_MS) {
+        console.log(`[Bot][${tenantId}] Sessão expirada por inatividade: ${phone}`);
+        if (sock) {
+          try {
+            await sock.sendMessage(phoneToJid(phone), {
+              text: `⏰ Sua conversa foi encerrada por *inatividade* (30 minutos sem resposta).\n\nSe precisar de ajuda, é só mandar uma mensagem. 😊`,
+            });
+          } catch {}
+          // Avisa atendente se estava em chat
+          if (state.attendantPhone && state.step === "in_chat") {
+            try {
+              await sock.sendMessage(phoneToJid(state.attendantPhone), {
+                text: `ℹ️ A conversa com *${state.name || phone}* foi encerrada por inatividade.`,
+              });
+            } catch {}
+          }
+        }
+        if (state.conversationId) {
+          await closeConv(state.conversationId, "system").catch(() => {});
+        }
+        clearClientState(tenantId, phone);
+      }
+    }
   }
 }
 
-function getBotState(tenantId: string, phone: string): BotState | undefined {
-  return botStates.get(tenantId)?.get(phone);
-}
-
-function setBotState(tenantId: string, phone: string, state: BotState) {
-  if (!botStates.has(tenantId)) botStates.set(tenantId, new Map());
-  botStates.get(tenantId)!.set(phone, state);
-}
-
-function clearBotState(tenantId: string, phone: string) {
-  botStates.get(tenantId)?.delete(phone);
-}
-
-async function sendText(sock: any, jid: string, text: string) {
-  try {
-    const delay = Math.floor(Math.random() * (3000 - 1200 + 1)) + 1200;
-    await new Promise(r => setTimeout(r, delay));
-    await sock.sendMessage(jid, { text });
-  } catch (e) {
-    console.warn("[Bot] sendText error:", e);
-  }
-}
-
-// ── Lógica do Bot Central ─────────────────────────────────────────────────────
+// ── DB helpers ────────────────────────────────────────────────────────────────
 
 async function loadSectors(tenantId: string): Promise<any[]> {
   try {
@@ -153,266 +208,356 @@ async function loadSectors(tenantId: string): Promise<any[]> {
       where: { tenantId, isActive: true },
       orderBy: { sortOrder: "asc" },
     });
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
-function buildMenuText(sectors: any[]): string {
-  const saud = saudacao();
-  let menu = `${saud}! 😊 Bem-vindo(a) ao nosso atendimento via WhatsApp.\n\n`;
-  menu += `Como posso te ajudar hoje? Responda com o *número* da opção desejada:\n\n`;
-  for (const s of sectors) {
-    menu += `*${s.menuKey}* — ${s.name}${s.description ? `\n   _${s.description}_` : ""}\n`;
-  }
-  menu += `\n*0* — 🏠 Voltar ao menu principal\n`;
-  menu += `\n_Digite *${EXIT_COMMAND}* a qualquer momento para encerrar o atendimento._`;
-  return menu;
-}
-
-async function handleBotMessage(tenantId: string, sock: any, remoteJid: string, clientPhone: string, text: string, clientName: string | undefined) {
-  const trimmed = text.trim();
-
-  // Comando de saída universal
-  if (trimmed.toUpperCase() === EXIT_COMMAND) {
-    await handleExit(tenantId, sock, remoteJid, clientPhone, "client");
-    return;
-  }
-
-  const state = getBotState(tenantId, clientPhone);
-
-  // Sem estado = nova conversa → exibe menu
-  if (!state || state.step === "menu") {
-    const sectors = await loadSectors(tenantId);
-    if (sectors.length === 0) {
-      await sendText(sock, remoteJid, `${saudacao()}! Nosso atendimento via bot ainda está sendo configurado. Por favor, tente novamente em breve. 😊`);
-      return;
-    }
-    setBotState(tenantId, clientPhone, { step: "menu", lastMenuAt: Date.now() });
-    await sendText(sock, remoteJid, buildMenuText(sectors));
-    return;
-  }
-
-  // No menu → processar escolha
-  if (state.step === "menu" as string) {
-    if (MENU_COMMAND_RE.test(trimmed)) {
-      clearBotState(tenantId, clientPhone);
-      const sectors = await loadSectors(tenantId);
-      await sendText(sock, remoteJid, buildMenuText(sectors));
-      return;
-    }
-    const sectors = await loadSectors(tenantId);
-    const chosen = sectors.find(s => s.menuKey === trimmed);
-    if (!chosen) {
-      await sendText(sock, remoteJid, `❓ Opção não reconhecida. Por favor, responda com o *número* correspondente ou *0* para o menu principal.`);
-      return;
-    }
-    await enterSector(tenantId, sock, remoteJid, clientPhone, clientName, chosen, "");
-    return;
-  }
-
-  // Aguardando atendente → guarda mensagem na conversa
-  if (state.step === "waiting_attendant" || state.step === "in_sector") {
-    if (MENU_COMMAND_RE.test(trimmed)) {
-      // Fecha conversa atual e volta ao menu
-      if (state.conversationId) {
-        await closeConversation(state.conversationId, "client");
-      }
-      clearBotState(tenantId, clientPhone);
-      const sectors = await loadSectors(tenantId);
-      await sendText(sock, remoteJid, buildMenuText(sectors));
-      return;
-    }
-
-    // Salva mensagem no histórico
-    if (state.conversationId) {
-      await saveMessage(state.conversationId, "client", clientPhone, trimmed);
-    }
-
-    if (state.step === "waiting_attendant") {
-      await sendText(sock, remoteJid, `⏳ Sua mensagem foi registrada. Aguarde, um atendente irá responder em breve!\n\n_Digite *${EXIT_COMMAND}* para cancelar ou *0* para voltar ao menu._`);
-    }
-    return;
-  }
-}
-
-async function enterSector(
-  tenantId: string, sock: any, remoteJid: string,
-  clientPhone: string, clientName: string | undefined,
-  sector: any, firstMsg: string
-) {
-  // Verifica se já tem conversa ativa
-  const existing = await (prisma as any).wppConversation.findFirst({
-    where: { tenantId, clientPhone, status: { in: ["waiting", "active"] } },
-  }).catch(() => null);
-
-  if (existing) {
-    await sendText(sock, remoteJid, `ℹ️ Você já possui um atendimento em andamento no setor *${sector.name}*.\n\nAguarde o retorno do atendente ou digite *${EXIT_COMMAND}* para encerrar.`);
-    setBotState(tenantId, clientPhone, { step: "waiting_attendant", sectorId: sector.id, conversationId: existing.id });
-    return;
-  }
-
-  // Cria conversa na fila
+async function createConv(tenantId: string, sectorId: string, clientPhone: string, clientName: string, subject: string): Promise<string> {
   const conv = await (prisma as any).wppConversation.create({
-    data: {
-      tenantId,
-      sectorId: sector.id,
-      clientPhone,
-      clientName: clientName || null,
-      status: "waiting",
-      firstMessage: firstMsg || null,
-    },
+    data: { tenantId, sectorId, clientPhone, clientName, status: "waiting", firstMessage: subject },
   });
-
-  if (firstMsg) {
-    await saveMessage(conv.id, "client", clientPhone, firstMsg);
-  }
-
-  setBotState(tenantId, clientPhone, { step: "waiting_attendant", sectorId: sector.id, conversationId: conv.id });
-
-  await sendText(sock, remoteJid,
-    `✅ Você foi encaminhado para o setor *${sector.name}*!\n\n` +
-    `Um atendente irá te responder em breve. Pode enviar sua mensagem agora:\n\n` +
-    `_Digite *${EXIT_COMMAND}* para encerrar ou *0* para voltar ao menu._`
-  );
-
-  // Notifica atendentes do setor
-  const attendants: string[] = JSON.parse(sector.attendants || "[]");
-  for (const attPhone of attendants) {
-    const attJid = phoneToJid(attPhone);
-    const msgForAtt =
-      `🔔 *Nova fila de atendimento — ${sector.name}*\n\n` +
-      `👤 Cliente: *${clientName || clientPhone}*\n` +
-      `📱 Número: *${clientPhone}*\n` +
-      `💬 Mensagem: _${firstMsg || "(sem mensagem inicial)"}_ \n\n` +
-      `Para *aceitar* e responder ao cliente, simplesmente envie uma mensagem.\n` +
-      `O sistema irá notificá-lo quando estiver em atendimento.\n\n` +
-      `_Para sinalizar o encerramento, o atendente deve enviar: *${EXIT_COMMAND}*_`;
-    try { await sock.sendMessage(attJid, { text: msgForAtt }); } catch {}
-  }
+  await saveMsg(conv.id, "bot", undefined, `Conversa iniciada. Cliente: ${clientName}, Assunto: ${subject}`);
+  return conv.id;
 }
 
-async function handleAttendantMessage(tenantId: string, sock: any, attendantPhone: string, text: string) {
-  const trimmed = text.trim();
-
-  // Verifica se é atendente com conversa ativa
-  const conv = await (prisma as any).wppConversation.findFirst({
-    where: {
-      tenantId,
-      attendantPhone,
-      status: "active",
-    },
-    include: { sector: true },
-  }).catch(() => null);
-
-  if (!conv) {
-    // Verifica se está na fila esperando aceitação
-    const waiting = await (prisma as any).wppConversation.findFirst({
-      where: { tenantId, status: "waiting", sector: { attendants: { contains: attendantPhone } } },
-      include: { sector: true },
-      orderBy: { createdAt: "asc" },
-    }).catch(() => null);
-
-    if (waiting) {
-      // Atendente aceita o próximo da fila
-      await (prisma as any).wppConversation.update({
-        where: { id: waiting.id },
-        data: { attendantPhone, status: "active" },
-      });
-
-      const state = getBotState(tenantId, waiting.clientPhone);
-      if (state) setBotState(tenantId, waiting.clientPhone, { ...state, step: "in_sector" });
-
-      const clientJid = phoneToJid(waiting.clientPhone);
-      await sendText(sock, clientJid,
-        `🎉 Um atendente do setor *${waiting.sector?.name}* aceitou seu atendimento!\n\nPode enviar suas mensagens normalmente.\n_Para encerrar, o atendente ou você podem digitar *${EXIT_COMMAND}*._`
-      );
-      await saveMessage(waiting.id, "bot", undefined, `Atendente ${attendantPhone} aceitou o atendimento.`);
-
-      if (trimmed.toUpperCase() !== EXIT_COMMAND) {
-        // Encaminha a primeira mensagem do atendente ao cliente
-        await sendText(sock, clientJid, text);
-        await saveMessage(waiting.id, "attendant", attendantPhone, text);
-      }
-      return true;
-    }
-    return false;
-  }
-
-  // Atendente em conversa ativa
-  if (trimmed.toUpperCase() === EXIT_COMMAND) {
-    await handleExit(tenantId, sock, phoneToJid(conv.clientPhone), conv.clientPhone, "attendant", conv);
-    return true;
-  }
-
-  // Encaminha mensagem ao cliente
-  const clientJid = phoneToJid(conv.clientPhone);
-  await sendText(sock, clientJid, text);
-  await saveMessage(conv.id, "attendant", attendantPhone, text);
-  return true;
-}
-
-async function handleExit(tenantId: string, sock: any, remoteJid: string, clientPhone: string, closedBy: "client" | "attendant" | "system", conv?: any) {
-  const activeConv = conv || await (prisma as any).wppConversation.findFirst({
-    where: { tenantId, clientPhone, status: { in: ["waiting", "active"] } },
-    include: { sector: true },
-  }).catch(() => null);
-
-  if (activeConv) {
-    await closeConversation(activeConv.id, closedBy);
-    await saveMessage(activeConv.id, "bot", undefined, `Conversa encerrada por ${closedBy === "client" ? "cliente" : closedBy === "attendant" ? "atendente" : "sistema"}.`);
-
-    // Notifica o cliente
-    await sendText(sock, remoteJid,
-      `✅ Seu atendimento foi encerrado. Obrigado por entrar em contato!\n\nSe precisar de mais ajuda, é só mandar uma mensagem. 😊`
-    );
-
-    // Notifica atendente se encerrado pelo cliente
-    if (closedBy === "client" && activeConv.attendantPhone) {
-      const attJid = phoneToJid(activeConv.attendantPhone);
-      try {
-        await sock.sendMessage(attJid, {
-          text: `ℹ️ O cliente *${activeConv.clientPhone}* encerrou o atendimento no setor *${activeConv.sector?.name || ""}*.`,
-        });
-      } catch {}
-    }
-
-    // Notifica cliente se encerrado pelo atendente
-    if (closedBy === "attendant" && activeConv.clientPhone) {
-      await saveMessage(activeConv.id, "bot", undefined, `Atendente encerrou a conversa.`);
-    }
-  } else {
-    await sendText(sock, remoteJid, `✅ Atendimento encerrado. Até logo! 😊`);
-  }
-
-  clearBotState(tenantId, clientPhone);
-}
-
-async function closeConversation(conversationId: string, closedBy: string) {
+async function closeConv(conversationId: string, closedBy: string) {
   await (prisma as any).wppConversation.update({
     where: { id: conversationId },
     data: { status: "closed", closedBy, closedAt: new Date() },
   }).catch(() => {});
 }
 
-async function saveMessage(conversationId: string, fromRole: string, fromPhone: string | undefined, body: string) {
+async function saveMsg(conversationId: string, fromRole: string, fromPhone: string | undefined, body: string) {
   await (prisma as any).wppConversationMessage.create({
     data: { conversationId, fromRole, fromPhone: fromPhone || null, body },
   }).catch(() => {});
 }
 
-async function isAttendant(tenantId: string, phone: string): Promise<boolean> {
-  try {
-    const sector = await (prisma as any).wppBotSector.findFirst({
-      where: { tenantId, isActive: true, attendants: { contains: phone } },
-    });
-    return !!sector;
-  } catch {
-    return false;
+// ── Envio com delay anti-spam ─────────────────────────────────────────────────
+
+const sendQueue = new Map<string, Promise<void>>();
+
+async function send(sock: any, jid: string, text: string) {
+  const key = jid;
+  const prev = sendQueue.get(key) || Promise.resolve();
+  const next = prev.then(async () => {
+    try {
+      const delay = 800 + Math.random() * 1200;
+      await new Promise(r => setTimeout(r, delay));
+      await sock.sendMessage(jid, { text });
+    } catch (e) {
+      console.warn(`[Bot] send error to ${jid}:`, e);
+    }
+  });
+  sendQueue.set(key, next);
+  next.finally(() => { if (sendQueue.get(key) === next) sendQueue.delete(key); });
+  return next;
+}
+
+// ── Mensagens do bot ──────────────────────────────────────────────────────────
+
+function msgBemVindo(): string {
+  return (
+    `${saudacao()}! 😊\n\n` +
+    `Bem-vindo(a) ao atendimento *Agendelle*.\n\n` +
+    `Para começar, por favor me diga seu *nome completo*:`
+  );
+}
+
+function msgPedeAssunto(): string {
+  return `Obrigado! Agora me conte *sobre o que você gostaria de falar*?\n_(Descreva brevemente seu assunto)_`;
+}
+
+function msgMenu(sectors: any[]): string {
+  let txt = `Certo! Para qual setor deseja ser encaminhado?\n\n`;
+  for (const s of sectors) {
+    txt += `*${s.menuKey}* — ${s.name}`;
+    if (s.description) txt += `\n   _${s.description}_`;
+    txt += `\n`;
+  }
+  txt += `\n*0* — ❌ Cancelar\n`;
+  txt += `\n_Digite *&SAIR* a qualquer momento para encerrar._`;
+  return txt;
+}
+
+function msgAguardando(sectorName: string): string {
+  return (
+    `✅ Encaminhando você para o setor *${sectorName}*...\n\n` +
+    `⏳ Aguarde, um atendente irá responder em breve.\n\n` +
+    `_Digite *&SAIR* ou *0* para cancelar._`
+  );
+}
+
+function msgSetorOcupado(sectorName: string): string {
+  return (
+    `😔 O setor *${sectorName}* está *ocupado* no momento.\n\n` +
+    `Por favor, tente novamente mais tarde ou escolha outro setor.\n\n` +
+    `Deseja ver o menu novamente? Digite *menu*.`
+  );
+}
+
+function msgAceito(attendantName: string): string {
+  return (
+    `🎉 *${attendantName}* aceitou seu atendimento!\n\n` +
+    `Pode enviar sua mensagem normalmente.\n` +
+    `_Digite *&SAIR* ou *0* para encerrar a conversa._`
+  );
+}
+
+function msgEncerradoCliente(): string {
+  return `✅ Atendimento encerrado. Obrigado por entrar em contato! 😊\n\nSe precisar de mais ajuda, é só mandar uma mensagem.`;
+}
+
+function msgEncerradoAtendente(clientName: string): string {
+  return `ℹ️ Você encerrou o atendimento com *${clientName}*.`;
+}
+
+function msgNotifAtendente(name: string, subject: string, clientPhone: string, sectorName: string): string {
+  return (
+    `🔔 *Nova solicitação — ${sectorName}*\n\n` +
+    `👤 Cliente: *${name}*\n` +
+    `📱 Número: *${clientPhone}*\n` +
+    `💬 Assunto: _${subject}_\n\n` +
+    `Responda *ACEITAR* para iniciar o atendimento\n` +
+    `Responda *RECUSAR* se não puder atender agora`
+  );
+}
+
+// ── Fluxo principal do cliente ────────────────────────────────────────────────
+
+async function handleClient(tenantId: string, sock: any, clientPhone: string, text: string) {
+  const trimmed = text.trim();
+  const jid = phoneToJid(clientPhone);
+  const state = getClientState(tenantId, clientPhone);
+
+  // Comando de saída universal
+  if (EXIT_CMD.test(trimmed)) {
+    await doExit(tenantId, sock, clientPhone, "client");
+    return;
+  }
+
+  // Sem estado → início do fluxo
+  if (!state) {
+    setClientState(tenantId, clientPhone, { step: "ask_name", lastActivity: Date.now() });
+    await send(sock, jid, msgBemVindo());
+    return;
+  }
+
+  touchActivity(tenantId, clientPhone);
+
+  // ── Pedindo nome ──────────────────────────────────────────────────────────
+  if (state.step === "ask_name") {
+    if (trimmed.length < 2) {
+      await send(sock, jid, `Por favor, informe seu *nome completo* para continuar:`);
+      return;
+    }
+    setClientState(tenantId, clientPhone, { ...state, step: "ask_subject", name: trimmed });
+    await send(sock, jid, msgPedeAssunto());
+    return;
+  }
+
+  // ── Pedindo assunto ───────────────────────────────────────────────────────
+  if (state.step === "ask_subject") {
+    if (trimmed.length < 3) {
+      await send(sock, jid, `Por favor, descreva melhor o assunto:`);
+      return;
+    }
+    const sectors = await loadSectors(tenantId);
+    if (sectors.length === 0) {
+      await send(sock, jid, `😔 Nossos setores de atendimento ainda estão sendo configurados. Tente novamente mais tarde!`);
+      clearClientState(tenantId, clientPhone);
+      return;
+    }
+    setClientState(tenantId, clientPhone, { ...state, step: "menu", subject: trimmed });
+    await send(sock, jid, msgMenu(sectors));
+    return;
+  }
+
+  // ── Menu de setores ───────────────────────────────────────────────────────
+  if (state.step === "menu") {
+    if (BACK_CMD.test(trimmed)) {
+      await doExit(tenantId, sock, clientPhone, "client");
+      return;
+    }
+    const sectors = await loadSectors(tenantId);
+    const chosen = sectors.find(s => s.menuKey === trimmed);
+    if (!chosen) {
+      await send(sock, jid, `❓ Opção inválida. Responda com o *número* do setor desejado ou *0* para cancelar.`);
+      return;
+    }
+    await forwardToSector(tenantId, sock, clientPhone, state, chosen);
+    return;
+  }
+
+  // ── Aguardando atendente ──────────────────────────────────────────────────
+  if (state.step === "waiting") {
+    if (BACK_CMD.test(trimmed)) {
+      await doExit(tenantId, sock, clientPhone, "client");
+      return;
+    }
+    await send(sock, jid, `⏳ Você já está na fila. Aguarde um atendente.\n_Digite *&SAIR* ou *0* para cancelar._`);
+    return;
+  }
+
+  // ── Em atendimento (ponte cliente → atendente) ────────────────────────────
+  if (state.step === "in_chat") {
+    if (BACK_CMD.test(trimmed)) {
+      await doExit(tenantId, sock, clientPhone, "client");
+      return;
+    }
+    if (state.attendantPhone) {
+      await send(sock, phoneToJid(state.attendantPhone), `💬 *${state.name}*: ${trimmed}`);
+      if (state.conversationId) await saveMsg(state.conversationId, "client", clientPhone, trimmed);
+    }
+    return;
   }
 }
 
-// ── Inicializar sessão ────────────────────────────────────────────────────────
+async function forwardToSector(tenantId: string, sock: any, clientPhone: string, state: ClientState, sector: any) {
+  const jid = phoneToJid(clientPhone);
+  const attendants: string[] = JSON.parse(sector.attendants || "[]");
+
+  if (attendants.length === 0) {
+    await send(sock, jid, msgSetorOcupado(sector.name));
+    // Volta ao menu
+    const sectors = await loadSectors(tenantId);
+    setClientState(tenantId, clientPhone, { ...state, step: "menu" });
+    await send(sock, jid, msgMenu(sectors));
+    return;
+  }
+
+  const convId = await createConv(tenantId, sector.id, clientPhone, state.name!, state.subject!);
+  setClientState(tenantId, clientPhone, {
+    ...state,
+    step: "waiting",
+    sectorId: sector.id,
+    sectorName: sector.name,
+    conversationId: convId,
+  });
+
+  await send(sock, jid, msgAguardando(sector.name));
+
+  // Notifica todos os atendentes do setor
+  for (const attPhone of attendants) {
+    try {
+      await sock.sendMessage(phoneToJid(attPhone), {
+        text: msgNotifAtendente(state.name!, state.subject!, clientPhone, sector.name),
+      });
+    } catch {}
+  }
+}
+
+// ── Fluxo do atendente ────────────────────────────────────────────────────────
+
+async function handleAttendant(tenantId: string, sock: any, attPhone: string, attName: string, text: string): Promise<boolean> {
+  const trimmed = text.trim();
+
+  // Verifica se este atendente tem cliente vinculado (em atendimento ativo)
+  const clientPhone = getClientByAttendant(tenantId, attPhone);
+
+  if (clientPhone) {
+    const state = getClientState(tenantId, clientPhone);
+    if (!state || state.step !== "in_chat") {
+      unlinkAttendant(tenantId, attPhone);
+      return false;
+    }
+
+    // Atendente encerra
+    if (EXIT_CMD.test(trimmed)) {
+      await doExit(tenantId, sock, clientPhone, "attendant");
+      return true;
+    }
+
+    // Atendente manda mensagem → encaminha ao cliente como nome do atendente
+    await send(sock, phoneToJid(clientPhone), `💬 *${attName}*: ${trimmed}`);
+    if (state.conversationId) await saveMsg(state.conversationId, "attendant", attPhone, trimmed);
+    touchActivity(tenantId, clientPhone);
+    return true;
+  }
+
+  // Atendente responde ACEITAR / RECUSAR para algum cliente em fila
+  if (ACCEPT_CMD.test(trimmed) || REFUSE_CMD.test(trimmed)) {
+    // Busca conversa na fila deste atendente
+    const waiting = await findWaitingForAttendant(tenantId, attPhone);
+    if (!waiting) return false;
+
+    const clientState = getClientState(tenantId, waiting.clientPhone);
+    if (!clientState || clientState.step !== "waiting") return false;
+
+    if (REFUSE_CMD.test(trimmed)) {
+      // Recusa → avisa cliente e limpa
+      await send(sock, phoneToJid(waiting.clientPhone), msgSetorOcupado(clientState.sectorName || ""));
+      // Volta ao menu
+      const sectors = await loadSectors(tenantId);
+      setClientState(tenantId, waiting.clientPhone, { ...clientState, step: "menu", attendantPhone: undefined });
+      await send(sock, phoneToJid(waiting.clientPhone), msgMenu(sectors));
+      await closeConv(clientState.conversationId!, "attendant_refused");
+      await (prisma as any).wppConversation.update({ where: { id: clientState.conversationId }, data: { status: "closed", closedBy: "attendant_refused" } }).catch(() => {});
+      await send(sock, phoneToJid(attPhone), `ℹ️ Você recusou o atendimento de *${clientState.name}*.`);
+      return true;
+    }
+
+    // Aceita → liga ponte bidirecional
+    linkAttendant(tenantId, attPhone, waiting.clientPhone);
+    setClientState(tenantId, waiting.clientPhone, { ...clientState, step: "in_chat", attendantPhone: attPhone });
+
+    await (prisma as any).wppConversation.update({
+      where: { id: clientState.conversationId },
+      data: { status: "active", attendantPhone: attPhone },
+    }).catch(() => {});
+
+    await saveMsg(clientState.conversationId!, "bot", undefined, `Atendente ${attPhone} (${attName}) aceitou.`);
+
+    await send(sock, phoneToJid(waiting.clientPhone), msgAceito(attName));
+    await send(sock, phoneToJid(attPhone), `✅ Você está atendendo *${clientState.name}*.\n💬 Assunto: _${clientState.subject}_\n\n_Digite *&SAIR* para encerrar._`);
+    return true;
+  }
+
+  return false;
+}
+
+async function findWaitingForAttendant(tenantId: string, attPhone: string): Promise<{ clientPhone: string; convId: string } | null> {
+  // Varre estados em memória procurando cliente em "waiting" cujo setor inclui este atendente
+  const map = clientStates.get(tenantId);
+  if (!map) return null;
+
+  for (const [clientPhone, state] of map.entries()) {
+    if (state.step !== "waiting" || !state.sectorId) continue;
+    try {
+      const sector = await (prisma as any).wppBotSector.findUnique({ where: { id: state.sectorId } });
+      if (!sector) continue;
+      const attendants: string[] = JSON.parse(sector.attendants || "[]");
+      if (attendants.includes(attPhone)) {
+        return { clientPhone, convId: state.conversationId! };
+      }
+    } catch {}
+  }
+  return null;
+}
+
+// ── Encerrar conversa ─────────────────────────────────────────────────────────
+
+async function doExit(tenantId: string, sock: any, clientPhone: string, closedBy: "client" | "attendant" | "system") {
+  const state = getClientState(tenantId, clientPhone);
+  const clientJid = phoneToJid(clientPhone);
+
+  if (state?.conversationId) {
+    await closeConv(state.conversationId, closedBy);
+    await saveMsg(state.conversationId, "bot", undefined, `Conversa encerrada por ${closedBy}.`);
+  }
+
+  if (state?.attendantPhone && state.step === "in_chat") {
+    const attJid = phoneToJid(state.attendantPhone);
+    unlinkAttendant(tenantId, state.attendantPhone);
+    if (closedBy === "client") {
+      await send(sock, attJid, msgEncerradoAtendente(state.name || clientPhone));
+    }
+  }
+
+  clearClientState(tenantId, clientPhone);
+  await send(sock, clientJid, msgEncerradoCliente());
+}
+
+// ── Inicializar sessão Baileys ────────────────────────────────────────────────
 
 export async function initSession(tenantId: string): Promise<void> {
   const existing = sessions.get(tenantId);
@@ -425,7 +570,6 @@ export async function initSession(tenantId: string): Promise<void> {
 
   let makeWASocket: any, useMultiFileAuthState: any, DisconnectReason: any;
   try {
-    console.log(`[Baileys][${tenantId}] Importando @whiskeysockets/baileys...`);
     const baileys = await import("@whiskeysockets/baileys");
     makeWASocket = (baileys as any).makeWASocket || baileys.default;
     useMultiFileAuthState = baileys.useMultiFileAuthState;
@@ -433,14 +577,13 @@ export async function initSession(tenantId: string): Promise<void> {
     if (!makeWASocket) throw new Error("makeWASocket not found");
     if (!useMultiFileAuthState) throw new Error("useMultiFileAuthState not found");
   } catch (e: any) {
-    console.error("[Baileys] Não instalado ou incompatível:", e?.message);
+    console.error("[Baileys] Não instalado:", e?.message);
     await updateDb(tenantId, "disconnected", null, null);
     return;
   }
 
   const dir = sessionDir(tenantId);
   ensureDir(dir);
-
   const { state, saveCreds } = await useMultiFileAuthState(dir);
 
   let waVersion: [number, number, number] = [2, 3000, 1015901307];
@@ -451,61 +594,43 @@ export async function initSession(tenantId: string): Promise<void> {
   } catch {}
 
   const session: ActiveSession = {
-    sock: null,
-    status: "connecting",
-    phone: null,
-    qrDataUrl: null,
-    qrRaw: null,
+    sock: null, status: "connecting", phone: null,
+    qrDataUrl: null, qrRaw: null,
     listeners: existing?.listeners ?? new Set(),
   };
   sessions.set(tenantId, session);
 
   const sock = makeWASocket({
-    version: waVersion,
-    auth: state,
+    version: waVersion, auth: state,
     browser: ["Chrome (Linux)", "", ""],
-    printQRInTerminal: false,
-    syncFullHistory: false,
-    markOnlineOnConnect: false,
-    connectTimeoutMs: 60_000,
-    retryRequestDelayMs: 2000,
-    logger: makeLogger(),
+    printQRInTerminal: false, syncFullHistory: false,
+    markOnlineOnConnect: false, connectTimeoutMs: 60_000,
+    retryRequestDelayMs: 2000, logger: makeLogger(),
   });
-
   session.sock = sock;
 
   sock.ev.on("connection.update", async (update: any) => {
     const { connection, lastDisconnect, qr } = update;
-
     if (qr) {
-      session.qrRaw = qr;
-      session.status = "qr_pending";
+      session.qrRaw = qr; session.status = "qr_pending";
       session.qrDataUrl = await qrToDataUrl(qr);
       await updateDb(tenantId, "qr_pending", null, session.qrDataUrl);
       broadcast(tenantId);
     }
-
     if (connection === "open") {
       session.status = "connected";
-      const jid = sock.user?.id || "";
-      session.phone = normalizePhone(jid);
-      session.qrDataUrl = null;
-      session.qrRaw = null;
+      session.phone = normalizePhone(sock.user?.id || "");
+      session.qrDataUrl = null; session.qrRaw = null;
       await updateDb(tenantId, "connected", session.phone, null);
       broadcast(tenantId);
       console.log(`[Baileys][${tenantId}] Conectado como ${session.phone}`);
     }
-
     if (connection === "close") {
       const reason = (lastDisconnect?.error as any)?.output?.statusCode;
       const loggedOut = reason === DisconnectReason.loggedOut;
-
-      session.status = "disconnected";
-      session.qrDataUrl = null;
-      session.phone = null;
+      session.status = "disconnected"; session.qrDataUrl = null; session.phone = null;
       await updateDb(tenantId, "disconnected", null, null);
       broadcast(tenantId);
-
       if (loggedOut) {
         try { fs.rmSync(sessionDir(tenantId), { recursive: true, force: true }); } catch {}
         sessions.delete(tenantId);
@@ -519,35 +644,32 @@ export async function initSession(tenantId: string): Promise<void> {
 
   sock.ev.on("messages.upsert", async (m: any) => {
     if (m.type !== "notify") return;
-
     for (const msg of m.messages) {
       if (!msg.message || msg.key.fromMe) continue;
-
       const remoteJid = msg.key.remoteJid;
       if (!remoteJid || remoteJid.includes("@g.us")) continue;
 
-      const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+      const text = (msg.message.conversation || msg.message.extendedTextMessage?.text || "").trim();
       if (!text) continue;
 
-      const clientPhone = normalizePhone(remoteJid);
-      const clientName = (msg.pushName as string | undefined) || undefined;
+      const phone = normalizePhone(remoteJid);
+      const pushName: string = msg.pushName || phone;
 
-      console.log(`[Bot][${tenantId}] MSG de ${clientPhone}: ${text}`);
+      // Só processa bot para o tenant "system"
+      if (tenantId !== "system") continue;
 
-      // Para o bot central (system), processar lógica de fila/menu
-      if (tenantId === "system") {
-        // Verifica se quem mandou é atendente com conversa ativa
-        const att = await isAttendant(tenantId, clientPhone);
-        if (att) {
-          const handled = await handleAttendantMessage(tenantId, sock, clientPhone, text).catch(() => false);
-          if (handled) continue;
+      console.log(`[Bot] ${phone} (${pushName}): ${text}`);
+
+      try {
+        // Tenta tratar como atendente primeiro
+        const handled = await handleAttendant(tenantId, sock, phone, pushName, text);
+        if (!handled) {
+          // Trata como cliente
+          await handleClient(tenantId, sock, phone, text);
         }
-        // Trata como cliente
-        await handleBotMessage(tenantId, sock, remoteJid, clientPhone, text, clientName).catch(e => {
-          console.error(`[Bot][${tenantId}] Erro ao processar mensagem:`, e);
-        });
+      } catch (e) {
+        console.error(`[Bot] Erro ao processar msg de ${phone}:`, e);
       }
-      // Para outros tenants, apenas log (sem bot central ativo)
     }
   });
 }
@@ -580,12 +702,10 @@ export async function connectSession(tenantId: string): Promise<SessionInfo> {
 
 export async function disconnectSession(tenantId: string): Promise<void> {
   const s = sessions.get(tenantId);
-  if (s?.sock) {
-    try { await s.sock.logout(); } catch {}
-    try { s.sock.end(); } catch {}
-  }
+  if (s?.sock) { try { await s.sock.logout(); } catch {} try { s.sock.end(); } catch {} }
   sessions.delete(tenantId);
-  botStates.delete(tenantId);
+  clientStates.delete(tenantId);
+  attendantToClient.delete(tenantId);
   try { fs.rmSync(sessionDir(tenantId), { recursive: true, force: true }); } catch {}
   await updateDb(tenantId, "disconnected", null, null);
 }
@@ -594,29 +714,19 @@ const sendingLocks = new Map<string, Promise<void>>();
 
 export async function sendMessage(tenantId: string, phone: string, text: string): Promise<void> {
   const s = sessions.get(tenantId);
-  if (!s || s.status !== "connected" || !s.sock) {
-    console.warn(`[Baileys][${tenantId}] Sessão não conectada — mensagem descartada para ${phone}`);
-    return;
-  }
-
-  const previous = sendingLocks.get(tenantId) || Promise.resolve();
-  const current = previous.then(async () => {
+  if (!s || s.status !== "connected" || !s.sock) return;
+  const prev = sendingLocks.get(tenantId) || Promise.resolve();
+  const curr = prev.then(async () => {
     const digits = String(phone).replace(/\D/g, "");
     const num = digits.startsWith("55") ? digits : `55${digits}`;
-    const jid = `${num}@s.whatsapp.net`;
     try {
-      const delay = Math.floor(Math.random() * (4000 - 1500 + 1)) + 1500;
-      await new Promise(r => setTimeout(r, delay));
-      await s.sock.sendMessage(jid, { text });
-      console.log(`[Baileys][${tenantId}] Mensagem enviada para ${num}`);
-    } catch (e) {
-      console.warn(`[Baileys][${tenantId}] sendMessage error for ${num}:`, e);
-    }
+      await new Promise(r => setTimeout(r, 1500 + Math.random() * 2500));
+      await s.sock.sendMessage(`${num}@s.whatsapp.net`, { text });
+    } catch (e) { console.warn(`[Baileys] sendMessage error for ${num}:`, e); }
   });
-
-  sendingLocks.set(tenantId, current);
-  current.finally(() => { if (sendingLocks.get(tenantId) === current) sendingLocks.delete(tenantId); });
-  return current;
+  sendingLocks.set(tenantId, curr);
+  curr.finally(() => { if (sendingLocks.get(tenantId) === curr) sendingLocks.delete(tenantId); });
+  return curr;
 }
 
 export function getQrCode(tenantId: string): string | null {
@@ -625,30 +735,19 @@ export function getQrCode(tenantId: string): string | null {
 
 export async function restoreAllSessions(): Promise<void> {
   if (!fs.existsSync(SESSIONS_DIR)) return;
-
   const dirs = fs.readdirSync(SESSIONS_DIR).filter(d => {
     const full = path.join(SESSIONS_DIR, d);
-    const creds = path.join(full, "creds.json");
-    return fs.statSync(full).isDirectory() && fs.existsSync(creds);
+    return fs.statSync(full).isDirectory() && fs.existsSync(path.join(full, "creds.json"));
   });
-
   console.log(`[Baileys] Restaurando ${dirs.length} sessão(ões)...`);
-  for (const tenantId of dirs) {
-    try { await initSession(tenantId); } catch (e) {
-      console.warn(`[Baileys] Erro ao restaurar sessão ${tenantId}:`, e);
-    }
+  for (const tid of dirs) {
+    try { await initSession(tid); } catch (e) { console.warn(`[Baileys] Erro ao restaurar ${tid}:`, e); }
   }
-
   try {
-    const instances: any[] = await (prisma as any).wppInstance.findMany({
-      where: { phone: { not: null } },
-      select: { id: true, phone: true },
-    });
+    const instances: any[] = await (prisma as any).wppInstance.findMany({ where: { phone: { not: null } }, select: { id: true, phone: true } });
     for (const inst of instances) {
       const fixed = normalizePhone(inst.phone);
-      if (fixed !== inst.phone) {
-        await (prisma as any).wppInstance.update({ where: { id: inst.id }, data: { phone: fixed } });
-      }
+      if (fixed !== inst.phone) await (prisma as any).wppInstance.update({ where: { id: inst.id }, data: { phone: fixed } });
     }
   } catch {}
 }
