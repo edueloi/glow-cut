@@ -1411,6 +1411,7 @@ export default function AdminDashboard() {
       attendsSchedule: newProfessional.attendsSchedule !== false,
       workingHours: newProfessional.workingHours,
       services: newProfessional.services,
+      isOwner: !!newProfessional.isOwner,
     };
     if (newProfessional.password) body.password = newProfessional.password;
     try {

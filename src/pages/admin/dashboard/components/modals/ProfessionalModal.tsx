@@ -341,6 +341,7 @@ export function ProfessionalModal({
                       ...p,
                       name: "", email: "", phone: "", photo: "",
                       accessLevel: "no-access", attendsSchedule: true,
+                      isOwner: false,
                     }));
                   }}
                   className={cn(
