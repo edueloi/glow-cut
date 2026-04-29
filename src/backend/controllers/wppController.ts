@@ -221,7 +221,7 @@ export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Pro
       nome_estabelecimento: tenant?.name || "",
       data_agendamento: format(new Date(appt.date), "EEEE, dd 'de' MMMM", { locale: ptBR }),
       hora_agendamento: appt.startTime || "",
-      link_painel: tenantSlug ? `https://agendelle.com.br/${tenantSlug}/admin` : "https://agendelle.com.br",
+      link_painel: "https://agendelle.com.br/login",
     };
 
     const msg = applyVars(tpl, vars);
