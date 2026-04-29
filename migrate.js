@@ -837,6 +837,15 @@ const MIGRATIONS = [
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `,
   },
+  {
+    name: '045_adminuser_add_cpf_birthdate',
+    sql: `
+      ALTER TABLE AdminUser 
+      ADD COLUMN cpf VARCHAR(20) NULL AFTER phone,
+      ADD COLUMN birthDate VARCHAR(20) NULL AFTER cpf;
+    `,
+    ignoreIfExists: true,
+  },
 
 ];
 
