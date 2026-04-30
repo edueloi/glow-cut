@@ -597,18 +597,22 @@ async function enterSector(tenantId: string, sock: any, clientKey: string, state
   }
 }
 
-/** Limpa o número para comparação (remove 55 e 9º dígito se houver) */
-function cleanPhone(p: string): string {
-  let c = p.replace(/\D/g, "");
-  if (c.startsWith("55")) c = c.slice(2);
-  if (c.length === 11 && c[2] === "9") c = c.slice(0, 2) + c.slice(3);
-  return c;
+/** Resolve o JID real de um telefone usando sock.onWhatsApp */
+async function resolvePhoneToJid(sock: any, phone: string): Promise<string | null> {
+  try {
+    const d = String(phone).replace(/\D/g, "");
+    const full = d.startsWith("55") ? d : `55${d}`;
+    const results = await sock.onWhatsApp(full);
+    if (results && results.length > 0 && results[0].exists) {
+      return normalizeForKey(results[0].jid);
+    }
+  } catch {}
+  return null;
 }
 
 /** Retorna o nome registrado do atendente no setor, ou fallback para pushName */
-async function resolveAttendantName(tenantId: string, attJid: string, pushName: string, sectorId?: string): Promise<string> {
-  const attPhone = jidToPhone(attJid);
-  const cleanedAtt = cleanPhone(attPhone);
+async function resolveAttendantName(tenantId: string, sock: any, attJid: string, pushName: string, sectorId?: string): Promise<string> {
+  const normalizedAtt = normalizeForKey(attJid);
   try {
     const sectors = sectorId
       ? [await (prisma as any).wppBotSector.findUnique({ where: { id: sectorId } })]
@@ -616,22 +620,27 @@ async function resolveAttendantName(tenantId: string, attJid: string, pushName: 
     for (const sector of sectors) {
       if (!sector) continue;
       const attendants = parseAttendants(sector.attendants);
-      const found = attendants.find(a => cleanPhone(a.phone) === cleanedAtt);
-      if (found?.name) return found.name;
+      for (const att of attendants) {
+        const resolvedJid = await resolvePhoneToJid(sock, att.phone);
+        if (resolvedJid && resolvedJid === normalizedAtt) {
+          return att.name || pushName;
+        }
+      }
     }
   } catch {}
-  return pushName; // fallback: nome do contato no WhatsApp
+  return pushName;
 }
 
-async function isAttendant(tenantId: string, attJid: string): Promise<boolean> {
-  const attPhone = jidToPhone(attJid);
-  const cleanedAtt = cleanPhone(attPhone);
+async function isAttendant(tenantId: string, sock: any, attJid: string): Promise<boolean> {
+  const normalizedAtt = normalizeForKey(attJid);
   try {
     const sectors = await (prisma as any).wppBotSector.findMany({ where: { tenantId, isActive: true } });
     for (const sector of sectors) {
       const attendants = parseAttendants(sector.attendants);
-      const match = attendants.some((a: any) => cleanPhone(a.phone) === cleanedAtt);
-      if (match) return true;
+      for (const att of attendants) {
+        const resolvedJid = await resolvePhoneToJid(sock, att.phone);
+        if (resolvedJid && resolvedJid === normalizedAtt) return true;
+      }
     }
   } catch {}
   return false;
@@ -649,7 +658,7 @@ async function handleAttendant(tenantId: string, sock: any, attJid: string, attN
     if (!state || state.step !== "in_chat") { unlinkAtt(tenantId, attJid); return false; }
 
     if (EXIT_CMD.test(trimmed)) { await doExit(tenantId, sock, clientKey, "attendant"); return true; }
-    const displayName = await resolveAttendantName(tenantId, attJid, attName, state.sectorId);
+    const displayName = await resolveAttendantName(tenantId, sock, attJid, attName, state.sectorId);
     await send(sock, state.remoteJid, `💬 *${displayName}*: ${trimmed}`);
     if (state.conversationId) await saveMsg(state.conversationId, "attendant", attJid, trimmed);
     touch(tenantId, clientKey);
@@ -658,11 +667,13 @@ async function handleAttendant(tenantId: string, sock: any, attJid: string, attN
 
   // Atendente responde ACEITAR / RECUSAR para fila
   if (ACCEPT_CMD.test(trimmed) || REFUSE_CMD.test(trimmed)) {
-    const isAtt = await isAttendant(tenantId, attJid);
+    const isAtt = await isAttendant(tenantId, sock, attJid);
+    console.log(`[Bot][DEBUG] handleAttendant: jid=${attJid} isAtt=${isAtt}`);
     if (!isAtt) return false;
 
     // Busca o 1° da fila nos setores onde este atendente está cadastrado
-    const waiting = await findWaitingForAttendant(tenantId, attJid);
+    const waiting = await findWaitingForAttendant(tenantId, sock, attJid);
+    console.log(`[Bot][DEBUG] findWaiting: waiting=${waiting}`);
     if (!waiting) {
       await send(sock, attJid, `ℹ️ Não há clientes aguardando na fila para o(s) seu(s) setor(es) no momento.`);
       return true;
@@ -686,7 +697,7 @@ async function handleAttendant(tenantId: string, sock: any, attJid: string, attN
     }
 
     // ACEITAR — liga ponte
-    const displayName = await resolveAttendantName(tenantId, attJid, attName, state.sectorId);
+    const displayName = await resolveAttendantName(tenantId, sock, attJid, attName, state.sectorId);
     linkAtt(tenantId, attJid, waiting);
     removeFromQueue(tenantId, state.sectorId!, waiting);
     setState(tenantId, waiting, { ...state, step: "in_chat", attendantJid: attJid, queuePos: undefined });
@@ -705,8 +716,8 @@ async function handleAttendant(tenantId: string, sock: any, attJid: string, attN
 }
 
 /** Busca o 1° da fila em qualquer setor que contenha este atendente */
-async function findWaitingForAttendant(tenantId: string, attJid: string): Promise<string | undefined> {
-  const attPhone = jidToPhone(attJid).replace(/\D/g, "");
+async function findWaitingForAttendant(tenantId: string, sock: any, attJid: string): Promise<string | undefined> {
+  const normalizedAtt = normalizeForKey(attJid);
   const map = sectorQueues.get(tenantId);
   if (!map) return undefined;
 
@@ -716,11 +727,11 @@ async function findWaitingForAttendant(tenantId: string, attJid: string): Promis
       const sector = await (prisma as any).wppBotSector.findUnique({ where: { id: sectorId } });
       if (!sector) continue;
       const attendants = parseAttendants(sector.attendants);
-      const match = attendants.some(a => {
-        const ad = a.phone.replace(/\D/g, "");
-        return ad === attPhone || ad === `55${attPhone}` || `55${ad}` === attPhone;
-      });
-      if (match) return queue[0];
+      for (const att of attendants) {
+        const resolvedJid = await resolvePhoneToJid(sock, att.phone);
+        console.log(`[Bot][DEBUG] findWaiting: sector=${sector.name} attPhone=${att.phone} resolvedJid=${resolvedJid} normalizedAtt=${normalizedAtt} match=${resolvedJid === normalizedAtt}`);
+        if (resolvedJid && resolvedJid === normalizedAtt) return queue[0];
+      }
     } catch {}
   }
   return undefined;
