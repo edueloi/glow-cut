@@ -296,13 +296,14 @@ async function send(sock: any, jid: string, text: string) {
 
 // ── Mensagens ─────────────────────────────────────────────────────────────────
 
-function msgBemVindo(): string {
-  return `${saudacao()}! Bem-vindo(a) ao atendimento *Agendelle*.\n\nPara começar, me diga seu *nome completo*:`;
-}
-
 function msgMainMenu(name: string, sectors: any[]): string {
   let t = `Olá, *${name}*! Como posso te ajudar hoje?\n\n`;
   
+  t += `*1* — Como funciona a plataforma?\n`;
+  t += `*2* — Planos e Valores\n`;
+  t += `*3* — Conhecer a Agendelle\n`;
+  t += `*4* — Conhecer a Develoi\n\n`;
+
   if (sectors && sectors.length > 0) {
     for (const s of sectors) {
       t += `*${s.menuKey}* — ${s.name}\n`;
@@ -310,10 +311,6 @@ function msgMainMenu(name: string, sectors: any[]): string {
     t += `\n`;
   }
   
-  t += `*A* — Como funciona a plataforma?\n`;
-  t += `*B* — Planos e Valores\n`;
-  t += `*C* — Conhecer a Agendelle\n`;
-  t += `*D* — Conhecer a Develoi\n\n`;
   t += `*0* — Encerrar Atendimento\n`;
   
   return t;
@@ -418,27 +415,20 @@ function msgNotifAtendente(name: string, subject: string, clientKey: string, sec
 
 // ── Fluxo do cliente ──────────────────────────────────────────────────────────
 
-async function handleClient(tenantId: string, sock: any, remoteJid: string, clientKey: string, text: string) {
+async function handleClient(tenantId: string, sock: any, remoteJid: string, clientKey: string, text: string, pushName: string) {
   const trimmed = text.trim();
   const state = getState(tenantId, clientKey);
 
   if (EXIT_CMD.test(trimmed)) { await doExit(tenantId, sock, clientKey, "client"); return; }
 
   if (!state) {
-    setState(tenantId, clientKey, { step: "ask_name", remoteJid, lastActivity: Date.now() });
-    await send(sock, remoteJid, msgBemVindo());
+    const sectors = await loadSectors(tenantId);
+    setState(tenantId, clientKey, { step: "main_menu", remoteJid, lastActivity: Date.now(), name: pushName });
+    await send(sock, remoteJid, `${saudacao()}! Bem-vindo(a) ao atendimento *Agendelle*.\n\n` + msgMainMenu(pushName, sectors));
     return;
   }
 
   touch(tenantId, clientKey);
-
-  if (state.step === "ask_name") {
-    if (trimmed.length < 2) { await send(sock, remoteJid, `Por favor, informe seu *nome completo*:`); return; }
-    const sectors = await loadSectors(tenantId);
-    setState(tenantId, clientKey, { ...state, step: "main_menu", name: trimmed });
-    await send(sock, remoteJid, msgMainMenu(trimmed, sectors));
-    return;
-  }
 
   if (state.step === "main_menu") {
     if (BACK_CMD.test(trimmed)) {
@@ -453,23 +443,23 @@ async function handleClient(tenantId: string, sock: any, remoteJid: string, clie
     const upper = trimmed.toUpperCase();
     const sectors = await loadSectors(tenantId);
     
-    if (upper === "A") {
+    if (upper === "1") {
        await send(sock, remoteJid, msgComoFunciona());
        await send(sock, remoteJid, msgMainMenu(state.name!, sectors));
        return;
     }
-    if (upper === "B") {
+    if (upper === "2") {
        const textPlanos = await getPlanosText();
        await send(sock, remoteJid, textPlanos);
        await send(sock, remoteJid, msgMainMenu(state.name!, sectors));
        return;
     }
-    if (upper === "C") {
+    if (upper === "3") {
        await send(sock, remoteJid, msgConhecerAgendelle());
        await send(sock, remoteJid, msgMainMenu(state.name!, sectors));
        return;
     }
-    if (upper === "D") {
+    if (upper === "4") {
        await send(sock, remoteJid, msgConhecerDeveloi());
        await send(sock, remoteJid, msgMainMenu(state.name!, sectors));
        return;
@@ -478,12 +468,26 @@ async function handleClient(tenantId: string, sock: any, remoteJid: string, clie
     const chosen = sectors.find(s => String(s.menuKey).toLowerCase() === trimmed.toLowerCase());
     
     if (chosen) {
-       setState(tenantId, clientKey, { ...state, step: "ask_subject", sectorId: chosen.id, sectorName: chosen.name });
-       await send(sock, remoteJid, `Certo! Para agilizarmos o atendimento no setor *${chosen.name}*, sobre o que você gostaria de falar?\n_(Descreva brevemente o assunto)_`);
+       setState(tenantId, clientKey, { ...state, step: "ask_name", sectorId: chosen.id, sectorName: chosen.name });
+       await send(sock, remoteJid, `Certo! Para agilizarmos o atendimento no setor *${chosen.name}*, por favor, me diga seu *nome completo*:`);
        return;
     }
     
     await send(sock, remoteJid, `Opção inválida. Digite uma das opções do menu ou *0* para sair.`);
+    return;
+  }
+
+  if (state.step === "ask_name") {
+    if (BACK_CMD.test(trimmed)) {
+       if (trimmed.toLowerCase() === "sair") { await doExit(tenantId, sock, clientKey, "client"); return; }
+       const sectors = await loadSectors(tenantId);
+       setState(tenantId, clientKey, { ...state, step: "main_menu", sectorId: undefined, sectorName: undefined });
+       await send(sock, remoteJid, msgMainMenu(state.name!, sectors));
+       return;
+    }
+    if (trimmed.length < 2) { await send(sock, remoteJid, `Por favor, informe seu *nome completo*:`); return; }
+    setState(tenantId, clientKey, { ...state, step: "ask_subject", name: trimmed });
+    await send(sock, remoteJid, `Obrigado, *${trimmed}*! E qual é o assunto que você gostaria de tratar?`);
     return;
   }
 
@@ -603,6 +607,22 @@ async function resolveAttendantName(tenantId: string, attJid: string, pushName: 
   return pushName; // fallback: nome do contato no WhatsApp
 }
 
+async function isAttendant(tenantId: string, attJid: string): Promise<boolean> {
+  const attPhone = jidToPhone(attJid).replace(/\D/g, "");
+  try {
+    const sectors = await (prisma as any).wppBotSector.findMany({ where: { tenantId, isActive: true } });
+    for (const sector of sectors) {
+      const attendants = parseAttendants(sector.attendants);
+      const match = attendants.some((a: any) => {
+        const ad = a.phone.replace(/\D/g, "");
+        return ad === attPhone || ad === `55${attPhone}` || `55${ad}` === attPhone;
+      });
+      if (match) return true;
+    }
+  } catch {}
+  return false;
+}
+
 // ── Fluxo do atendente ────────────────────────────────────────────────────────
 
 async function handleAttendant(tenantId: string, sock: any, attJid: string, attName: string, text: string): Promise<boolean> {
@@ -624,6 +644,9 @@ async function handleAttendant(tenantId: string, sock: any, attJid: string, attN
 
   // Atendente responde ACEITAR / RECUSAR para fila
   if (ACCEPT_CMD.test(trimmed) || REFUSE_CMD.test(trimmed)) {
+    const isAtt = await isAttendant(tenantId, attJid);
+    if (!isAtt) return false;
+
     // Busca o 1° da fila nos setores onde este atendente está cadastrado
     const waiting = await findWaitingForAttendant(tenantId, attJid);
     if (!waiting) {
@@ -805,7 +828,7 @@ export async function initSession(tenantId: string): Promise<void> {
       console.log(`[Bot] ${clientKey} (${pushName}): ${text}`);
       try {
         const handled = await handleAttendant(tenantId, sock, remoteJid, pushName, text);
-        if (!handled) await handleClient(tenantId, sock, remoteJid, clientKey, text);
+        if (!handled) await handleClient(tenantId, sock, remoteJid, clientKey, text, pushName);
       } catch (e) { console.error(`[Bot] Erro:`, e); }
     }
   });
