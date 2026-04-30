@@ -92,7 +92,21 @@ export function AssinaturaTab() {
                           {expiresAt ? `Expira em ${format(parseISO(expiresAt), "dd/MM/yyyy")}` : "Sem renovação"}
                        </p>
                     </div>
-                    <Button variant="outline" size="sm" className="h-10 px-4 rounded-xl font-black uppercase text-[9px] tracking-widest border">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-10 px-4 rounded-xl font-black uppercase text-[9px] tracking-widest border"
+                      onClick={async () => {
+                        try {
+                          const res = await apiFetch("/api/admin/create-portal", { method: "POST" });
+                          const data = await res.json();
+                          if (data.url) window.location.href = data.url;
+                          else alert(data.error || "Erro ao acessar faturas.");
+                        } catch (err) {
+                          alert("Erro ao conectar ao portal.");
+                        }
+                      }}
+                    >
                        Faturas
                     </Button>
                  </div>

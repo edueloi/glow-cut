@@ -493,6 +493,34 @@ export const adminController = {
     }
   },
 
+  async createPortal(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
 
+    try {
+      const tenant = await (prisma as any).tenant.findUnique({
+        where: { id: tenantId },
+        select: { stripeCustomerId: true },
+      });
+
+      if (!tenant?.stripeCustomerId) {
+        return res.status(400).json({ error: "Este estúdio não possui uma assinatura vinculada na Stripe." });
+      }
+
+      const Stripe = require("stripe");
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2026-04-22.dahlia" });
+      const appUrl = process.env.APP_URL || "https://agendelle.com.br";
+
+      const session = await stripe.billingPortal.sessions.create({
+        customer: tenant.stripeCustomerId,
+        return_url: `${appUrl}/admin/assinatura`,
+      });
+
+      res.json({ url: session.url });
+    } catch (e: any) {
+      console.error("[CreatePortal] Erro:", e.message);
+      res.status(500).json({ error: "Erro ao gerar link do portal." });
+    }
+  },
 };
 

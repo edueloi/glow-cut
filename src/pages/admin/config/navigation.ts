@@ -215,7 +215,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
       { tab: "wpp",        label: "WhatsApp",    icon: MessageCircle, permModule: "whatsapp" },
       { tab: "settings",   label: "Configurações", icon: Settings,    permModule: "configuracoes" },
       { tab: "permissoes", label: "Permissões",  icon: Shield,        permModule: "permissoes" },
-      { tab: "assinatura", label: "Assinatura", icon: CreditCard,     permModule: "configuracoes" },
+      { tab: "assinatura", label: "Assinatura", icon: CreditCard,     permModule: "assinatura" },
     ],
   },
 

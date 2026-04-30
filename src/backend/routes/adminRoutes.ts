@@ -16,5 +16,4 @@ adminRouter.put("/team/:id", adminController.updateTeamUser);
 adminRouter.delete("/team/:id", adminController.deleteTeamUser);
 adminRouter.get("/all-plans", adminController.getPlans);
 adminRouter.post("/onboarding/update", adminController.updateOnboarding);
-
-
+adminRouter.post("/create-portal", adminController.createPortal);
