@@ -597,9 +597,18 @@ async function enterSector(tenantId: string, sock: any, clientKey: string, state
   }
 }
 
+/** Limpa o número para comparação (remove 55 e 9º dígito se houver) */
+function cleanPhone(p: string): string {
+  let c = p.replace(/\D/g, "");
+  if (c.startsWith("55")) c = c.slice(2);
+  if (c.length === 11 && c[2] === "9") c = c.slice(0, 2) + c.slice(3);
+  return c;
+}
+
 /** Retorna o nome registrado do atendente no setor, ou fallback para pushName */
 async function resolveAttendantName(tenantId: string, attJid: string, pushName: string, sectorId?: string): Promise<string> {
-  const attPhone = jidToPhone(attJid).replace(/\D/g, "");
+  const attPhone = jidToPhone(attJid);
+  const cleanedAtt = cleanPhone(attPhone);
   try {
     const sectors = sectorId
       ? [await (prisma as any).wppBotSector.findUnique({ where: { id: sectorId } })]
@@ -607,10 +616,7 @@ async function resolveAttendantName(tenantId: string, attJid: string, pushName: 
     for (const sector of sectors) {
       if (!sector) continue;
       const attendants = parseAttendants(sector.attendants);
-      const found = attendants.find(a => {
-        const ad = a.phone.replace(/\D/g, "");
-        return ad === attPhone || ad === `55${attPhone}` || `55${ad}` === attPhone;
-      });
+      const found = attendants.find(a => cleanPhone(a.phone) === cleanedAtt);
       if (found?.name) return found.name;
     }
   } catch {}
@@ -618,15 +624,13 @@ async function resolveAttendantName(tenantId: string, attJid: string, pushName: 
 }
 
 async function isAttendant(tenantId: string, attJid: string): Promise<boolean> {
-  const attPhone = jidToPhone(attJid).replace(/\D/g, "");
+  const attPhone = jidToPhone(attJid);
+  const cleanedAtt = cleanPhone(attPhone);
   try {
     const sectors = await (prisma as any).wppBotSector.findMany({ where: { tenantId, isActive: true } });
     for (const sector of sectors) {
       const attendants = parseAttendants(sector.attendants);
-      const match = attendants.some((a: any) => {
-        const ad = a.phone.replace(/\D/g, "");
-        return ad === attPhone || ad === `55${attPhone}` || `55${ad}` === attPhone;
-      });
+      const match = attendants.some((a: any) => cleanPhone(a.phone) === cleanedAtt);
       if (match) return true;
     }
   } catch {}
