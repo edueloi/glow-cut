@@ -136,6 +136,50 @@ function clearPendingActionsForClient(tenantId: string, clientKey: string) {
   }
 }
 
+/** Fallback: retorna QUALQUER pendência ativa do tenant (para quando LID não bate) */
+function getAnyPendingAction(tenantId: string): PendingAttendantAction | undefined {
+  const map = getPendingAttendantMap(tenantId);
+  const now = Date.now();
+  for (const [key, action] of map.entries()) {
+    if (now > action.expiresAt) { map.delete(key); continue; }
+    return action;
+  }
+  return undefined;
+}
+
+// ── Cache LID ↔ Phone ─────────────────────────────────────────────────────────
+
+const lidPhoneCache = new Map<string, string>();
+
+function cacheLidMapping(lid: string, phone: string) {
+  const lidKey = normalizeForKey(lid);
+  const phoneKey = normalizeForKey(phone);
+  if (lidKey && phoneKey && lidKey !== phoneKey) {
+    lidPhoneCache.set(lidKey, phoneKey);
+    lidPhoneCache.set(phoneKey, lidKey);
+    console.log(`[Bot][LID] Cached: ${lidKey} ↔ ${phoneKey}`);
+  }
+}
+
+function resolveFromLidCache(jid: string): string | undefined {
+  return lidPhoneCache.get(normalizeForKey(jid));
+}
+
+/** Enriquece a lista de JIDs usando o cache LID ↔ Phone */
+function enrichJidsFromCache(jids: string[]): string[] {
+  const enriched = [...jids];
+  for (const jid of jids) {
+    const resolved = resolveFromLidCache(jid);
+    if (resolved) {
+      const phoneJid = `${resolved}@s.whatsapp.net`;
+      if (!enriched.includes(phoneJid) && !enriched.includes(resolved)) {
+        enriched.push(phoneJid);
+      }
+    }
+  }
+  return enriched;
+}
+
 const INACTIVITY_WARN_MS = 15 * 60 * 1000;
 const INACTIVITY_CLOSE_MS = 20 * 60 * 1000;
 const ATTENDANT_EXIT_CMD = /^&sair$/i;
@@ -975,8 +1019,19 @@ async function handleAttendant(
 
   // Atendente responde ACEITAR / RECUSAR para fila
   if (ACCEPT_CMD.test(trimmed) || REFUSE_CMD.test(trimmed)) {
-    const pendingAction = getPendingAttendantActionByAnyJid(tenantId, attJids);
-    const isAtt = pendingAction ? true : await isAnyAttendant(tenantId, sock, attJids);
+    let pendingAction = getPendingAttendantActionByAnyJid(tenantId, attJids);
+    let isAtt = pendingAction ? true : await isAnyAttendant(tenantId, sock, attJids);
+
+    // FALLBACK: se o JID é um LID que não conseguimos resolver,
+    // verificamos se existe qualquer pendência ativa no tenant
+    if (!pendingAction && !isAtt) {
+      const fallback = getAnyPendingAction(tenantId);
+      if (fallback) {
+        console.log(`[Bot][LID-FALLBACK] JID ${attJids.join(",")} não reconhecido, usando pendência fallback para cliente=${fallback.clientKey}`);
+        pendingAction = fallback;
+        isAtt = true;
+      }
+    }
 
     console.log(`[Bot][DEBUG] handleAttendant: jids=${attJids.join(",")} isAtt=${isAtt} hasPending=${!!pendingAction}`);
 
@@ -1044,6 +1099,22 @@ async function handleAttendant(
     linkAttMany(tenantId, attJids, waiting);
     removeFromQueue(tenantId, state.sectorId!, waiting);
     clearPendingActionsForClient(tenantId, waiting);
+
+    // Cache LID → phone se o aceite veio de um JID @lid
+    if (pendingAction?.sectorId) {
+      try {
+        const sector = await (prisma as any).wppBotSector.findUnique({ where: { id: pendingAction.sectorId } });
+        if (sector) {
+          const attendants = parseAttendants(sector.attendants);
+          const lidJid = attJids.find(j => j.includes("@lid"));
+          if (lidJid) {
+            for (const att of attendants) {
+              cacheLidMapping(lidJid, phoneToJid(att.phone));
+            }
+          }
+        }
+      } catch {}
+    }
 
     setState(tenantId, waiting, {
       ...state,
@@ -1246,7 +1317,7 @@ export async function initSession(tenantId: string): Promise<void> {
       if (!remoteJid || remoteJid.includes("@g.us")) continue;
       const text = (msg.message.conversation || msg.message.extendedTextMessage?.text || "").trim();
       if (!text) continue;
-      const senderJids = getMessageSenderJids(msg, remoteJid);
+      const senderJids = enrichJidsFromCache(getMessageSenderJids(msg, remoteJid));
       const clientKey = pickBestClientKey(senderJids, remoteJid);
       const pushName: string = msg.pushName || clientKey;
       // if (tenantId !== "system") continue;
@@ -1261,6 +1332,23 @@ export async function initSession(tenantId: string): Promise<void> {
         const registeredAttendant = await isAnyAttendant(tenantId, sock, senderJids);
 
         if (registeredAttendant) {
+          // Cache: se este JID é um LID e conseguimos confirmar que é atendente,
+          // armazenar o mapeamento para futuras mensagens
+          const lidJid = senderJids.find(j => j.includes("@lid"));
+          if (lidJid) {
+            try {
+              const sectors = await (prisma as any).wppBotSector.findMany({ where: { tenantId, isActive: true } });
+              for (const sector of sectors) {
+                const attendants = parseAttendants(sector.attendants);
+                for (const att of attendants) {
+                  const resolved = await resolvePhoneToJid(sock, att.phone);
+                  if (resolved) {
+                    cacheLidMapping(lidJid, `${resolved}@s.whatsapp.net`);
+                  }
+                }
+              }
+            } catch {}
+          }
           await send(
             sock,
             remoteJid,
