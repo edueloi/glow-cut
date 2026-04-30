@@ -284,7 +284,15 @@ async function send(sock: any, jid: string, text: string) {
   const prev = sendQ.get(jid) || Promise.resolve();
   const next = prev.then(async () => {
     try {
-      await new Promise(r => setTimeout(r, 500 + Math.random() * 800));
+      const delay = Math.min(1000 + (text.length / 100) * 1500, 3500);
+      
+      await sock.presenceSubscribe(jid).catch(() => {});
+      await sock.sendPresenceUpdate("composing", jid).catch(() => {});
+      
+      await new Promise(r => setTimeout(r, delay));
+      
+      await sock.sendPresenceUpdate("paused", jid).catch(() => {});
+      
       await sock.sendMessage(jid, { text });
       console.log(`[Bot] → ${jid.slice(0, 15)}: ${text.slice(0, 50)}`);
     } catch (e) { console.warn(`[Bot] Erro envio ${jid}:`, e); }
