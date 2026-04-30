@@ -1222,20 +1222,31 @@ async function doExit(tenantId: string, sock: any, clientKey: string, by: "clien
     await saveMsg(state.conversationId, "bot", undefined, `Encerrado por ${by}.`);
   }
   if (state.attendantJid && state.step === "in_chat") {
-    unlinkAtt(tenantId, state.attendantJid);
     if (by === "client") {
       await send(sock, state.attendantJid, `ℹ️ *${state.name || clientKey}* encerrou o atendimento.`);
     }
+    if (by === "attendant") {
+      await send(sock, state.remoteJid,
+        `ℹ️ *O atendente encerrou a conversa.*\n\n` +
+        `Obrigado por entrar em contato com a Agendelle.\n\n` +
+        `Quando precisar novamente, é só enviar uma nova mensagem por aqui.`
+      );
+      await send(sock, state.attendantJid, `✅ Atendimento com *${state.name || clientKey}* encerrado.`);
+    }
+    unlinkAttByClient(tenantId, clientKey);
   }
 
   clearState(tenantId, clientKey);
-  await send(
-    sock,
-    state.remoteJid,
-    `✅ *Atendimento encerrado.*\n\n` +
-    `Obrigado por entrar em contato com a Agendelle.\n\n` +
-    `Quando precisar novamente, é só enviar uma nova mensagem por aqui.`
-  );
+
+  if (by !== "attendant") {
+    await send(
+      sock,
+      state.remoteJid,
+      `✅ *Atendimento encerrado.*\n\n` +
+      `Obrigado por entrar em contato com a Agendelle.\n\n` +
+      `Quando precisar novamente, é só enviar uma nova mensagem por aqui.`
+    );
+  }
 
   // Se saiu da fila, notifica próximos e chama atendentes
   if (sectorId && (state.step === "waiting" || state.step === "in_chat")) {
