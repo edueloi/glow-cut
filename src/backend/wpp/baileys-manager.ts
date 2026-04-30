@@ -81,10 +81,6 @@ function pendingAttendantKeys(jidOrPhone: string): string[] {
   return getBrazilPhoneVariants(normalized);
 }
 
-function pendingAttendantKey(jid: string): string {
-  return pendingAttendantKeys(jid)[0];
-}
-
 function setPendingAttendantAction(
   tenantId: string,
   attJid: string,
@@ -247,8 +243,15 @@ function setState(tenantId: string, key: string, state: ClientState) {
 
 function clearState(tenantId: string, key: string) {
   const s = clientStates.get(tenantId)?.get(key);
-  if (s?.attendantJid) attToClient.get(tenantId)?.delete(s.attendantJid);
-  if (s?.sectorId) removeFromQueue(tenantId, s.sectorId, key);
+
+  if (s?.attendantJid) {
+    unlinkAtt(tenantId, s.attendantJid);
+  }
+
+  if (s?.sectorId) {
+    removeFromQueue(tenantId, s.sectorId, key);
+  }
+
   clientStates.get(tenantId)?.delete(key);
 }
 
@@ -315,16 +318,36 @@ async function notifyQueueUpdate(tenantId: string, sectorId: string, sectorName:
 // ── Ponte atendente ───────────────────────────────────────────────────────────
 
 function linkAtt(tenantId: string, attJid: string, clientKey: string) {
-  if (!attToClient.has(tenantId)) attToClient.set(tenantId, new Map());
-  attToClient.get(tenantId)!.set(attJid, clientKey);
+  if (!attToClient.has(tenantId)) {
+    attToClient.set(tenantId, new Map());
+  }
+
+  const map = attToClient.get(tenantId)!;
+
+  for (const key of pendingAttendantKeys(attJid)) {
+    map.set(key, clientKey);
+  }
 }
 
 function unlinkAtt(tenantId: string, attJid: string) {
-  attToClient.get(tenantId)?.delete(attJid);
+  const map = attToClient.get(tenantId);
+  if (!map) return;
+
+  for (const key of pendingAttendantKeys(attJid)) {
+    map.delete(key);
+  }
 }
 
 function clientByAtt(tenantId: string, attJid: string): string | undefined {
-  return attToClient.get(tenantId)?.get(attJid);
+  const map = attToClient.get(tenantId);
+  if (!map) return undefined;
+
+  for (const key of pendingAttendantKeys(attJid)) {
+    const clientKey = map.get(key);
+    if (clientKey) return clientKey;
+  }
+
+  return undefined;
 }
 
 // ── Limpeza inatividade ───────────────────────────────────────────────────────
@@ -353,7 +376,12 @@ async function cleanInactive() {
         const sectorId = state.sectorId;
         const sectorName = state.sectorName || "";
         clearState(tenantId, key);
-        if (sectorId && sock) await notifyQueueUpdate(tenantId, sectorId, sectorName, sock).catch(() => {});
+        if (sectorId && sock) {
+          await notifyQueueUpdate(tenantId, sectorId, sectorName, sock).catch(() => {});
+          if (state.step === "in_chat") {
+            await callNextInQueue(tenantId, sock, sectorId, sectorName).catch(() => {});
+          }
+        }
       } else if (elapsed > INACTIVITY_WARN_MS && !state.warnedInactive) {
         state.warnedInactive = true;
         if (sock) {
@@ -734,16 +762,27 @@ async function resolvePhoneToJid(sock: any, phone: string): Promise<string | nul
 }
 
 /** Retorna o nome registrado do atendente no setor, ou fallback para pushName */
-async function resolveAttendantName(tenantId: string, sock: any, attJid: string, pushName: string, sectorId?: string): Promise<string> {
+async function resolveAttendantName(
+  tenantId: string,
+  sock: any,
+  attJid: string,
+  pushName: string,
+  sectorId?: string
+): Promise<string> {
   const normalizedAtt = normalizeForKey(attJid);
   try {
     const sectors = sectorId
       ? [await (prisma as any).wppBotSector.findUnique({ where: { id: sectorId } })]
-      : await (prisma as any).wppBotSector.findMany({ where: { tenantId, isActive: true } });
+      : await (prisma as any).wppBotSector.findMany({
+          where: { tenantId, isActive: true },
+        });
     for (const sector of sectors) {
       if (!sector) continue;
       const attendants = parseAttendants(sector.attendants);
       for (const att of attendants) {
+        if (jidMatchesPhone(attJid, att.phone)) {
+          return att.name || pushName;
+        }
         const resolvedJid = await resolvePhoneToJid(sock, att.phone);
         if (resolvedJid && resolvedJid === normalizedAtt) {
           return att.name || pushName;
@@ -1119,7 +1158,11 @@ export async function connectSession(tenantId: string): Promise<SessionInfo> {
 export async function disconnectSession(tenantId: string): Promise<void> {
   const s = sessions.get(tenantId);
   if (s?.sock) { try { await s.sock.logout(); } catch {} try { s.sock.end(); } catch {} }
-  sessions.delete(tenantId); clientStates.delete(tenantId); attToClient.delete(tenantId); sectorQueues.delete(tenantId);
+  sessions.delete(tenantId);
+  clientStates.delete(tenantId);
+  attToClient.delete(tenantId);
+  sectorQueues.delete(tenantId);
+  pendingAttendantActions.delete(tenantId);
   try { fs.rmSync(path.join(SESSIONS_DIR, tenantId), { recursive: true, force: true }); } catch {}
   await updateDb(tenantId, "disconnected", null, null);
 }
