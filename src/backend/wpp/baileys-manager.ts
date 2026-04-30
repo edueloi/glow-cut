@@ -48,6 +48,7 @@ interface ClientState {
   conversationId?: string;
   queuePos?: number;       // posição na fila (1-based)
   lastActivity: number;
+  warnedInactive?: boolean;
 }
 
 // Map<tenantId, Map<clientKey, ClientState>>
@@ -57,9 +58,10 @@ const attToClient = new Map<string, Map<string, string>>();
 // Map<tenantId, Map<sectorId, clientKey[]>> — fila ordenada por chegada
 const sectorQueues = new Map<string, Map<string, string[]>>();
 
-const INACTIVITY_MS = 30 * 60 * 1000;
+const INACTIVITY_WARN_MS = 15 * 60 * 1000;
+const INACTIVITY_CLOSE_MS = 20 * 60 * 1000;
 const EXIT_CMD   = /^&sair$/i;
-const BACK_CMD   = /^(0|menu|inicio|início|voltar|cancelar)$/i;
+const BACK_CMD   = /^(0|menu|inicio|início|voltar|cancelar|sair)$/i;
 const ACCEPT_CMD = /^(aceitar|1)$/i;
 const REFUSE_CMD = /^(recusar|2)$/i;
 
@@ -125,7 +127,7 @@ function getState(tenantId: string, key: string): ClientState | undefined {
 
 function setState(tenantId: string, key: string, state: ClientState) {
   if (!clientStates.has(tenantId)) clientStates.set(tenantId, new Map());
-  clientStates.get(tenantId)!.set(key, { ...state, lastActivity: Date.now() });
+  clientStates.get(tenantId)!.set(key, { ...state, lastActivity: Date.now(), warnedInactive: false });
 }
 
 function clearState(tenantId: string, key: string) {
@@ -137,7 +139,10 @@ function clearState(tenantId: string, key: string) {
 
 function touch(tenantId: string, key: string) {
   const s = clientStates.get(tenantId)?.get(key);
-  if (s) s.lastActivity = Date.now();
+  if (s) {
+    s.lastActivity = Date.now();
+    s.warnedInactive = false;
+  }
 }
 
 // ── Fila por setor ────────────────────────────────────────────────────────────
@@ -186,7 +191,7 @@ async function notifyQueueUpdate(tenantId: string, sectorId: string, sectorName:
         `${emoji} *Atualização da fila — ${sectorName}*\n\n` +
         `Você avançou! Agora está na posição *${pos}°* da fila.\n` +
         (pos === 1 ? `Você é o próximo! Um atendente irá te chamar em instantes. 🎉` : `Aguarde, há *${pos - 1}* pessoa(s) na sua frente.`) +
-        `\n\n_Digite *&SAIR* ou *0* para cancelar._`
+        `\n\n_Digite *sair* ou *0* a qualquer momento para cancelar._`
       );
     }
   }
@@ -214,19 +219,32 @@ async function cleanInactive() {
   for (const [tenantId, map] of clientStates.entries()) {
     const sock = sessions.get(tenantId)?.sock;
     for (const [key, state] of map.entries()) {
-      if (now - state.lastActivity < INACTIVITY_MS) continue;
-      console.log(`[Bot] Inatividade: ${key}`);
-      if (sock) {
-        try { await sock.sendMessage(state.remoteJid, { text: `⏰ Conversa encerrada por *inatividade* (30 min).\n\nQualquer hora que precisar é só mandar mensagem! 😊` }); } catch {}
-        if (state.attendantJid && state.step === "in_chat") {
-          try { await sock.sendMessage(state.attendantJid, { text: `ℹ️ Conversa com *${state.name || key}* encerrada por inatividade.` }); } catch {}
+      if (state.step === "waiting") {
+        // Não encerra se estiver na fila aguardando
+        continue;
+      }
+      
+      const elapsed = now - state.lastActivity;
+      
+      if (elapsed > INACTIVITY_CLOSE_MS) {
+        console.log(`[Bot] Inatividade: ${key}`);
+        if (sock) {
+          try { await sock.sendMessage(state.remoteJid, { text: `⏰ Atendimento encerrado por falta de interação.\n\nQualquer hora que precisar é só mandar mensagem de novo! 😊` }); } catch {}
+          if (state.attendantJid && state.step === "in_chat") {
+            try { await sock.sendMessage(state.attendantJid, { text: `ℹ️ Conversa com *${state.name || key}* encerrada por inatividade do cliente.` }); } catch {}
+          }
+        }
+        if (state.conversationId) await closeConv(state.conversationId, "system").catch(() => {});
+        const sectorId = state.sectorId;
+        const sectorName = state.sectorName || "";
+        clearState(tenantId, key);
+        if (sectorId && sock) await notifyQueueUpdate(tenantId, sectorId, sectorName, sock).catch(() => {});
+      } else if (elapsed > INACTIVITY_WARN_MS && !state.warnedInactive) {
+        state.warnedInactive = true;
+        if (sock) {
+          try { await sock.sendMessage(state.remoteJid, { text: `👀 Oi! Tem alguém aí?\n\nSeu atendimento será encerrado em 5 minutos por inatividade. Responda algo para continuarmos.` }); } catch {}
         }
       }
-      if (state.conversationId) await closeConv(state.conversationId, "system").catch(() => {});
-      const sectorId = state.sectorId;
-      const sectorName = state.sectorName || "";
-      clearState(tenantId, key);
-      if (sectorId && sock) await notifyQueueUpdate(tenantId, sectorId, sectorName, sock).catch(() => {});
     }
   }
 }
@@ -289,7 +307,7 @@ function msgMenu(sectors: any[]): string {
     if (s.description) t += `\n   _${s.description}_`;
     t += `\n`;
   }
-  return t + `\n*0* — ❌ Cancelar\n\n_Digite *&SAIR* a qualquer momento para encerrar._`;
+  return t + `\n*0* — ❌ Cancelar\n\n_Digite *sair* a qualquer momento para encerrar._`;
 }
 
 function msgFila(pos: number, sectorName: string, total: number): string {
@@ -297,7 +315,7 @@ function msgFila(pos: number, sectorName: string, total: number): string {
     return (
       `✅ Você entrou na fila do setor *${sectorName}*!\n\n` +
       `🟢 Você é o *1° da fila* — será atendido em instantes!\n\n` +
-      `_Digite *&SAIR* ou *0* para cancelar._`
+      `_Digite *sair* ou *0* para cancelar._`
     );
   }
   return (
@@ -305,7 +323,7 @@ function msgFila(pos: number, sectorName: string, total: number): string {
     `🔴 Sua posição: *${pos}°* na fila\n` +
     `👥 Total aguardando: *${total}* pessoa(s)\n\n` +
     `Você será notificado conforme avançar na fila.\n` +
-    `_Digite *&SAIR* ou *0* para cancelar._`
+    `_Digite *sair* ou *0* para cancelar._`
   );
 }
 
@@ -369,7 +387,7 @@ async function handleClient(tenantId: string, sock: any, remoteJid: string, clie
   if (state.step === "waiting") {
     if (BACK_CMD.test(trimmed)) { await doExit(tenantId, sock, clientKey, "client"); return; }
     const pos = state.sectorId ? queuePosition(tenantId, state.sectorId, clientKey) : "?";
-    await send(sock, remoteJid, `⏳ Você está na posição *${pos}°* da fila. Aguarde.\n_Digite *&SAIR* ou *0* para sair da fila._`);
+    await send(sock, remoteJid, `⏳ Você está na posição *${pos}°* da fila. Aguarde.\n_Digite *sair* ou *0* para sair da fila._`);
     return;
   }
 
@@ -506,7 +524,7 @@ async function handleAttendant(tenantId: string, sock: any, attJid: string, attN
     await (prisma as any).wppConversation.update({ where: { id: state.conversationId }, data: { status: "active", attendantPhone: jidToPhone(attJid) } }).catch(() => {});
     if (state.conversationId) await saveMsg(state.conversationId, "bot", undefined, `${displayName} aceitou.`);
 
-    await send(sock, state.remoteJid, `🎉 *${displayName}* aceitou seu atendimento!\n\nPode enviar sua mensagem normalmente.\n_Digite *&SAIR* ou *0* para encerrar._`);
+    await send(sock, state.remoteJid, `🎉 *${displayName}* aceitou seu atendimento!\n\nPode enviar sua mensagem normalmente.\n_Digite *sair* ou *0* para encerrar._`);
     await send(sock, attJid, `✅ Atendendo *${state.name}*.\n💬 Assunto: _${state.subject}_\n\n_Digite *&SAIR* para encerrar._`);
 
     // Atualiza posições dos que ficaram na fila
