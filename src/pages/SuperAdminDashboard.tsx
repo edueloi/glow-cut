@@ -3373,12 +3373,28 @@ function BotCentralTab() {
                         onChange={e => setAttendantList(prev => prev.map((a, i) => i === idx ? { ...a, name: e.target.value } : a))}
                         style={{ flex: 1 }}
                       />
-                      <Input
-                        placeholder="Ex: 5515999990000"
-                        value={att.phone}
-                        onChange={e => setAttendantList(prev => prev.map((a, i) => i === idx ? { ...a, phone: e.target.value } : a))}
-                        style={{ flex: 1 }}
-                      />
+                      <div style={{ flex: 1, position: "relative" }}>
+                        <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#a1a1aa", fontWeight: 600, pointerEvents: "none" }}>+55</span>
+                        <Input
+                          placeholder="(15) 99999-0000"
+                          value={(() => {
+                            let d = att.phone.replace(/\D/g, "");
+                            if (d.startsWith("55")) d = d.slice(2);
+                            if (d.length === 0) return "";
+                            if (d.length <= 2) return `(${d}`;
+                            if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+                            return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7,11)}`;
+                          })()}
+                          onChange={e => {
+                            let raw = e.target.value.replace(/\D/g, "");
+                            if (raw.startsWith("55")) raw = raw.slice(2);
+                            if (raw.length > 11) raw = raw.slice(0, 11);
+                            setAttendantList(prev => prev.map((a, i) => i === idx ? { ...a, phone: raw.length > 0 ? `55${raw}` : "" } : a));
+                          }}
+                          maxLength={16}
+                          style={{ paddingLeft: 38 }}
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={() => setAttendantList(prev => prev.length === 1 ? [{ name: "", phone: "" }] : prev.filter((_, i) => i !== idx))}
@@ -3396,7 +3412,7 @@ function BotCentralTab() {
                     <span>+ Adicionar atendente</span>
                   </button>
                 </div>
-                <p className="text-[10px] text-zinc-400 mt-1">Nome exibido no bot ao aceitar. Telefone com DDI (ex: 5515...). Receberão notificações de novo atendimento.</p>
+                <p className="text-[10px] text-zinc-400 mt-1">Nome exibido no bot ao aceitar. Telefone com DDD (ex: 15 99736-4674). Receberão notificações de novo atendimento.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
