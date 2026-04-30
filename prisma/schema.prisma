@@ -477,6 +477,7 @@ model Tenant {
   ownerName             String      @db.VarChar(255)
   ownerEmail            String      @db.VarChar(255)
   ownerPhone            String?     @db.VarChar(30)
+  ownerCpf              String?     @db.VarChar(20)
   planId                String      @db.VarChar(36)
   isActive              Boolean     @default(true)
   wppOverride           Boolean?

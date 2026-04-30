@@ -419,22 +419,11 @@ export default function LandingPage() {
                     </ul>
                     <button
                       className={`lp-btn ${isHot ? "lp-btn-primary" : "lp-btn-ghost"}`}
-                      onClick={async () => {
-                        // Pega ?ref= da URL para passar o vendedor
+                      onClick={() => {
                         const ref = new URLSearchParams(window.location.search).get("ref");
-                        try {
-                          const r = await fetch("/api/auth/create-checkout", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ planId: p.id, ref }),
-                          });
-                          const data = await r.json();
-                          if (data.url) window.location.href = data.url;
-                        } catch {
-                          // fallback para o Payment Link legado
-                          if (p.stripePaymentLink) window.location.href = p.stripePaymentLink;
-                          else navigate("/login");
-                        }
+                        const params = new URLSearchParams({ planId: p.id });
+                        if (ref) params.set("ref", ref);
+                        navigate(`/assinar?${params.toString()}`);
                       }}
                     >
                       Assinar Agora
