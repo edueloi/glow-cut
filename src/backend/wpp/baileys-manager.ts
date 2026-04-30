@@ -1094,7 +1094,37 @@ async function handleAttendant(
       return true;
     }
 
-    const displayName = await resolveAnyAttendantName(tenantId, sock, attJids, attName, state.sectorId);
+    // Resolve o nome do atendente — primeiro tenta pelo JID, depois pelo setor cadastrado
+    let displayName = await resolveAnyAttendantName(tenantId, sock, attJids, attName, state.sectorId);
+
+    // Se o nome veio do pushName (fallback), tentar buscar pelo setor diretamente
+    if (displayName === attName && pendingAction?.sectorId) {
+      try {
+        const sector = await (prisma as any).wppBotSector.findUnique({ where: { id: pendingAction.sectorId } });
+        if (sector) {
+          const attendants = parseAttendants(sector.attendants);
+          // Se só tem um atendente no setor, usa o nome dele
+          if (attendants.length === 1 && attendants[0].name) {
+            displayName = attendants[0].name;
+          } else if (attendants.length > 1) {
+            // Tenta achar pelo cache LID
+            const lidJid = attJids.find(j => j.includes("@lid"));
+            if (lidJid) {
+              const cachedPhone = resolveFromLidCache(lidJid);
+              if (cachedPhone) {
+                const match = attendants.find(a => getBrazilPhoneVariants(a.phone).includes(cachedPhone));
+                if (match?.name) displayName = match.name;
+              }
+            }
+            // Se ainda não achou, usa o primeiro com nome
+            if (displayName === attName) {
+              const withName = attendants.find(a => a.name);
+              if (withName) displayName = withName.name;
+            }
+          }
+        }
+      } catch {}
+    }
 
     linkAttMany(tenantId, attJids, waiting);
     removeFromQueue(tenantId, state.sectorId!, waiting);
@@ -1135,7 +1165,7 @@ async function handleAttendant(
       await saveMsg(state.conversationId, "bot", undefined, `${displayName} aceitou.`);
     }
 
-    await send(sock, state.remoteJid, `🎉 *${displayName}* aceitou seu atendimento!\n\nPode enviar sua mensagem normalmente.\n_Digite *sair* ou *0* para encerrar._`);
+    await send(sock, state.remoteJid, `✅ Seu atendimento foi iniciado!\n\n*${displayName}* irá te atender agora. Pode enviar sua mensagem.\n_Digite *sair* ou *0* para encerrar._`);
 
     await send(sock, replyJid, `✅ Atendendo *${state.name}*.\n💬 Assunto: _${state.subject}_\n\n_Digite *&SAIR* para encerrar._`);
 
