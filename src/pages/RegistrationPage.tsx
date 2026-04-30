@@ -54,10 +54,11 @@ export default function RegistrationPage() {
   const plansRef = useRef<HTMLDivElement>(null);
 
   // 0 = landing, 1 = dados pessoais, 2 = salão+slug, 3 = email+senha, 4 = pagamento/sucesso
-  const [step, setStep] = useState(0);
+  const initialPlanId = searchParams.get("planId");
+  const [step, setStep] = useState(initialPlanId ? 1 : 0);
   const [loading, setLoading] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(initialPlanId || null);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [showPass, setShowPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
@@ -89,9 +90,11 @@ export default function RegistrationPage() {
       .then(r => r.json())
       .then(data => {
         setPlans(data);
-        if (data.length > 0) setSelectedPlan(data[0].id);
+        if (data.length > 0 && !initialPlanId) {
+          setSelectedPlan(data[0].id);
+        }
       });
-  }, []);
+  }, [initialPlanId]);
 
   const scrollToPlans = () => plansRef.current?.scrollIntoView({ behavior: "smooth" });
 
