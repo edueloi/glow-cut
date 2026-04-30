@@ -1309,6 +1309,18 @@ export async function initSession(tenantId: string): Promise<void> {
 
   sock.ev.on("creds.update", saveCreds);
 
+  // Captura mapeamentos LID ↔ Phone automaticamente via eventos de contatos
+  sock.ev.on("contacts.upsert", (contacts: any[]) => {
+    for (const c of contacts) {
+      if (c.id && c.lid) cacheLidMapping(c.lid, c.id);
+    }
+  });
+  sock.ev.on("contacts.update", (contacts: any[]) => {
+    for (const c of contacts) {
+      if (c.id && c.lid) cacheLidMapping(c.lid, c.id);
+    }
+  });
+
   sock.ev.on("messages.upsert", async (m: any) => {
     if (m.type !== "notify") return;
     for (const msg of m.messages) {
