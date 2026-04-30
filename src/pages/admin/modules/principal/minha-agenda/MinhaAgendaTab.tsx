@@ -448,7 +448,7 @@ export function MinhaAgendaTab({
                   label="URL Personalizada (Slug)"
                   addonLeft={`${currentHost}/agendar/`}
                   value={localSlug}
-                  onChange={(e: any) => setLocalSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                  onChange={(e: any) => setLocalSlug(e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""))}
                   placeholder="nome-do-seu-estudio"
                   hint="Use um nome curto e fácil de lembrar."
                 />
