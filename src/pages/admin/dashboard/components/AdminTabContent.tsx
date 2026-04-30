@@ -393,7 +393,7 @@ export function AdminTabContent(props: any) {
         {activeTab === "site" && (!guard("configuracoes") ? <AccessDenied tabLabel="Configurar Site" /> : (
           <SiteTab />
         ))}
-        {activeTab === "assinatura" && (!guard("configuracoes") ? <AccessDenied tabLabel="Assinatura" /> : (
+        {activeTab === "assinatura" && (!guard("assinatura") ? <AccessDenied tabLabel="Assinatura" /> : (
           <AssinaturaTab />
         ))}
 
