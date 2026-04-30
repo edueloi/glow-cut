@@ -323,14 +323,39 @@ function msgComoFunciona(): string {
   );
 }
 
-function msgPlanos(): string {
-  return (
-    `💳 *Nossos Planos*\n\n` +
-    `Temos planos flexíveis que cabem no seu bolso e acompanham o crescimento do seu negócio.\n\n` +
-    `Acesse nosso site para conferir a tabela completa de preços atualizada:\n` +
-    `👉 https://agendelle.com.br\n\n` +
-    `Se preferir, fale com nossa equipe pelo menu principal!`
-  );
+async function getPlanosText(): Promise<string> {
+  try {
+    const plans = await (prisma as any).plan.findMany({
+      where: { isActive: true },
+      orderBy: { price: 'asc' }
+    });
+    
+    if (!plans || plans.length === 0) {
+      return `💳 *Nossos Planos*\n\nNo momento não temos planos configurados. Acesse https://agendelle.com.br para mais informações.`;
+    }
+
+    let t = `💳 *Nossos Planos e Valores*\n\nConheça as opções que preparamos para você:\n\n`;
+    
+    for (const p of plans) {
+      t += `💎 *${p.name}* — R$ ${p.price.toFixed(2).replace('.', ',')}/mês\n`;
+      const features = [];
+      if (p.maxProfessionals > 0) features.push(`Até ${p.maxProfessionals} Profissionais`);
+      if (p.siteEnabled) features.push(`Site/Vitrine`);
+      if (p.agendaExternaEnabled) features.push(`Agendamento Online`);
+      if (p.qrCodeBotEnabled) features.push(`Bot Próprio do WhatsApp`);
+      else if (p.systemBotEnabled) features.push(`Notificações (Bot Agendelle)`);
+      
+      if (features.length > 0) {
+        t += `   _${features.join(" • ")}_\n`;
+      }
+      t += `\n`;
+    }
+    
+    t += `Para assinar, acesse 👉 https://agendelle.com.br ou fale com nossa equipe!`;
+    return t;
+  } catch (e) {
+    return `💳 *Nossos Planos*\n\nAcesse nosso site para conferir a tabela completa: https://agendelle.com.br`;
+  }
 }
 
 function msgMenu(sectors: any[]): string {
@@ -416,7 +441,8 @@ async function handleClient(tenantId: string, sock: any, remoteJid: string, clie
        return;
     }
     if (trimmed === "3") {
-       await send(sock, remoteJid, msgPlanos());
+       const textPlanos = await getPlanosText();
+       await send(sock, remoteJid, textPlanos);
        await send(sock, remoteJid, msgMainMenu(state.name!));
        return;
     }
