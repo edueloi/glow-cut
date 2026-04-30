@@ -35,7 +35,7 @@ interface ActiveSession {
   listeners: Set<(info: SessionInfo) => void>;
 }
 
-type ClientStep = "ask_name" | "ask_subject" | "menu" | "waiting" | "in_chat";
+type ClientStep = "ask_name" | "main_menu" | "ask_subject" | "menu" | "waiting" | "in_chat";
 
 interface ClientState {
   step: ClientStep;
@@ -300,14 +300,47 @@ function msgBemVindo(): string {
   return `${saudacao()}! 😊\n\nBem-vindo(a) ao atendimento *Agendelle*.\n\nPara começar, me diga seu *nome completo*:`;
 }
 
+function msgMainMenu(name: string): string {
+  return (
+    `Olá, *${name}*! Como posso te ajudar hoje?\n\n` +
+    `*1* — 🗣️ Falar com um Atendente\n` +
+    `*2* — ❓ Como funciona a plataforma?\n` +
+    `*3* — 💳 Planos e Valores\n` +
+    `*4* — 🌐 Conhecer a Agendelle\n` +
+    `*5* — 🚀 Conhecer a Develoi\n\n` +
+    `*0* — ❌ Encerrar Atendimento\n`
+  );
+}
+
+function msgComoFunciona(): string {
+  return (
+    `⚙️ *Como funciona o sistema?*\n\n` +
+    `Nós somos uma plataforma inteligente de agendamentos e gestão para o seu negócio.\n\n` +
+    `✅ *Link de Agendamento:* Seus clientes agendam sozinhos 24h por dia.\n` +
+    `✅ *Gestão:* Controle financeiro, comandas, estoque e comissões.\n` +
+    `✅ *WhatsApp:* Lembretes automáticos e bot de atendimento integrado.\n\n` +
+    `Quer saber mais? Escolha a opção de Falar com Atendente no menu!`
+  );
+}
+
+function msgPlanos(): string {
+  return (
+    `💳 *Nossos Planos*\n\n` +
+    `Temos planos flexíveis que cabem no seu bolso e acompanham o crescimento do seu negócio.\n\n` +
+    `Acesse nosso site para conferir a tabela completa de preços atualizada:\n` +
+    `👉 https://agendelle.com.br\n\n` +
+    `Se preferir, fale com nossa equipe pelo menu principal!`
+  );
+}
+
 function msgMenu(sectors: any[]): string {
-  let t = `Perfeito! Para qual setor deseja ser encaminhado?\n\n`;
+  let t = `Para qual setor deseja ser encaminhado?\n\n`;
   for (const s of sectors) {
     t += `*${s.menuKey}* — ${s.name}`;
     if (s.description) t += `\n   _${s.description}_`;
     t += `\n`;
   }
-  return t + `\n*0* — ❌ Cancelar\n\n_Digite *sair* a qualquer momento para encerrar._`;
+  return t + `\n*0* — 🔙 Voltar ao Menu Anterior\n\n_Digite *sair* a qualquer momento para encerrar._`;
 }
 
 function msgFila(pos: number, sectorName: string, total: number): string {
@@ -357,17 +390,67 @@ async function handleClient(tenantId: string, sock: any, remoteJid: string, clie
 
   if (state.step === "ask_name") {
     if (trimmed.length < 2) { await send(sock, remoteJid, `Por favor, informe seu *nome completo*:`); return; }
-    setState(tenantId, clientKey, { ...state, step: "ask_subject", name: trimmed });
-    await send(sock, remoteJid, `Obrigado, *${trimmed}*! 😊\n\nSobre o que você gostaria de falar?\n_(Descreva brevemente o assunto)_`);
+    setState(tenantId, clientKey, { ...state, step: "main_menu", name: trimmed });
+    await send(sock, remoteJid, msgMainMenu(trimmed));
+    return;
+  }
+
+  if (state.step === "main_menu") {
+    if (BACK_CMD.test(trimmed)) {
+       if (trimmed.toLowerCase() === "sair" || trimmed === "0") {
+          await doExit(tenantId, sock, clientKey, "client");
+       } else {
+          await send(sock, remoteJid, `❓ Comando inválido. Digite um número do menu ou *0* para sair.`);
+       }
+       return;
+    }
+    
+    if (trimmed === "1") {
+       setState(tenantId, clientKey, { ...state, step: "ask_subject" });
+       await send(sock, remoteJid, `Certo! Sobre o que você gostaria de falar com nossa equipe?\n_(Descreva brevemente o assunto)_`);
+       return;
+    }
+    if (trimmed === "2") {
+       await send(sock, remoteJid, msgComoFunciona());
+       await send(sock, remoteJid, msgMainMenu(state.name!));
+       return;
+    }
+    if (trimmed === "3") {
+       await send(sock, remoteJid, msgPlanos());
+       await send(sock, remoteJid, msgMainMenu(state.name!));
+       return;
+    }
+    if (trimmed === "4") {
+       await send(sock, remoteJid, `🌐 *Conheça a Agendelle*\n\nAcesse nosso site oficial para saber mais sobre a plataforma: https://agendelle.com.br`);
+       await send(sock, remoteJid, msgMainMenu(state.name!));
+       return;
+    }
+    if (trimmed === "5") {
+       await send(sock, remoteJid, `🚀 *Conheça a Develoi*\n\nNossa software house responsável por grandes projetos! Acesse: https://develoi.com.br`);
+       await send(sock, remoteJid, msgMainMenu(state.name!));
+       return;
+    }
+    
+    await send(sock, remoteJid, `❓ Opção inválida. Digite um número do menu ou *0* para sair.`);
     return;
   }
 
   if (state.step === "ask_subject") {
+    if (BACK_CMD.test(trimmed)) {
+       if (trimmed.toLowerCase() === "sair") {
+          await doExit(tenantId, sock, clientKey, "client");
+          return;
+       }
+       setState(tenantId, clientKey, { ...state, step: "main_menu" });
+       await send(sock, remoteJid, msgMainMenu(state.name!));
+       return;
+    }
     if (trimmed.length < 3) { await send(sock, remoteJid, `Por favor, descreva melhor o assunto:`); return; }
     const sectors = await loadSectors(tenantId);
     if (sectors.length === 0) {
-      await send(sock, remoteJid, `😔 Nosso atendimento está sendo configurado. Tente novamente em breve!`);
-      clearState(tenantId, clientKey);
+      await send(sock, remoteJid, `😔 Nossa equipe de atendimento está indisponível no momento. Tente novamente mais tarde.`);
+      setState(tenantId, clientKey, { ...state, step: "main_menu" });
+      await send(sock, remoteJid, msgMainMenu(state.name!));
       return;
     }
     setState(tenantId, clientKey, { ...state, step: "menu", subject: trimmed });
@@ -376,10 +459,18 @@ async function handleClient(tenantId: string, sock: any, remoteJid: string, clie
   }
 
   if (state.step === "menu") {
-    if (BACK_CMD.test(trimmed)) { await doExit(tenantId, sock, clientKey, "client"); return; }
+    if (BACK_CMD.test(trimmed)) { 
+       if (trimmed.toLowerCase() === "sair") {
+          await doExit(tenantId, sock, clientKey, "client");
+          return;
+       }
+       setState(tenantId, clientKey, { ...state, step: "main_menu" });
+       await send(sock, remoteJid, msgMainMenu(state.name!));
+       return; 
+    }
     const sectors = await loadSectors(tenantId);
     const chosen = sectors.find(s => s.menuKey === trimmed);
-    if (!chosen) { await send(sock, remoteJid, `❓ Opção inválida. Responda com o *número* do setor ou *0* para cancelar.`); return; }
+    if (!chosen) { await send(sock, remoteJid, `❓ Opção inválida. Responda com o *número* do setor ou *0* para voltar.`); return; }
     await enterSector(tenantId, sock, clientKey, state, chosen);
     return;
   }
