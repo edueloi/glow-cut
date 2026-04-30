@@ -357,7 +357,7 @@ function msgConhecerDeveloi(): string {
   );
 }
 
-async function getPlanosText(): Promise<string> {
+async function sendPlanosFlow(sock: any, remoteJid: string, name: string, sectors: any[]) {
   try {
     const plans = await (prisma as any).plan.findMany({
       where: { isActive: true },
@@ -365,13 +365,15 @@ async function getPlanosText(): Promise<string> {
     });
     
     if (!plans || plans.length === 0) {
-      return `*Nossos Planos*\n\nNo momento não temos planos configurados. Acesse https://agendelle.com.br para mais informações.`;
+      await send(sock, remoteJid, `*Nossos Planos*\n\nNo momento não temos planos configurados. Acesse https://agendelle.com.br para mais informações.`);
+      await send(sock, remoteJid, msgMainMenu(name, sectors));
+      return;
     }
 
-    let t = `*Nossos Planos e Valores*\n\nConheça as opções que preparamos para você:\n\n`;
+    await send(sock, remoteJid, `*Nossos Planos e Valores*\n\nConheça as opções que preparamos para você e aproveite *30 DIAS GRÁTIS* para testar o sistema completo! 🎁`);
     
     for (const p of plans) {
-      t += `*${p.name}* — R$ ${p.price.toFixed(2).replace('.', ',')}/mês\n`;
+      let t = `*${p.name}* — R$ ${p.price.toFixed(2).replace('.', ',')}/mês\n`;
       const features = [];
       if (p.maxProfessionals > 0) features.push(`Até ${p.maxProfessionals} Profissionais`);
       if (p.siteEnabled) features.push(`Site/Vitrine`);
@@ -382,13 +384,15 @@ async function getPlanosText(): Promise<string> {
       if (features.length > 0) {
         t += `_${features.join(" • ")}_\n`;
       }
-      t += `\n`;
+      await send(sock, remoteJid, t.trim());
     }
     
-    t += `Para assinar, acesse 👉 https://agendelle.com.br`;
-    return t;
+    await send(sock, remoteJid, `Para iniciar seus 30 dias grátis, assine agora pelo link seguro:\n👉 https://agendelle.com.br/assinar?ref=b150f27b-917b-43a4-8d86-541301c65b1d`);
+    
+    await send(sock, remoteJid, msgMainMenu(name, sectors));
   } catch (e) {
-    return `*Nossos Planos*\n\nAcesse nosso site para conferir a tabela completa: https://agendelle.com.br`;
+    await send(sock, remoteJid, `*Nossos Planos*\n\nAcesse nosso site para conferir a tabela completa: https://agendelle.com.br`);
+    await send(sock, remoteJid, msgMainMenu(name, sectors));
   }
 }
 
@@ -457,9 +461,7 @@ async function handleClient(tenantId: string, sock: any, remoteJid: string, clie
        return;
     }
     if (upper === "2") {
-       const textPlanos = await getPlanosText();
-       await send(sock, remoteJid, textPlanos);
-       await send(sock, remoteJid, msgMainMenu(state.name!, sectors));
+       await sendPlanosFlow(sock, remoteJid, state.name!, sectors);
        return;
     }
     if (upper === "3") {
