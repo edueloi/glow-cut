@@ -63,7 +63,7 @@ const INACTIVITY_CLOSE_MS = 20 * 60 * 1000;
 const EXIT_CMD   = /^&sair$/i;
 const BACK_CMD   = /^(0|menu|inicio|início|voltar|cancelar|sair)$/i;
 const ACCEPT_CMD = /^(aceitar|1)$/i;
-const REFUSE_CMD = /^(recusar|2)$/i;
+const REFUSE_CMD = /^(recusar|0)$/i;
 
 setInterval(() => cleanInactive(), 5 * 60 * 1000);
 
@@ -420,8 +420,8 @@ function msgNotifAtendente(name: string, subject: string, clientKey: string, sec
     `📱 Número: *${clientKey}*\n` +
     `💬 Assunto: _${subject}_\n` +
     `📋 Fila: *${pos}° de ${total}*\n\n` +
-    `Responda *ACEITAR* para iniciar\n` +
-    `Responda *RECUSAR* se não puder atender`
+    `Digite *1* para ACEITAR\n` +
+    `Digite *0* para RECUSAR`
   );
 }
 
@@ -768,6 +768,20 @@ async function doExit(tenantId: string, sock: any, clientKey: string, by: "clien
 
   // Se saiu da fila, notifica próximos e chama atendentes
   if (sectorId && (state.step === "waiting" || state.step === "in_chat")) {
+    // Se saiu da fila enquanto esperava, avisa os atendentes
+    if (state.step === "waiting" && by === "client") {
+      try {
+        const sector = await (prisma as any).wppBotSector.findUnique({ where: { id: sectorId } });
+        if (sector) {
+          const attendants = parseAttendants(sector.attendants);
+          for (const att of attendants) {
+            const attJid = phoneToJid(att.phone);
+            await send(sock, attJid, `ℹ️ O cliente *${state.name || clientKey}* cancelou a solicitação no setor *${sectorName}* e saiu da fila.`);
+          }
+        }
+      } catch {}
+    }
+
     await notifyQueueUpdate(tenantId, sectorId, sectorName, sock).catch(() => {});
     if (state.step === "in_chat") {
       // Atendimento encerrado → chama próximo da fila
