@@ -76,8 +76,13 @@ function getPendingAttendantMap(tenantId: string): Map<string, PendingAttendantA
   return pendingAttendantActions.get(tenantId)!;
 }
 
+function pendingAttendantKeys(jidOrPhone: string): string[] {
+  const normalized = normalizeForKey(jidOrPhone);
+  return getBrazilPhoneVariants(normalized);
+}
+
 function pendingAttendantKey(jid: string): string {
-  return normalizeForKey(jid);
+  return pendingAttendantKeys(jid)[0];
 }
 
 function setPendingAttendantAction(
@@ -85,10 +90,14 @@ function setPendingAttendantAction(
   attJid: string,
   action: Omit<PendingAttendantAction, "expiresAt">
 ) {
-  getPendingAttendantMap(tenantId).set(pendingAttendantKey(attJid), {
-    ...action,
-    expiresAt: Date.now() + PENDING_ATTENDANT_ACTION_MS,
-  });
+  const map = getPendingAttendantMap(tenantId);
+
+  for (const key of pendingAttendantKeys(attJid)) {
+    map.set(key, {
+      ...action,
+      expiresAt: Date.now() + PENDING_ATTENDANT_ACTION_MS,
+    });
+  }
 }
 
 function getPendingAttendantAction(
@@ -96,21 +105,29 @@ function getPendingAttendantAction(
   attJid: string
 ): PendingAttendantAction | undefined {
   const map = getPendingAttendantMap(tenantId);
-  const key = pendingAttendantKey(attJid);
-  const action = map.get(key);
 
-  if (!action) return undefined;
+  for (const key of pendingAttendantKeys(attJid)) {
+    const action = map.get(key);
 
-  if (Date.now() > action.expiresAt) {
-    map.delete(key);
-    return undefined;
+    if (!action) continue;
+
+    if (Date.now() > action.expiresAt) {
+      map.delete(key);
+      continue;
+    }
+
+    return action;
   }
 
-  return action;
+  return undefined;
 }
 
 function clearPendingAttendantAction(tenantId: string, attJid: string) {
-  getPendingAttendantMap(tenantId).delete(pendingAttendantKey(attJid));
+  const map = getPendingAttendantMap(tenantId);
+
+  for (const key of pendingAttendantKeys(attJid)) {
+    map.delete(key);
+  }
 }
 
 function clearPendingActionsForClient(tenantId: string, clientKey: string) {
@@ -900,9 +917,17 @@ async function findWaitingForAttendant(tenantId: string, sock: any, attJid: stri
       if (!sector) continue;
       const attendants = parseAttendants(sector.attendants);
       for (const att of attendants) {
+        if (jidMatchesPhone(attJid, att.phone)) {
+          return queue[0];
+        }
+
         const resolvedJid = await resolvePhoneToJid(sock, att.phone);
+
         console.log(`[Bot][DEBUG] findWaiting: sector=${sector.name} attPhone=${att.phone} resolvedJid=${resolvedJid} normalizedAtt=${normalizedAtt} match=${resolvedJid === normalizedAtt}`);
-        if (resolvedJid && resolvedJid === normalizedAtt) return queue[0];
+
+        if (resolvedJid && resolvedJid === normalizedAtt) {
+          return queue[0];
+        }
       }
     } catch {}
   }
