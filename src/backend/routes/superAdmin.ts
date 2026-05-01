@@ -443,16 +443,12 @@ superAdminRouter.post("/stripe-connect", async (req, res) => {
       });
     }
 
-    // Verifica o estado atual da conta para escolher o tipo de link correto
     const origin = req.headers.origin || "https://agendelle.com.br";
-    const existingAccount = await stripe.accounts.retrieve(accountId);
-    const linkType = existingAccount.details_submitted ? 'account_update' : 'account_onboarding';
-
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: `${origin}/super-admin/vendas?refresh=true`,
       return_url: `${origin}/super-admin/vendas?success=true`,
-      type: linkType,
+      type: 'account_onboarding',
     });
 
     res.json({ url: accountLink.url });
