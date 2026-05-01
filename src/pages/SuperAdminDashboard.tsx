@@ -1356,6 +1356,21 @@ function SalesTab({ user }: { user: any }) {
     }
   }, [user]);
 
+  const refreshStripeStatus = useCallback(async () => {
+    setStripeStatus(undefined);
+    try {
+      const stripeData = await apiFetch("/api/super-admin/stripe-connect/status")
+        .then(async r => {
+          if (!r.ok) throw new Error("Status API failed");
+          return r.json();
+        })
+        .catch(() => ({ connected: false, error: true }));
+      setStripeStatus(stripeData);
+    } catch {
+      setStripeStatus({ connected: false, error: true });
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);

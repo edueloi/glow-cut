@@ -475,10 +475,13 @@ superAdminRouter.get("/stripe-connect/status", async (req, res) => {
     }
 
     const account = await stripe.accounts.retrieve(seller.stripeAccountId);
-    res.json({ 
-      connected: true, 
+    const requiresAction = (account.requirements?.currently_due?.length ?? 0) > 0
+      || (account.requirements?.past_due?.length ?? 0) > 0;
+    res.json({
+      connected: true,
       detailsSubmitted: account.details_submitted,
       payoutsEnabled: account.payouts_enabled,
+      requiresAction,
       accountId: seller.stripeAccountId
     });
   } catch (e: any) {
