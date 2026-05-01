@@ -164,8 +164,10 @@ export function SettingsTab({
   });
 
   useEffect(() => {
-    if (!settingsOpenCard) setSettingsOpenCard("agenda");
-  }, [settingsOpenCard, setSettingsOpenCard]);
+    if (!settingsOpenCard && sections.length > 0) {
+      setSettingsOpenCard(sections[0].id);
+    }
+  }, [settingsOpenCard, setSettingsOpenCard, sections]);
 
   useEffect(() => {
     let mounted = true;
