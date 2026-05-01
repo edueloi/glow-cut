@@ -53,6 +53,7 @@ export const MODULES = [
   "whatsapp",
   "perfil",
   "configuracoes",
+  "config_agenda",
   "assinatura",
   // Super
   "permissoes",
@@ -143,7 +144,8 @@ export const MODULE_META: ModuleMeta[] = [
   { key: "horarios",     label: "Horários",       group: "sistema", actions: ["ver", "editar_todos"] },
   { key: "whatsapp",     label: "WhatsApp",       group: "sistema", actions: ["ver", "editar_todos"] },
   { key: "perfil",       label: "Meu Perfil",     group: "sistema", actions: ["ver", "editar_proprio"] },
-  { key: "configuracoes",label: "Configurações Gerais",  group: "sistema", actions: ["ver", "editar_todos"] },
+  { key: "config_agenda",label: "Configurações da Agenda", group: "sistema", actions: ["ver", "editar_todos"] },
+  { key: "configuracoes",label: "Configurações do Site / Temas",  group: "sistema", actions: ["ver", "editar_todos"] },
   { key: "assinatura",   label: "Assinatura / Faturas",   group: "sistema", actions: ["ver", "editar_todos", "financeiro"] },
 
   // ── Admin

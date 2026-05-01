@@ -21,6 +21,7 @@ import { Switch } from "@/src/components/ui/Switch";
 import { Input, Textarea, Select } from "@/src/components/ui/Input";
 import { FormRow } from "@/src/components/ui/PageWrapper";
 import { useToast } from "@/src/components/ui/Toast";
+import { usePermissions } from "@/src/hooks/usePermissions";
 
 import { useAuth } from "@/src/App";
 
@@ -134,14 +135,18 @@ export function SettingsTab({
 }: SettingsTabProps) {
   const { show } = useToast();
   const { user: adminUser } = useAuth();
+  const { can } = usePermissions();
 
-  const sections = [
-    { id: "agenda",       label: "Agenda",        icon: CalendarDays },
-    { id: "configuracoes", label: "Configurações", icon: Settings },
-  ] as const;
+  const sections = useMemo(() => {
+    const s = [];
+    if (can("config_agenda")) s.push({ id: "agenda", label: "Agenda", icon: CalendarDays });
+    if (can("configuracoes")) s.push({ id: "configuracoes", label: "Configurações", icon: Settings });
+    return s;
+  }, [can]);
 
   const activeSection = useMemo<SectionId>(() => {
-    return (sections.find((item) => item.id === settingsOpenCard)?.id || "agenda") as SectionId;
+    const found = sections.find((item) => item.id === settingsOpenCard);
+    return (found?.id || sections[0]?.id || "agenda") as SectionId;
   }, [sections, settingsOpenCard]);
 
   const [isLoading, setIsLoading] = useState(true);

@@ -373,7 +373,7 @@ export function AdminTabContent(props: any) {
           />
         ))}
 
-        {activeTab === "settings" && (!guard("configuracoes") ? <AccessDenied tabLabel="Configurações" /> : (
+        {activeTab === "settings" && (!(guard("configuracoes") || guard("config_agenda")) ? <AccessDenied tabLabel="Configurações" /> : (
           <SettingsTab
             currentTheme={currentTheme}
             themeColors={themeColors}
