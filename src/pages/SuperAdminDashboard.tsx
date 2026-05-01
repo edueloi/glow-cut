@@ -1529,21 +1529,17 @@ function SalesTab({ user }: { user: any }) {
               ) : stripeStatus.connected && !stripeStatus.payoutsEnabled ? (
                 <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex flex-col gap-2">
                   <div className="flex items-center gap-2 text-sm font-bold text-amber-700">
-                    <TrendingUp size={16} /> {stripeStatus.detailsSubmitted ? "Ativação em andamento" : "Configuração Pendente"}
+                    <TrendingUp size={16} /> Documentação pendente
                   </div>
                   <p className="text-[10px] text-amber-600 font-medium">
-                    {stripeStatus.detailsSubmitted
-                      ? "Seus dados foram enviados. A Stripe pode levar alguns minutos para ativar sua conta. Recarregue a página em breve."
-                      : "Faltam dados para liberar seus repasses."}
+                    A Stripe precisa verificar seus documentos para liberar os repasses. Clique abaixo para enviar ou corrigir os dados.
                   </p>
-                  {!stripeStatus.detailsSubmitted && (
-                    <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-[#635BFF] hover:bg-[#5249EC] text-white border-none shadow-lg mt-2">
-                      Completar Cadastro
-                    </Button>
-                  )}
-                  <Button variant="secondary" size="sm" onClick={() => { setStripeStatus(undefined); setLoading(true); fetchData(); }} className="w-full text-xs mt-1">
-                    Verificar status
+                  <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-[#635BFF] hover:bg-[#5249EC] text-white border-none shadow-lg mt-2">
+                    Resolver no Stripe
                   </Button>
+                  <button onClick={refreshStripeStatus} className="text-[10px] text-amber-500 underline text-center mt-1 cursor-pointer bg-transparent border-none">
+                    Já resolvi, verificar status
+                  </button>
                 </div>
               ) : (
                 <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-[#635BFF] hover:bg-[#5249EC] text-white border-none shadow-lg">
