@@ -14,6 +14,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Agendelle" />
 
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-M88EXFPZTK"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-M88EXFPZTK');
+    </script>
+
     <!-- Title/description/OG/Twitter são injetados dinamicamente pelo Express (server.ts) -->
     <!-- Fallback mínimo para quando o JS carrega sem SSR -->
     <title>Agendelle | A sua Agenda Inteligente</title>
