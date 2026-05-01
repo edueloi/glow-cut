@@ -558,13 +558,6 @@ export default function LandingPage() {
             <p className="lp-sec-sub lp-rv lp-d2">Veja como o Agendelle se compara com outras opções do mercado para salões e barbearias.</p>
           </div>
           <div className="lp-cmp-wrap lp-rv lp-d2">
-            {/* cabeçalho só mobile */}
-            <div className="lp-cmp-mobile-header">
-              <div className="lp-cmp-mh-feat">Funcionalidade</div>
-              <div className="lp-cmp-mh-col ag">Agendelle</div>
-              <div className="lp-cmp-mh-col other">Conc. A</div>
-              <div className="lp-cmp-mh-col other">Conc. B</div>
-            </div>
             <table className="lp-cmp-table">
               <thead>
                 <tr>

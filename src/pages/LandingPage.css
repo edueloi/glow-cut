@@ -403,61 +403,15 @@
 /* cabeçalho mobile escondido no desktop */
 .lp-cmp-mobile-header { display: none; }
 
-/* ── COMPARISON TABLE — MOBILE ──────────────────── */
 @media(max-width:640px) {
-  .lp-cmp-mobile-header { display: grid; }
-  .lp-cmp-wrap { border-radius: 16px; overflow: hidden; }
-
-  .lp-cmp-table thead { display: none; }
-
-  .lp-cmp-table tbody, .lp-cmp-table tr { display: block; }
-
-  .lp-cmp-table tr {
-    background: #fff;
-    border-bottom: 1px solid var(--lp-border);
-    padding: 14px 16px;
-    display: grid;
-    grid-template-columns: 1fr auto auto auto;
-    align-items: center;
-    gap: 8px;
-  }
-  .lp-cmp-row-even { background: var(--lp-bg2) !important; }
-  .lp-cmp-row-even td { background: transparent !important; }
-  .lp-cmp-table td { display: block; border: none; padding: 0; background: transparent !important; }
-
-  .lp-cmp-feat-cell {
-    font-size: .82rem; font-weight: 600; color: #1a1a2e;
-    text-align: left; line-height: 1.4;
-  }
-  .lp-cmp-ag-cell,
-  .lp-cmp-other-cell {
-    display: flex; align-items: center; justify-content: center;
-    border: none !important; background: transparent !important;
-  }
-
-  /* mini header labels acima das colunas de ícones */
-  .lp-cmp-table tr::before {
-    display: none;
-  }
-
-  /* cabeçalho fixo como faixa sticky */
-  .lp-cmp-mobile-header {
-    display: grid;
-    grid-template-columns: 1fr auto auto auto;
-    gap: 8px;
-    padding: 10px 16px;
-    background: var(--lp-bg3);
-    border-bottom: 2px solid var(--lp-border);
-    position: sticky; top: 0; z-index: 2;
-  }
-  .lp-cmp-mh-feat { font-size: .7rem; font-weight: 800; color: var(--lp-text2); text-transform: uppercase; letter-spacing: .05em; }
-  .lp-cmp-mh-col  { font-size: .65rem; font-weight: 800; text-align: center; width: 42px; }
-  .lp-cmp-mh-col.ag { color: var(--lp-purple); }
-  .lp-cmp-mh-col.other { color: var(--lp-text3); }
-
-  /* ajusta tamanho dos ícones */
-  .lp-cmp-yes, .lp-cmp-no { width: 22px; height: 22px; }
-  .lp-cmp-partial { font-size: .68rem; padding: 2px 7px; }
+  .lp-cmp-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .lp-cmp-table { min-width: 560px; }
+  .lp-cmp-table th.lp-cmp-feature,
+  .lp-cmp-table td.lp-cmp-feat-cell { min-width: 200px; }
+  .lp-cmp-table th.lp-cmp-agendelle,
+  .lp-cmp-table th.lp-cmp-other,
+  .lp-cmp-table td.lp-cmp-ag-cell,
+  .lp-cmp-table td.lp-cmp-other-cell { min-width: 100px; }
 }
 
 /* ── PRICING ─────────────────────────────────────── */
