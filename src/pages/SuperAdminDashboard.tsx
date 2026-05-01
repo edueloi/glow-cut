@@ -31,7 +31,7 @@ import {
   Menu, BookOpen, FileText, Tag, UserCircle2, Bell,
   BarChart2, ArrowUpRight, ArrowLeft, ExternalLink,
   CheckCircle, Clock, Archive, DollarSign,
-  Camera,
+  Camera, Phone,
   ChevronRight,
   AlertCircle,
 } from "lucide-react";
@@ -1396,6 +1396,24 @@ function SalesTab({ user }: { user: any }) {
     toast.success("O seu link de vendas foi copiado para a área de transferência.");
   };
 
+  const handleStripeReset = async () => {
+    setConnecting(true);
+    try {
+      const r = await apiFetch("/api/super-admin/stripe-connect", { method: "DELETE" });
+      const data = await r.json();
+      if (data.ok) {
+        setStripeStatus({ connected: false });
+        toast.success("Conta Stripe desvinculada. Clique em Conectar para recomeçar.");
+      } else {
+        toast.error(data.error || "Erro ao desvincular conta");
+      }
+    } catch {
+      toast.error("Erro ao desvincular conta");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const handleStripeConnect = async () => {
     setConnecting(true);
     try {
@@ -1540,6 +1558,9 @@ function SalesTab({ user }: { user: any }) {
                   <button onClick={refreshStripeStatus} className="text-[10px] text-amber-500 underline text-center mt-1 cursor-pointer bg-transparent border-none">
                     Já resolvi, verificar status
                   </button>
+                  <button onClick={handleStripeReset} disabled={connecting} className="text-[10px] text-zinc-400 underline text-center cursor-pointer bg-transparent border-none">
+                    Reconectar do zero
+                  </button>
                 </div>
               ) : (
                 <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-[#635BFF] hover:bg-[#5249EC] text-white border-none shadow-lg">
@@ -1550,6 +1571,64 @@ function SalesTab({ user }: { user: any }) {
           </ContentCard>
         </div>
       </div>
+
+      <ContentCard padding="none">
+        <div className="px-5 py-4 border-b border-zinc-100">
+          <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Meus Clientes</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-zinc-50 border-b border-zinc-100">
+              <tr>
+                <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Parceiro</th>
+                <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Responsável</th>
+                <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Contato</th>
+                <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Plano</th>
+                <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Status</th>
+                <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Vencimento</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {(stats.clients ?? []).length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-10 text-center text-sm text-zinc-400">Nenhum cliente ainda.</td>
+                </tr>
+              ) : (
+                (stats.clients ?? []).map((c: any) => (
+                  <tr key={c.id} className="hover:bg-zinc-50/50 transition-colors">
+                    <td className="px-5 py-4 text-sm font-bold text-zinc-800">{c.name}</td>
+                    <td className="px-5 py-4 text-sm text-zinc-600">{c.ownerName || "—"}</td>
+                    <td className="px-5 py-4">
+                      <div className="flex flex-col gap-1">
+                        {c.phone && (
+                          <a href={`https://wa.me/55${c.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
+                            className="flex items-center gap-1 text-xs text-emerald-600 font-medium hover:underline">
+                            <Phone size={11} /> {c.phone}
+                          </a>
+                        )}
+                        {c.email && (
+                          <a href={`mailto:${c.email}`}
+                            className="flex items-center gap-1 text-xs text-zinc-400 hover:underline">
+                            <Mail size={11} /> {c.email}
+                          </a>
+                        )}
+                        {!c.phone && !c.email && <span className="text-xs text-zinc-300">—</span>}
+                      </div>
+                    </td>
+                    <td className="px-5 py-4"><Badge color="info">{c.planName}</Badge></td>
+                    <td className="px-5 py-4">
+                      <Badge color={c.isActive ? "success" : "default"} dot>{c.isActive ? "Ativo" : "Inativo"}</Badge>
+                    </td>
+                    <td className="px-5 py-4 text-xs text-zinc-500">
+                      {c.expiresAt ? new Date(c.expiresAt).toLocaleDateString("pt-BR") : "—"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </ContentCard>
     </div>
   );
 }

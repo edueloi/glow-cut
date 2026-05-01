@@ -119,6 +119,16 @@ superAdminRouter.get("/sales-stats", async (req, res) => {
         value: Number(t.plan?.price || 0),
         date: t.createdAt,
         status: t.isActive ? "Ativo" : "Inativo"
+      })),
+      clients: tenants.map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        ownerName: t.ownerName || t.name,
+        phone: t.ownerPhone || t.phone || null,
+        email: t.ownerEmail || null,
+        planName: t.plan?.name || "N/A",
+        isActive: t.isActive,
+        expiresAt: t.expiresAt,
       }))
     };
 
@@ -432,11 +442,15 @@ superAdminRouter.post("/stripe-connect", async (req, res) => {
     if (!accountId) {
       const account = await stripe.accounts.create({
         type: 'express',
+        country: 'BR',
         email: seller.email || undefined,
         business_type: 'individual',
+        capabilities: {
+          transfers: { requested: true },
+        },
       });
       accountId = account.id;
-      
+
       await (prisma as any).superAdmin.update({
         where: { id: userId },
         data: { stripeAccountId: accountId }
@@ -454,6 +468,35 @@ superAdminRouter.post("/stripe-connect", async (req, res) => {
     res.json({ url: accountLink.url });
   } catch (e: any) {
     console.error("[Stripe Connect Error]:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+superAdminRouter.delete("/stripe-connect", async (req, res) => {
+  try {
+    const userId = (req as any).auth?.sub;
+    if (!userId) return res.status(401).json({ error: "Usuário não identificado" });
+
+    const seller = await (prisma as any).superAdmin.findUnique({ where: { id: userId } });
+    if (!seller) return res.status(404).json({ error: "Vendedor não encontrado" });
+
+    if (seller.stripeAccountId) {
+      try {
+        await stripe.accounts.del(seller.stripeAccountId);
+      } catch (e: any) {
+        // ignora se a conta já não existe no Stripe
+        if (e?.code !== 'account_invalid') throw e;
+      }
+    }
+
+    await (prisma as any).superAdmin.update({
+      where: { id: userId },
+      data: { stripeAccountId: null }
+    });
+
+    res.json({ ok: true });
+  } catch (e: any) {
+    console.error("[Stripe Connect Reset Error]:", e);
     res.status(500).json({ error: e.message });
   }
 });
