@@ -1329,10 +1329,13 @@ function SalesTab({ user }: { user: any }) {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const toast = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    if (user?.id) {
-      Promise.all([
+  const fetchData = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const [statsData, stripeData] = await Promise.all([
         apiFetch("/api/super-admin/sales-stats").then(r => r.json()).catch(() => null),
         apiFetch("/api/super-admin/stripe-connect/status")
           .then(async r => {
@@ -1340,17 +1343,36 @@ function SalesTab({ user }: { user: any }) {
             return r.json();
           })
           .catch(() => ({ connected: false, error: true }))
-      ]).then(([statsData, stripeData]) => {
-        setStats({
-          totalSales: statsData?.totalSales ?? 0,
-          totalActive: statsData?.totalActive ?? 0,
-          totalRecurring: Number(statsData?.totalRecurring ?? 0),
-          history: Array.isArray(statsData?.history) ? statsData.history : [],
-        });
-        setStripeStatus(stripeData);
-      }).finally(() => setLoading(false));
+      ]);
+      setStats({
+        totalSales: statsData?.totalSales ?? 0,
+        totalActive: statsData?.totalActive ?? 0,
+        totalRecurring: Number(statsData?.totalRecurring ?? 0),
+        history: Array.isArray(statsData?.history) ? statsData.history : [],
+      });
+      setStripeStatus(stripeData);
+    } finally {
+      setLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("success") === "true" || params.get("refresh") === "true") {
+      navigate("/super-admin/vendas", { replace: true });
+      setStripeStatus(undefined);
+      setLoading(true);
+      fetchData().then(() => {
+        if (params.get("success") === "true") {
+          toast.success("Cadastro no Stripe enviado! Aguarde alguns minutos para a ativação completa.");
+        }
+      });
+    }
+  }, [location.search]);
 
   const salesLink = user ? `${window.location.origin}/assinar?ref=${user.id}` : "";
 
@@ -1492,11 +1514,20 @@ function SalesTab({ user }: { user: any }) {
               ) : stripeStatus.connected && !stripeStatus.payoutsEnabled ? (
                 <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex flex-col gap-2">
                   <div className="flex items-center gap-2 text-sm font-bold text-amber-700">
-                    <TrendingUp size={16} /> Configuração Pendente
+                    <TrendingUp size={16} /> {stripeStatus.detailsSubmitted ? "Ativação em andamento" : "Configuração Pendente"}
                   </div>
-                  <p className="text-[10px] text-amber-600 font-medium">Faltam dados para liberar seus repasses.</p>
-                  <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-[#635BFF] hover:bg-[#5249EC] text-white border-none shadow-lg mt-2">
-                    Completar Cadastro
+                  <p className="text-[10px] text-amber-600 font-medium">
+                    {stripeStatus.detailsSubmitted
+                      ? "Seus dados foram enviados. A Stripe pode levar alguns minutos para ativar sua conta. Recarregue a página em breve."
+                      : "Faltam dados para liberar seus repasses."}
+                  </p>
+                  {!stripeStatus.detailsSubmitted && (
+                    <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-[#635BFF] hover:bg-[#5249EC] text-white border-none shadow-lg mt-2">
+                      Completar Cadastro
+                    </Button>
+                  )}
+                  <Button variant="secondary" size="sm" onClick={() => { setStripeStatus(undefined); setLoading(true); fetchData(); }} className="w-full text-xs mt-1">
+                    Verificar status
                   </Button>
                 </div>
               ) : (
