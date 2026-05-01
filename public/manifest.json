@@ -1,7 +1,7 @@
 {
   "name": "Agendelle",
   "short_name": "Agendelle",
-  "description": "Smart Schedulings platform",
+  "description": "Plataforma de agendamentos inteligente para salões de beleza, oferecendo uma experiência personalizada e eficiente para clientes e profissionais.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

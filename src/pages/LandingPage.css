@@ -295,6 +295,171 @@
 .lp-bf-val { font-size:.9rem; font-weight:800; color: #1a1a2e; }
 .lp-bf-dot { width:7px; height:7px; border-radius:50%; background:#22c55e; display:inline-block; margin-right:5px; }
 
+/* ── MOCKUP SHOWCASE ────────────────────────────── */
+.lp-mockup { padding: 100px 0; background: var(--lp-bg3); }
+.lp-mockup-grid {
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 48px; align-items: flex-end; margin-bottom: 48px;
+}
+.lp-mockup-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: .78rem; font-weight: 700; color: var(--lp-text2);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 16px;
+}
+.lp-mockup-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.lp-mockup-dot-purple { background: var(--lp-purple); }
+.lp-mockup-dot-orange { background: var(--lp-orange); }
+
+/* Desktop frame */
+.lp-mockup-desktop-frame {
+  background: #1a1a2e; border-radius: 16px;
+  overflow: hidden; box-shadow: var(--lp-shadowlg);
+  border: 1px solid #2e2e4a;
+}
+.lp-mockup-browser-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 16px; background: #13131f; border-bottom: 1px solid #2e2e4a;
+}
+.lp-mockup-browser-bar span {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+.lp-mockup-browser-bar span:nth-child(1) { background: #ff5f57; }
+.lp-mockup-browser-bar span:nth-child(2) { background: #febc2e; }
+.lp-mockup-browser-bar span:nth-child(3) { background: #28c840; }
+.lp-mockup-url {
+  flex: 1; background: #1e1e30; border-radius: 6px;
+  padding: 4px 12px; font-size: .72rem; color: #6b6b8a;
+  font-family: monospace; margin-left: 8px;
+}
+.lp-mockup-desktop-img { width: 100%; display: block; }
+
+/* Phone */
+.lp-mockup-mobile { display: flex; flex-direction: column; }
+.lp-mockup-phone-wrap {
+  position: relative; width: 200px;
+  filter: drop-shadow(0 24px 48px rgba(124,58,237,.25));
+}
+.lp-mockup-phone-img { width: 100%; display: block; }
+
+/* Pills */
+.lp-mockup-pills {
+  display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+}
+.lp-mockup-pill {
+  background: #fff; border: 1px solid var(--lp-border);
+  border-radius: 50px; padding: 8px 18px;
+  font-size: .82rem; font-weight: 600; color: var(--lp-text2);
+  transition: all .2s;
+}
+.lp-mockup-pill:hover { border-color: var(--lp-purpll); color: var(--lp-purple); background: #f8f3ff; }
+
+@media(max-width:900px) {
+  .lp-mockup-grid { grid-template-columns: 1fr; justify-items: center; }
+  .lp-mockup-desktop { width: 100%; }
+  .lp-mockup-phone-wrap { width: 160px; }
+}
+
+/* ── ALL FEATURES ───────────────────────────────── */
+.lp-allfeat { padding: 100px 0; background: #fff; }
+.lp-allfeat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.lp-allfeat-card {
+  background: var(--lp-bg2); border: 1px solid var(--lp-border);
+  border-radius: var(--lp-r); padding: 32px 26px; transition: all .3s;
+}
+.lp-allfeat-card:hover { transform: translateY(-4px); box-shadow: var(--lp-shadow); background: #fff; border-color: var(--lp-border2); }
+.lp-allfeat-title { font-size: 1rem; font-weight: 800; margin-bottom: 18px; color: #1a1a2e; }
+.lp-allfeat-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.lp-allfeat-list li { display: flex; align-items: flex-start; gap: 10px; font-size: .85rem; color: var(--lp-text2); line-height: 1.5; }
+.lp-allfeat-list .lp-ck { flex-shrink: 0; margin-top: 1px; }
+
+/* ── COMPARISON TABLE ───────────────────────────── */
+.lp-compare { padding: 100px 0; background: var(--lp-bg2); }
+.lp-cmp-wrap { overflow-x: auto; border-radius: var(--lp-r); border: 1px solid var(--lp-border); box-shadow: var(--lp-shadow); }
+.lp-cmp-table { width: 100%; border-collapse: collapse; background: #fff; }
+.lp-cmp-table thead tr { background: var(--lp-bg3); }
+.lp-cmp-table th { padding: 18px 20px; font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--lp-text2); text-align: center; border-bottom: 2px solid var(--lp-border); }
+.lp-cmp-table th.lp-cmp-feature { text-align: left; width: 42%; }
+.lp-cmp-table th.lp-cmp-agendelle { background: linear-gradient(160deg, #f8f3ff 0%, #fff 100%); border-left: 2px solid var(--lp-purpll); border-right: 2px solid var(--lp-purpll); }
+.lp-cmp-table td { padding: 14px 20px; font-size: .88rem; color: var(--lp-text2); text-align: center; border-bottom: 1px solid var(--lp-border); }
+.lp-cmp-table td.lp-cmp-feat-cell { text-align: left; font-weight: 500; color: #1a1a2e; }
+.lp-cmp-table td.lp-cmp-ag-cell { background: linear-gradient(160deg, #fdfaff 0%, #fff 100%); border-left: 2px solid var(--lp-purpll); border-right: 2px solid var(--lp-purpll); }
+.lp-cmp-row-even td { background: var(--lp-bg2); }
+.lp-cmp-row-even td.lp-cmp-ag-cell { background: linear-gradient(160deg, #f8f3ff 0%, #fdfaff 100%); }
+.lp-cmp-logo-cell { display: flex; justify-content: center; }
+.lp-cmp-badge-winner { background: var(--lp-grad); color: #fff; border-radius: 50px; padding: 6px 18px; font-size: .8rem; font-weight: 800; }
+.lp-cmp-yes { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #d1fae5; color: #059669; }
+.lp-cmp-no { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #f3f4f6; color: #9ca3af; }
+.lp-cmp-partial { display: inline-flex; align-items: center; justify-content: center; background: #fef9c3; color: #a16207; border-radius: 50px; padding: 3px 12px; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+.lp-cmp-disclaimer { text-align: center; margin-top: 20px; font-size: .78rem; color: var(--lp-text3); }
+
+@media(max-width:900px) {
+  .lp-allfeat-grid { grid-template-columns: repeat(2, 1fr); }
+  .lp-cmp-table th, .lp-cmp-table td { padding: 12px 14px; font-size: .82rem; }
+}
+@media(max-width:600px) {
+  .lp-allfeat-grid { grid-template-columns: 1fr; }
+}
+
+/* cabeçalho mobile escondido no desktop */
+.lp-cmp-mobile-header { display: none; }
+
+/* ── COMPARISON TABLE — MOBILE ──────────────────── */
+@media(max-width:640px) {
+  .lp-cmp-mobile-header { display: grid; }
+  .lp-cmp-wrap { border-radius: 16px; overflow: hidden; }
+
+  .lp-cmp-table thead { display: none; }
+
+  .lp-cmp-table tbody, .lp-cmp-table tr { display: block; }
+
+  .lp-cmp-table tr {
+    background: #fff;
+    border-bottom: 1px solid var(--lp-border);
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .lp-cmp-row-even { background: var(--lp-bg2) !important; }
+  .lp-cmp-row-even td { background: transparent !important; }
+  .lp-cmp-table td { display: block; border: none; padding: 0; background: transparent !important; }
+
+  .lp-cmp-feat-cell {
+    font-size: .82rem; font-weight: 600; color: #1a1a2e;
+    text-align: left; line-height: 1.4;
+  }
+  .lp-cmp-ag-cell,
+  .lp-cmp-other-cell {
+    display: flex; align-items: center; justify-content: center;
+    border: none !important; background: transparent !important;
+  }
+
+  /* mini header labels acima das colunas de ícones */
+  .lp-cmp-table tr::before {
+    display: none;
+  }
+
+  /* cabeçalho fixo como faixa sticky */
+  .lp-cmp-mobile-header {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--lp-bg3);
+    border-bottom: 2px solid var(--lp-border);
+    position: sticky; top: 0; z-index: 2;
+  }
+  .lp-cmp-mh-feat { font-size: .7rem; font-weight: 800; color: var(--lp-text2); text-transform: uppercase; letter-spacing: .05em; }
+  .lp-cmp-mh-col  { font-size: .65rem; font-weight: 800; text-align: center; width: 42px; }
+  .lp-cmp-mh-col.ag { color: var(--lp-purple); }
+  .lp-cmp-mh-col.other { color: var(--lp-text3); }
+
+  /* ajusta tamanho dos ícones */
+  .lp-cmp-yes, .lp-cmp-no { width: 22px; height: 22px; }
+  .lp-cmp-partial { font-size: .68rem; padding: 2px 7px; }
+}
+
 /* ── PRICING ─────────────────────────────────────── */
 .lp-pricing { padding: 100px 0; background: var(--lp-bg3); }
 .lp-price-grid { 

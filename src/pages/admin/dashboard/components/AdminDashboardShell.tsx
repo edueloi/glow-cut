@@ -182,7 +182,7 @@ export function AdminDashboardShell({
             {!sidebarCollapsed && (
               <div className="overflow-hidden">
                 <h1 className="font-display text-lg font-black leading-none tracking-tight text-zinc-900">Agendelle</h1>
-                <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.1em] text-zinc-400">Smart Schedulings</p>
+                <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.1em] text-zinc-400">Agendamentos Inteligentes</p>
               </div>
             )}
           </div>
