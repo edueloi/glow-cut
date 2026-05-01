@@ -130,6 +130,7 @@ export default function ClientBooking() {
   const [bookingError, setBookingError] = useState("");
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [calendarStatus, setCalendarStatus] = useState<Record<string, any>>({});
+  const [studioPhone, setStudioPhone] = useState<string>("");
   const [publicAgendaSettings, setPublicAgendaSettings] = useState<PublicAgendaSettings>(DEFAULT_PUBLIC_AGENDA_SETTINGS);
 
   const canBookOnline = publicAgendaSettings.onlineBookingEnabled && publicAgendaSettings.enableSelfService;
@@ -235,6 +236,7 @@ export default function ClientBooking() {
             setCustomColor(t.themeColor || "#0a0a0a");
             setInstagram(t.instagram || "");
             setWelcomeMessage(t.welcomeMessage || "");
+            setStudioPhone(t.phone || "");
             setPublicAgendaSettings({
               ...DEFAULT_PUBLIC_AGENDA_SETTINGS,
               ...(t.agendaSettings || {}),
@@ -1267,7 +1269,12 @@ export default function ClientBooking() {
                           msg += `\n🔄 *Recorrência:* Repetir por ${repeatWeeks} semanas`;
                         }
                         
-                        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+                        const targetPhone = selectedProfessional?.phone || studioPhone;
+                        const url = targetPhone 
+                          ? `https://wa.me/${targetPhone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`
+                          : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+                        
+                        window.open(url, "_blank");
                       }}
                       className="w-full h-13 rounded-2xl bg-[#25D366] hover:bg-[#1DA851] text-white font-black text-sm shadow-lg border-transparent"
                       iconLeft={<Phone size={18} />}

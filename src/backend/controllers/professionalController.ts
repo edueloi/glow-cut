@@ -212,7 +212,7 @@ export const professionalController = {
     try {
       const professionals = await (prisma as any).professional.findMany({
         where: { tenantId, isActive: true },
-        select: { id: true, name: true, role: true, photo: true, isActive: true },
+        select: { id: true, name: true, role: true, photo: true, isActive: true, phone: true },
         orderBy: { name: "asc" },
       });
       res.json(professionals);
