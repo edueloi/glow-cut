@@ -135,14 +135,14 @@ export function SettingsTab({
 }: SettingsTabProps) {
   const { show } = useToast();
   const { user: adminUser } = useAuth();
-  const { can } = usePermissions();
+  const { canView } = usePermissions();
 
   const sections = useMemo(() => {
     const s = [];
-    if (can("config_agenda")) s.push({ id: "agenda", label: "Agenda", icon: CalendarDays });
-    if (can("configuracoes")) s.push({ id: "configuracoes", label: "Configurações", icon: Settings });
+    if (canView("config_agenda")) s.push({ id: "agenda", label: "Agenda", icon: CalendarDays });
+    if (canView("configuracoes")) s.push({ id: "configuracoes", label: "Configurações", icon: Settings });
     return s;
-  }, [can]);
+  }, [canView]);
 
   const activeSection = useMemo<SectionId>(() => {
     const found = sections.find((item) => item.id === settingsOpenCard);
