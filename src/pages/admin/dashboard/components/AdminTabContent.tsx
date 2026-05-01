@@ -397,7 +397,7 @@ export function AdminTabContent(props: any) {
           <AssinaturaTab />
         ))}
 
-        {activeTab === "planos" && (!guard("configuracoes") ? <AccessDenied tabLabel="Planos de Assinatura" /> : (
+        {activeTab === "planos" && (!guard("planos_assinatura") ? <AccessDenied tabLabel="Planos de Assinatura" /> : (
           <PlanosAssinaturaTab />
         ))}
 

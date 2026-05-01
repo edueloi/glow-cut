@@ -205,7 +205,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
       },
       { tab: "clients",       label: "Gestão de Clientes", icon: Users,   permModule: "clientes" },
       { tab: "professionals", label: "Profissionais",      icon: UserCog, permModule: "profissionais" },
-      { tab: "planos",        label: "Planos de Assinatura", icon: Crown, permModule: "configuracoes" },
+      { tab: "planos",        label: "Planos de Assinatura", icon: Crown, permModule: "planos_assinatura" },
     ],
   },
   {

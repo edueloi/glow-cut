@@ -441,6 +441,11 @@ function restrictPermissionsByPlan(userPerms: Record<string, any> | null, planPe
   // Se o plano não definiu permissões (vazio), mantém as permissões do usuário como estão (compatibilidade)
   if (Object.keys(planPerms).length === 0) return userPerms;
 
+  // Retrocompatibilidade: se tinha configurações mas não tem planos_assinatura, injeta
+  if (planPerms["configuracoes"] && planPerms["planos_assinatura"] === undefined) {
+    planPerms["planos_assinatura"] = { ver: true, criar: true, editar_todos: true, excluir_todos: true };
+  }
+
   // Se o usuário tem acesso total (proprietário), liberamos apenas o que o PLANO permite
   if (userPerms === null) {
     return planPerms;
