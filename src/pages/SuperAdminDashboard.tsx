@@ -1078,12 +1078,14 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
   const toggleAction = (mod: string, action: string) => {
     setPermissions(prev => {
       const modPerms = { ...(prev[mod] || {}) };
-      modPerms[action] = !modPerms[action];
-      if (action === "ver" && !modPerms[action]) {
+      const newVal = !modPerms[action];
+      modPerms[action] = newVal;
+      // Desativar "ver" remove o módulo inteiro
+      if (action === "ver" && !newVal) {
         return { ...prev, [mod]: undefined } as any;
       }
-      if (action === "editar_todos"  && modPerms[action]) modPerms["editar_proprio"]  = true;
-      if (action === "excluir_todos" && modPerms[action]) modPerms["excluir_proprio"] = true;
+      if (action === "editar_todos"  && newVal) modPerms["editar_proprio"]  = true;
+      if (action === "excluir_todos" && newVal) modPerms["excluir_proprio"] = true;
       return { ...prev, [mod]: modPerms };
     });
     setSaved(false);
