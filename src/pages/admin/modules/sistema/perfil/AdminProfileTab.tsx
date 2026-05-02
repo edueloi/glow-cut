@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/src/App";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
@@ -20,7 +20,6 @@ import { PanelCard } from "@/src/components/ui/PanelCard";
 import { Badge } from "@/src/components/ui/Badge";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DeleteConfirmModal } from "@/src/pages/admin/dashboard/components/modals/DeleteConfirmModal";
 
 
 import { AnimatePresence, motion } from "motion/react";
@@ -656,42 +655,6 @@ export function AdminProfileTab() {
     confirmPassword: "",
   });
 
-  const [teamUsers, setTeamUsers] = useState<any[]>([]);
-  const [search, setSearch] = useState("");
-  const [userModal, setUserModal] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
-  const [editingUser, setEditingUser] = useState<any>(null);
-  const [viewPermsUser, setViewPermsUser] = useState<any>(null);
-
-  const loadTeam = useCallback(async () => {
-    const [adminRes, profRes] = await Promise.all([
-      apiFetch("/api/admin/team"),
-      apiFetch("/api/professionals")
-    ]);
-    
-    if (!adminRes.ok) return;
-    const admins = await adminRes.json();
-    const profs = profRes.ok ? await profRes.json() : [];
-    
-    const tenantId = adminUser?.tenantId;
-    
-    // Filtra admins do tenant (exceto o próprio)
-    const filteredAdmins = admins.filter((u: any) => u.tenantId === tenantId && u.id !== adminUser?.id);
-    
-    // Mapeia profissionais para o formato de usuário para exibição na lista
-    const mappedProfs = profs
-      .filter((p: any) => p.tenantId === tenantId && (!admins.some((a: any) => a.email === p.email && a.id !== adminUser?.id)))
-      .map((p: any) => ({
-        ...p,
-        isProfessional: true,
-        jobTitle: p.role,
-        role: p.isOwner ? "owner" : "professional"
-      }));
-
-    setTeamUsers([...filteredAdmins, ...mappedProfs]);
-  }, [adminUser]);
-
-  useEffect(() => { if (isOwner) loadTeam(); }, [isOwner, loadTeam]);
 
   const handleSaveProfile = async () => {
     setProfileError("");
@@ -744,66 +707,7 @@ export function AdminProfileTab() {
     }
   };
 
-  const handleSaveUser = async (data: any) => {
-    const body = {
-      name: data.name,
-      email: data.email,
-      password: data.password || undefined,
-      jobTitle: data.jobTitle,
-      phone: data.phone,
-      bio: data.bio,
-      role: data.role,
-      tenantId: adminUser?.tenantId,
-      canCreateUsers: data.permissions.includes("usuarios.criar"),
-      canDeleteAccount: false,
-      permissions: JSON.stringify(data.permissions),
-      cpf: data.cpf,
-      birthDate: data.birthDate,
-    };
-    if (editingUser) {
-      await apiFetch(`/api/admin/team/${editingUser.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-    } else {
-      await apiFetch("/api/admin/team", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-    }
-    setUserModal(false);
-    setEditingUser(null);
-    loadTeam();
-  };
-
-  const handleDeleteUser = (id: string, name: string) => {
-    setDeleteConfirm({ type: "usuário", id, name });
-  };
-
-  const confirmDeleteUser = async () => {
-    if (!deleteConfirm) return;
-    await apiFetch(`/api/admin/team/${deleteConfirm.id}`, { method: "DELETE" });
-    setDeleteConfirm(null);
-    loadTeam();
-  };
-
   const initials = (form.name || "A").split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
-  const filtered = teamUsers.filter(u =>
-    u.name.toLowerCase().includes(search.toLowerCase()) ||
-    u.email?.toLowerCase().includes(search.toLowerCase())
-  );
-  // Permissões já chegam como objeto PermissionSet do AuthContext
-  // Para a matrix local (que usa array flat), converter
-  const myPermsObj = adminUser?.permissions as any;
-  const myPerms: string[] = myPermsObj
-    ? Object.entries(myPermsObj).flatMap(([mod, actions]) =>
-        Object.entries(actions as Record<string, boolean>)
-          .filter(([, v]) => v)
-          .map(([action]) => `${mod}.${action}`)
-      )
-    : PRESETS[adminUser?.role ?? "admin"] ?? [];
 
   return (
 
@@ -1138,146 +1042,7 @@ export function AdminProfileTab() {
           </div>
         </div>
 
-        {/* ── SEÇÃO DE PERMISSÕES & EQUIPE ──────────────────────── */}
-        <div className="space-y-6">
-           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
-              <div>
-                 <h3 className="text-xl font-black text-zinc-900 tracking-tight flex items-center gap-2">
-                    <Users size={24} className="text-zinc-400" />
-                    {isOwner ? "Equipe & Colaboradores" : "Minhas Permissões"}
-                 </h3>
-                 <p className="text-xs text-zinc-500 font-medium mt-0.5">
-                    {isOwner ? `Gerencie os ${teamUsers.length} membros que acessam seu painel administrativo.` : "Consulte os módulos e ações que você tem acesso no sistema."}
-                 </p>
-              </div>
-              
-              {isOwner && (
-                <div className="flex items-center gap-3">
-                   <div className="relative group">
-                      <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-zinc-900 transition-colors" />
-                      <input 
-                        type="text" 
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Buscar por nome ou e-mail..."
-                        className="h-11 w-full md:w-64 pl-10 pr-4 rounded-2xl bg-white border border-zinc-200 text-xs font-bold focus:ring-2 focus:ring-zinc-900/5 focus:border-zinc-900 transition-all"
-                      />
-                   </div>
-                   <Button 
-                      variant="primary" 
-                      className="h-11 px-6 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-zinc-900/10 shrink-0"
-                      onClick={() => { setEditingUser(null); setUserModal(true); }}
-                      iconLeft={<Plus size={16} />}
-                   >
-                      Convidar
-                   </Button>
-                </div>
-              )}
-           </div>
-
-           {!isOwner ? (
-             <div className="bg-white rounded-[32px] border border-zinc-200 p-6 md:p-8">
-               <PermissionMatrix permissions={myPerms} readOnly />
-             </div>
-           ) : (
-             <div className="grid grid-cols-1 gap-4">
-                {filtered.length === 0 ? (
-                  <div className="bg-white rounded-[32px] border border-dashed border-zinc-200 py-16 text-center">
-                    <div className="w-16 h-16 rounded-[24px] bg-zinc-50 flex items-center justify-center mx-auto mb-4 border border-zinc-100">
-                      <Users size={24} className="text-zinc-300" />
-                    </div>
-                    <p className="text-sm font-black text-zinc-900">
-                      {search ? "Nenhum membro encontrado" : "Sua equipe está vazia"}
-                    </p>
-                    <p className="text-xs text-zinc-400 mt-1 max-w-xs mx-auto">
-                      {search ? "Tente buscar por outro nome ou e-mail." : "Adicione colaboradores para ajudar na gestão do seu estúdio."}
-                    </p>
-                    {!search && (
-                      <Button variant="outline" className="mt-6 rounded-xl" onClick={() => setUserModal(true)}>Adicionar Primeiro Membro</Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filtered.map((u) => {
-                      const perms: string[] = (() => { try { return JSON.parse(u.permissions ?? "[]"); } catch { return PRESETS[u.role] ?? []; } })();
-                      const isViewing = viewPermsUser?.id === u.id;
-                      const avatarColor = `hsl(${(u.name.charCodeAt(0) * 37) % 360}, 60%, 45%)`;
-                      
-                      return (
-                        <div 
-                          key={u.id} 
-                          className={cn(
-                            "group relative bg-white rounded-[28px] border border-zinc-200 p-5 transition-all duration-300 hover:shadow-xl hover:shadow-zinc-200/40 hover:-translate-y-1",
-                            isViewing && "ring-2 ring-zinc-900 border-transparent shadow-2xl"
-                          )}
-                        >
-                          <div className="flex items-start justify-between mb-4">
-                             <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white text-lg shadow-inner shrink-0"
-                               style={{ backgroundColor: avatarColor }}
-                             >
-                               {u.name.charAt(0).toUpperCase()}
-                             </div>
-                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => { setEditingUser(u); setUserModal(true); }} className="p-2 rounded-xl bg-zinc-50 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 transition-all">
-                                   <Edit2 size={14} />
-                                </button>
-                                <button onClick={() => handleDeleteUser(u.id, u.name)} className="p-2 rounded-xl bg-rose-50 text-rose-400 hover:bg-rose-100 hover:text-rose-600 transition-all">
-                                   <Trash2 size={14} />
-                                </button>
-                             </div>
-                          </div>
-
-                          <div className="space-y-1">
-                             <h4 className="text-sm font-black text-zinc-900 truncate">{u.name}</h4>
-                             <p className="text-[10px] text-zinc-400 font-bold truncate uppercase tracking-tighter">{u.email}</p>
-                          </div>
-
-                          <div className="mt-4 pt-4 border-t border-zinc-50 flex items-center justify-between">
-                             <RoleBadge role={u.role} />
-                             <button 
-                               onClick={() => setViewPermsUser(isViewing ? null : u)}
-                               className={cn(
-                                 "text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all",
-                                 isViewing ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-900"
-                               )}
-                             >
-                                <Shield size={12} />
-                                {isViewing ? "Ocultar" : "Permissões"}
-                             </button>
-                          </div>
-
-                          {/* Expanded perms hover/click */}
-                          {isViewing && (
-                             <div className="absolute inset-x-0 top-full mt-2 z-20 animate-in fade-in zoom-in-95 duration-300">
-                                <div className="bg-zinc-900 rounded-[32px] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.3)] text-white w-[300px] md:w-[450px]">
-                                   <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-4">
-                                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Acessos de {u.name.split(' ')[0]}</p>
-                                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white/10 text-white">{perms.length} Ativos</span>
-                                   </div>
-                                   <div className="max-h-[300px] overflow-y-auto scrollbar-none pr-1">
-                                      <PermissionMatrix permissions={perms} readOnly />
-                                   </div>
-                                   <button onClick={() => setViewPermsUser(null)} className="w-full mt-4 py-2 rounded-xl bg-white text-zinc-950 text-[10px] font-black uppercase tracking-widest">Fechar Visualização</button>
-                                </div>
-                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-             </div>
-           )}
-        </div>
-
-        <UserModal
-          open={userModal}
-          onClose={() => { setUserModal(false); setEditingUser(null); }}
-          onSave={handleSaveUser}
-          editing={editingUser}
-        />
       </div>
-      <DeleteConfirmModal deleteConfirm={deleteConfirm} setDeleteConfirm={setDeleteConfirm} confirmDelete={confirmDeleteUser} />
     </PageWrapper>
   );
 }
