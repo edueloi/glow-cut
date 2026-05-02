@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Button, IconButton } from "@/src/components/ui/Button";
 import { Badge } from "@/src/components/ui/Badge";
 import { EmptyState } from "@/src/components/ui/EmptyState";
+import { useAuth } from "@/src/App";
 
 // ── Labels de módulos e ações ────────────────────────────────
 const MODULE_LABELS: Record<string, string> = {
@@ -212,6 +213,11 @@ export function ProfessionalsTab({
   onEditPermProfile,
   onDeletePermProfile,
 }: ProfessionalsTabProps) {
+  const { user } = useAuth();
+  const maxProf = user?.maxProfessionals ?? 999;
+  const isUnlimited = maxProf >= 999;
+  const used = professionals.length;
+  const remaining = isUnlimited ? null : maxProf - used;
 
   const openCreate = () => {
     setEditingProfessional(null);
@@ -297,16 +303,34 @@ export function ProfessionalsTab({
         ) : (
           <motion.div key="lista" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4">
             {/* Header da lista */}
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-zinc-500 font-medium">
-                {professionals.length} profissional(is) cadastrado(s)
-              </p>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <p className="text-xs text-zinc-500 font-medium">
+                  {used} profissional(is) cadastrado(s)
+                </p>
+                {!isUnlimited && (
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border ${
+                    remaining !== null && remaining <= 0
+                      ? "bg-red-50 border-red-200 text-red-600"
+                      : remaining !== null && remaining <= 1
+                      ? "bg-amber-50 border-amber-200 text-amber-600"
+                      : "bg-zinc-50 border-zinc-200 text-zinc-500"
+                  }`}>
+                    <Users size={10} />
+                    {remaining !== null && remaining <= 0
+                      ? `Limite atingido (${used}/${maxProf})`
+                      : `${remaining} vaga${remaining !== 1 ? "s" : ""} restante${remaining !== 1 ? "s" : ""} · ${used}/${maxProf}`
+                    }
+                  </span>
+                )}
+              </div>
               <Button
                 onClick={openCreate}
                 variant="primary"
                 size="md"
                 iconLeft={<Plus size={16} />}
                 className="shadow-lg shadow-amber-500/20"
+                disabled={!isUnlimited && remaining !== null && remaining <= 0}
               >
                 Novo Profissional
               </Button>

@@ -413,6 +413,7 @@ function buildAdminPayload(admin: any) {
     tenantName: admin.tenant?.name,
     tenantSlug: admin.tenant?.slug,
     planName: admin.tenant?.plan?.name,
+    maxProfessionals: admin.tenant?.plan?.maxProfessionals ?? 3,
     canCreateUsers: admin.canCreateUsers,
     canDeleteAccount: admin.canDeleteAccount,
     tenantCreatedAt: admin.tenant?.createdAt,

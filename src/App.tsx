@@ -46,6 +46,7 @@ export interface AuthUser {
   tenantName?: string;
   tenantSlug?: string;
   planName?: string;
+  maxProfessionals?: number;
   canCreateUsers?: boolean;
   canDeleteAccount?: boolean;
   tenantCreatedAt?: string;
