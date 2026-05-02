@@ -398,6 +398,12 @@ function PlansTab() {
 /* ═══════════════════════════════════════════
    ABA: PARCEIROS
 ═══════════════════════════════════════════ */
+function isNewTenant(t: any) {
+  if (!t.createdAt) return false;
+  const days = (Date.now() - new Date(t.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+  return days <= 7;
+}
+
 function getTenantStatus(t: any) {
   const now = new Date();
   if (!t.isActive) {
@@ -528,10 +534,18 @@ function TenantsTab({ plans }: { plans: any[] }) {
                   )}
                   {filtered.map(t => {
                     const st = getTenantStatus(t);
+                    const novo = isNewTenant(t);
                     return (
                       <tr key={t.id} className="hover:bg-zinc-50/60 transition-colors">
                         <td className="px-4 py-3.5">
-                          <p className="text-sm font-black text-zinc-900">{t.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-black text-zinc-900">{t.name}</p>
+                            {novo && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black bg-blue-500 text-white uppercase tracking-wide animate-pulse">
+                                NEW
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-zinc-400 flex items-center gap-1 mt-0.5"><Globe size={9} />{t.slug}</p>
                         </td>
                         <td className="px-4 py-3.5">
@@ -582,11 +596,19 @@ function TenantsTab({ plans }: { plans: any[] }) {
             )}
             {filtered.map(t => {
               const st = getTenantStatus(t);
+              const novoM = isNewTenant(t);
               return (
                 <ContentCard key={t.id} padding="sm">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-black text-zinc-900">{t.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-black text-zinc-900">{t.name}</p>
+                        {novoM && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black bg-blue-500 text-white uppercase tracking-wide animate-pulse">
+                            NEW
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-zinc-400 flex items-center gap-1 mt-0.5"><Globe size={9} />{t.slug}</p>
                     </div>
                     <div className="flex items-center gap-0.5 shrink-0">
