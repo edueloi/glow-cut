@@ -521,17 +521,17 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
     <div className="min-h-screen font-sans antialiased" style={{ backgroundColor: "#0a0a0a", color: "#fff" }}>
       <Navbar tenant={tenant} slug={slug} bookingUrl={bookingUrl} scrolled={scrolled} themeColor={themeColor} products={products} services={services} dark />
 
-      {/* ── HERO: imagem à direita, texto à esquerda — altura controlada ── */}
+      {/* ── HERO: imagem à direita, texto à esquerda ── */}
       <section className="relative overflow-hidden" style={{ backgroundColor: "#0a0a0a" }}>
         <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 min-h-[92vh]">
+          <div className="grid lg:grid-cols-2" style={{ minHeight: "88vh" }}>
 
             {/* Lado esquerdo — conteúdo */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8 }}
-              className="flex flex-col justify-center px-8 md:px-16 py-28 lg:py-0 relative z-10"
+              className="flex flex-col justify-center px-8 md:px-16 py-28 lg:py-20 relative z-10"
             >
               {/* Linha decorativa + nome */}
               <div className="flex items-center gap-3 mb-8">
@@ -541,15 +541,21 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
                 </span>
               </div>
 
-              <h1 className="text-4xl sm:text-5xl font-black leading-[1.08] tracking-tight mb-6 text-white">
-                {tenant.welcomeMessage || `Bem-vindo ao ${tenant.name}`}
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black leading-[1.1] tracking-tight mb-4 text-white">
+                {tenant.welcomeMessage
+                  ? tenant.welcomeMessage.length > 55
+                    ? tenant.welcomeMessage.slice(0, 55).trimEnd() + "…"
+                    : tenant.welcomeMessage
+                  : tenant.name}
               </h1>
 
-              <p className="text-zinc-400 text-base leading-relaxed mb-10 max-w-sm">
-                {tenant.description?.slice(0, 130) || "Experiência premium em beleza e bem-estar. Agende agora."}
+              <p className="text-zinc-400 text-sm leading-relaxed mb-10 max-w-xs">
+                {tenant.description
+                  ? tenant.description.slice(0, 110) + (tenant.description.length > 110 ? "…" : "")
+                  : "Experiência premium em beleza e bem-estar."}
               </p>
 
-              <div className="flex flex-wrap gap-3 mb-12">
+              <div className="flex flex-wrap gap-3 mb-10">
                 <Link
                   to={bookingUrl}
                   className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-bold rounded-full shadow-xl active:scale-95 hover:opacity-90 transition-all"
@@ -561,7 +567,7 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
                   <a
                     href={tenant.instagram} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-bold rounded-full border text-white hover:bg-white/5 transition-colors"
-                    style={{ borderColor: "rgba(255,255,255,0.15)" }}
+                    style={{ borderColor: "rgba(255,255,255,0.18)" }}
                   >
                     <Instagram size={15} /> Instagram
                   </a>
@@ -573,20 +579,20 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
                 <div className="flex gap-8 pt-8 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
                   {tenant.experienceYears && (
                     <div>
-                      <p className="text-3xl font-black" style={{ color: themeColor }}>{tenant.experienceYears}</p>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mt-1">Anos</p>
+                      <p className="text-2xl font-black" style={{ color: themeColor }}>{tenant.experienceYears}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mt-1">Anos</p>
                     </div>
                   )}
                   {professionals.length > 0 && (
                     <div>
-                      <p className="text-3xl font-black text-white">{professionals.length}+</p>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mt-1">Especialistas</p>
+                      <p className="text-2xl font-black text-white">{professionals.length}+</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mt-1">Especialistas</p>
                     </div>
                   )}
                   {services.length > 0 && (
                     <div>
-                      <p className="text-3xl font-black text-white">{services.length}+</p>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mt-1">Serviços</p>
+                      <p className="text-2xl font-black text-white">{services.length}+</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mt-1">Serviços</p>
                     </div>
                   )}
                 </div>
@@ -598,18 +604,19 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 1 }}
-              className="relative hidden lg:block"
+              className="hidden lg:block relative"
+              style={{ minHeight: "88vh" }}
             >
               {heroImage ? (
                 <>
                   <img src={heroImage} alt="" className="absolute inset-0 w-full h-full object-cover object-center" />
                   {/* Gradiente da esquerda para fundir com o fundo escuro */}
-                  <div className="absolute inset-0" style={{ background: "linear-gradient(to right, #0a0a0a 0%, transparent 30%)" }} />
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to right, #0a0a0a 0%, transparent 35%)" }} />
                   {/* Gradiente sutil no topo e base */}
-                  <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, #0a0a0a 0%, transparent 12%, transparent 88%, #0a0a0a 100%)" }} />
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%)" }} />
                 </>
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, #111 0%, ${themeColor}25 100%)` }}>
+                <div className="absolute inset-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, #1a1a1a 0%, ${themeColor}20 100%)` }}>
                   <Scissors size={100} className="opacity-10 text-white" />
                 </div>
               )}
@@ -617,11 +624,11 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
           </div>
         </div>
 
-        {/* Imagem mobile */}
+        {/* Imagem mobile — faixa abaixo do texto */}
         {heroImage && (
-          <div className="lg:hidden w-full h-56 overflow-hidden">
-            <img src={heroImage} alt="" className="w-full h-full object-cover" />
-            <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 60%, #0a0a0a 100%)" }} />
+          <div className="lg:hidden w-full h-56 overflow-hidden relative">
+            <img src={heroImage} alt="" className="w-full h-full object-cover object-center" />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, #0a0a0a 0%, transparent 25%, transparent 75%, #0a0a0a 100%)" }} />
           </div>
         )}
       </section>
