@@ -1382,16 +1382,78 @@ function SalesTab({ user }: { user: any }) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "leads" | "messages">("dashboard");
+  const [leads, setLeads] = useState<any[]>([]);
+  const [leadModal, setLeadModal] = useState(false);
+  const [editingLead, setEditingLead] = useState<any>(null);
+  const [leadSearch, setLeadSearch] = useState("");
+  const [leadForm, setLeadForm] = useState({ name: "", phone: "", status: "new", notes: "" });
+
+  const templates = [
+    {
+      title: "Abordagem Inicial",
+      desc: "Primeiro contato para despertar interesse",
+      content: "Olá! Notei que você faz um trabalho incrível no seu estabelecimento. Você já utiliza alguma plataforma para agendamentos online e gestão? O Glow Cut está ajudando centenas de profissionais a organizarem a agenda e aumentarem o faturamento. Posso te enviar um link para teste grátis?"
+    },
+    {
+      title: "Dúvidas sobre Planos",
+      desc: "Explicação básica sobre preços e modelos",
+      content: "Temos planos super flexíveis! O Plano Basic custa apenas R$ 49,90 e já inclui agenda online e gestão de clientes. O Plano Pro libera o Bot de WhatsApp e Vitrine de Produtos. Qual seria o tamanho da sua equipe hoje para eu te indicar o melhor?"
+    },
+    {
+      title: "Como funciona (Teste)",
+      desc: "Link de indicação e período de experiência",
+      content: `É muito simples: você clica no meu link ( ${window.location.origin}/assinar?ref=${user?.id} ), faz um cadastro de 1 minuto e já tem acesso a tudo. Você pode testar por 7 dias sem compromisso. Se precisar de ajuda para configurar, eu te auxilio em cada passo!`
+    },
+    {
+      title: "Vantagens e Benefícios",
+      desc: "Argumentos de venda e diferenciais",
+      content: "As principais vantagens são:\n1. Lembretes automáticos por WhatsApp (reduz faltas em 40%)\n2. Sua própria vitrine de produtos\n3. Controle financeiro completo\n4. Agenda disponível 24h para seus clientes."
+    }
+  ];
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`sales_leads_${user?.id}`);
+    if (saved) setLeads(JSON.parse(saved));
+  }, [user?.id]);
+
+  const saveLeads = (newList: any[]) => {
+    setLeads(newList);
+    localStorage.setItem(`sales_leads_${user?.id}`, JSON.stringify(newList));
+  };
+
+  const handleSaveLead = () => {
+    if (!leadForm.name || !leadForm.phone) return;
+    if (editingLead) {
+      saveLeads(leads.map(l => l.id === editingLead.id ? { ...l, ...leadForm, updatedAt: new Date().toISOString() } : l));
+    } else {
+      const newLead = { ...leadForm, id: Date.now().toString(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      saveLeads([newLead, ...leads]);
+    }
+    setLeadModal(false);
+    setLeadForm({ name: "", phone: "", status: "new", notes: "" });
+  };
+
+  const deleteLead = (id: string) => saveLeads(leads.filter(l => l.id !== id));
+
+  const openWhatsapp = (phone: string, template?: string) => {
+    const clean = phone.replace(/\D/g, "");
+    const url = `https://wa.me/55${clean}${template ? `?text=${encodeURIComponent(template)}` : ""}`;
+    window.open(url, "_blank");
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Mensagem copiada!");
+  };
+
   const fetchData = useCallback(async () => {
     if (!user?.id) return;
     try {
       const [statsData, stripeData] = await Promise.all([
         apiFetch("/api/super-admin/sales-stats").then(r => r.json()).catch(() => null),
         apiFetch("/api/super-admin/stripe-connect/status")
-          .then(async r => {
-            if (!r.ok) throw new Error("Status API failed");
-            return r.json();
-          })
+          .then(async r => r.ok ? r.json() : { connected: false, error: true })
           .catch(() => ({ connected: false, error: true }))
       ]);
       setStats({
@@ -1399,6 +1461,7 @@ function SalesTab({ user }: { user: any }) {
         totalActive: statsData?.totalActive ?? 0,
         totalRecurring: Number(statsData?.totalRecurring ?? 0),
         history: Array.isArray(statsData?.history) ? statsData.history : [],
+        clients: Array.isArray(statsData?.clients) ? statsData.clients : [],
       });
       setStripeStatus(stripeData);
     } finally {
@@ -1409,12 +1472,7 @@ function SalesTab({ user }: { user: any }) {
   const refreshStripeStatus = useCallback(async () => {
     setStripeStatus(undefined);
     try {
-      const stripeData = await apiFetch("/api/super-admin/stripe-connect/status")
-        .then(async r => {
-          if (!r.ok) throw new Error("Status API failed");
-          return r.json();
-        })
-        .catch(() => ({ connected: false, error: true }));
+      const stripeData = await apiFetch("/api/super-admin/stripe-connect/status").then(r => r.json());
       setStripeStatus(stripeData);
     } catch {
       setStripeStatus({ connected: false, error: true });
@@ -1429,39 +1487,18 @@ function SalesTab({ user }: { user: any }) {
     const params = new URLSearchParams(location.search);
     if (params.get("success") === "true" || params.get("refresh") === "true") {
       navigate("/super-admin/vendas", { replace: true });
-      setStripeStatus(undefined);
-      setLoading(true);
       fetchData().then(() => {
-        if (params.get("success") === "true") {
-          toast.success("Cadastro no Stripe enviado! Aguarde alguns minutos para a ativação completa.");
-        }
+        if (params.get("success") === "true") toast.success("Cadastro no Stripe enviado!");
       });
     }
-  }, [location.search]);
-
-  const salesLink = user ? `${window.location.origin}/assinar?ref=${user.id}` : "";
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(salesLink);
-    toast.success("O seu link de vendas foi copiado para a área de transferência.");
-  };
+  }, [location.search, navigate, fetchData]);
 
   const handleStripeReset = async () => {
     setConnecting(true);
     try {
       const r = await apiFetch("/api/super-admin/stripe-connect", { method: "DELETE" });
-      const data = await r.json();
-      if (data.ok) {
-        setStripeStatus({ connected: false });
-        toast.success("Conta Stripe desvinculada. Clique em Conectar para recomeçar.");
-      } else {
-        toast.error(data.error || "Erro ao desvincular conta");
-      }
-    } catch {
-      toast.error("Erro ao desvincular conta");
-    } finally {
-      setConnecting(false);
-    }
+      if (r.ok) { setStripeStatus({ connected: false }); toast.success("Conta Stripe desvinculada."); }
+    } finally { setConnecting(false); }
   };
 
   const handleStripeConnect = async () => {
@@ -1470,215 +1507,168 @@ function SalesTab({ user }: { user: any }) {
       const r = await apiFetch("/api/super-admin/stripe-connect", { method: "POST" });
       const data = await r.json();
       if (data.url) window.location.href = data.url;
-      else toast.error(data.error || "Erro ao conectar com Stripe");
-    } catch (e) {
-      toast.error("Erro ao conectar com Stripe");
-    } finally {
-      setConnecting(false);
-    }
+      else toast.error(data.error || "Erro ao conectar");
+    } finally { setConnecting(false); }
   };
 
-  if (loading || !stats) return <div className="p-8 text-center text-sm text-zinc-400">Carregando estatísticas...</div>;
+  if (loading || !stats) return <div className="p-8 text-center text-sm text-zinc-400">Carregando...</div>;
+
+  const salesLink = user ? `${window.location.origin}/assinar?ref=${user.id}` : "";
 
   return (
     <div className="space-y-6">
-      <SectionTitle
-        title="Vendas e Afiliados"
-        description="Acompanhe seu desempenho e compartilhe seu link de vendas"
-        icon={TrendingUp}
-      />
+      <SectionTitle title="Vendas e Afiliados" description="Acompanhe seu desempenho" icon={TrendingUp} />
 
-      <ContentCard className="bg-gradient-to-br from-amber-500 to-amber-600 border-none shadow-xl shadow-amber-500/20">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-2">
-          <div className="space-y-2">
-            <h3 className="text-lg font-black text-white">Seu Link de Vendas</h3>
-            <p className="text-amber-100 text-sm font-medium">Use este link para cadastrar novos parceiros e receber atribuição direta.</p>
-          </div>
-          <div className="flex items-center gap-2 bg-white/10 p-1.5 rounded-2xl backdrop-blur-sm border border-white/20">
-            <code className="px-4 py-2 text-white font-bold text-sm truncate max-w-[200px] md:max-w-xs">{salesLink}</code>
-            <Button size="sm" variant="secondary" onClick={copyLink} iconLeft={<FileText size={14} />} className="bg-white text-amber-600 hover:bg-amber-50 border-none shadow-lg">
-              Copiar Link
-            </Button>
-          </div>
-        </div>
-      </ContentCard>
-
-      <StatGrid cols={3}>
-        <StatCard icon={Crown} title="Total de Vendas" value={stats.totalSales ?? 0} color="info" delay={0} />
-        <StatCard icon={CheckCircle} title="Assinaturas Ativas" value={stats.totalActive ?? 0} color="success" delay={0.1} />
-        <StatCard icon={CreditCard} title="Receita Recorrente (MRR)" value={`R$ ${Number(stats.totalRecurring ?? 0).toFixed(2)}`} color="purple" delay={0.2} />
-      </StatGrid>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <ContentCard className="lg:col-span-2" padding="none">
-          <div className="px-5 py-4 border-b border-zinc-100 flex items-center justify-between">
-            <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Histórico de Vendas</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-zinc-50 border-b border-zinc-100">
-                <tr>
-                  <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Parceiro</th>
-                  <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Plano</th>
-                  <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Valor</th>
-                  <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Data</th>
-                  <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {stats.history.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-5 py-10 text-center text-sm text-zinc-400">Nenhuma venda realizada ainda.</td>
-                  </tr>
-                ) : (
-                  stats.history.map((h: any) => (
-                    <tr key={h.id} className="hover:bg-zinc-50/50 transition-colors">
-                      <td className="px-5 py-4 text-sm font-bold text-zinc-800">{h.name}</td>
-                      <td className="px-5 py-4"><Badge color="info">{h.planName}</Badge></td>
-                      <td className="px-5 py-4 text-sm font-black text-zinc-700">R$ {h.value.toFixed(2)}</td>
-                      <td className="px-5 py-4 text-xs text-zinc-500">{new Date(h.date).toLocaleDateString("pt-BR")}</td>
-                      <td className="px-5 py-4">
-                        <Badge color={h.status === "Ativo" ? "success" : "default"} dot>{h.status}</Badge>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </ContentCard>
-
-        <div className="space-y-6">
-          <ContentCard>
-            <div className="space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
-                <TrendingUp size={24} />
-              </div>
-              <h3 className="text-base font-black text-zinc-900 leading-tight">Como aumentar suas vendas?</h3>
-              <p className="text-sm text-zinc-500 leading-relaxed">
-                Compartilhe seu link exclusivo em suas redes sociais, grupos de WhatsApp e e-mails. Cada parceiro que assinar através do seu link será automaticamente vinculado ao seu perfil.
-              </p>
-              <div className="pt-2 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-zinc-600">
-                  <CheckCircle size={14} className="text-emerald-500" /> Atribuição vitalícia
-                </div>
-                <div className="flex items-center gap-2 text-xs font-bold text-zinc-600">
-                  <CheckCircle size={14} className="text-emerald-500" /> Relatórios em tempo real
-                </div>
-                <div className="flex items-center gap-2 text-xs font-bold text-zinc-600">
-                  <CheckCircle size={14} className="text-emerald-500" /> Suporte dedicado
-                </div>
-              </div>
-            </div>
-          </ContentCard>
-
-          <ContentCard>
-            <div className="space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#635BFF]/10 flex items-center justify-center text-[#635BFF]">
-                <CreditCard size={24} />
-              </div>
-              <h3 className="text-base font-black text-zinc-900 leading-tight">Recebimento Automático</h3>
-              <p className="text-sm text-zinc-500 leading-relaxed">
-                Conecte sua conta Stripe para receber seus repasses de comissão automaticamente na sua conta bancária.
-              </p>
-
-              {stripeStatus === undefined ? (
-                <div className="h-10 bg-zinc-100 animate-pulse rounded-xl" />
-              ) : stripeStatus.connected && stripeStatus.payoutsEnabled ? (
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
-                    <CheckCircle size={16} /> Conta Conectada
-                  </div>
-                  <p className="text-[10px] text-emerald-600 font-medium">Seus repasses automáticos estão ativos.</p>
-                  <Button variant="secondary" size="sm" onClick={handleStripeConnect} loading={connecting} className="w-full text-xs mt-2">
-                    Acessar Painel Stripe
-                  </Button>
-                </div>
-              ) : stripeStatus.connected && !stripeStatus.payoutsEnabled ? (
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-sm font-bold text-amber-700">
-                    <TrendingUp size={16} /> Documentação pendente
-                  </div>
-                  <p className="text-[10px] text-amber-600 font-medium">
-                    A Stripe precisa verificar seus documentos para liberar os repasses. Clique abaixo para enviar ou corrigir os dados.
-                  </p>
-                  <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-[#635BFF] hover:bg-[#5249EC] text-white border-none shadow-lg mt-2">
-                    Resolver no Stripe
-                  </Button>
-                  <button onClick={refreshStripeStatus} className="text-[10px] text-amber-500 underline text-center mt-1 cursor-pointer bg-transparent border-none">
-                    Já resolvi, verificar status
-                  </button>
-                  <button onClick={handleStripeReset} disabled={connecting} className="text-[10px] text-zinc-400 underline text-center cursor-pointer bg-transparent border-none">
-                    Reconectar do zero
-                  </button>
-                </div>
-              ) : (
-                <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-[#635BFF] hover:bg-[#5249EC] text-white border-none shadow-lg">
-                  Conectar com Stripe
-                </Button>
-              )}
-            </div>
-          </ContentCard>
-        </div>
+      <div className="flex items-center gap-2 border-b border-zinc-100 pb-1 mb-6 overflow-x-auto no-scrollbar">
+        {[
+          { key: "dashboard", label: "Painel de Desempenho" },
+          { key: "leads", label: "Minha Lista de Contatos" },
+          { key: "messages", label: "Mensagens Prontas" }
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setActiveSubTab(tab.key as any)} className={cn("px-4 py-2 text-xs font-black rounded-xl transition-all whitespace-nowrap", activeSubTab === tab.key ? "bg-amber-100 text-amber-700" : "text-zinc-500 hover:bg-zinc-50")}>
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <ContentCard padding="none">
-        <div className="px-5 py-4 border-b border-zinc-100">
-          <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Meus Clientes</h3>
+      {activeSubTab === "dashboard" && (
+        <div className="space-y-6">
+          <ContentCard className="bg-gradient-to-br from-amber-500 to-amber-600 border-none shadow-xl shadow-amber-500/20">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-2">
+              <div className="space-y-2">
+                <h3 className="text-lg font-black text-white">Seu Link de Vendas</h3>
+                <p className="text-amber-100 text-sm font-medium">Compartilhe este link para cadastrar novos parceiros.</p>
+              </div>
+              <Button size="sm" variant="secondary" onClick={() => { navigator.clipboard.writeText(salesLink); toast.success("Link copiado!"); }} className="bg-white text-amber-600 border-none shadow-lg">Copiar Link</Button>
+            </div>
+          </ContentCard>
+
+          <StatGrid cols={3}>
+            <StatCard icon={Crown} title="Total de Vendas" value={stats.totalSales ?? 0} color="info" />
+            <StatCard icon={CheckCircle} title="Assinaturas Ativas" value={stats.totalActive ?? 0} color="success" />
+            <StatCard icon={CreditCard} title="MRR Estimado" value={`R$ ${Number(stats.totalRecurring ?? 0).toFixed(2)}`} color="purple" />
+          </StatGrid>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <ContentCard padding="none">
+                <div className="px-5 py-4 border-b border-zinc-100"><h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Histórico de Vendas</h3></div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-zinc-50 border-b border-zinc-100">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Parceiro</th>
+                        <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Plano</th>
+                        <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Valor</th>
+                        <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {stats.history.map((h: any) => (
+                        <tr key={h.id} className="hover:bg-zinc-50/50">
+                          <td className="px-5 py-4 text-sm font-bold text-zinc-800">{h.name}</td>
+                          <td className="px-5 py-4"><Badge color="info">{h.planName}</Badge></td>
+                          <td className="px-5 py-4 text-sm font-black text-zinc-700">R$ {h.value.toFixed(2)}</td>
+                          <td className="px-5 py-4"><Badge color={h.status === "Ativo" ? "success" : "default"} dot>{h.status}</Badge></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </ContentCard>
+
+              <ContentCard padding="none">
+                <div className="px-5 py-4 border-b border-zinc-100"><h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Meus Clientes Ativos</h3></div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-zinc-50 border-b border-zinc-100">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Parceiro</th>
+                        <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Contato</th>
+                        <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Plano</th>
+                        <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Vencimento</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {stats.clients.map((c: any) => (
+                        <tr key={c.id}>
+                          <td className="px-5 py-4 text-sm font-bold text-zinc-800">{c.name}</td>
+                          <td className="px-5 py-4 text-xs text-zinc-500">{c.phone || "—"}</td>
+                          <td className="px-5 py-4"><Badge color="info">{c.planName}</Badge></td>
+                          <td className="px-5 py-4 text-xs">{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString("pt-BR") : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </ContentCard>
+            </div>
+
+            <div className="space-y-6">
+              <ContentCard>
+                <div className="space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-[#635BFF]/10 flex items-center justify-center text-[#635BFF]"><CreditCard size={24} /></div>
+                  <h3 className="text-base font-black text-zinc-900 leading-tight">Recebimento</h3>
+                  {stripeStatus === undefined ? <div className="h-10 bg-zinc-100 animate-pulse rounded-xl" /> : stripeStatus.connected && stripeStatus.payoutsEnabled ? (
+                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100"><p className="text-sm font-bold text-emerald-700">Conta Conectada</p></div>
+                  ) : stripeStatus.connected && !stripeStatus.payoutsEnabled ? (
+                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-100"><p className="text-[10px] text-amber-600">Documentação pendente no Stripe.</p><Button onClick={handleStripeConnect} className="w-full mt-2">Resolver no Stripe</Button></div>
+                  ) : <Button onClick={handleStripeConnect} loading={connecting} className="w-full">Conectar Stripe</Button>}
+                </div>
+              </ContentCard>
+            </div>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-zinc-50 border-b border-zinc-100">
-              <tr>
-                <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Parceiro</th>
-                <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Responsável</th>
-                <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Contato</th>
-                <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Plano</th>
-                <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Status</th>
-                <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Vencimento</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {(stats.clients ?? []).length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-sm text-zinc-400">Nenhum cliente ainda.</td>
-                </tr>
-              ) : (
-                (stats.clients ?? []).map((c: any) => (
-                  <tr key={c.id} className="hover:bg-zinc-50/50 transition-colors">
-                    <td className="px-5 py-4 text-sm font-bold text-zinc-800">{c.name}</td>
-                    <td className="px-5 py-4 text-sm text-zinc-600">{c.ownerName || "—"}</td>
-                    <td className="px-5 py-4">
-                      <div className="flex flex-col gap-1">
-                        {c.phone && (
-                          <a href={`https://wa.me/55${c.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
-                            className="flex items-center gap-1 text-xs text-emerald-600 font-medium hover:underline">
-                            <Phone size={11} /> {c.phone}
-                          </a>
-                        )}
-                        {c.email && (
-                          <a href={`mailto:${c.email}`}
-                            className="flex items-center gap-1 text-xs text-zinc-400 hover:underline">
-                            <Mail size={11} /> {c.email}
-                          </a>
-                        )}
-                        {!c.phone && !c.email && <span className="text-xs text-zinc-300">—</span>}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4"><Badge color="info">{c.planName}</Badge></td>
-                    <td className="px-5 py-4">
-                      <Badge color={c.isActive ? "success" : "default"} dot>{c.isActive ? "Ativo" : "Inativo"}</Badge>
-                    </td>
-                    <td className="px-5 py-4 text-xs text-zinc-500">
-                      {c.expiresAt ? new Date(c.expiresAt).toLocaleDateString("pt-BR") : "—"}
+      )}
+
+      {activeSubTab === "leads" && (
+        <div className="space-y-5">
+          <div className="flex justify-between items-center">
+            <Input placeholder="Buscar..." value={leadSearch} onChange={e => setLeadSearch(e.target.value)} />
+            <Button iconLeft={<Plus size={16} />} onClick={() => { setEditingLead(null); setLeadModal(true); }}>Novo Lead</Button>
+          </div>
+          <ContentCard padding="none">
+            <table className="w-full">
+              <tbody className="divide-y divide-zinc-100">
+                {leads.filter(l => l.name.toLowerCase().includes(leadSearch.toLowerCase())).map(l => (
+                  <tr key={l.id}>
+                    <td className="px-5 py-4 text-sm font-bold">{l.name}</td>
+                    <td className="px-5 py-4 text-xs text-zinc-500">{l.phone}</td>
+                    <td className="px-5 py-4 text-right">
+                      <IconButton variant="ghost" onClick={() => openWhatsapp(l.phone)}><MessageCircle size={14} /></IconButton>
+                      <IconButton variant="ghost" onClick={() => deleteLead(l.id)}><Trash2 size={14} /></IconButton>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          </ContentCard>
         </div>
-      </ContentCard>
+      )}
+
+      {activeSubTab === "messages" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {templates.map((t, i) => (
+            <ContentCard key={i}>
+              <h3 className="font-black text-sm">{t.title}</h3>
+              <p className="text-xs text-zinc-400 mt-1 mb-4">{t.desc}</p>
+              <div className="bg-zinc-50 p-4 rounded-xl text-xs text-zinc-600 mb-4">{t.content}</div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="ghost" onClick={() => copyToClipboard(t.content)}>Copiar</Button>
+                <Button size="sm" onClick={() => openWhatsapp("", t.content)}>Enviar WA</Button>
+              </div>
+            </ContentCard>
+          ))}
+        </div>
+      )}
+
+      <Modal isOpen={leadModal} onClose={() => setLeadModal(false)} title="Lead">
+        <div className="space-y-4 p-5">
+          <Input label="Nome" value={leadForm.name} onChange={e => setLeadForm(p => ({ ...p, name: e.target.value }))} />
+          <Input label="WhatsApp" value={leadForm.phone} onChange={e => setLeadForm(p => ({ ...p, phone: e.target.value }))} />
+          <Button fullWidth onClick={handleSaveLead}>Salvar</Button>
+        </div>
+      </Modal>
     </div>
   );
 }
