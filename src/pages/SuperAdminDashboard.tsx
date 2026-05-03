@@ -36,6 +36,7 @@ import {
   AlertCircle,
   Star,
   Copy,
+  MapPin,
 } from "lucide-react";
 import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/permissions";
 
@@ -1372,8 +1373,9 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
 }
 
 function SalesTab({ user, plans }: { user: any, plans: any[] }) {
-  const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "leads" | "messages">("dashboard");
+  const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "leads" | "messages" | "reps">("dashboard");
   const [leads, setLeads] = useState<any[]>([]);
+  const [salesReps, setSalesReps] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({ 
     totalSales: 0, 
     totalActive: 0, 
@@ -1386,10 +1388,11 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
   const [connecting, setConnecting] = useState(false);
   const [leadModal, setLeadModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
+  const [sendWaModal, setSendWaModal] = useState<{open: boolean, template: string | null}>({open: false, template: null});
   const [leadToDelete, setLeadToDelete] = useState<any>(null);
   const [editingLead, setEditingLead] = useState<any>(null);
   const [leadSearch, setLeadSearch] = useState("");
-  const [leadForm, setLeadForm] = useState({ name: "", phone: "", status: "new", notes: "" });
+  const [leadForm, setLeadForm] = useState({ name: "", phone: "", city: "", status: "new", notes: "" });
   const toast = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -1484,7 +1487,7 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
         setLeads([data, ...leads]);
       }
       setLeadModal(false);
-      setLeadForm({ name: "", phone: "", status: "new", notes: "" });
+      setLeadForm({ name: "", phone: "", city: "", status: "new", notes: "" });
       toast.success("Lead salvo com sucesso!");
     } catch { toast.error("Erro ao salvar lead"); }
   };
@@ -1514,13 +1517,14 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
   const fetchData = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const [statsData, stripeData, leadsData, favsData] = await Promise.all([
+      const [statsData, stripeData, leadsData, favsData, repsData] = await Promise.all([
         apiFetch("/api/super-admin/sales-stats").then(r => r.json()).catch(() => null),
         apiFetch("/api/super-admin/stripe-connect/status")
           .then(async r => r.ok ? r.json() : { connected: false, error: true })
           .catch(() => ({ connected: false, error: true })),
         apiFetch("/api/super-admin/leads").then(r => r.json()).catch(() => []),
-        apiFetch("/api/super-admin/favorites").then(r => r.json()).catch(() => [])
+        apiFetch("/api/super-admin/favorites").then(r => r.json()).catch(() => []),
+        apiFetch("/api/super-admin/sales-reps").then(r => r.json()).catch(() => [])
       ]);
       setStats({
         totalSales: statsData?.totalSales ?? 0,
@@ -1532,6 +1536,7 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
       setStripeStatus(stripeData);
       setLeads(leadsData);
       setFavorites(favsData);
+      setSalesReps(repsData);
     } finally {
       setLoading(false);
     }
@@ -1581,7 +1586,8 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
         {[
           { key: "dashboard", label: "Painel de Desempenho" },
           { key: "leads", label: "Minha Lista de Contatos" },
-          { key: "messages", label: "Mensagens Prontas" }
+          { key: "messages", label: "Mensagens Prontas" },
+          { key: "reps", label: "Cidades e Responsáveis" }
         ].map(tab => (
           <button key={tab.key} onClick={() => setActiveSubTab(tab.key as any)} className={cn("px-4 py-2 text-xs font-black rounded-xl transition-all whitespace-nowrap", activeSubTab === tab.key ? "bg-amber-100 text-amber-700" : "text-zinc-500 hover:bg-zinc-50")}>
             {tab.label}
@@ -1758,16 +1764,18 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
                   <tr>
                     <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Contato</th>
                     <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">WhatsApp</th>
+                    <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Cidade</th>
                     <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Status</th>
                     <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Notas</th>
                     <th className="px-5 py-3 text-right text-[10px] font-black text-zinc-400 uppercase tracking-widest">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {leads.filter(l => l.name.toLowerCase().includes(leadSearch.toLowerCase())).map(l => (
-                    <tr key={l.id} className="hover:bg-zinc-50/50 group">
+                  {leads.filter(l => l.name.toLowerCase().includes(leadSearch.toLowerCase()) || (l.city || "").toLowerCase().includes(leadSearch.toLowerCase())).map(l => (
+                    <tr key={l.id} className="hover:bg-zinc-50/50 group cursor-pointer transition-colors" onClick={() => { setEditingLead(l); setLeadForm({ name: l.name, phone: l.phone, city: l.city || "", status: l.status, notes: l.notes || "" }); setLeadModal(true); }}>
                       <td className="px-5 py-4 text-sm font-bold text-zinc-800">{l.name}</td>
                       <td className="px-5 py-4 text-xs text-zinc-500 font-medium">{l.phone}</td>
+                      <td className="px-5 py-4 text-xs font-bold text-zinc-600">{l.city || "—"}</td>
                       <td className="px-5 py-4">
                         <Badge color={LEAD_STATUS[l.status]?.color || "default"}>
                           {LEAD_STATUS[l.status]?.label || "Novo"}
@@ -1780,13 +1788,10 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
                       </td>
                       <td className="px-5 py-4 text-right">
                         <div className="flex justify-end gap-1">
-                          <IconButton variant="ghost" size="sm" onClick={() => openWhatsapp(l.phone)} title="Enviar WhatsApp">
+                          <IconButton variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openWhatsapp(l.phone); }} title="Enviar WhatsApp">
                             <MessageCircle size={14} className="text-zinc-400 group-hover:text-emerald-500" />
                           </IconButton>
-                          <IconButton variant="ghost" size="sm" onClick={() => { setEditingLead(l); setLeadForm({ name: l.name, phone: l.phone, status: l.status, notes: l.notes || "" }); setLeadModal(true); }} title="Editar">
-                            <Edit2 size={14} className="text-zinc-400 group-hover:text-blue-500" />
-                          </IconButton>
-                          <IconButton variant="ghost" size="sm" onClick={() => { setLeadToDelete(l); setDeleteModal(true); }} title="Excluir">
+                          <IconButton variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setLeadToDelete(l); setDeleteModal(true); }} title="Excluir">
                             <Trash2 size={14} className="text-zinc-400 group-hover:text-red-500" />
                           </IconButton>
                         </div>
@@ -1871,7 +1876,7 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
                       </Button>
                       <Button 
                         size="sm" 
-                        onClick={() => openWhatsapp("", t.content)}
+                        onClick={() => setSendWaModal({ open: true, template: t.content })}
                         className="flex-1 text-[10px] uppercase font-black"
                         iconLeft={<MessageCircle size={14} />}
                       >
@@ -1894,34 +1899,85 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
         </div>
       )}
 
-      <Modal isOpen={leadModal} onClose={() => setLeadModal(false)} title={editingLead ? "Editar Contato" : "Novo Contato"}>
+      {activeSubTab === "reps" && (
+        <div className="space-y-6">
+          <SectionTitle title="Responsáveis por Cidade" description="Veja a listagem de vendedores e suas regiões de atuação" icon={MapPin} />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {salesReps.map(rep => (
+              <ContentCard key={rep.id} className="hover:border-zinc-300 transition-all">
+                <div className="flex items-center gap-3 mb-4">
+                  {rep.photo ? (
+                    <img src={rep.photo} alt={rep.name || rep.username} className="w-10 h-10 rounded-full object-cover border border-zinc-200" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center font-bold text-zinc-500">
+                      {(rep.name || rep.username).charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="text-sm font-bold text-zinc-800 leading-tight">{rep.name || rep.username}</h4>
+                    <p className="text-[10px] text-zinc-500">{rep.phone || "Sem telefone"}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Cidades Atendidas</p>
+                  {rep.responsableCities ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {rep.responsableCities.split(",").map((c: string, i: number) => (
+                        <span key={i} className="px-2 py-1 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-lg border border-amber-100">
+                          {c.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-zinc-400 italic">Nenhuma cidade especificada</p>
+                  )}
+                </div>
+              </ContentCard>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Modal isOpen={leadModal} onClose={() => setLeadModal(false)} title={editingLead ? "Detalhes do Contato" : "Novo Contato"}>
         <div className="space-y-4 p-5">
           <Input label="Nome completo" value={leadForm.name} onChange={e => setLeadForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: João da Barbearia" />
-          <Input 
-            label="WhatsApp / Telefone" 
-            value={leadForm.phone} 
-            onChange={e => {
-              const masked = e.target.value
-                .replace(/\D/g, "")
-                .replace(/(\d{2})(\d)/, "($1) $2")
-                .replace(/(\d{5})(\d)/, "$1-$2")
-                .replace(/(-\d{4})\d+?$/, "$1");
-              setLeadForm(p => ({ ...p, phone: masked }));
-            }} 
-            placeholder="(11) 99999-9999" 
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input 
+              label="WhatsApp / Telefone" 
+              value={leadForm.phone} 
+              onChange={e => {
+                const masked = e.target.value
+                  .replace(/\D/g, "")
+                  .replace(/(\d{2})(\d)/, "($1) $2")
+                  .replace(/(\d{5})(\d)/, "$1-$2")
+                  .replace(/(-\d{4})\d+?$/, "$1");
+                setLeadForm(p => ({ ...p, phone: masked }));
+              }} 
+              placeholder="(11) 99999-9999" 
+            />
+            <Input label="Cidade" value={leadForm.city} onChange={e => setLeadForm(p => ({ ...p, city: e.target.value }))} placeholder="Ex: Sorocaba" />
+          </div>
           
           <div className="space-y-1">
             <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">Status do Atendimento</label>
-            <select 
-              value={leadForm.status} 
-              onChange={e => setLeadForm(p => ({ ...p, status: e.target.value }))}
-              className="w-full h-10 px-3 rounded-xl border border-zinc-200 text-sm focus:border-zinc-400 focus:ring-0 transition-all outline-none appearance-none bg-white"
-            >
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
               {Object.entries(LEAD_STATUS).map(([key, val]: [string, any]) => (
-                <option key={key} value={key}>{val.label}</option>
+                <button
+                  key={key}
+                  onClick={() => setLeadForm(p => ({ ...p, status: key }))}
+                  className={cn(
+                    "px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center justify-center gap-1.5",
+                    leadForm.status === key
+                      ? "bg-zinc-800 border-zinc-800 text-white shadow-md"
+                      : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-300 hover:bg-zinc-50"
+                  )}
+                >
+                  <span className={cn("w-2 h-2 rounded-full", `bg-${val.color}-400`)} />
+                  {val.label}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
           <div className="space-y-1">
@@ -1956,6 +2012,34 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
         <div className="flex gap-3 p-5 pt-0">
           <Button variant="ghost" className="flex-1" onClick={() => setDeleteModal(false)}>Cancelar</Button>
           <Button variant="danger" className="flex-1 bg-red-600 hover:bg-red-700 border-red-600" onClick={deleteLead}>Excluir Agora</Button>
+        </div>
+      </Modal>
+
+      <Modal isOpen={sendWaModal.open} onClose={() => setSendWaModal({ open: false, template: null })} title="Enviar Mensagem">
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-zinc-600">Selecione um contato da sua lista para enviar esta mensagem:</p>
+          <div className="max-h-60 overflow-y-auto border border-zinc-100 rounded-xl divide-y divide-zinc-100">
+            {leads.length > 0 ? leads.map(l => (
+              <div 
+                key={l.id} 
+                onClick={() => {
+                  setSendWaModal({ open: false, template: null });
+                  openWhatsapp(l.phone, sendWaModal.template || "");
+                }}
+                className="p-3 hover:bg-amber-50 cursor-pointer flex justify-between items-center transition-colors group"
+              >
+                <div>
+                  <p className="text-sm font-bold text-zinc-800">{l.name}</p>
+                  <p className="text-[10px] text-zinc-500">{l.phone} {l.city ? `• ${l.city}` : ""}</p>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <MessageCircle size={14} />
+                </div>
+              </div>
+            )) : (
+              <div className="p-4 text-center text-sm text-zinc-400">Nenhum contato na lista.</div>
+            )}
+          </div>
         </div>
       </Modal>
 

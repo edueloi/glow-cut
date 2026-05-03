@@ -193,7 +193,8 @@ superAdminRouter.get("/staff", async (req, res) => {
       select: { 
         id: true, username: true, createdAt: true, 
         name: true, email: true, phone: true, birthday: true, 
-        role: true, bio: true, photo: true, permissions: true
+        role: true, bio: true, photo: true, permissions: true,
+        responsableCities: true
       }
     });
     res.json(staff);
@@ -221,6 +222,7 @@ superAdminRouter.post("/staff", async (req, res) => {
         role: role || null,
         bio: bio || null,
         photo: photo || null,
+        responsableCities: req.body.responsableCities || null,
         permissions: permissions ? (typeof permissions === 'string' ? permissions : JSON.stringify(permissions)) : "{}"
       }
     });
@@ -242,6 +244,7 @@ superAdminRouter.put("/staff/:id", async (req, res) => {
       role: role || null,
       bio: bio || null,
       photo: photo || null,
+      responsableCities: req.body.responsableCities || null,
       permissions: permissions ? (typeof permissions === 'string' ? permissions : JSON.stringify(permissions)) : undefined
     };
     if (password) data.password = password;
@@ -2010,12 +2013,12 @@ superAdminRouter.post("/leads", async (req, res) => {
   try {
     const userId = (req as any).auth?.sub;
     if (!userId) return res.status(401).json({ error: "Não autorizado" });
-    const { id, name, phone, status, notes } = req.body;
+    const { id, name, phone, city, status, notes } = req.body;
     
     if (id) {
       const updated = await (prisma as any).superAdminLead.update({
         where: { id, sellerId: userId },
-        data: { name, phone, status, notes }
+        data: { name, phone, city, status, notes }
       });
       return res.json(updated);
     }
@@ -2026,6 +2029,7 @@ superAdminRouter.post("/leads", async (req, res) => {
         sellerId: userId,
         name,
         phone,
+        city: city || null,
         status: status || "new",
         notes
       }
@@ -2073,6 +2077,24 @@ superAdminRouter.post("/favorites", async (req, res) => {
       data: { favoriteTemplates: JSON.stringify(favorites) }
     });
     res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+superAdminRouter.get("/sales-reps", async (req, res) => {
+  try {
+    const sellers = await (prisma as any).superAdmin.findMany({
+      where: { role: { not: null } },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        photo: true,
+        phone: true,
+        responsableCities: true
+      }
+    });
+    res.json(sellers);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

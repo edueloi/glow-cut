@@ -550,6 +550,7 @@ model SuperAdmin {
   trialDays        Int      @default(30) // dias de trial sem cobrar comissão
   stripeAccountId  String?  @db.VarChar(150) // Stripe Connect Account ID
   favoriteTemplates String? @db.Text // JSON array de IDs ["1", "5", "8"]
+  responsableCities String? @db.Text // Cidades que o vendedor atende
   createdAt        DateTime @default(now()) @db.DateTime(0)
   tenantsSold      Tenant[]
   leads            SuperAdminLead[]
@@ -560,6 +561,7 @@ model SuperAdminLead {
   sellerId  String   @db.VarChar(36)
   name      String   @db.VarChar(255)
   phone     String   @db.VarChar(30)
+  city      String?  @db.VarChar(255)
   status    String   @default("new") @db.VarChar(50) // new, contacted, success, failed, follow_up, talk_to_someone
   notes     String?  @db.Text
   createdAt DateTime @default(now()) @db.DateTime(0)

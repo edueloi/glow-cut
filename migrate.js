@@ -920,6 +920,18 @@ const MIGRATIONS = [
     ignoreIfExists: true,
   },
 
+  {
+    name: '053a_superadmin_lead_city',
+    sql: `ALTER TABLE SuperAdminLead ADD COLUMN city VARCHAR(255) NULL;`,
+    ignoreIfExists: true,
+  },
+
+  {
+    name: '053b_superadmin_responsable_cities',
+    sql: `ALTER TABLE SuperAdmin ADD COLUMN responsableCities TEXT NULL;`,
+    ignoreIfExists: true,
+  },
+
 ];
 
 
