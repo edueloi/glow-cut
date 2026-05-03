@@ -244,42 +244,62 @@ function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* ── Painel esquerdo — branding premium ─────────────────── */}
-      <div className="hidden lg:flex lg:w-[48%] relative overflow-hidden" style={{background:"linear-gradient(160deg, #0a0e1a 0%, #111827 50%, #1e293b 100%)"}}>
-        {/* Ambient glow */}
+      <div className="hidden lg:flex lg:w-[48%] relative overflow-hidden bg-[#050505]">
+        {/* Subtle Background Glow */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-[10%] right-[15%] w-80 h-80 bg-amber-500/[0.06] rounded-full blur-[120px]" />
-          <div className="absolute bottom-[15%] left-[10%] w-72 h-72 bg-blue-500/[0.04] rounded-full blur-[100px]" />
+          <div className="absolute top-[30%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-600/5 rounded-full blur-[120px]" />
         </div>
+
         {/* Grid */}
-        <div className="absolute inset-0 opacity-[0.025]" style={{backgroundImage:"linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px)",backgroundSize:"48px 48px"}} />
+        <div className="absolute inset-0 opacity-[0.03]" style={{backgroundImage:"linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)",backgroundSize:"48px 48px"}} />
 
-        <div className="relative z-10 flex flex-col items-center justify-center w-full px-14 py-12">
-          <img src={logoFavicon} alt="Agendelle" className="h-16 w-auto mb-12 opacity-95 drop-shadow-xl" />
+        <div className="relative z-10 flex flex-col items-center justify-center w-full px-14 py-12 h-full">
+          
+          {/* App Icon Container */}
+          <div className="relative mb-8 group">
+            {/* Pulsing Outer Glow */}
+            <div className="absolute -inset-1 bg-indigo-500/20 rounded-[2.2rem] blur-xl animate-pulse" style={{ animationDuration: '3s' }} />
+            
+            {/* Box */}
+            <div className="relative w-24 h-24 bg-[#0a0a0f] border border-white/5 rounded-[2.2rem] shadow-[0_0_40px_rgba(0,0,0,0.5)] flex items-center justify-center overflow-hidden">
+              {/* Spinning gradient background effect */}
+              <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent_0_340deg,rgba(99,102,241,0.3)_360deg)] animate-[spin_4s_linear_infinite]" />
+              <div className="absolute inset-[1px] bg-[#0a0a0f] rounded-[2.1rem]" />
+              
+              {/* Logo Image */}
+              <img src={logoFavicon} alt="Agendelle" className="h-11 w-auto relative z-10 transition-transform duration-500 group-hover:scale-110 drop-shadow-md" />
+            </div>
+          </div>
 
-          <h1 className="text-[2rem] font-black text-white text-center leading-[1.2] tracking-tight mb-4">
-            Sua agenda de forma<br/><span className="bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-200 bg-clip-text text-transparent">inteligente.</span>
-          </h1>
-          <p className="text-[13px] text-zinc-500 text-center max-w-[280px] mb-14 font-medium leading-relaxed">
-            Agendamentos, clientes, equipe e finanças em um só lugar.
-          </p>
+          {/* Titles */}
+          <div className="text-center mb-16">
+            <h1 className="text-4xl font-black text-white tracking-tight mb-4 drop-shadow-sm">
+              Agendelle
+            </h1>
+            <p className="text-[10px] font-black text-zinc-500 tracking-[0.3em] uppercase">
+              Agendamentos Inteligentes
+            </p>
+          </div>
 
-          <div className="grid grid-cols-2 gap-3 max-w-[280px] w-full">
+          {/* Feature List */}
+          <div className="space-y-4 max-w-[280px] w-full">
             {[
-              {icon: Calendar, label: "Agenda 24h", borderColor: "border-amber-500/15", iconColor: "text-amber-400/70"},
-              {icon: Zap, label: "WhatsApp Bot", borderColor: "border-emerald-500/15", iconColor: "text-emerald-400/70"},
-              {icon: BarChart3, label: "Financeiro", borderColor: "border-blue-400/15", iconColor: "text-blue-400/70"},
-              {icon: Shield, label: "Site Próprio", borderColor: "border-violet-400/15", iconColor: "text-violet-400/70"},
-            ].map(f => (
-              <div key={f.label} className={`bg-white/[0.03] ${f.borderColor} border rounded-xl p-3 flex items-center gap-2.5`}>
-                <f.icon size={16} className={f.iconColor} />
-                <span className="text-[11px] font-semibold text-zinc-400">{f.label}</span>
+              "Agendamentos automatizados",
+              "Gestão 360 do seu negócio",
+              "Link de auto-agendamento",
+              "Relatórios inteligentes",
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-4 group">
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] group-hover:bg-indigo-400 group-hover:shadow-[0_0_12px_rgba(99,102,241,0.9)] transition-all" />
+                <span className="text-[13px] font-semibold text-zinc-400 group-hover:text-zinc-300 transition-colors">{item}</span>
               </div>
             ))}
           </div>
 
-          <div className="absolute bottom-8 text-center">
-            <p className="text-[10px] text-zinc-700 font-medium">
-              © 2026 Agendelle · <span className="text-zinc-600">Develoi Soluções Digitais</span>
+          {/* Footer */}
+          <div className="absolute bottom-8 text-center w-full">
+            <p className="text-[11px] font-semibold text-zinc-600">
+              © 2026 <span className="text-zinc-400">Agendelle</span> • Sua agenda de forma inteligente
             </p>
           </div>
         </div>
