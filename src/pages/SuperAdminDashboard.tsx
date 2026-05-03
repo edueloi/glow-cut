@@ -1371,26 +1371,26 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
   );
 }
 
-
-/* ═══════════════════════════════════════════
-   ABA: VENDAS E AFILIADOS
-═══════════════════════════════════════════ */
-function SalesTab({ user }: { user: any }) {
-  const [stats, setStats] = useState<any>(null);
-  const [stripeStatus, setStripeStatus] = useState<any>(undefined); // undefined = loading
-  const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
-  const toast = useToast();
-  const location = useLocation();
-  const navigate = useNavigate();
-
+function SalesTab({ user, plans }: { user: any, plans: any[] }) {
   const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "leads" | "messages">("dashboard");
   const [leads, setLeads] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({ 
+    totalSales: 0, 
+    totalActive: 0, 
+    totalRecurring: 0, 
+    history: [], 
+    clients: [] 
+  });
+  const [stripeStatus, setStripeStatus] = useState<any>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
   const [leadModal, setLeadModal] = useState(false);
   const [editingLead, setEditingLead] = useState<any>(null);
   const [leadSearch, setLeadSearch] = useState("");
   const [leadForm, setLeadForm] = useState({ name: "", phone: "", status: "new", notes: "" });
-
+  const toast = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
       return JSON.parse(localStorage.getItem(`sales_favs_${user?.id}`) || "[]");
@@ -1399,15 +1399,21 @@ function SalesTab({ user }: { user: any }) {
   const [activeCategory, setActiveCategory] = useState("all");
   const [msgSearch, setMsgSearch] = useState("");
 
+  const planStart = plans.find(p => p.name.toLowerCase().includes("start"));
+  const planPro = plans.find(p => p.name.toLowerCase().includes("pro"));
+  
+  const linkStart = planStart?.stripePaymentLink || `https://agendelle.com.br/assinar?plan=start&ref=${user?.id}`;
+  const linkPro = planPro?.stripePaymentLink || `https://agendelle.com.br/assinar?plan=pro&ref=${user?.id}`;
+
   const templates = [
     { id: "1", category: "Abordagem", title: "Abordagem inicial fria", desc: "Primeiro contato para despertar interesse.", content: "Oi, tudo bem? Vi o perfil de vocês e achei muito bonito o trabalho.\n\nEstou entrando em contato porque estamos lançando o Agendelle, uma plataforma feita para salões, barbearias e profissionais de beleza organizarem agenda, clientes, serviços, pagamentos e terem um site próprio para receber agendamentos online.\n\nA ideia é simples: ajudar você a perder menos tempo respondendo horário no WhatsApp e deixar sua agenda mais profissional.\n\nEstamos com teste grátis de 30 dias.\n\nPosso te mandar o link para conhecer?" },
     { id: "2", category: "Abordagem", title: "Abordagem mais curta", desc: "Ideal para Direct ou WhatsApp rápido.", content: "Oi, tudo bem? Vi o trabalho de vocês e queria apresentar uma solução que pode ajudar bastante na organização da agenda.\n\nO Agendelle cria uma agenda online e um site profissional para seu negócio receber agendamentos, organizar clientes, serviços e pagamentos em um só lugar.\n\nEstamos liberando 30 dias grátis para teste.\n\nPosso te mandar o link?" },
     { id: "3", category: "Segmentos", title: "Para Barbearia", desc: "Foco em barbeiros e agendamento por profissional.", content: "Oi, tudo bem? Vi a barbearia de vocês e achei o trabalho muito bom.\n\nQueria apresentar o Agendelle, uma plataforma feita para barbearias organizarem horários, clientes, serviços, pagamentos e terem um link profissional de agendamento.\n\nCom ele, o cliente consegue ver os serviços, escolher horário e agendar online, sem depender só de troca de mensagens no WhatsApp.\n\nEstamos com teste grátis por 30 dias.\n\nPosso te mandar o link para conhecer?" },
     { id: "4", category: "Segmentos", title: "Para Salão de Beleza", desc: "Foco em equipe e redução de correria.", content: "Oi, tudo bem? Vi o salão de vocês e achei muito bonito.\n\nEstou apresentando o Agendelle, uma plataforma para salões organizarem agenda, clientes, serviços, equipe, pagamentos e ainda terem um site próprio para receber agendamentos online.\n\nA ideia é deixar o atendimento mais profissional e reduzir aquela correria de confirmar horários manualmente pelo WhatsApp.\n\nEstamos com teste grátis por 30 dias.\n\nPosso te mandar o link?" },
     { id: "5", category: "Segmentos", title: "Para Autônomo", desc: "Manicure, Lash, Sobrancelha, etc.", content: "Oi, tudo bem? Vi seu trabalho e achei muito profissional.\n\nQueria te apresentar o Agendelle, uma agenda online para profissionais de beleza que querem organizar horários, clientes, serviços e pagamentos de forma simples.\n\nVocê ganha um link próprio para colocar na bio do Instagram ou enviar pelo WhatsApp, e seus clientes conseguem solicitar agendamento com mais facilidade.\n\nEstamos liberando teste grátis por 30 dias.\n\nPosso te mandar?" },
-    { id: "6", category: "Links", title: "Quando aceitam o link", desc: "Resposta para 'pode mandar'.", content: "Perfeito.\n\nEsse é o link para conhecer e testar o Agendelle:\n\nhttps://agendelle.com.br/\n\nCom ele você consegue organizar sua agenda, cadastrar serviços, clientes, profissionais, controlar pagamentos e criar uma página própria para o seu negócio receber agendamentos online.\n\nO teste é grátis por 30 dias, sem fidelidade. Se precisar, eu também posso te ajudar na configuração inicial." },
+    { id: "6", category: "Links", title: "Quando aceitam o link", desc: "Resposta para 'pode mandar' com links do Stripe.", content: `Perfeito.\n\nEsse é o link para conhecer e testar o Agendelle:\nhttps://agendelle.com.br/assinar?ref=${user?.id}\n\nSe você já quiser garantir seu plano com os links oficiais:\n\nPlano Start: ${linkStart}\nPlano Pro: ${linkPro}\n\nO teste é grátis por 30 dias. Se precisar, eu também posso te ajudar na configuração inicial.` },
     { id: "7", category: "Explicação", title: "Como funciona o teste", desc: "Detalhes dos 30 dias grátis.", content: "Funciona assim: você faz seu cadastro, configura o nome do seu negócio, serviços, horários e profissionais, e já pode começar a usar sua agenda online.\n\nO teste é grátis por 30 dias. Nesse período, você consegue conhecer o sistema com calma e ver se faz sentido para sua rotina.\n\nDepois dos 30 dias, você escolhe se quer continuar em algum plano. Não tem fidelidade e você pode cancelar quando quiser." },
-    { id: "8", category: "Explicação", title: "Explicação dos Planos", desc: "Resumo rápido Start vs Pro.", content: "Temos planos para diferentes momentos do negócio.\n\nO plano Start é ideal para quem quer começar organizando agenda, clientes e serviços.\n\nO plano Pro é mais completo e libera recursos como site profissional, WhatsApp, financeiro, comandas e mais ferramentas de gestão.\n\nO plano mais completo é indicado para negócios com equipe maior, vários profissionais e necessidade de controle mais avançado.\n\nMe conta uma coisa: hoje vocês trabalham com quantos profissionais?" },
+    { id: "8", category: "Explicação", title: "Explicação dos Planos", desc: "Resumo rápido com valores reais.", content: `Temos planos para diferentes momentos do negócio.\n\nO plano Start (${planStart?.price ? "R$ " + planStart.price : "R$ 49,90"}) é ideal para quem quer começar organizando agenda, clientes e serviços.\n\nO plano Pro (${planPro?.price ? "R$ " + planPro.price : "R$ 99,90"}) é mais completo e libera recursos como site profissional, WhatsApp, financeiro, comandas e mais ferramentas de gestão.\n\nMe conta uma coisa: hoje vocês trabalham com quantos profissionais?` },
     { id: "9", category: "Benefícios", title: "Vantagens Principais", desc: "Lista de benefícios diretos.", content: "As principais vantagens do Agendelle são:\n\n1. Agenda online para seus clientes solicitarem horários.\n2. Site profissional para divulgar seus serviços.\n3. Organização de clientes, serviços e pagamentos em um só lugar.\n4. Lembretes automáticos pelo WhatsApp para reduzir faltas.\n5. Controle financeiro e de comissões completo.\n\nA proposta é tirar a agenda do improviso e deixar seu atendimento mais profissional." },
     { id: "10", category: "Benefícios", title: "Mensagem Vendedora", desc: "Foco em profissionalismo e valor.", content: "O Agendelle não é só uma agenda.\n\nEle ajuda seu negócio a parecer mais profissional, organizar melhor os horários, reduzir confusão no atendimento e facilitar a vida do cliente na hora de agendar.\n\nEm vez de depender apenas de mensagens soltas no WhatsApp, você passa a ter uma estrutura mais organizada, com link de agendamento, site próprio, serviços cadastrados, clientes e financeiro em um só lugar." },
     { id: "11", category: "Dúvidas", title: "Precisa instalar app?", desc: "Esclarecendo que é 100% online.", content: "Não precisa instalar nada para começar.\n\nO Agendelle funciona online. Você acessa pelo navegador no celular ou computador.\n\nSeu cliente também não precisa baixar aplicativo. Ele acessa seu link, vê seus serviços e consegue solicitar o agendamento de forma simples." },
@@ -1505,17 +1511,7 @@ function SalesTab({ user }: { user: any }) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
-
-  const refreshStripeStatus = useCallback(async () => {
-    setStripeStatus(undefined);
-    try {
-      const stripeData = await apiFetch("/api/super-admin/stripe-connect/status").then(r => r.json());
-      setStripeStatus(stripeData);
-    } catch {
-      setStripeStatus({ connected: false, error: true });
-    }
-  }, []);
+  }, [user?.id, toast]);
 
   useEffect(() => {
     fetchData();
@@ -1529,7 +1525,7 @@ function SalesTab({ user }: { user: any }) {
         if (params.get("success") === "true") toast.success("Cadastro no Stripe enviado!");
       });
     }
-  }, [location.search, navigate, fetchData]);
+  }, [location.search, navigate, fetchData, toast]);
 
   const handleStripeReset = async () => {
     setConnecting(true);
@@ -5719,7 +5715,7 @@ export default function SuperAdminDashboard({ username, onLogout, permissions }:
           {tab === "permissions" && <PermissionsTab tenants={tenants} />}
           {tab === "blog"        && <BlogTab />}
           {tab === "wpp"         && <WppTab plans={plans} onUpdatePlans={() => { apiFetch("/api/super-admin/plans").then(r => r.json()).then(setPlans); }} />}
-          {tab === "sales"       && <SalesTab user={userData} />}
+          {tab === "sales"       && <SalesTab user={userData} plans={plans} />}
           {tab === "commissions" && <CommissionsTab />}
           {tab === "finance"     && <FinanceTab />}
           {tab === "qa"          && <QATab />}
