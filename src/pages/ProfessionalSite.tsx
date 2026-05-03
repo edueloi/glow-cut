@@ -508,124 +508,281 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
   const { cartItems, cartOpen, setCartOpen, cartCount, cartTotal, addToCart, changeQty, removeFromCart } = useCart();
   const heroImage = tenant.siteCoverUrl || tenant.coverUrl;
 
+  const features = [
+    tenant.feature1Title && { title: tenant.feature1Title, text: tenant.feature1Description || "" },
+    tenant.feature2Title && { title: tenant.feature2Title, text: tenant.feature2Description || "" },
+    tenant.feature3Title && { title: tenant.feature3Title, text: tenant.feature3Description || "" },
+    !tenant.feature1Title && { title: "Excelência", text: "Cada detalhe pensado para superar expectativas." },
+    !tenant.feature2Title && { title: "Exclusividade", text: "Atendimento personalizado e único." },
+    !tenant.feature3Title && { title: "Confiança", text: "Anos de experiência e clientes satisfeitos." },
+  ].filter(Boolean).slice(0, 3) as { title: string; text: string }[];
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-white font-sans antialiased">
+    <div className="min-h-screen font-sans antialiased" style={{ backgroundColor: "#0a0a0a", color: "#fff" }}>
       <Navbar tenant={tenant} slug={slug} bookingUrl={bookingUrl} scrolled={scrolled} themeColor={themeColor} products={products} services={services} dark />
 
-      {/* Hero full-screen */}
-      <section className="relative min-h-screen flex items-center overflow-hidden">
-        {heroImage
-          ? <><div className="absolute inset-0"><img src={heroImage} alt="" className="w-full h-full object-cover object-center" /><div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/80 to-zinc-950/30" /></div></>
-          : <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, #09090b 0%, ${themeColor}30 50%, #09090b 100%)` }} />
-        }
-        <div className="relative z-10 max-w-6xl mx-auto px-5 py-32">
-          <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border mb-6 text-[11px] font-bold uppercase tracking-widest" style={{ borderColor: `${themeColor}60`, color: themeColor, backgroundColor: `${themeColor}10` }}>
-              <Sparkles size={10} /> Premium Studio
-            </div>
-            <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.0] mb-6 text-white">
-              {tenant.welcomeMessage || `${tenant.name}`}
-            </h1>
-            <p className="text-zinc-400 text-lg leading-relaxed mb-10 max-w-lg">{tenant.description || "Experiência premium em beleza e bem-estar."}</p>
-            <div className="flex flex-wrap gap-4">
-              <Link to={bookingUrl} className="inline-flex items-center gap-2 px-8 py-4 text-sm font-bold rounded-2xl shadow-lg active:scale-95 hover:opacity-90 transition-all text-zinc-950" style={{ backgroundColor: themeColor }}><Calendar size={16} /> Agendar Agora</Link>
-              {tenant.instagram && <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-8 py-4 text-sm font-bold rounded-2xl border border-zinc-700 text-white hover:border-zinc-500 transition-colors"><Instagram size={16} /> Instagram</a>}
-            </div>
-            <div className="flex gap-12 mt-14 pt-10 border-t border-zinc-800">
-              {tenant.experienceYears && <div><p className="text-4xl font-black" style={{ color: themeColor }}>{tenant.experienceYears}</p><p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Anos</p></div>}
-              {professionals.length > 0 && <div><p className="text-4xl font-black text-white">{professionals.length}+</p><p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Especialistas</p></div>}
-              {services.length > 0 && <div><p className="text-4xl font-black text-white">{services.length}+</p><p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Serviços</p></div>}
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      {/* ── HERO: imagem à direita, texto à esquerda — altura controlada ── */}
+      <section className="relative overflow-hidden" style={{ backgroundColor: "#0a0a0a" }}>
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 min-h-[92vh]">
 
-      {/* Sobre */}
-      <section id="sobre" className="py-24 md:py-32 bg-zinc-900">
-        <div className="max-w-6xl mx-auto px-5">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
-            <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}>
-              <p className="text-[11px] font-black uppercase tracking-widest mb-4" style={{ color: themeColor }}>Quem Somos</p>
-              <h2 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-6 leading-tight">{tenant.aboutTitle || "Nossa História"}</h2>
-              <p className="text-zinc-400 text-base leading-relaxed mb-8 whitespace-pre-line">{tenant.description || `${tenant.name} é sinônimo de excelência.`}</p>
-              <div className="grid grid-cols-1 gap-4">
-                {[
-                  tenant.feature1Title && { title: tenant.feature1Title, text: tenant.feature1Description },
-                  tenant.feature2Title && { title: tenant.feature2Title, text: tenant.feature2Description },
-                  tenant.feature3Title && { title: tenant.feature3Title, text: tenant.feature3Description },
-                  !tenant.feature1Title && { title: "Excelência", text: "Cada detalhe importa para nós." },
-                  !tenant.feature2Title && { title: "Exclusividade", text: "Experiências únicas para cada cliente." },
-                ].filter(Boolean).slice(0, 3).map((item: any, i: number) => (
-                  <div key={i} className="flex gap-4 p-4 rounded-2xl bg-zinc-800 border border-zinc-700">
-                    <div className="w-2 rounded-full shrink-0 mt-1" style={{ backgroundColor: themeColor }} />
-                    <div><h4 className="font-black text-white text-sm mb-1">{item.title}</h4><p className="text-zinc-400 text-xs leading-relaxed">{item.text}</p></div>
-                  </div>
-                ))}
+            {/* Lado esquerdo — conteúdo */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+              className="flex flex-col justify-center px-8 md:px-16 py-28 lg:py-0 relative z-10"
+            >
+              {/* Linha decorativa + nome */}
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-px" style={{ backgroundColor: themeColor }} />
+                <span className="text-[11px] font-black uppercase tracking-[0.2em]" style={{ color: themeColor }}>
+                  {tenant.name}
+                </span>
               </div>
+
+              <h1 className="text-4xl sm:text-5xl font-black leading-[1.08] tracking-tight mb-6 text-white">
+                {tenant.welcomeMessage || `Bem-vindo ao ${tenant.name}`}
+              </h1>
+
+              <p className="text-zinc-400 text-base leading-relaxed mb-10 max-w-sm">
+                {tenant.description?.slice(0, 130) || "Experiência premium em beleza e bem-estar. Agende agora."}
+              </p>
+
+              <div className="flex flex-wrap gap-3 mb-12">
+                <Link
+                  to={bookingUrl}
+                  className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-bold rounded-full shadow-xl active:scale-95 hover:opacity-90 transition-all"
+                  style={{ backgroundColor: themeColor, color: "#000" }}
+                >
+                  <Calendar size={15} /> Agendar Agora
+                </Link>
+                {tenant.instagram && (
+                  <a
+                    href={tenant.instagram} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-bold rounded-full border text-white hover:bg-white/5 transition-colors"
+                    style={{ borderColor: "rgba(255,255,255,0.15)" }}
+                  >
+                    <Instagram size={15} /> Instagram
+                  </a>
+                )}
+              </div>
+
+              {/* Stats em linha */}
+              {(tenant.experienceYears || professionals.length > 0 || services.length > 0) && (
+                <div className="flex gap-8 pt-8 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                  {tenant.experienceYears && (
+                    <div>
+                      <p className="text-3xl font-black" style={{ color: themeColor }}>{tenant.experienceYears}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mt-1">Anos</p>
+                    </div>
+                  )}
+                  {professionals.length > 0 && (
+                    <div>
+                      <p className="text-3xl font-black text-white">{professionals.length}+</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mt-1">Especialistas</p>
+                    </div>
+                  )}
+                  {services.length > 0 && (
+                    <div>
+                      <p className="text-3xl font-black text-white">{services.length}+</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mt-1">Serviços</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </motion.div>
-            <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7, delay: 0.15 }} className="relative">
-              <div className="aspect-square rounded-3xl overflow-hidden">
-                {tenant.coverUrl || tenant.siteCoverUrl
-                  ? <img src={tenant.coverUrl || tenant.siteCoverUrl || ""} alt="Sobre nós" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${themeColor}30, #18181b)` }}><Scissors size={80} className="opacity-20 text-white" /></div>
-                }
-              </div>
-              {tenant.experienceYears && (
-                <div className="absolute -bottom-6 -left-6 w-32 h-32 rounded-2xl flex flex-col items-center justify-center text-zinc-950 font-black shadow-2xl" style={{ backgroundColor: themeColor }}>
-                  <span className="text-4xl">{tenant.experienceYears}</span>
-                  <span className="text-[9px] uppercase tracking-widest mt-1 opacity-80">Anos</span>
+
+            {/* Lado direito — imagem com overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1 }}
+              className="relative hidden lg:block"
+            >
+              {heroImage ? (
+                <>
+                  <img src={heroImage} alt="" className="absolute inset-0 w-full h-full object-cover object-center" />
+                  {/* Gradiente da esquerda para fundir com o fundo escuro */}
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to right, #0a0a0a 0%, transparent 30%)" }} />
+                  {/* Gradiente sutil no topo e base */}
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, #0a0a0a 0%, transparent 12%, transparent 88%, #0a0a0a 100%)" }} />
+                </>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, #111 0%, ${themeColor}25 100%)` }}>
+                  <Scissors size={100} className="opacity-10 text-white" />
                 </div>
               )}
             </motion.div>
           </div>
         </div>
+
+        {/* Imagem mobile */}
+        {heroImage && (
+          <div className="lg:hidden w-full h-56 overflow-hidden">
+            <img src={heroImage} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 60%, #0a0a0a 100%)" }} />
+          </div>
+        )}
       </section>
 
-      {/* Serviços */}
-      {tenant.showServices !== false && (
-        <section id="servicos" className="py-24 md:py-32 bg-zinc-950">
-          <div className="max-w-6xl mx-auto px-5">
-            <div className="mb-14">
-              <p className="text-[11px] font-black uppercase tracking-widest mb-3" style={{ color: themeColor }}>Especialidades</p>
-              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">O que fazemos</h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {services.slice(0, 6).map((service: any, i: number) => (
-                <motion.div key={service.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: i * 0.06 }} className="group p-6 rounded-2xl border border-zinc-800 bg-zinc-900 hover:border-opacity-60 transition-all" style={{ ['--tw-border-opacity' as any]: 1 }}>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-5" style={{ backgroundColor: `${themeColor}20` }}><Scissors size={18} style={{ color: themeColor }} /></div>
-                  <h3 className="font-black text-white text-base mb-2">{service.name}</h3>
-                  <p className="text-zinc-500 text-xs leading-relaxed mb-5 line-clamp-2">{service.description || "Atendimento especializado."}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-lg" style={{ color: themeColor }}>{priceStr(service.price)}</span>
-                    <Link to={bookingUrl} className="text-[11px] font-bold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">Agendar <ArrowRight size={12} /></Link>
+      {/* ── SOBRE ── */}
+      <section id="sobre" className="py-24 md:py-32" style={{ backgroundColor: "#111111" }}>
+        <div className="max-w-6xl mx-auto px-8 md:px-12">
+          <div className="grid md:grid-cols-2 gap-16 lg:gap-24 items-center">
+
+            {/* Imagem */}
+            <motion.div initial={{ opacity: 0, scale: 0.96 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.7 }} className="relative order-2 md:order-1">
+              <div className="aspect-[4/5] rounded-2xl overflow-hidden">
+                {tenant.coverUrl || tenant.siteCoverUrl ? (
+                  <img src={tenant.coverUrl || tenant.siteCoverUrl || ""} alt="Sobre nós" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full" style={{ background: `linear-gradient(135deg, #1a1a1a, ${themeColor}30)` }} />
+                )}
+              </div>
+              {/* Badge de anos */}
+              {tenant.experienceYears && (
+                <div className="absolute -bottom-5 -right-5 w-24 h-24 rounded-2xl flex flex-col items-center justify-center font-black shadow-2xl" style={{ backgroundColor: themeColor, color: "#000" }}>
+                  <span className="text-2xl leading-none">{tenant.experienceYears}</span>
+                  <span className="text-[8px] uppercase tracking-widest mt-1 opacity-70">Anos</span>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Texto */}
+            <motion.div initial={{ opacity: 0, x: 24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }} className="order-1 md:order-2">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-6 h-px" style={{ backgroundColor: themeColor }} />
+                <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: themeColor }}>Quem Somos</span>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight leading-tight mb-5">
+                {tenant.aboutTitle || "Nossa História"}
+              </h2>
+              <p className="text-zinc-400 text-sm leading-relaxed mb-8 whitespace-pre-line">
+                {tenant.description || `${tenant.name} é referência em excelência e atendimento premium.`}
+              </p>
+
+              <div className="space-y-3">
+                {features.map((item, i) => (
+                  <div key={i} className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5" style={{ backgroundColor: `${themeColor}30` }}>
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
+                    </div>
+                    <div>
+                      <h4 className="font-black text-white text-sm mb-0.5">{item.title}</h4>
+                      <p className="text-zinc-500 text-xs leading-relaxed">{item.text}</p>
+                    </div>
                   </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── SERVIÇOS ── */}
+      {tenant.showServices !== false && (
+        <section id="servicos" className="py-24 md:py-32" style={{ backgroundColor: "#0a0a0a" }}>
+          <div className="max-w-6xl mx-auto px-8 md:px-12">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-14">
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-6 h-px" style={{ backgroundColor: themeColor }} />
+                  <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: themeColor }}>Especialidades</span>
+                </div>
+                <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">O que fazemos</h2>
+              </div>
+              <Link to={bookingUrl} className="inline-flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors uppercase tracking-wider shrink-0">
+                Ver agenda <ArrowRight size={13} />
+              </Link>
+            </div>
+
+            {/* Lista de serviços — layout horizontal tipo "menu" */}
+            <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+              {services.slice(0, 6).map((service: any, i: number) => (
+                <motion.div
+                  key={service.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.06 }}
+                  className="group flex items-center gap-6 py-5 hover:px-4 transition-all duration-300 rounded-xl cursor-pointer"
+                  style={{ borderTop: i === 0 ? "1px solid rgba(255,255,255,0.06)" : undefined }}
+                >
+                  {/* Número */}
+                  <span className="text-[11px] font-black tabular-nums w-6 shrink-0" style={{ color: themeColor }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  {/* Nome */}
+                  <h3 className="font-black text-white text-base flex-1 group-hover:translate-x-1 transition-transform">
+                    {service.name}
+                  </h3>
+                  {/* Duração */}
+                  <span className="text-[11px] text-zinc-600 font-medium hidden sm:block shrink-0">{service.duration} min</span>
+                  {/* Preço */}
+                  <span className="font-black text-sm shrink-0" style={{ color: themeColor }}>{priceStr(service.price)}</span>
+                  {/* Botão */}
+                  <Link
+                    to={bookingUrl}
+                    className="shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold opacity-0 group-hover:opacity-100 transition-all"
+                    style={{ backgroundColor: themeColor, color: "#000" }}
+                  >
+                    Agendar
+                  </Link>
                 </motion.div>
               ))}
+            </div>
+
+            <div className="mt-10 flex justify-center">
+              <Link to={bookingUrl} className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full font-bold text-sm border text-white hover:bg-white/5 transition-colors" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                Ver todos os serviços <ArrowRight size={14} />
+              </Link>
             </div>
           </div>
         </section>
       )}
 
-      {/* Galeria */}
+      {/* ── GALERIA ── */}
       <GallerySection images={galleryImages} themeColor={themeColor} dark />
 
-      {/* Equipe */}
+      {/* ── EQUIPE ── */}
       {tenant.showTeam !== false && professionals.length > 0 && (
-        <section id="equipe" className="py-24 md:py-32 bg-zinc-900">
-          <div className="max-w-6xl mx-auto px-5">
-            <div className="mb-14">
-              <p className="text-[11px] font-black uppercase tracking-widest mb-3" style={{ color: themeColor }}>Time de Elite</p>
-              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Nossa Equipe</h2>
+        <section id="equipe" className="py-24 md:py-32" style={{ backgroundColor: "#111111" }}>
+          <div className="max-w-6xl mx-auto px-8 md:px-12">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-6 h-px" style={{ backgroundColor: themeColor }} />
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: themeColor }}>Especialistas</span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+            <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-14">Nossa Equipe</h2>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
               {professionals.map((prof: any, i: number) => (
-                <motion.div key={prof.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: i * 0.06 }} className="group">
-                  <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-zinc-800 mb-3 relative">
-                    {prof.photo ? <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-4xl font-black" style={{ color: themeColor }}>{prof.name.charAt(0)}</div>}
+                <motion.div
+                  key={prof.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.08 }}
+                  className="group"
+                >
+                  <div className="aspect-[3/4] rounded-2xl overflow-hidden mb-4 relative" style={{ backgroundColor: "#1a1a1a" }}>
+                    {prof.photo
+                      ? <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
+                      : <div className="w-full h-full flex items-center justify-center text-5xl font-black" style={{ color: themeColor }}>{prof.name.charAt(0)}</div>
+                    }
+                    {/* Overlay com botão ao hover */}
+                    <div className="absolute inset-0 flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)" }}>
+                      <Link
+                        to={`${bookingUrl}?profId=${prof.id}`}
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold text-black active:scale-95 transition-all"
+                        style={{ backgroundColor: themeColor }}
+                      >
+                        <Calendar size={12} /> Agendar
+                      </Link>
+                    </div>
                   </div>
                   <h3 className="font-black text-white text-sm mb-0.5">{prof.name}</h3>
-                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">{prof.role || "Especialista"}</p>
-                  <Link to={`${bookingUrl}?profId=${prof.id}`} className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-xs font-bold text-zinc-950 active:scale-95 transition-all hover:opacity-90" style={{ backgroundColor: themeColor }}><Calendar size={12} />Agendar</Link>
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themeColor }}>{prof.role || "Especialista"}</p>
                 </motion.div>
               ))}
             </div>
@@ -635,10 +792,19 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
 
       <CartDrawer cartItems={cartItems} cartOpen={cartOpen} setCartOpen={setCartOpen} cartTotal={cartTotal} cartCount={cartCount} changeQty={changeQty} removeFromCart={removeFromCart} themeColor={themeColor} phone={tenant.phone} />
       <Footer tenant={tenant} slug={slug} bookingUrl={bookingUrl} themeColor={themeColor} products={products} dark />
+
+      {/* Mobile CTA */}
       <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
-        <div className={`p-3 bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800 shadow-xl ${cartCount > 0 ? "flex gap-2" : ""}`}>
-          {cartCount > 0 && <button onClick={() => setCartOpen(true)} className="relative flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-xl text-sm font-bold text-zinc-950 shadow-lg active:scale-95 transition-all shrink-0" style={{ backgroundColor: themeColor }}><ShoppingBag size={16} /></button>}
-          <Link to={bookingUrl} className="flex items-center justify-center gap-2 flex-1 py-3.5 rounded-xl text-sm font-bold text-zinc-950 shadow-lg active:scale-95 transition-all" style={{ backgroundColor: themeColor }}><Calendar size={16} /> Agendar Horário</Link>
+        <div className={`p-3 backdrop-blur-md border-t shadow-2xl ${cartCount > 0 ? "flex gap-2" : ""}`} style={{ backgroundColor: "rgba(10,10,10,0.95)", borderColor: "rgba(255,255,255,0.08)" }}>
+          {cartCount > 0 && (
+            <button onClick={() => setCartOpen(true)} className="relative flex items-center justify-center px-4 py-3.5 rounded-xl text-sm font-bold shadow-lg active:scale-95 transition-all shrink-0" style={{ backgroundColor: themeColor, color: "#000" }}>
+              <ShoppingBag size={16} />
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">{cartCount}</span>
+            </button>
+          )}
+          <Link to={bookingUrl} className="flex items-center justify-center gap-2 flex-1 py-3.5 rounded-xl text-sm font-bold shadow-lg active:scale-95 transition-all" style={{ backgroundColor: themeColor, color: "#000" }}>
+            <Calendar size={16} /> Agendar Horário
+          </Link>
         </div>
       </div>
     </div>
