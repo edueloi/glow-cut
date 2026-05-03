@@ -261,13 +261,16 @@ function LoginPage() {
             <div className="absolute -inset-1 bg-indigo-500/20 rounded-[2.2rem] blur-xl animate-pulse" style={{ animationDuration: '3s' }} />
             
             {/* Box */}
-            <div className="relative w-24 h-24 bg-[#0a0a0f] border border-white/5 rounded-[2.2rem] shadow-[0_0_40px_rgba(0,0,0,0.5)] flex items-center justify-center overflow-hidden">
+            <div className="relative w-24 h-24 bg-[#1a1a24] border border-white/10 rounded-[2.2rem] shadow-[0_0_40px_rgba(0,0,0,0.5)] flex items-center justify-center overflow-hidden">
               {/* Spinning gradient background effect */}
-              <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent_0_340deg,rgba(99,102,241,0.3)_360deg)] animate-[spin_4s_linear_infinite]" />
-              <div className="absolute inset-[1px] bg-[#0a0a0f] rounded-[2.1rem]" />
-              
-              {/* Logo Image */}
-              <img src={logoFavicon} alt="Agendelle" className="h-11 w-auto relative z-10 transition-transform duration-500 group-hover:scale-110 drop-shadow-md" />
+              <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent_0_340deg,rgba(165,180,252,0.4)_360deg)] animate-[spin_4s_linear_infinite]" />
+              <div className="absolute inset-[1px] bg-[#1a1a24] rounded-[2.1rem] flex items-center justify-center">
+                {/* Inner light behind logo for better contrast */}
+                <div className="absolute w-14 h-14 bg-white/15 rounded-full blur-md" />
+                
+                {/* Logo Image */}
+                <img src={logoFavicon} alt="Agendelle" className="h-11 w-auto relative z-10 transition-transform duration-500 group-hover:scale-110 drop-shadow-2xl" />
+              </div>
             </div>
           </div>
 
