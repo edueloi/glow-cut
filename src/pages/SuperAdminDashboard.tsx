@@ -1682,42 +1682,52 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
                       <Button variant="ghost" size="sm" onClick={handleStripeConnect} className="mt-2 text-emerald-700 hover:bg-emerald-100">Ver Painel Stripe</Button>
                     </div>
                   ) : stripeStatus.connected && !stripeStatus.payoutsEnabled ? (
-                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 space-y-3">
-                      <p className="text-xs font-bold text-amber-700">⏳ Cadastro Pendente</p>
-                      <p className="text-[10px] text-amber-600">Finalize o cadastro no Stripe para liberar seus links e receber comissões.</p>
-                      
-                      {/* Lista de itens pendentes traduzidos */}
-                      {stripeStatus.pendingItems && stripeStatus.pendingItems.length > 0 && (
-                        <div className="bg-white/60 rounded-lg p-2.5 border border-amber-200/50">
-                          <p className="text-[9px] font-black text-amber-800 uppercase tracking-widest mb-1.5">O que falta:</p>
-                          <ul className="space-y-1">
-                            {stripeStatus.pendingItems.map((item: string, i: number) => (
-                              <li key={i} className="flex items-center gap-1.5 text-[10px] text-amber-700">
-                                <span className="w-1 h-1 rounded-full bg-amber-400 shrink-0" />
-                                {item}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                    stripeStatus.isPendingVerification && stripeStatus.pendingItems?.length === 0 ? (
+                      <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 space-y-3">
+                        <p className="text-xs font-bold text-blue-700">⏳ Documentos em Análise</p>
+                        <p className="text-[10px] text-blue-600">A Stripe está analisando seus documentos. Esse processo geralmente leva de alguns minutos até 24 horas.</p>
+                        <Button onClick={handleStripeConnect} loading={connecting} variant="secondary" className="w-full bg-white text-blue-700 border-blue-200 hover:bg-blue-100">
+                          Verificar Status no Stripe
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 space-y-3">
+                        <p className="text-xs font-bold text-amber-700">⏳ Cadastro Pendente</p>
+                        <p className="text-[10px] text-amber-600">Finalize o cadastro no Stripe para liberar seus links e receber comissões.</p>
+                        
+                        {/* Lista de itens pendentes traduzidos */}
+                        {stripeStatus.pendingItems && stripeStatus.pendingItems.length > 0 && (
+                          <div className="bg-white/60 rounded-lg p-2.5 border border-amber-200/50">
+                            <p className="text-[9px] font-black text-amber-800 uppercase tracking-widest mb-1.5">O que falta:</p>
+                            <ul className="space-y-1">
+                              {stripeStatus.pendingItems.map((item: string, i: number) => (
+                                <li key={i} className="flex items-center gap-1.5 text-[10px] text-amber-700">
+                                  <span className="w-1 h-1 rounded-full bg-amber-400 shrink-0" />
+                                  {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
 
-                      {stripeStatus.disabledReason && (
-                        <p className="text-[9px] text-red-500 font-medium bg-red-50 px-2 py-1 rounded-lg">
-                          Motivo: {stripeStatus.disabledReason === "requirements.past_due" ? "Documentos vencidos — clique abaixo para resolver" : stripeStatus.disabledReason}
-                        </p>
-                      )}
+                        {stripeStatus.disabledReason && stripeStatus.disabledReason !== "requirements.pending_verification" && (
+                          <p className="text-[9px] text-red-500 font-medium bg-red-50 px-2 py-1 rounded-lg">
+                            Motivo: {stripeStatus.disabledReason === "requirements.past_due" ? "Documentos vencidos — clique abaixo para resolver" : stripeStatus.disabledReason}
+                          </p>
+                        )}
 
-                      <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-amber-600 hover:bg-amber-700 border-amber-600">
-                        {stripeStatus.detailsSubmitted ? "Completar Cadastro" : "Iniciar Cadastro no Stripe"}
-                      </Button>
-                      <button 
-                        onClick={handleStripeReset} 
-                        disabled={connecting}
-                        className="w-full text-[9px] text-zinc-400 hover:text-red-500 font-bold uppercase tracking-widest transition-colors pt-1"
-                      >
-                        Problemas? Resetar conta e começar de novo
-                      </button>
-                    </div>
+                        <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-amber-600 hover:bg-amber-700 border-amber-600">
+                          {stripeStatus.detailsSubmitted ? "Completar Cadastro" : "Iniciar Cadastro no Stripe"}
+                        </Button>
+                        <button 
+                          onClick={handleStripeReset} 
+                          disabled={connecting}
+                          className="w-full text-[9px] text-zinc-400 hover:text-red-500 font-bold uppercase tracking-widest transition-colors pt-1"
+                        >
+                          Problemas? Resetar conta e começar de novo
+                        </button>
+                      </div>
+                    )
                   ) : (
                     <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 space-y-3">
                       <p className="text-xs font-bold text-blue-700">Configuração Necessária</p>

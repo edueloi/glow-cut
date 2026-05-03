@@ -646,12 +646,17 @@ superAdminRouter.get("/stripe-connect/status", async (req, res) => {
     const currentlyDue = account.requirements?.currently_due || [];
     const pastDue = account.requirements?.past_due || [];
     const eventuallyDue = account.requirements?.eventually_due || [];
+    const pendingVerification = account.requirements?.pending_verification || [];
     const disabledReason = account.requirements?.disabled_reason || null;
 
     const requiresAction = currentlyDue.length > 0 || pastDue.length > 0;
+    const isPendingVerification = disabledReason === "requirements.pending_verification" || pendingVerification.length > 0;
 
     // Traduz os campos pendentes para exibição amigável
-    const pendingItems = [...new Set([...pastDue, ...currentlyDue])].map(
+    // Se está pendente de verificação, removemos os itens que já estão sendo analisados
+    const activePendingItems = [...new Set([...pastDue, ...currentlyDue])].filter(
+      (item) => !pendingVerification.includes(item)
+    ).map(
       (field: string) => STRIPE_REQUIREMENT_LABELS[field] || field
     );
 
@@ -661,9 +666,10 @@ superAdminRouter.get("/stripe-connect/status", async (req, res) => {
       chargesEnabled: account.charges_enabled,
       payoutsEnabled: account.payouts_enabled,
       requiresAction,
+      isPendingVerification,
       disabledReason,
-      pendingItems,
-      pendingCount: pendingItems.length,
+      pendingItems: activePendingItems,
+      pendingCount: activePendingItems.length,
       accountId: seller.stripeAccountId,
     });
   } catch (e: any) {
