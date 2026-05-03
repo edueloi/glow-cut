@@ -1389,6 +1389,7 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
   const [leadModal, setLeadModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
   const [sendWaModal, setSendWaModal] = useState<{open: boolean, template: string | null}>({open: false, template: null});
+  const [repCityModal, setRepCityModal] = useState<{open: boolean, rep: any, cities: string}>({open: false, rep: null, cities: ""});
   const [leadToDelete, setLeadToDelete] = useState<any>(null);
   const [editingLead, setEditingLead] = useState<any>(null);
   const [leadSearch, setLeadSearch] = useState("");
@@ -1512,6 +1513,19 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Mensagem copiada!");
+  };
+
+  const handleSaveRepCities = async () => {
+    if (!repCityModal.rep) return;
+    try {
+      await apiFetch(`/api/super-admin/sales-reps/${repCityModal.rep.id}/cities`, {
+        method: "PUT",
+        body: JSON.stringify({ responsableCities: repCityModal.cities })
+      });
+      setSalesReps(salesReps.map(r => r.id === repCityModal.rep.id ? { ...r, responsableCities: repCityModal.cities } : r));
+      setRepCityModal({ open: false, rep: null, cities: "" });
+      toast.success("Cidades atualizadas com sucesso!");
+    } catch { toast.error("Erro ao atualizar cidades"); }
   };
 
   const fetchData = useCallback(async () => {
@@ -1906,18 +1920,28 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {salesReps.map(rep => (
               <ContentCard key={rep.id} className="hover:border-zinc-300 transition-all">
-                <div className="flex items-center gap-3 mb-4">
-                  {rep.photo ? (
-                    <img src={rep.photo} alt={rep.name || rep.username} className="w-10 h-10 rounded-full object-cover border border-zinc-200" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center font-bold text-zinc-500">
-                      {(rep.name || rep.username).charAt(0).toUpperCase()}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    {rep.photo ? (
+                      <img src={rep.photo} alt={rep.name || rep.username} className="w-10 h-10 rounded-full object-cover border border-zinc-200" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center font-bold text-zinc-500">
+                        {(rep.name || rep.username).charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="text-sm font-bold text-zinc-800 leading-tight">{rep.name || rep.username}</h4>
+                      <p className="text-[10px] text-zinc-500">{rep.phone || "Sem telefone"}</p>
                     </div>
-                  )}
-                  <div>
-                    <h4 className="text-sm font-bold text-zinc-800 leading-tight">{rep.name || rep.username}</h4>
-                    <p className="text-[10px] text-zinc-500">{rep.phone || "Sem telefone"}</p>
                   </div>
+                  <IconButton 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setRepCityModal({ open: true, rep, cities: rep.responsableCities || "" })}
+                    title="Editar cidades"
+                  >
+                    <Edit2 size={14} className="text-zinc-400 hover:text-amber-500" />
+                  </IconButton>
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Cidades Atendidas</p>
@@ -2040,6 +2064,25 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
               <div className="p-4 text-center text-sm text-zinc-400">Nenhum contato na lista.</div>
             )}
           </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={repCityModal.open} onClose={() => setRepCityModal({ open: false, rep: null, cities: "" })} title="Editar Cidades do Vendedor">
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-zinc-600">Quais cidades o vendedor <strong>{repCityModal.rep?.name || repCityModal.rep?.username}</strong> atende?</p>
+          <Input 
+            label="Cidades Atendidas (separadas por vírgula)" 
+            value={repCityModal.cities} 
+            onChange={e => setRepCityModal(p => ({ ...p, cities: e.target.value }))} 
+            placeholder="Ex: Sorocaba, Votorantim, Itu" 
+          />
+          <p className="text-[10px] text-zinc-400 leading-tight">
+            Essas cidades ficarão visíveis para todos os administradores na aba de vendas para facilitar o direcionamento de contatos.
+          </p>
+        </div>
+        <div className="flex justify-end gap-2 p-5 pt-0">
+          <Button variant="ghost" onClick={() => setRepCityModal({ open: false, rep: null, cities: "" })}>Cancelar</Button>
+          <Button onClick={handleSaveRepCities}>Salvar Alterações</Button>
         </div>
       </Modal>
 

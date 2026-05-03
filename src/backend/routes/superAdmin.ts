@@ -2100,3 +2100,18 @@ superAdminRouter.get("/sales-reps", async (req, res) => {
   }
 });
 
+superAdminRouter.put("/sales-reps/:id/cities", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { responsableCities } = req.body;
+    
+    const updated = await (prisma as any).superAdmin.update({
+      where: { id },
+      data: { responsableCities }
+    });
+    
+    res.json(updated);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
