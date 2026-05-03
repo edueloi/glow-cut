@@ -88,7 +88,7 @@ function DashboardTab() {
       />
 
       <StatGrid cols={4}>
-        <StatCard icon={Building2} title="Parceiros"      value={stats.totalTenants} description={`${stats.activeTenants} ativos`}  color="default"  delay={0}    />
+        <StatCard icon={Building2} title="Clientes"      value={stats.totalTenants} description={`${stats.activeTenants} ativos`}  color="default"  delay={0}    />
         <StatCard icon={Users}      title="Usuários Admin" value={stats.totalAdmins}  description={`${stats.activeAdmins} ativos`}   color="info"     delay={0.05} />
         <StatCard icon={CreditCard} title="Planos Ativos"  value={uniquePlans.filter((p: any) => p.isActive).length}  color="purple"   delay={0.1}  />
         <StatCard icon={TrendingUp} title="Plano Top"      value={topPlan}                                             color="success"  delay={0.15} />
@@ -110,7 +110,7 @@ function DashboardTab() {
               </div>
               <div className="text-right shrink-0">
                 <p className="text-base font-black text-zinc-900">{p._count.tenants}</p>
-                <p className="text-[10px] text-zinc-400">parceiros</p>
+                <p className="text-[10px] text-zinc-400">clientes</p>
               </div>
               <div className="w-24 bg-zinc-100 rounded-full h-1.5 hidden sm:block shrink-0">
                 <div
@@ -414,7 +414,7 @@ function PlansTab() {
         onClose={() => setDeleteConfirm(null)}
         onConfirm={del}
         title="Excluir Plano"
-        message={`Tem certeza que deseja excluir o plano "${deleteConfirm?.name}"? Esta ação não afetará os parceiros que já usam este plano, mas ele não poderá mais ser assinado.`}
+        message={`Tem certeza que deseja excluir o plano "${deleteConfirm?.name}"? Esta ação não afetará os clientes que já usam este plano, mas ele não poderá mais ser assinado.`}
         confirmLabel="Sim, excluir"
         variant="danger"
       />
@@ -513,8 +513,8 @@ function TenantsTab({ plans }: { plans: any[] }) {
   return (
     <div className="space-y-5">
       <SectionTitle
-        title="Parceiros"
-        description={`${tenants.length} parceiro${tenants.length !== 1 ? "s" : ""} cadastrado${tenants.length !== 1 ? "s" : ""}`}
+        title="Clientes"
+        description={`${tenants.length} cliente${tenants.length !== 1 ? "s" : ""} cadastrado${tenants.length !== 1 ? "s" : ""}`}
         icon={Building2}
         action={
           <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -1191,7 +1191,7 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
             </p>
             {mode === "users" && (
               <Select value={filterTenant} onChange={e => setFilterTenant(e.target.value)} size="sm">
-                <option value="all">Todos os parceiros</option>
+                <option value="all">Todos os clientes</option>
                 {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </Select>
             )}
@@ -1597,7 +1597,7 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
                 <h3 className="text-lg font-black text-white">Seu Link de Vendas</h3>
                 <p className="text-white/80 text-sm font-medium">
                   {(stripeStatus?.connected && stripeStatus?.payoutsEnabled) 
-                    ? "Compartilhe este link para cadastrar novos parceiros e receber comissões." 
+                    ? "Compartilhe este link para cadastrar novos clientes e receber comissões." 
                     : "Conecte sua conta Stripe para liberar seu link e receber pagamentos."}
                 </p>
               </div>
@@ -1623,7 +1623,7 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
                   <table className="w-full">
                     <thead className="bg-zinc-50 border-b border-zinc-100">
                       <tr>
-                        <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Parceiro</th>
+                        <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Cliente</th>
                         <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Plano</th>
                         <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Valor</th>
                         <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Status</th>
@@ -2559,7 +2559,7 @@ function CommissionsTab() {
               {detail && detail.rows.length > 0 && (
                 <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
                   <div className="px-5 py-4 border-b border-zinc-100">
-                    <p className="font-bold text-zinc-800 text-sm">Parceiros vendidos</p>
+                    <p className="font-bold text-zinc-800 text-sm">Clientes vendidos</p>
                     <p className="text-xs text-zinc-500 mt-0.5">MRR de comissão: <span className="font-bold text-amber-600">{fmt(detail.monthlyCommission)}</span></p>
                   </div>
                   <div className="overflow-x-auto">
@@ -2612,7 +2612,7 @@ function CommissionsTab() {
 const SA_MODULES = [
   { key: "dash",        label: "Dashboard",           icon: <LayoutDashboard size={14} /> },
   { key: "plans",       label: "Planos",              icon: <CreditCard size={14} /> },
-  { key: "tenants",     label: "Parceiros",           icon: <Building2 size={14} /> },
+  { key: "tenants",     label: "Clientes",           icon: <Building2 size={14} /> },
   { key: "users",       label: "Usuários Admin",      icon: <Users size={14} /> },
   { key: "permissions", label: "Permissões",          icon: <Lock size={14} /> },
   { key: "blog",        label: "Blog",                icon: <BookOpen size={14} /> },
@@ -5697,7 +5697,7 @@ function QATab() {
 const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: string }[] = [
   { key: "dash",        icon: <LayoutDashboard size={17} />, label: "Dashboard",      path: "/super-admin" },
   { key: "plans",       icon: <CreditCard size={17} />,      label: "Planos",         path: "/super-admin/planos" },
-  { key: "tenants",     icon: <Building2 size={17} />,       label: "Parceiros",      path: "/super-admin/parceiros" },
+  { key: "tenants",     icon: <Building2 size={17} />,       label: "Clientes",      path: "/super-admin/parceiros" },
   { key: "users",       icon: <Users size={17} />,           label: "Usuários Admin", path: "/super-admin/usuarios" },
   { key: "permissions", icon: <Lock size={17} />,            label: "Permissões",     path: "/super-admin/permissoes" },
   { key: "blog",        icon: <BookOpen size={17} />,        label: "Blog",           path: "/super-admin/blog" },

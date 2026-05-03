@@ -22,9 +22,10 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import PlatformLegalPage from "./pages/PlatformLegalPage";
 import ClientPortalPage from "./pages/ClientPortalPage";
-import { Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, AlertCircle, Shield, Zap, BarChart3, Calendar } from "lucide-react";
 
 import logoFavicon from "./images/system/logo-favicon.png";
+import logoWhite from "./images/system/imagem-agendele-branco.png";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AuthContext — estado global de autenticação via JWT + /api/auth/me
@@ -242,65 +243,66 @@ function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
-      {/* ── Painel esquerdo — branding ─────────────────── */}
-      <div className="hidden lg:flex lg:w-[45%] bg-zinc-950 flex-col items-center justify-center p-12 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-amber-600/8 rounded-full blur-3xl" />
-          <div
-            className="absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(255,255,255,.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.4) 1px, transparent 1px)",
-              backgroundSize: "50px 50px",
-            }}
-          />
+      {/* ── Painel esquerdo — branding premium ─────────────────── */}
+      <div className="hidden lg:flex lg:w-[48%] relative overflow-hidden" style={{background:"linear-gradient(160deg, #0a0e1a 0%, #111827 50%, #1e293b 100%)"}}>
+        {/* Ambient glow */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-[10%] right-[15%] w-80 h-80 bg-amber-500/[0.06] rounded-full blur-[120px]" />
+          <div className="absolute bottom-[15%] left-[10%] w-72 h-72 bg-blue-500/[0.04] rounded-full blur-[100px]" />
         </div>
-        <div className="relative z-10 text-center max-w-sm">
-          <div className="relative inline-block mb-8">
-            <div className="w-24 h-24 bg-white/5 backdrop-blur-sm rounded-3xl flex items-center justify-center p-4 border border-white/10 shadow-2xl">
-              <img src={logoFavicon} alt="Agendelle Logo" className="w-full h-full object-contain" />
-            </div>
-            <div className="absolute -inset-4 bg-indigo-500/10 rounded-[40px] blur-2xl -z-10" />
-          </div>
-          <h1 className="text-4xl font-black text-white tracking-tight leading-tight">Agendelle</h1>
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.4em] mt-3 opacity-80">
-            AGENDAMENTOS INTELIGENTES
+        {/* Grid */}
+        <div className="absolute inset-0 opacity-[0.025]" style={{backgroundImage:"linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px)",backgroundSize:"48px 48px"}} />
+
+        <div className="relative z-10 flex flex-col items-center justify-center w-full px-14 py-12">
+          <img src={logoFavicon} alt="Agendelle" className="h-16 w-auto mb-12 opacity-95 drop-shadow-xl" />
+
+          <h1 className="text-[2rem] font-black text-white text-center leading-[1.2] tracking-tight mb-4">
+            Sua agenda de forma<br/><span className="bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-200 bg-clip-text text-transparent">inteligente.</span>
+          </h1>
+          <p className="text-[13px] text-zinc-500 text-center max-w-[280px] mb-14 font-medium leading-relaxed">
+            Agendamentos, clientes, equipe e finanças em um só lugar.
           </p>
-          <div className="mt-12 space-y-3 max-w-[240px] mx-auto">
-            {["Agendamentos automatizados", "Gestão 360 do seu negócio", "Link de auto-agendamento", "Relatórios inteligentes"].map((item) => (
-              <div key={item} className="flex items-center gap-3 text-left">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
-                <p className="text-[12px] text-zinc-400 font-medium">{item}</p>
+
+          <div className="grid grid-cols-2 gap-3 max-w-[280px] w-full">
+            {[
+              {icon: Calendar, label: "Agenda 24h", borderColor: "border-amber-500/15", iconColor: "text-amber-400/70"},
+              {icon: Zap, label: "WhatsApp Bot", borderColor: "border-emerald-500/15", iconColor: "text-emerald-400/70"},
+              {icon: BarChart3, label: "Financeiro", borderColor: "border-blue-400/15", iconColor: "text-blue-400/70"},
+              {icon: Shield, label: "Site Próprio", borderColor: "border-violet-400/15", iconColor: "text-violet-400/70"},
+            ].map(f => (
+              <div key={f.label} className={`bg-white/[0.03] ${f.borderColor} border rounded-xl p-3 flex items-center gap-2.5`}>
+                <f.icon size={16} className={f.iconColor} />
+                <span className="text-[11px] font-semibold text-zinc-400">{f.label}</span>
               </div>
             ))}
           </div>
-        </div>
-        <div className="absolute bottom-8 text-center z-10">
-          <p className="text-[10px] text-zinc-600 font-medium tracking-wide">
-            © 2026 <span className="text-zinc-400 font-black">Agendelle</span> •{" "}
-            <span className="opacity-60">Sua agenda de forma inteligente</span>
-          </p>
+
+          <div className="absolute bottom-8 text-center">
+            <p className="text-[10px] text-zinc-700 font-medium">
+              © 2026 Agendelle · <span className="text-zinc-600">Develoi Soluções Digitais</span>
+            </p>
+          </div>
         </div>
       </div>
 
       {/* ── Painel direito — formulário ─────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-sm">
-          <div className="flex lg:hidden items-center gap-3 mb-12">
-            <div className="w-12 h-12 bg-white border border-zinc-200 rounded-2xl flex items-center justify-center p-2 shadow-sm relative overflow-hidden">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-8 bg-gradient-to-br from-white via-zinc-50/50 to-amber-50/30 relative">
+        {/* Mobile subtle background */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-400/5 rounded-full blur-[100px] lg:hidden" />
+        
+        <div className="w-full max-w-sm relative z-10">
+          {/* Mobile logo */}
+          <div className="flex lg:hidden items-center gap-3 mb-10">
+            <div className="w-11 h-11 bg-gradient-to-br from-amber-50 to-white border border-amber-200/50 rounded-2xl flex items-center justify-center p-2 shadow-sm">
               <img src={logoFavicon} alt="Agendelle" className="w-full h-full object-contain" />
-              <div className="absolute inset-0 bg-indigo-500/5" />
             </div>
             <div>
               <p className="text-lg font-black text-zinc-900 tracking-tight leading-none">Agendelle</p>
-              <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-[0.2em] mt-1.5 opacity-80">
-                Dashboard Administrativo
-              </p>
+              <p className="text-[9px] font-bold text-amber-500 uppercase tracking-[0.15em] mt-1">Painel Administrativo</p>
             </div>
           </div>
 
-          <h2 className="text-2xl font-black text-zinc-900 mb-1 lg:text-3xl">Bem-vindo</h2>
+          <h2 className="text-2xl font-black text-zinc-900 mb-1 lg:text-3xl">Bem-vindo de volta</h2>
           <p className="text-xs text-zinc-400 font-medium mb-8">Acesse seu painel exclusivo Agendelle</p>
 
           <div className="space-y-5">
@@ -315,7 +317,7 @@ function LoginPage() {
                 onChange={(e) => setIdentifier(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                 placeholder="admin@exemplo.com"
-                className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-800 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all placeholder:text-zinc-400"
+                className="w-full text-sm p-3.5 bg-white border border-zinc-200 rounded-2xl text-zinc-800 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all placeholder:text-zinc-300 shadow-sm"
               />
             </div>
 
@@ -331,7 +333,7 @@ function LoginPage() {
                   onChange={(e) => setPass(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                   placeholder="••••••••"
-                  className="w-full text-sm p-3.5 pr-12 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-800 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all placeholder:text-zinc-400"
+                  className="w-full text-sm p-3.5 pr-12 bg-white border border-zinc-200 rounded-2xl text-zinc-800 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all placeholder:text-zinc-300 shadow-sm"
                 />
                 <button
                   type="button"
@@ -389,7 +391,7 @@ function LoginPage() {
             <button
               onClick={handleLogin}
               disabled={submitting || !identifier || !pass}
-              className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-bold rounded-2xl py-3.5 text-sm transition-all shadow-lg shadow-amber-500/20"
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:opacity-50 text-white font-bold rounded-2xl py-3.5 text-sm transition-all shadow-lg shadow-amber-500/25 active:scale-[0.98]"
             >
               {submitting ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
