@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Barbear Men | One Page Profissional</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #070707;
+            --bg-soft: #111111;
+            --bg-card: #171717;
+            --gold: #c89b3c;
+            --gold-soft: #f0c96a;
+            --text: #f7f2e8;
+            --muted: #b7b0a3;
+            --border: rgba(255, 255, 255, 0.1);
+            --white: #ffffff;
+            --shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        img {
+            width: 100%;
+            display: block;
+            object-fit: cover;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .container {
+            width: min(1180px, 92%);
+            margin: 0 auto;
+        }
+
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 100;
+            background: rgba(7, 7, 7, 0.76);
+            backdrop-filter: blur(18px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav {
+            height: 78px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .brand-mark {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, var(--gold), #755018);
+            color: #0b0b0b;
+            font-weight: 900;
+            box-shadow: 0 12px 30px rgba(200, 155, 60, 0.22);
+        }
+
+        .brand small {
+            display: block;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            margin-top: -2px;
+        }
+
+        .menu {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            color: var(--muted);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .menu a:hover {
+            color: var(--gold-soft);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: none;
+            cursor: pointer;
+            padding: 14px 22px;
+            border-radius: 999px;
+            font-weight: 800;
+            transition: 0.25s ease;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            color: #111;
+            background: linear-gradient(135deg, var(--gold-soft), var(--gold));
+            box-shadow: 0 14px 34px rgba(200, 155, 60, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 42px rgba(200, 155, 60, 0.34);
+        }
+
+        .btn-outline {
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            border-color: rgba(200, 155, 60, 0.65);
+            color: var(--gold-soft);
+            transform: translateY(-2px);
+        }
+
+        .hero {
+            min-height: 100vh;
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 138px 0 70px;
+            overflow: hidden;
+            background:
+                linear-gradient(90deg, rgba(7, 7, 7, 0.96) 0%, rgba(7, 7, 7, 0.76) 48%, rgba(7, 7, 7, 0.3) 100%),
+                url('https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=1600&q=85') center/cover no-repeat;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            inset: auto 0 0 0;
+            height: 180px;
+            background: linear-gradient(to bottom, transparent, var(--bg));
+            pointer-events: none;
+        }
+
+        .hero-grid {
+            position: relative;
+            z-index: 2;
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: 42px;
+            align-items: center;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border: 1px solid rgba(200, 155, 60, 0.35);
+            border-radius: 999px;
+            color: var(--gold-soft);
+            background: rgba(200, 155, 60, 0.08);
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 22px;
+        }
+
+        .hero h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(46px, 7vw, 88px);
+            line-height: 0.95;
+            letter-spacing: -2px;
+            margin-bottom: 24px;
+            max-width: 760px;
+        }
+
+        .hero h1 span {
+            color: var(--gold-soft);
+        }
+
+        .hero p {
+            color: var(--muted);
+            font-size: 18px;
+            max-width: 610px;
+            margin-bottom: 30px;
+        }
+
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 34px;
+        }
+
+        .hero-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+
+        .info-pill {
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .info-pill strong {
+            display: block;
+            color: var(--text);
+            font-size: 15px;
+        }
+
+        .hero-card {
+            align-self: end;
+            border: 1px solid var(--border);
+            border-radius: 34px;
+            overflow: hidden;
+            background: rgba(17, 17, 17, 0.64);
+            box-shadow: var(--shadow);
+        }
+
+        .hero-card img {
+            height: 440px;
+            filter: saturate(0.8) contrast(1.08);
+        }
+
+        .hero-card-content {
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .hero-card-content strong {
+            font-size: 20px;
+        }
+
+        .hero-card-content span {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        section {
+            padding: 96px 0;
+            position: relative;
+        }
+
+        .section-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 30px;
+            margin-bottom: 42px;
+        }
+
+        .section-head.center {
+            display: block;
+            text-align: center;
+            max-width: 760px;
+            margin: 0 auto 48px;
+        }
+
+        .section-kicker {
+            color: var(--gold-soft);
+            text-transform: uppercase;
+            font-weight: 900;
+            letter-spacing: 1.8px;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(34px, 4.5vw, 58px);
+            line-height: 1;
+            letter-spacing: -1px;
+        }
+
+        .section-text {
+            color: var(--muted);
+            max-width: 560px;
+            font-size: 16px;
+        }
+
+        .about-grid {
+            display: grid;
+            grid-template-columns: 0.95fr 1.05fr;
+            gap: 34px;
+            align-items: center;
+        }
+
+        .about-img {
+            position: relative;
+            border-radius: 34px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+
+        .about-img img {
+            height: 610px;
+            filter: saturate(0.85) contrast(1.05);
+        }
+
+        .floating-badge {
+            position: absolute;
+            left: 22px;
+            bottom: 22px;
+            width: min(280px, calc(100% - 44px));
+            padding: 18px;
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: rgba(7, 7, 7, 0.78);
+            backdrop-filter: blur(12px);
+        }
+
+        .floating-badge strong {
+            color: var(--gold-soft);
+            font-size: 28px;
+            display: block;
+            line-height: 1;
+        }
+
+        .floating-badge span {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .about-content {
+            padding-left: 12px;
+        }
+
+        .about-content p {
+            color: var(--muted);
+            margin: 18px 0;
+            font-size: 17px;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 28px;
+        }
+
+        .feature {
+            padding: 18px;
+            border-radius: 22px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+        }
+
+        .feature-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            display: grid;
+            place-items: center;
+            background: rgba(200, 155, 60, 0.12);
+            color: var(--gold-soft);
+            margin-bottom: 12px;
+            font-size: 20px;
+        }
+
+        .feature strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .feature span {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .services {
+            background: radial-gradient(circle at top right, rgba(200, 155, 60, 0.14), transparent 34%), var(--bg-soft);
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .service-card {
+            padding: 28px;
+            border-radius: 30px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
+            border: 1px solid var(--border);
+            transition: 0.25s ease;
+            min-height: 270px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .service-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(200, 155, 60, 0.55);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+        }
+
+        .service-number {
+            color: var(--gold-soft);
+            font-weight: 900;
+            margin-bottom: 24px;
+        }
+
+        .service-card h3 {
+            font-size: 22px;
+            margin-bottom: 12px;
+        }
+
+        .service-card p {
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        .service-price {
+            margin-top: 26px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            color: var(--gold-soft);
+            font-weight: 800;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr 0.8fr;
+            grid-auto-rows: 240px;
+            gap: 16px;
+        }
+
+        .gallery-item {
+            border-radius: 28px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            position: relative;
+            background: var(--bg-card);
+        }
+
+        .gallery-item.large {
+            grid-row: span 2;
+        }
+
+        .gallery-item img {
+            height: 100%;
+            transition: 0.5s ease;
+            filter: saturate(0.86) contrast(1.05);
+        }
+
+        .gallery-item:hover img {
+            transform: scale(1.06);
+        }
+
+        .gallery-item::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.52), transparent 54%);
+            opacity: 0;
+            transition: 0.25s ease;
+        }
+
+        .gallery-item:hover::after {
+            opacity: 1;
+        }
+
+        .professionals {
+            background: var(--bg-soft);
+        }
+
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .team-card {
+            border-radius: 30px;
+            overflow: hidden;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            transition: 0.25s ease;
+        }
+
+        .team-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(200, 155, 60, 0.45);
+        }
+
+        .team-card img {
+            height: 370px;
+            filter: grayscale(0.18) contrast(1.05);
+        }
+
+        .team-info {
+            padding: 22px;
+        }
+
+        .team-info h3 {
+            font-size: 22px;
+            margin-bottom: 4px;
+        }
+
+        .team-info p {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .team-info .tag {
+            display: inline-flex;
+            margin-top: 14px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: rgba(200, 155, 60, 0.1);
+            color: var(--gold-soft);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .testimonial-card {
+            padding: 28px;
+            border-radius: 30px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+        }
+
+        .stars {
+            color: var(--gold-soft);
+            letter-spacing: 2px;
+            margin-bottom: 16px;
+        }
+
+        .testimonial-card p {
+            color: var(--muted);
+            margin-bottom: 18px;
+            font-size: 15px;
+        }
+
+        .testimonial-card strong {
+            display: block;
+        }
+
+        .testimonial-card span {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .contact-section {
+            background: radial-gradient(circle at bottom left, rgba(200, 155, 60, 0.13), transparent 36%), var(--bg-soft);
+        }
+
+        .contact-grid {
+            display: grid;
+            grid-template-columns: 0.85fr 1.15fr;
+            gap: 24px;
+        }
+
+        .contact-card,
+        .map-card {
+            border-radius: 34px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .contact-card {
+            padding: 34px;
+        }
+
+        .contact-card h3 {
+            font-size: 28px;
+            margin-bottom: 14px;
+        }
+
+        .contact-card p {
+            color: var(--muted);
+            margin-bottom: 24px;
+        }
+
+        .contact-list {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .contact-item {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            padding: 16px;
+            border-radius: 22px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .contact-item b {
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .contact-item span {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .contact-icon {
+            width: 38px;
+            height: 38px;
+            flex: 0 0 38px;
+            display: grid;
+            place-items: center;
+            border-radius: 14px;
+            background: rgba(200, 155, 60, 0.11);
+            color: var(--gold-soft);
+        }
+
+        .map-placeholder {
+            height: 100%;
+            min-height: 520px;
+            position: relative;
+            background:
+                linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.58)),
+                url('https://images.unsplash.com/photo-1519999482648-25049ddd37b1?auto=format&fit=crop&w=1400&q=85') center/cover no-repeat;
+            display: flex;
+            align-items: end;
+            padding: 30px;
+        }
+
+        .map-box {
+            width: 100%;
+            padding: 24px;
+            border-radius: 26px;
+            background: rgba(7, 7, 7, 0.8);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .map-box h3 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .map-box p {
+            color: var(--muted);
+            margin-bottom: 18px;
+        }
+
+        .cta {
+            padding: 82px 0;
+            background:
+                linear-gradient(90deg, rgba(7, 7, 7, 0.95), rgba(7, 7, 7, 0.76)),
+                url('https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=1600&q=85') center/cover no-repeat;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .cta-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 30px;
+        }
+
+        .cta h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(34px, 4.6vw, 62px);
+            line-height: 1;
+            max-width: 680px;
+        }
+
+        .cta p {
+            color: var(--muted);
+            margin-top: 16px;
+            max-width: 640px;
+        }
+
+        footer {
+            padding: 34px 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .socials {
+            display: flex;
+            gap: 10px;
+        }
+
+        .socials a {
+            width: 40px;
+            height: 40px;
+            display: grid;
+            place-items: center;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text);
+            transition: 0.25s ease;
+        }
+
+        .socials a:hover {
+            color: var(--gold-soft);
+            border-color: rgba(200, 155, 60, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+            padding: 10px 12px;
+            border-radius: 14px;
+            font-size: 22px;
+        }
+
+        @media (max-width: 980px) {
+
+            .menu,
+            .nav>.btn-primary {
+                display: none;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .hero-grid,
+            .about-grid,
+            .contact-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-card img,
+            .about-img img {
+                height: 430px;
+            }
+
+            .services-grid,
+            .team-grid,
+            .testimonials-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .gallery-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .gallery-item.large {
+                grid-column: span 2;
+                grid-row: span 1;
+            }
+
+            .cta-box,
+            .section-head {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .nav {
+                height: 70px;
+            }
+
+            .hero {
+                padding-top: 112px;
+            }
+
+            .brand small {
+                display: none;
+            }
+
+            .hero-card img,
+            .about-img img,
+            .team-card img {
+                height: 330px;
+            }
+
+            section {
+                padding: 70px 0;
+            }
+
+            .services-grid,
+            .team-grid,
+            .testimonials-grid,
+            .features,
+            .gallery-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .gallery-item.large {
+                grid-column: auto;
+            }
+
+            .gallery-grid {
+                grid-auto-rows: 270px;
+            }
+
+            .contact-card {
+                padding: 24px;
+            }
+
+            .map-placeholder {
+                min-height: 420px;
+                padding: 18px;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .hero-actions {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="container nav">
+            <a href="#inicio" class="brand" aria-label="Voltar ao início">
+                <div class="brand-mark">BM</div>
+                <div>
+                    Barbear Men
+                    <small>Barbearia premium</small>
+                </div>
+            </a>
+
+            <nav class="menu" aria-label="Menu principal">
+                <a href="#quem-somos">Quem somos</a>
+                <a href="#servicos">Serviços</a>
+                <a href="#galeria">Galeria</a>
+                <a href="#profissionais">Profissionais</a>
+                <a href="#endereco">Endereço</a>
+            </nav>
+
+            <a class="btn btn-primary" href="https://wa.me/5515999999999" target="_blank">Agendar agora</a>
+            <button class="mobile-menu-btn" aria-label="Abrir menu">☰</button>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero" id="inicio">
+            <div class="container hero-grid">
+                <div>
+                    <div class="eyebrow">Atendimento premium em cada detalhe</div>
+                    <h1>Estilo, cuidado e presença para homens de <span>verdade.</span></h1>
+                    <p>
+                        Uma barbearia pensada para quem não quer apenas cortar o cabelo, mas viver uma experiência
+                        completa de cuidado, confiança e personalidade.
+                    </p>
+
+                    <div class="hero-actions">
+                        <a class="btn btn-primary" href="https://wa.me/5515999999999" target="_blank">Agendar pelo
+                            WhatsApp</a>
+                        <a class="btn btn-outline" href="#servicos">Ver serviços</a>
+                    </div>
+
+                    <div class="hero-info">
+                        <div class="info-pill"><strong>Seg a Sáb</strong>09h às 20h</div>
+                        <div class="info-pill"><strong>Nota 5.0</strong>Clientes satisfeitos</div>
+                        <div class="info-pill"><strong>Ambiente</strong>Rústico, moderno e confortável</div>
+                    </div>
+                </div>
+
+                <div class="hero-card">
+                    <img src="https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=1100&q=85"
+                        alt="Profissional realizando corte masculino em barbearia" />
+                    <div class="hero-card-content">
+                        <div>
+                            <strong>Corte com identidade</strong><br />
+                            <span>Do clássico ao moderno, feito para combinar com você.</span>
+                        </div>
+                        <a class="btn btn-outline" href="#galeria">Ver fotos</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="quem-somos">
+            <div class="container about-grid">
+                <div class="about-img">
+                    <img src="https://images.unsplash.com/photo-1517832606299-7ae9b720a186?auto=format&fit=crop&w=1100&q=85"
+                        alt="Ambiente profissional de barbearia escura e elegante" />
+                    <div class="floating-badge">
+                        <strong>+8 anos</strong>
+                        <span>de experiência, cuidado e compromisso com cada cliente.</span>
+                    </div>
+                </div>
+
+                <div class="about-content">
+                    <div class="section-kicker">Quem somos</div>
+                    <h2 class="section-title">Mais que uma barbearia, um espaço de confiança.</h2>
+                    <p>
+                        A Barbear Men nasceu para entregar uma experiência masculina completa, unindo técnica,
+                        atendimento próximo e um ambiente preparado para quem valoriza cuidado, estilo e praticidade.
+                    </p>
+                    <p>
+                        Cada atendimento é feito com atenção aos detalhes, entendendo o formato do rosto, o estilo de
+                        vida e a personalidade de cada cliente. Aqui, o corte não é padrão. O cuidado é personalizado.
+                    </p>
+
+                    <div class="features">
+                        <div class="feature">
+                            <div class="feature-icon">✂</div>
+                            <strong>Técnica profissional</strong>
+                            <span>Cortes, barba e acabamento com precisão.</span>
+                        </div>
+                        <div class="feature">
+                            <div class="feature-icon">★</div>
+                            <strong>Experiência premium</strong>
+                            <span>Ambiente confortável, elegante e acolhedor.</span>
+                        </div>
+                        <div class="feature">
+                            <div class="feature-icon">⌚</div>
+                            <strong>Agendamento fácil</strong>
+                            <span>Marque seu horário sem complicação.</span>
+                        </div>
+                        <div class="feature">
+                            <div class="feature-icon">◆</div>
+                            <strong>Estilo personalizado</strong>
+                            <span>Visual alinhado com sua identidade.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="services" id="servicos">
+            <div class="container">
+                <div class="section-head">
+                    <div>
+                        <div class="section-kicker">Serviços</div>
+                        <h2 class="section-title">Escolha seu cuidado.</h2>
+                    </div>
+                    <p class="section-text">
+                        Serviços completos para manter seu visual alinhado, elegante e com acabamento profissional em
+                        todos os detalhes.
+                    </p>
+                </div>
+
+                <div class="services-grid">
+                    <article class="service-card">
+                        <div>
+                            <div class="service-number">01</div>
+                            <h3>Corte masculino</h3>
+                            <p>Corte personalizado, acabamento na navalha e finalização conforme seu estilo.</p>
+                        </div>
+                        <div class="service-price">A partir de R$ 45</div>
+                    </article>
+
+                    <article class="service-card">
+                        <div>
+                            <div class="service-number">02</div>
+                            <h3>Barba completa</h3>
+                            <p>Modelagem da barba, toalha quente, navalha e produtos para hidratação e conforto.</p>
+                        </div>
+                        <div class="service-price">A partir de R$ 40</div>
+                    </article>
+
+                    <article class="service-card">
+                        <div>
+                            <div class="service-number">03</div>
+                            <h3>Cabelo + barba</h3>
+                            <p>Combo completo para quem quer sair renovado com visual alinhado e marcante.</p>
+                        </div>
+                        <div class="service-price">A partir de R$ 80</div>
+                    </article>
+
+                    <article class="service-card">
+                        <div>
+                            <div class="service-number">04</div>
+                            <h3>Degradê</h3>
+                            <p>Técnica precisa para um acabamento moderno, limpo e bem definido.</p>
+                        </div>
+                        <div class="service-price">A partir de R$ 50</div>
+                    </article>
+
+                    <article class="service-card">
+                        <div>
+                            <div class="service-number">05</div>
+                            <h3>Sobrancelha</h3>
+                            <p>Limpeza e alinhamento mantendo naturalidade, expressão e harmonia facial.</p>
+                        </div>
+                        <div class="service-price">A partir de R$ 20</div>
+                    </article>
+
+                    <article class="service-card">
+                        <div>
+                            <div class="service-number">06</div>
+                            <h3>Pacote mensal</h3>
+                            <p>Planos para quem quer manter o visual sempre em dia com praticidade e economia.</p>
+                        </div>
+                        <div class="service-price">Consultar valores</div>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section id="galeria">
+            <div class="container">
+                <div class="section-head center">
+                    <div class="section-kicker">Galeria</div>
+                    <h2 class="section-title">Um ambiente pensado para impressionar.</h2>
+                    <p class="section-text" style="margin: 18px auto 0;">
+                        Fotos profissionais para mostrar o espaço, os detalhes do atendimento, os cortes realizados e a
+                        experiência que o cliente encontra ao chegar.
+                    </p>
+                </div>
+
+                <div class="gallery-grid">
+                    <div class="gallery-item large">
+                        <img src="https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?auto=format&fit=crop&w=1000&q=85"
+                            alt="Cadeira de barbearia em ambiente elegante" />
+                    </div>
+                    <div class="gallery-item">
+                        <img src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=900&q=85"
+                            alt="Barbeiro realizando acabamento" />
+                    </div>
+                    <div class="gallery-item">
+                        <img src="https://images.unsplash.com/photo-1622286346003-c470f8c11d21?auto=format&fit=crop&w=900&q=85"
+                            alt="Produtos profissionais de barbearia" />
+                    </div>
+                    <div class="gallery-item">
+                        <img src="https://images.unsplash.com/photo-1622296089863-eb7fc530daa8?auto=format&fit=crop&w=900&q=85"
+                            alt="Atendimento masculino em barbearia" />
+                    </div>
+                    <div class="gallery-item">
+                        <img src="https://images.unsplash.com/photo-1599351431613-18ef1fdd27e1?auto=format&fit=crop&w=900&q=85"
+                            alt="Corte profissional masculino" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="professionals" id="profissionais">
+            <div class="container">
+                <div class="section-head">
+                    <div>
+                        <div class="section-kicker">Profissionais</div>
+                        <h2 class="section-title">Quem cuida do seu estilo.</h2>
+                    </div>
+                    <p class="section-text">
+                        Uma equipe preparada para entregar técnica, pontualidade, respeito e uma experiência de
+                        atendimento acima do comum.
+                    </p>
+                </div>
+
+                <div class="team-grid">
+                    <article class="team-card">
+                        <img src="https://images.unsplash.com/photo-1590086783191-a0694c7d1e6e?auto=format&fit=crop&w=900&q=85"
+                            alt="Profissional barbeiro" />
+                        <div class="team-info">
+                            <h3>Lucas Andrade</h3>
+                            <p>Especialista em degradê, cortes modernos e acabamento na navalha.</p>
+                            <span class="tag">Cortes modernos</span>
+                        </div>
+                    </article>
+
+                    <article class="team-card">
+                        <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=900&q=85"
+                            alt="Profissional barbeiro" />
+                        <div class="team-info">
+                            <h3>Rafael Martins</h3>
+                            <p>Foco em barba, visagismo masculino e atendimento personalizado.</p>
+                            <span class="tag">Barba premium</span>
+                        </div>
+                    </article>
+
+                    <article class="team-card">
+                        <img src="https://images.unsplash.com/photo-1583195764036-6dc248ac07d9?auto=format&fit=crop&w=900&q=85"
+                            alt="Profissional barbeiro" />
+                        <div class="team-info">
+                            <h3>Diego Ferraz</h3>
+                            <p>Especialista em cortes clássicos, sociais e acabamento elegante.</p>
+                            <span class="tag">Clássico elegante</span>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <div class="container">
+                <div class="section-head center">
+                    <div class="section-kicker">Depoimentos</div>
+                    <h2 class="section-title">Clientes que vivem a experiência.</h2>
+                </div>
+
+                <div class="testimonials-grid">
+                    <article class="testimonial-card">
+                        <div class="stars">★★★★★</div>
+                        <p>Atendimento excelente, ambiente bonito e corte impecável. Saí exatamente como queria.</p>
+                        <strong>Marcos Silva</strong>
+                        <span>Cliente há 2 anos</span>
+                    </article>
+
+                    <article class="testimonial-card">
+                        <div class="stars">★★★★★</div>
+                        <p>Barba muito bem feita, cuidado nos detalhes e atendimento sem pressa. Recomendo demais.</p>
+                        <strong>Henrique Souza</strong>
+                        <span>Cliente mensal</span>
+                    </article>
+
+                    <article class="testimonial-card">
+                        <div class="stars">★★★★★</div>
+                        <p>O melhor lugar da cidade. Profissionais pontuais, ambiente top e resultado sempre perfeito.
+                        </p>
+                        <strong>André Oliveira</strong>
+                        <span>Cliente recorrente</span>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="cta">
+            <div class="container cta-box">
+                <div>
+                    <h2>Seu próximo corte pode ser sua melhor versão.</h2>
+                    <p>
+                        Agende seu horário e viva uma experiência de cuidado masculino completa, com atendimento
+                        profissional e ambiente preparado para você.
+                    </p>
+                </div>
+                <a class="btn btn-primary" href="https://wa.me/5515999999999" target="_blank">Agendar agora</a>
+            </div>
+        </section>
+
+        <section class="contact-section" id="endereco">
+            <div class="container contact-grid">
+                <div class="contact-card">
+                    <div class="section-kicker">Endereço e contato</div>
+                    <h3>Venha conhecer nosso espaço.</h3>
+                    <p>
+                        Estamos em uma localização de fácil acesso, com ambiente confortável e atendimento com hora
+                        marcada.
+                    </p>
+
+                    <div class="contact-list">
+                        <div class="contact-item">
+                            <div class="contact-icon">📍</div>
+                            <div>
+                                <b>Endereço</b>
+                                <span>Rua Exemplo, 123, Centro, Tatuí SP</span>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="contact-icon">☎</div>
+                            <div>
+                                <b>WhatsApp</b>
+                                <span>(15) 99999-9999</span>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="contact-icon">⏱</div>
+                            <div>
+                                <b>Horário de funcionamento</b>
+                                <span>Segunda a sábado, das 09h às 20h</span>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="contact-icon">◎</div>
+                            <div>
+                                <b>Instagram</b>
+                                <span>@barbearmen</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a class="btn btn-primary" href="https://wa.me/5515999999999" target="_blank">Chamar no WhatsApp</a>
+                </div>
+
+                <div class="map-card">
+                    <div class="map-placeholder">
+                        <div class="map-box">
+                            <h3>Mapa do local</h3>
+                            <p>
+                                Aqui entra o mapa incorporado do Google Maps com o endereço real do estabelecimento.
+                            </p>
+                            <a class="btn btn-outline" href="https://www.google.com/maps" target="_blank">Abrir no
+                                Google Maps</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container footer-content">
+            <p>© 2026 Barbear Men. Todos os direitos reservados.</p>
+            <div class="socials" aria-label="Redes sociais">
+                <a href="#" aria-label="Instagram">IG</a>
+                <a href="#" aria-label="WhatsApp">WA</a>
+                <a href="#" aria-label="Facebook">FB</a>
+            </div>
+        </div>
+    </footer>
+</body>
+
+</html>

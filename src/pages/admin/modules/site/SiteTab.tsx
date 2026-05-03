@@ -41,6 +41,8 @@ function MobileSitePreview({
   data: any;
 }) {
   const themeColor = data.themeColor || "#c9a96e";
+  const isDark = data.siteTemplate === "dark";
+  const isBold = data.siteTemplate === "bold";
   
   return (
     <div className="relative mx-auto w-[280px] h-[580px] bg-zinc-950 rounded-[3rem] border-[8px] border-zinc-900 shadow-2xl overflow-hidden hidden 2xl:block sticky top-8 animate-in slide-in-from-right-4 duration-700">
@@ -50,55 +52,63 @@ function MobileSitePreview({
       
       {/* Status Bar Mock */}
       <div className="absolute top-0 left-0 w-full h-6 bg-transparent flex items-center justify-between px-6 z-30 pointer-events-none">
-        <span className="text-[10px] font-bold text-white/40">9:41</span>
+        <span className={`text-[10px] font-bold ${isDark ? "text-white/40" : "text-black/40"}`}>9:41</span>
         <div className="flex gap-1">
-          <div className="w-3 h-1.5 bg-white/40 rounded-[2px]" />
-          <div className="w-3 h-1.5 bg-white/40 rounded-[2px]" />
-          <div className="w-5 h-1.5 bg-white/40 rounded-[2px]" />
+          <div className={`w-3 h-1.5 rounded-[2px] ${isDark ? "bg-white/40" : "bg-black/40"}`} />
+          <div className={`w-3 h-1.5 rounded-[2px] ${isDark ? "bg-white/40" : "bg-black/40"}`} />
+          <div className={`w-5 h-1.5 rounded-[2px] ${isDark ? "bg-white/40" : "bg-black/40"}`} />
         </div>
       </div>
 
-      <div className="h-full w-full bg-white overflow-y-auto overflow-x-hidden pt-0 scrollbar-none">
+      <div className={`h-full w-full overflow-y-auto overflow-x-hidden pt-0 scrollbar-none transition-colors duration-500 ${isDark ? "bg-zinc-950 text-white" : "bg-white text-zinc-900"}`}>
         {/* Hero Section */}
-        <div className="relative h-44 w-full bg-zinc-100 overflow-hidden">
-          {data.siteCoverUrl ? (
-            <img src={data.siteCoverUrl} className="w-full h-full object-cover" alt="Cover" />
-          ) : (
-            <div className="w-full h-full bg-zinc-200 flex items-center justify-center">
-              <ImageIcon className="text-zinc-300" size={24} />
-            </div>
+        <div className={`relative h-44 w-full overflow-hidden ${isBold ? "flex flex-col items-center justify-center text-center px-4" : ""}`}>
+          {!isBold && (
+            <>
+              {data.siteCoverUrl ? (
+                <img src={data.siteCoverUrl} className="w-full h-full object-cover" alt="Cover" />
+              ) : (
+                <div className="w-full h-full bg-zinc-200 flex items-center justify-center">
+                  <ImageIcon className="text-zinc-300" size={24} />
+                </div>
+              )}
+              <div className={`absolute inset-0 ${isDark ? "bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent" : "bg-gradient-to-t from-black/80 via-black/20 to-transparent"}`} />
+            </>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+          {isBold && (
+            <div className="absolute inset-0 opacity-10" style={{ background: `radial-gradient(circle at top right, ${themeColor}, transparent)` }} />
+          )}
           
-          <div className="absolute bottom-4 left-4 right-4 text-white">
-            <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 p-1.5 mb-2 overflow-hidden">
+          <div className={`${isBold ? "relative z-10" : "absolute bottom-4 left-4 right-4 text-white"}`}>
+            <div className={`w-12 h-12 rounded-xl border p-1.5 mb-2 overflow-hidden mx-auto ${isBold ? "bg-zinc-100 border-zinc-200" : "bg-white/10 backdrop-blur-md border-white/20"}`}>
               {data.logoUrl ? (
                 <img src={data.logoUrl} className="w-full h-full object-contain" alt="Logo" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-white/5 text-[10px] font-black italic">
+                <div className={`w-full h-full flex items-center justify-center text-[10px] font-black italic ${isBold ? "text-zinc-300" : "text-white/20"}`}>
                   LOGO
                 </div>
               )}
             </div>
-            <h1 className="text-sm font-black leading-tight drop-shadow-md">
+            <h1 className={`text-sm font-black leading-tight drop-shadow-md ${isBold ? "text-zinc-900" : "text-white"}`}>
               {data.title || "Seu Negócio"}
             </h1>
-            <p className="text-[9px] text-white/70 line-clamp-2 mt-0.5 font-medium leading-relaxed">
+            <p className={`text-[9px] line-clamp-2 mt-0.5 font-medium leading-relaxed ${isBold ? "text-zinc-500" : "text-white/70"}`}>
               {data.welcomeMessage || "Sua frase de impacto aparecerá aqui."}
             </p>
           </div>
         </div>
 
         {/* Info Strip */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 bg-zinc-50/50">
+        <div className={`flex items-center justify-between px-4 py-3 border-b transition-colors ${isDark ? "bg-zinc-900/50 border-white/5" : "bg-zinc-50/50 border-zinc-100"}`}>
           <div className="flex gap-3">
              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black text-zinc-900 leading-none">{data.experienceYears || "10+"}</span>
+                <span className={`text-[10px] font-black leading-none ${isDark ? "text-white" : "text-zinc-900"}`}>{data.experienceYears || "10+"}</span>
                 <span className="text-[7px] font-bold text-zinc-400 uppercase tracking-tighter">Anos</span>
              </div>
-             <div className="w-px h-6 bg-zinc-200" />
+             <div className={`w-px h-6 ${isDark ? "bg-white/5" : "bg-zinc-200"}`} />
              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black text-zinc-900 leading-none">4.9</span>
+                <span className={`text-[10px] font-black leading-none ${isDark ? "text-white" : "text-zinc-900"}`}>4.9</span>
                 <span className="text-[7px] font-bold text-zinc-400 uppercase tracking-tighter">Estrelas</span>
              </div>
           </div>
@@ -117,23 +127,23 @@ function MobileSitePreview({
             { t: data.feature2Title || "Ambiente", d: "Feature 2" },
             { t: data.feature3Title || "Equipe", d: "Feature 3" }
           ].map((f, i) => (
-            <div key={i} className="flex flex-col items-center text-center p-2 rounded-xl bg-zinc-50 border border-zinc-100">
-              <div className="w-6 h-6 rounded-lg bg-white shadow-sm flex items-center justify-center mb-1.5">
+            <div key={i} className={`flex flex-col items-center text-center p-2 rounded-xl border transition-colors ${isDark ? "bg-white/5 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+              <div className={`w-6 h-6 rounded-lg shadow-sm flex items-center justify-center mb-1.5 ${isDark ? "bg-zinc-800" : "bg-white"}`}>
                 <CheckCircle size={10} style={{ color: themeColor }} />
               </div>
-              <span className="text-[8px] font-black text-zinc-800 leading-tight truncate w-full">{f.t}</span>
+              <span className={`text-[8px] font-black leading-tight truncate w-full ${isDark ? "text-zinc-300" : "text-zinc-800"}`}>{f.t}</span>
             </div>
           ))}
         </div>
 
         {/* About Section */}
         <div className="p-4 space-y-3">
-          <h2 className="text-[11px] font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
+          <h2 className={`text-[11px] font-black uppercase tracking-widest flex items-center gap-2 ${isDark ? "text-white" : "text-zinc-900"}`}>
             <div className="w-1 h-3 rounded-full" style={{ backgroundColor: themeColor }} />
             {data.aboutTitle || "Quem Somos"}
           </h2>
           <div className="flex gap-3 items-start">
-            <div className="w-20 h-24 rounded-xl bg-zinc-100 overflow-hidden shrink-0 border border-zinc-200">
+            <div className={`w-20 h-24 rounded-xl overflow-hidden shrink-0 border transition-colors ${isDark ? "bg-zinc-800 border-white/5" : "bg-zinc-100 border-zinc-200"}`}>
               {data.coverUrl ? (
                 <img src={data.coverUrl} className="w-full h-full object-cover" alt="About" />
               ) : (
@@ -142,7 +152,7 @@ function MobileSitePreview({
                 </div>
               )}
             </div>
-            <p className="text-[9px] text-zinc-500 leading-relaxed font-medium italic line-clamp-5">
+            <p className={`text-[9px] leading-relaxed font-medium italic line-clamp-5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
               "{data.description || "Adicione uma breve descrição sobre a sua história e seus diferenciais para seus clientes."}"
             </p>
           </div>
@@ -152,20 +162,20 @@ function MobileSitePreview({
         {data.showServices && (
           <div className="p-4 space-y-2.5">
             <div className="flex items-center justify-between">
-              <h2 className="text-[11px] font-black text-zinc-900 uppercase tracking-widest">Serviços</h2>
+              <h2 className={`text-[11px] font-black uppercase tracking-widest ${isDark ? "text-white" : "text-zinc-900"}`}>Serviços</h2>
               <span className="text-[8px] font-bold text-zinc-400">Ver todos</span>
             </div>
             <div className="space-y-2">
               {[1, 2].map(i => (
-                <div key={i} className="flex items-center justify-between p-2 rounded-xl border border-zinc-100 bg-white hover:border-zinc-200 transition-colors">
+                <div key={i} className={`flex items-center justify-between p-2 rounded-xl border transition-colors ${isDark ? "bg-white/5 border-white/5" : "bg-white border-zinc-100"}`}>
                   <div className="flex gap-2.5 items-center">
-                    <div className="w-8 h-8 rounded-lg bg-zinc-50 border border-zinc-100" />
+                    <div className={`w-8 h-8 rounded-lg ${isDark ? "bg-zinc-800" : "bg-zinc-50 border border-zinc-100"}`} />
                     <div className="flex flex-col">
-                      <div className="h-2 w-16 bg-zinc-100 rounded-full mb-1" />
-                      <div className="h-1.5 w-10 bg-zinc-50 rounded-full" />
+                      <div className={`h-2 w-16 rounded-full mb-1 ${isDark ? "bg-zinc-800" : "bg-zinc-100"}`} />
+                      <div className={`h-1.5 w-10 rounded-full ${isDark ? "bg-zinc-900" : "bg-zinc-50"}`} />
                     </div>
                   </div>
-                  <div className="h-3 w-8 bg-zinc-50 rounded-lg" />
+                  <div className={`h-3 w-8 rounded-lg ${isDark ? "bg-zinc-800" : "bg-zinc-50"}`} />
                 </div>
               ))}
             </div>
@@ -173,9 +183,9 @@ function MobileSitePreview({
         )}
 
         {/* Location & Contact */}
-        <div className="p-4 mt-2 bg-zinc-950 text-white space-y-4">
+        <div className={`p-4 mt-2 space-y-4 transition-colors ${isDark ? "bg-black" : "bg-zinc-950 text-white"}`}>
           <div className="space-y-1.5">
-             <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Endereço</p>
+             <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-white/20" : "text-white/40"}`}>Endereço</p>
              <p className="text-[9px] font-medium leading-relaxed flex items-start gap-2">
                 <MapPin size={10} style={{ color: themeColor }} className="mt-0.5 shrink-0" />
                 {data.address || "Rua seu endereço, 123 - Cidade"}
@@ -183,11 +193,11 @@ function MobileSitePreview({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">WhatsApp</p>
+              <p className={`text-[8px] font-black uppercase tracking-widest ${isDark ? "text-white/20" : "text-white/30"}`}>WhatsApp</p>
               <p className="text-[9px] font-bold">{data.phone || "(00) 00000-0000"}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Instagram</p>
+              <p className={`text-[8px] font-black uppercase tracking-widest ${isDark ? "text-white/20" : "text-white/30"}`}>Instagram</p>
               <p className="text-[9px] font-bold truncate">@{data.instagram?.split('/').pop() || "seuinsta"}</p>
             </div>
           </div>
@@ -899,10 +909,10 @@ export function SiteTab() {
               {[
                 {
                   id: "classic",
-                  name: "Clássico",
-                  desc: "Elegante e atemporal. Fundo branco, seções limpas.",
+                  name: "Classic Premium",
+                  desc: "Minimalista e atemporal. Fundo claro, foco na elegância e clareza.",
                   preview: (color: string) => (
-                    <div className="w-full h-20 rounded-xl overflow-hidden flex flex-col">
+                    <div className="w-full h-20 rounded-xl overflow-hidden flex flex-col shadow-inner bg-zinc-100">
                       <div className="h-10 w-full" style={{ background: `linear-gradient(135deg, ${color} 0%, #0f0f0f 100%)` }} />
                       <div className="flex-1 bg-white flex items-center gap-1 px-2">
                         <div className="w-8 h-2 rounded-full bg-zinc-200" />
@@ -913,11 +923,11 @@ export function SiteTab() {
                 },
                 {
                   id: "dark",
-                  name: "Dark Luxury",
-                  desc: "Sofisticado e moderno. Fundo escuro com acentos coloridos.",
+                  name: "Luxury Noir",
+                  desc: "Imersivo e sofisticado. Glassmorphism e detalhes vibrantes no escuro.",
                   preview: (color: string) => (
-                    <div className="w-full h-20 rounded-xl overflow-hidden flex flex-col bg-zinc-950">
-                      <div className="h-10 w-full flex items-end px-2 pb-1.5" style={{ background: `linear-gradient(135deg, #18181b 0%, ${color}55 100%)` }}>
+                    <div className="w-full h-20 rounded-xl overflow-hidden flex flex-col bg-zinc-950 shadow-inner">
+                      <div className="h-10 w-full flex items-end px-2 pb-1.5" style={{ background: `linear-gradient(135deg, #18181b 0%, ${color}77 100%)` }}>
                         <div className="w-16 h-1.5 rounded-full bg-white/30" />
                       </div>
                       <div className="flex-1 flex items-center gap-1 px-2">
@@ -929,14 +939,18 @@ export function SiteTab() {
                 },
                 {
                   id: "bold",
-                  name: "Bold & Clean",
-                  desc: "Impactante e direto. Tipografia grande, hero centralizado.",
+                  name: "Modern Organic",
+                  desc: "Arrojado e Zen. Tipografia forte, formas orgânicas e muito espaçamento.",
                   preview: (color: string) => (
-                    <div className="w-full h-20 rounded-xl overflow-hidden bg-zinc-50 flex flex-col items-center justify-center gap-1.5 relative">
-                      <div className="absolute top-0 left-0 right-0 h-1 rounded-t-xl" style={{ backgroundColor: color }} />
-                      <div className="w-20 h-3 rounded-full bg-zinc-900" />
-                      <div className="w-12 h-1.5 rounded-full bg-zinc-300" />
-                      <div className="w-10 h-5 rounded-full mt-1" style={{ backgroundColor: color }} />
+                    <div className="w-full h-20 rounded-xl overflow-hidden bg-white flex flex-col items-center justify-center gap-1.5 relative border border-zinc-100">
+                      <div className="absolute top-0 left-0 right-0 h-1" style={{ backgroundColor: color }} />
+                      <div className="w-14 h-4 rounded-full bg-zinc-900 mb-1" />
+                      <div className="flex gap-1">
+                        <div className="w-4 h-4 rounded-full bg-zinc-100" />
+                        <div className="w-4 h-4 rounded-full bg-zinc-100" />
+                        <div className="w-4 h-4 rounded-full bg-zinc-100" />
+                      </div>
+                      <div className="w-16 h-1.5 rounded-full bg-zinc-200 mt-1" />
                     </div>
                   ),
                 },
@@ -948,17 +962,19 @@ export function SiteTab() {
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, siteTemplate: tpl.id }))}
                     className={cn(
-                      "flex flex-col gap-2 p-3 rounded-2xl border-2 transition-all text-left",
-                      active ? "border-amber-400 bg-amber-50" : "border-zinc-200 bg-white hover:border-zinc-300"
+                      "flex flex-col gap-2 p-3 rounded-2xl border-2 transition-all text-left group",
+                      active ? "border-zinc-900 bg-zinc-50 shadow-lg" : "border-zinc-100 bg-white hover:border-zinc-200"
                     )}
                   >
-                    {tpl.preview(formData.themeColor)}
+                    <div className="transition-transform group-hover:scale-[1.02] duration-300">
+                      {tpl.preview(formData.themeColor)}
+                    </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <p className="text-xs font-black text-zinc-900">{tpl.name}</p>
-                        {active && <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">Ativo</span>}
+                        <p className="text-xs font-black text-zinc-900 uppercase tracking-tighter">{tpl.name}</p>
+                        {active && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
                       </div>
-                      <p className="text-[10px] text-zinc-400 mt-0.5">{tpl.desc}</p>
+                      <p className="text-[9px] text-zinc-500 mt-0.5 leading-tight">{tpl.desc}</p>
                     </div>
                   </button>
                 );

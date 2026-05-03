@@ -4,6 +4,7 @@ import {
   Scissors, MapPin, Instagram, Clock, User, ShoppingBag, ArrowRight, Target,
   Eye, Heart, ChevronRight, Menu, X, Phone, Star, Calendar, Sparkles,
   Plus, Minus, Trash2, MessageCircle, Images, ChevronLeft,
+  Badge,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -296,154 +297,131 @@ function Footer({ tenant, slug, bookingUrl, themeColor, products, dark = false }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TEMPLATE 1 — CLASSIC (branco, limpo, elegante)
+// TEMPLATE 1 — ELEGANT CLASSIC (Premium Minimalist, clean, soft shadows)
 // ─────────────────────────────────────────────────────────────────────────────
 function TemplateClassic({ tenant, professionals, services, products, galleryImages, slug, bookingUrl, themeColor, scrolled }: any) {
   const { cartItems, cartOpen, setCartOpen, cartCount, cartTotal, addToCart, changeQty, removeFromCart } = useCart();
   const heroImage = tenant.siteCoverUrl || tenant.coverUrl;
 
-  const featureItems = () => {
-    if (tenant.mission || tenant.vision || tenant.values) return [
-      tenant.mission  && { icon: <Target size={18} />,  title: "Missão",  text: tenant.mission  },
-      tenant.vision   && { icon: <Eye size={18} />,     title: "Visão",   text: tenant.vision   },
-      tenant.values   && { icon: <Heart size={18} />,   title: "Valores", text: tenant.values   },
-    ].filter(Boolean) as any[];
-    if (tenant.feature1Title) return [
-      { icon: <Target size={18} />, title: tenant.feature1Title, text: tenant.feature1Description || "" },
-      tenant.feature2Title && { icon: <User size={18} />, title: tenant.feature2Title, text: tenant.feature2Description || "" },
-      tenant.feature3Title && { icon: <Heart size={18} />, title: tenant.feature3Title, text: tenant.feature3Description || "" },
-    ].filter(Boolean) as any[];
-    return [
-      { icon: <Target size={18} />, title: "Qualidade", text: "Excelência em cada detalhe." },
-      { icon: <User size={18} />, title: "Equipe", text: "Profissionais altamente qualificados." },
-      { icon: <Heart size={18} />, title: "Cuidado", text: "Seu bem-estar é nossa prioridade." },
-    ];
-  };
-
   return (
-    <div className="min-h-screen bg-white text-zinc-900 font-sans antialiased">
+    <div className="min-h-screen bg-[#fafafa] text-zinc-900 font-sans antialiased selection:bg-zinc-900 selection:text-white">
       <Navbar tenant={tenant} slug={slug} bookingUrl={bookingUrl} scrolled={scrolled} themeColor={themeColor} products={products} services={services} />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden" style={!heroImage ? { background: `linear-gradient(135deg, ${themeColor} 0%, #0f0f0f 100%)` } : {}}>
-        {heroImage && <div className="absolute inset-0"><img src={heroImage} alt="" className="w-full h-full object-cover object-center" /><div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/65 to-zinc-950/25" /></div>}
-        {!heroImage && <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,1) 1px, transparent 0)`, backgroundSize: "28px 28px" }} />}
-        <div className="relative z-10 max-w-6xl mx-auto px-5 pt-28 pb-20 md:pt-40 md:pb-32">
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.25, 0.4, 0.25, 1] }} className="max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/80 text-[10px] font-bold uppercase tracking-widest mb-5">
-              <Sparkles size={10} /> Studio Premium
-            </div>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight leading-[1.05] mb-5">{tenant.welcomeMessage || `Bem-vindo ao ${tenant.name}`}</h1>
-            <p className="text-white/70 text-base md:text-lg leading-relaxed mb-8 max-w-xl">{tenant.description || "Transformando sua aparência com excelência e profissionalismo."}</p>
-            <div className="flex flex-wrap gap-3">
-              <Link to={bookingUrl} className="inline-flex items-center gap-2 px-6 py-3.5 text-sm font-bold rounded-xl shadow-lg active:scale-95 hover:opacity-90 transition-all bg-white" style={{ color: themeColor }}><Calendar size={16} /> Agendar Agora</Link>
-              {tenant.instagram && <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-6 py-3.5 text-sm font-bold rounded-xl bg-white/10 backdrop-blur-sm border border-white/30 text-white hover:bg-white/20 transition-colors"><Instagram size={16} /> Instagram</a>}
-            </div>
-            {(tenant.experienceYears || professionals.length > 0 || services.length > 0) && (
-              <div className="flex flex-wrap gap-8 mt-10 pt-8 border-t border-white/10">
-                {tenant.experienceYears && <div><p className="text-2xl font-black text-white">{tenant.experienceYears}</p><p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Anos</p></div>}
-                {professionals.length > 0 && <div><p className="text-2xl font-black text-white">{professionals.length}+</p><p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Especialistas</p></div>}
-                {services.length > 0 && <div><p className="text-2xl font-black text-white">{services.length}+</p><p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Serviços</p></div>}
+      {/* Hero — Luxury Split */}
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden pt-16">
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-zinc-100/50 hidden lg:block" />
+        <div className="max-w-7xl mx-auto px-6 w-full relative z-10">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              className="max-w-xl"
+            >
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white shadow-sm border border-zinc-100 text-[10px] font-black uppercase tracking-[0.2em] mb-8" style={{ color: themeColor }}>
+                <Sparkles size={10} /> {tenant.name}
               </div>
-            )}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Quem Somos */}
-      <section id="sobre" className="py-20 md:py-28 bg-white">
-        <div className="max-w-6xl mx-auto px-5">
-          <div className="grid md:grid-cols-2 gap-12 md:gap-20 items-center">
-            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="relative">
-              <div className="aspect-[4/5] rounded-3xl overflow-hidden shadow-xl">
-                {tenant.coverUrl || tenant.siteCoverUrl
-                  ? <img src={tenant.coverUrl || tenant.siteCoverUrl || ""} alt="Sobre nós" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-white" style={{ background: `linear-gradient(135deg, ${themeColor} 0%, #0f0f0f 100%)` }}><Scissors size={48} className="opacity-30" /><span className="text-lg font-black opacity-40 uppercase tracking-widest">{tenant.name}</span></div>
-                }
+              <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[0.95] mb-8 text-zinc-950">
+                {tenant.welcomeMessage || "Sua melhor versão começa aqui."}
+              </h1>
+              <p className="text-lg text-zinc-500 leading-relaxed mb-10 font-medium">
+                {tenant.description || "Experiência premium em beleza e bem-estar, pensada em cada detalhe para você."}
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <Link 
+                  to={bookingUrl} 
+                  className="px-8 py-4 rounded-2xl font-black text-sm shadow-2xl shadow-zinc-950/10 hover:translate-y-[-2px] transition-all active:scale-95 text-white" 
+                  style={{ backgroundColor: themeColor }}
+                >
+                  Agendar Agora
+                </Link>
+                {tenant.instagram && (
+                  <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="px-8 py-4 rounded-2xl font-black text-sm border border-zinc-200 bg-white hover:bg-zinc-50 transition-all active:scale-95 text-zinc-900">
+                    Instagram
+                  </a>
+                )}
               </div>
-              {tenant.experienceYears && (
-                <div className="absolute -bottom-5 -right-5 md:-bottom-8 md:-right-8 w-28 h-28 md:w-36 md:h-36 rounded-2xl md:rounded-3xl flex flex-col items-center justify-center text-white shadow-xl" style={{ backgroundColor: themeColor }}>
-                  <span className="text-3xl md:text-4xl font-black leading-none">{tenant.experienceYears}</span>
-                  <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest opacity-80 mt-1 text-center px-2">Anos de experiência</span>
+              
+              <div className="grid grid-cols-3 gap-8 mt-16 pt-8 border-t border-zinc-100">
+                <div>
+                  <p className="text-3xl font-black text-zinc-950">{tenant.experienceYears || "10+"}</p>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Anos</p>
                 </div>
-              )}
+                <div>
+                  <p className="text-3xl font-black text-zinc-950">{professionals.length}+</p>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Especialistas</p>
+                </div>
+                <div>
+                  <p className="text-3xl font-black text-zinc-950">{services.length}+</p>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Serviços</p>
+                </div>
+              </div>
             </motion.div>
-            <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.1 }}>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-200 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-5"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeColor }} />Quem Somos</div>
-              <h2 className="text-3xl md:text-4xl font-black text-zinc-900 tracking-tight mb-5 leading-tight">{tenant.aboutTitle || "Nossa História"}</h2>
-              <p className="text-zinc-500 text-base leading-relaxed mb-8 whitespace-pre-line">{tenant.description || `${tenant.name} nasceu da paixão pela beleza e bem-estar.`}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-zinc-100">
-                {featureItems().map((item, i) => (
-                  <div key={i} className="space-y-2">
-                    <div className="w-9 h-9 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-700">{item.icon}</div>
-                    <h4 className="font-bold text-zinc-900 text-sm">{item.title}</h4>
-                    <p className="text-xs text-zinc-500 leading-relaxed">{item.text}</p>
+
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, rotate: 2 }} 
+              animate={{ opacity: 1, scale: 1, rotate: 0 }} 
+              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+              className="relative hidden lg:block"
+            >
+              <div className="aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.1)] border-8 border-white">
+                {heroImage ? (
+                  <img src={heroImage} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-zinc-50 flex items-center justify-center">
+                    <Scissors size={120} className="text-zinc-100" />
                   </div>
-                ))}
+                )}
+              </div>
+              {/* Floating element */}
+              <div className="absolute -bottom-8 -left-8 bg-white p-6 rounded-3xl shadow-2xl border border-zinc-50 max-w-[200px]">
+                <div className="flex gap-1 mb-2">
+                  {[1, 2, 3, 4, 5].map(i => <Star key={i} size={12} fill={themeColor} color={themeColor} />)}
+                </div>
+                <p className="text-xs font-bold text-zinc-900 leading-snug">"Atendimento impecável e ambiente maravilhoso. Recomendo!"</p>
+                <p className="text-[9px] font-black text-zinc-400 uppercase mt-2">— Cliente Satisfeito</p>
               </div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Serviços */}
+      {/* Services — Horizontal Scroll / Grid */}
       {tenant.showServices !== false && (
-        <section id="servicos" className="py-20 md:py-28 bg-zinc-50">
-          <div className="max-w-6xl mx-auto px-5">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-12">
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-zinc-200 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-4"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeColor }} />Especialidades</div>
-                <h2 className="text-3xl md:text-4xl font-black text-zinc-900 tracking-tight">O que fazemos</h2>
+        <section id="servicos" className="py-32 bg-white">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
+              <div className="max-w-xl">
+                <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-4 block">Especialidades</span>
+                <h2 className="text-4xl md:text-5xl font-black text-zinc-950 tracking-tight">Serviços Exclusivos</h2>
               </div>
-              <Link to={bookingUrl} className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider hover:gap-3 transition-all shrink-0" style={{ color: themeColor }}>Ver todos <ArrowRight size={14} /></Link>
+              <Link to={bookingUrl} className="text-sm font-black uppercase tracking-widest hover:translate-x-1 transition-transform" style={{ color: themeColor }}>Ver todos <ArrowRight className="inline-block ml-1" size={16} /></Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {services.length > 0 ? services.slice(0, 6).map((service: any, i: number) => (
-                <motion.div key={service.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: i * 0.05 }} className="bg-white rounded-2xl border border-zinc-100 overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="p-6">
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: `${themeColor}15` }}><Scissors size={20} style={{ color: themeColor }} /></div>
-                    <h3 className="text-base font-black text-zinc-900 mb-1.5">{service.name}</h3>
-                    <p className="text-xs text-zinc-500 leading-relaxed mb-4 line-clamp-2">{service.description || "Tratamento personalizado por especialistas."}</p>
-                    <div className="flex items-center gap-3 text-[11px] text-zinc-400 font-medium mb-5">
-                      <span className="flex items-center gap-1"><Clock size={11} /> {service.duration} min</span>
-                      <span className="w-1 h-1 rounded-full bg-zinc-200" />
-                      <span className="font-black text-zinc-800 text-sm">{priceStr(service.price)}</span>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {services.slice(0, 6).map((service: any, i: number) => (
+                <motion.div 
+                  key={service.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="group bg-[#fafafa] rounded-[2rem] p-8 hover:bg-white hover:shadow-2xl hover:shadow-zinc-950/5 transition-all duration-500 border border-transparent hover:border-zinc-100"
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110 duration-500 shadow-sm" style={{ backgroundColor: `${themeColor}15`, color: themeColor }}>
+                    <Scissors size={20} />
+                  </div>
+                  <h3 className="text-xl font-black text-zinc-950 mb-3">{service.name}</h3>
+                  <p className="text-sm text-zinc-500 leading-relaxed mb-8 line-clamp-2">{service.description || "Tratamento de alto padrão realizado por nossos especialistas."}</p>
+                  <div className="flex items-center justify-between pt-6 border-t border-zinc-200/50">
+                    <div>
+                      <p className="text-lg font-black text-zinc-950">R$ {service.price}</p>
+                      <p className="text-[10px] font-bold text-zinc-400 uppercase">{service.duration} min</p>
                     </div>
-                    <Link to={bookingUrl} className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-xs font-bold border transition-colors hover:opacity-90" style={{ borderColor: themeColor, color: themeColor }}><Calendar size={13} /> Agendar</Link>
+                    <Link to={bookingUrl} className="w-10 h-10 rounded-full flex items-center justify-center bg-white border border-zinc-200 text-zinc-400 hover:text-white transition-all duration-300 hover:bg-zinc-900">
+                      <ArrowRight size={18} />
+                    </Link>
                   </div>
-                </motion.div>
-              )) : <div className="col-span-full py-16 text-center"><Scissors size={28} className="mx-auto mb-4 text-zinc-200" /><p className="text-zinc-400 text-sm font-medium">Serviços em breve.</p></div>}
-            </div>
-            {services.length > 0 && (
-              <div className="mt-10 rounded-2xl p-8 flex flex-col sm:flex-row items-center justify-between gap-6 text-white" style={{ backgroundColor: themeColor }}>
-                <div><h3 className="text-xl font-black mb-1">Pronto para se cuidar?</h3><p className="text-white/70 text-sm">Agende em segundos.</p></div>
-                <Link to={bookingUrl} className="shrink-0 px-6 py-3 bg-white font-bold text-sm rounded-xl hover:bg-zinc-50 active:scale-95 transition-all shadow-md" style={{ color: themeColor }}>Ver todos os serviços</Link>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Galeria */}
-      <GallerySection images={galleryImages} themeColor={themeColor} />
-
-      {/* Equipe */}
-      {tenant.showTeam !== false && professionals.length > 0 && (
-        <section id="equipe" className="py-20 md:py-28 bg-white">
-          <div className="max-w-6xl mx-auto px-5">
-            <div className="mb-12">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-200 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-4"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeColor }} />Time de Elite</div>
-              <h2 className="text-3xl md:text-4xl font-black text-zinc-900 tracking-tight">Nossa Equipe</h2>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-              {professionals.map((prof: any, i: number) => (
-                <motion.div key={prof.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: i * 0.06 }} className="flex flex-col">
-                  <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-zinc-100 mb-3">
-                    {prof.photo ? <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-4xl font-black text-white" style={{ backgroundColor: themeColor }}>{prof.name.charAt(0)}</div>}
-                  </div>
-                  <h3 className="font-black text-zinc-900 text-sm leading-tight mb-0.5">{prof.name}</h3>
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">{prof.role || "Especialista"}</p>
-                  <Link to={`${bookingUrl}?profId=${prof.id}`} className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-xs font-bold text-white active:scale-95 transition-all hover:opacity-90 shadow-sm" style={{ backgroundColor: themeColor }}><Calendar size={12} />Agendar</Link>
                 </motion.div>
               ))}
             </div>
@@ -451,39 +429,39 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
         </section>
       )}
 
-      {/* Produtos */}
-      {tenant.showProducts !== false && products.length > 0 && (
-        <section id="produtos" className="py-20 md:py-28 bg-zinc-50">
-          <div className="max-w-6xl mx-auto px-5">
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-zinc-200 text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-3"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeColor }} />Shop</div>
-                <h2 className="text-3xl md:text-4xl font-black text-zinc-900 tracking-tight">Nossos Produtos</h2>
-              </div>
-              {cartCount > 0 && <button onClick={() => setCartOpen(true)} className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white shadow-lg hover:opacity-90 active:scale-95 transition-all shrink-0" style={{ backgroundColor: themeColor }}><ShoppingBag size={16} />Ver Carrinho <span className="w-5 h-5 rounded-full bg-white text-xs font-black flex items-center justify-center" style={{ color: themeColor }}>{cartCount}</span></button>}
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-              {products.map((product: any) => {
-                const inCart = cartItems.find(i => i.product.id === product.id);
-                return (
-                  <div key={product.id} className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-zinc-100 flex flex-col">
-                    <div className="aspect-[4/3] overflow-hidden bg-zinc-100">{product.photo ? <img src={product.photo} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-zinc-300"><ShoppingBag size={32} /></div>}</div>
-                    <div className="p-3 flex flex-col flex-1">
-                      <h3 className="font-bold text-zinc-900 text-sm line-clamp-2 flex-1">{product.name}</h3>
-                      <div className="flex items-center justify-between mt-2 gap-2">
-                        <span className="font-black text-zinc-900 text-sm">{priceStr(product.salePrice)}</span>
-                        {inCart ? (
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => changeQty(product.id, -1)} className="w-6 h-6 rounded-lg bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center"><Minus size={10} /></button>
-                            <span className="text-xs font-black text-zinc-900 w-4 text-center">{inCart.quantity}</span>
-                            <button onClick={() => changeQty(product.id, 1)} className="w-6 h-6 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: themeColor }}><Plus size={10} /></button>
-                          </div>
-                        ) : <button onClick={() => addToCart(product)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-white text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all" style={{ backgroundColor: themeColor }}><Plus size={11} /> Add</button>}
-                      </div>
+      {/* Gallery */}
+      <GallerySection images={galleryImages} themeColor={themeColor} />
+
+      {/* Team */}
+      {tenant.showTeam !== false && professionals.length > 0 && (
+        <section id="equipe" className="py-32 bg-white">
+          <div className="max-w-7xl mx-auto px-6 text-center">
+            <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-4 block">Nosso Time</span>
+            <h2 className="text-4xl md:text-5xl font-black text-zinc-950 tracking-tight mb-20">Especialistas Certificados</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {professionals.map((prof: any, i: number) => (
+                <motion.div 
+                  key={prof.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="group"
+                >
+                  <div className="aspect-[3/4] rounded-[2rem] overflow-hidden bg-zinc-50 mb-6 relative shadow-lg shadow-zinc-950/5 border-4 border-white">
+                    {prof.photo ? (
+                      <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-4xl font-black text-zinc-200">{prof.name.charAt(0)}</div>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-4">
+                      <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-3 bg-white rounded-xl text-xs font-black text-zinc-950 shadow-xl">AGENDAR</Link>
                     </div>
                   </div>
-                );
-              })}
+                  <h3 className="text-lg font-black text-zinc-950">{prof.name}</h3>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em] mt-1">{prof.role || "Especialista"}</p>
+                </motion.div>
+              ))}
             </div>
           </div>
         </section>
@@ -491,10 +469,19 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
 
       <CartDrawer cartItems={cartItems} cartOpen={cartOpen} setCartOpen={setCartOpen} cartTotal={cartTotal} cartCount={cartCount} changeQty={changeQty} removeFromCart={removeFromCart} themeColor={themeColor} phone={tenant.phone} />
       <Footer tenant={tenant} slug={slug} bookingUrl={bookingUrl} themeColor={themeColor} products={products} />
-      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
-        <div className={`p-3 bg-white/95 backdrop-blur-md border-t border-zinc-100 shadow-xl ${cartCount > 0 ? "flex gap-2" : ""}`}>
-          {cartCount > 0 && <button onClick={() => setCartOpen(true)} className="relative flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-xl text-sm font-bold text-white shadow-lg active:scale-95 transition-all shrink-0" style={{ backgroundColor: themeColor }}><ShoppingBag size={16} /><span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">{cartCount}</span></button>}
-          <Link to={bookingUrl} className="flex items-center justify-center gap-2 flex-1 py-3.5 rounded-xl text-sm font-bold text-white shadow-lg active:scale-95 transition-all" style={{ backgroundColor: cartCount > 0 ? "#18181b" : themeColor }}><Calendar size={16} /> Agendar Horário</Link>
+      
+      {/* Mobile CTA */}
+      <div className="fixed bottom-6 left-6 right-6 z-50 md:hidden">
+        <div className="flex gap-3">
+          {cartCount > 0 && (
+            <button onClick={() => setCartOpen(true)} className="h-14 w-14 rounded-2xl bg-white shadow-2xl border border-zinc-100 flex items-center justify-center relative text-zinc-900">
+              <ShoppingBag size={20} />
+              <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">{cartCount}</span>
+            </button>
+          )}
+          <Link to={bookingUrl} className="flex-1 h-14 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2 shadow-2xl" style={{ backgroundColor: themeColor }}>
+            <Calendar size={18} /> AGENDAR AGORA
+          </Link>
         </div>
       </div>
     </div>
@@ -502,289 +489,154 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TEMPLATE 2 — DARK LUXURY (fundo escuro, premium)
+// TEMPLATE 2 — LUXURY NOIR (Dark mode, glassmorphism, glowing accents)
 // ─────────────────────────────────────────────────────────────────────────────
 function TemplateDark({ tenant, professionals, services, products, galleryImages, slug, bookingUrl, themeColor, scrolled }: any) {
   const { cartItems, cartOpen, setCartOpen, cartCount, cartTotal, addToCart, changeQty, removeFromCart } = useCart();
   const heroImage = tenant.siteCoverUrl || tenant.coverUrl;
 
-  const features = [
-    tenant.feature1Title && { title: tenant.feature1Title, text: tenant.feature1Description || "" },
-    tenant.feature2Title && { title: tenant.feature2Title, text: tenant.feature2Description || "" },
-    tenant.feature3Title && { title: tenant.feature3Title, text: tenant.feature3Description || "" },
-    !tenant.feature1Title && { title: "Excelência", text: "Cada detalhe pensado para superar expectativas." },
-    !tenant.feature2Title && { title: "Exclusividade", text: "Atendimento personalizado e único." },
-    !tenant.feature3Title && { title: "Confiança", text: "Anos de experiência e clientes satisfeitos." },
-  ].filter(Boolean).slice(0, 3) as { title: string; text: string }[];
-
   return (
-    <div className="min-h-screen font-sans antialiased" style={{ backgroundColor: "#0a0a0a", color: "#fff" }}>
+    <div className="min-h-screen bg-[#050505] text-white font-sans antialiased selection:bg-white selection:text-black">
       <Navbar tenant={tenant} slug={slug} bookingUrl={bookingUrl} scrolled={scrolled} themeColor={themeColor} products={products} services={services} dark />
 
-      {/* ── HERO: imagem à direita, texto à esquerda ── */}
-      <section className="relative overflow-hidden" style={{ backgroundColor: "#0a0a0a" }}>
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2" style={{ minHeight: "88vh" }}>
-
-            {/* Lado esquerdo — conteúdo */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-              className="flex flex-col justify-center px-8 md:px-16 py-28 lg:py-20 relative z-10"
-            >
-              {/* Linha decorativa + nome */}
-              <div className="flex items-center gap-3 mb-8">
-                <div className="w-10 h-px" style={{ backgroundColor: themeColor }} />
-                <span className="text-[11px] font-black uppercase tracking-[0.2em]" style={{ color: themeColor }}>
-                  {tenant.name}
-                </span>
-              </div>
-
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black leading-[1.15] tracking-tight mb-4 text-white">
-                {tenant.name}
-              </h1>
-              <p className="text-zinc-400 text-sm leading-relaxed mb-10 max-w-xs">
-                {(tenant.welcomeMessage || tenant.description)
-                  ? (tenant.welcomeMessage || tenant.description)!.slice(0, 100) + ((tenant.welcomeMessage || tenant.description)!.length > 100 ? "…" : "")
-                  : "Experiência premium em beleza e bem-estar."}
-              </p>
-
-              <div className="flex flex-wrap gap-3 mb-10">
-                <Link
-                  to={bookingUrl}
-                  className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-bold rounded-full shadow-xl active:scale-95 hover:opacity-90 transition-all"
-                  style={{ backgroundColor: themeColor, color: "#000" }}
-                >
-                  <Calendar size={15} /> Agendar Agora
-                </Link>
-                {tenant.instagram && (
-                  <a
-                    href={tenant.instagram} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-bold rounded-full border text-white hover:bg-white/5 transition-colors"
-                    style={{ borderColor: "rgba(255,255,255,0.18)" }}
-                  >
-                    <Instagram size={15} /> Instagram
-                  </a>
-                )}
-              </div>
-
-              {/* Stats em linha */}
-              {(tenant.experienceYears || professionals.length > 0 || services.length > 0) && (
-                <div className="flex gap-8 pt-8 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-                  {tenant.experienceYears && (
-                    <div>
-                      <p className="text-2xl font-black" style={{ color: themeColor }}>{tenant.experienceYears}</p>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mt-1">Anos</p>
-                    </div>
-                  )}
-                  {professionals.length > 0 && (
-                    <div>
-                      <p className="text-2xl font-black text-white">{professionals.length}+</p>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mt-1">Especialistas</p>
-                    </div>
-                  )}
-                  {services.length > 0 && (
-                    <div>
-                      <p className="text-2xl font-black text-white">{services.length}+</p>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mt-1">Serviços</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </motion.div>
-
-            {/* Lado direito — imagem com overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 1 }}
-              className="hidden lg:block relative"
-              style={{ minHeight: "88vh" }}
-            >
-              {heroImage ? (
-                <>
-                  <img src={heroImage} alt="" className="absolute inset-0 w-full h-full object-cover object-center" />
-                  {/* Gradiente da esquerda para fundir com o fundo escuro */}
-                  <div className="absolute inset-0" style={{ background: "linear-gradient(to right, #0a0a0a 0%, transparent 35%)" }} />
-                  {/* Gradiente sutil no topo e base */}
-                  <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, #0a0a0a 0%, transparent 15%, transparent 85%, #0a0a0a 100%)" }} />
-                </>
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, #1a1a1a 0%, ${themeColor}20 100%)` }}>
-                  <Scissors size={100} className="opacity-10 text-white" />
-                </div>
-              )}
-            </motion.div>
-          </div>
+      {/* Hero — Immersive Dark */}
+      <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+        {/* Background Gradients */}
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full opacity-20 blur-[120px]" style={{ backgroundColor: themeColor }} />
+          <div className="absolute bottom-[10%] right-[-10%] w-[40%] h-[40%] rounded-full opacity-10 blur-[120px]" style={{ backgroundColor: themeColor }} />
         </div>
 
-        {/* Imagem mobile — faixa abaixo do texto */}
-        {heroImage && (
-          <div className="lg:hidden w-full h-56 overflow-hidden relative">
-            <img src={heroImage} alt="" className="w-full h-full object-cover object-center" />
-            <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, #0a0a0a 0%, transparent 25%, transparent 75%, #0a0a0a 100%)" }} />
-          </div>
-        )}
+        <div className="max-w-7xl mx-auto px-6 w-full relative z-10 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl mb-10">
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: themeColor, boxShadow: `0 0 10px ${themeColor}` }} />
+              <span className="text-[11px] font-black uppercase tracking-[0.3em] text-white/70">Experiência Premium</span>
+            </div>
+            
+            <h1 className="text-6xl sm:text-7xl md:text-9xl font-black tracking-tighter leading-[0.85] mb-8 uppercase">
+              {tenant.name}
+            </h1>
+            
+            <p className="text-xl md:text-2xl text-white/50 font-medium max-w-2xl mx-auto mb-14 leading-relaxed italic">
+              "{tenant.welcomeMessage || "Onde a excelência encontra a sofisticação."}"
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              <Link 
+                to={bookingUrl} 
+                className="group relative px-12 py-5 rounded-full font-black text-sm uppercase tracking-widest overflow-hidden transition-all active:scale-95"
+                style={{ backgroundColor: themeColor, color: '#000' }}
+              >
+                <span className="relative z-10">Agendar Agora</span>
+                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+              </Link>
+              {tenant.instagram && (
+                <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="px-12 py-5 rounded-full font-black text-sm uppercase tracking-widest border border-white/10 hover:bg-white/5 transition-all active:scale-95">
+                  Instagram
+                </a>
+              )}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Scroll Indicator */}
+        <motion.div 
+          animate={{ y: [0, 10, 0] }} 
+          transition={{ repeat: Infinity, duration: 2 }}
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3"
+        >
+          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30">Scroll</span>
+          <div className="w-[1px] h-12 bg-gradient-to-b from-white/20 to-transparent" />
+        </motion.div>
       </section>
 
-      {/* ── SOBRE ── */}
-      <section id="sobre" className="py-24 md:py-32" style={{ backgroundColor: "#111111" }}>
-        <div className="max-w-6xl mx-auto px-8 md:px-12">
-          <div className="grid md:grid-cols-2 gap-16 lg:gap-24 items-center">
-
-            {/* Imagem */}
-            <motion.div initial={{ opacity: 0, scale: 0.96 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.7 }} className="relative order-2 md:order-1">
-              <div className="aspect-[4/5] rounded-2xl overflow-hidden">
-                {tenant.coverUrl || tenant.siteCoverUrl ? (
-                  <img src={tenant.coverUrl || tenant.siteCoverUrl || ""} alt="Sobre nós" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full" style={{ background: `linear-gradient(135deg, #1a1a1a, ${themeColor}30)` }} />
-                )}
-              </div>
-              {/* Badge de anos */}
-              {tenant.experienceYears && (
-                <div className="absolute -bottom-5 -right-5 w-24 h-24 rounded-2xl flex flex-col items-center justify-center font-black shadow-2xl" style={{ backgroundColor: themeColor, color: "#000" }}>
-                  <span className="text-2xl leading-none">{tenant.experienceYears}</span>
-                  <span className="text-[8px] uppercase tracking-widest mt-1 opacity-70">Anos</span>
+      {/* Services — Luxury List */}
+      {tenant.showServices !== false && (
+        <section id="servicos" className="py-40 relative">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="grid lg:grid-cols-[1fr_2fr] gap-20">
+              <div>
+                <div className="sticky top-32">
+                  <span className="text-[11px] font-black uppercase tracking-[0.4em] mb-6 block text-white/30">Menu de Serviços</span>
+                  <h2 className="text-5xl md:text-6xl font-black tracking-tight leading-none mb-8">Nossas<br/>Especialidades</h2>
+                  <p className="text-lg text-white/40 leading-relaxed font-medium">Oferecemos o que há de mais moderno em técnicas e produtos para garantir o resultado que você merece.</p>
+                  <div className="mt-12 w-20 h-1 rounded-full" style={{ backgroundColor: themeColor }} />
                 </div>
-              )}
-            </motion.div>
-
-            {/* Texto */}
-            <motion.div initial={{ opacity: 0, x: 24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }} className="order-1 md:order-2">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="w-6 h-px" style={{ backgroundColor: themeColor }} />
-                <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: themeColor }}>Quem Somos</span>
               </div>
-              <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight leading-tight mb-5">
-                {tenant.aboutTitle || "Nossa História"}
-              </h2>
-              <p className="text-zinc-400 text-sm leading-relaxed mb-8 whitespace-pre-line">
-                {tenant.description || `${tenant.name} é referência em excelência e atendimento premium.`}
-              </p>
 
-              <div className="space-y-3">
-                {features.map((item, i) => (
-                  <div key={i} className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                    <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5" style={{ backgroundColor: `${themeColor}30` }}>
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
+              <div className="space-y-4">
+                {services.slice(0, 8).map((service: any, i: number) => (
+                  <motion.div 
+                    key={service.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.05 }}
+                    className="group relative p-8 rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-500 cursor-pointer overflow-hidden"
+                  >
+                    <div className="absolute top-0 left-0 w-1 h-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: themeColor }} />
+                    <div className="flex items-center justify-between gap-6 relative z-10">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-xl md:text-2xl font-black tracking-tight group-hover:translate-x-2 transition-transform duration-500">{service.name}</h3>
+                          {service.isFeatured && <Badge color="warning" className="text-[8px] px-2 py-0.5">TOP</Badge>}
+                        </div>
+                        <p className="text-sm text-white/40 font-medium line-clamp-1">{service.description || "Atendimento personalizado com os melhores produtos do mercado."}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-2xl font-black group-hover:scale-110 transition-transform duration-500" style={{ color: themeColor }}>R$ {service.price}</p>
+                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mt-1">{service.duration} MIN</p>
+                      </div>
+                      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500">
+                        <Plus size={20} />
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-black text-white text-sm mb-0.5">{item.title}</h4>
-                      <p className="text-zinc-500 text-xs leading-relaxed">{item.text}</p>
-                    </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── SERVIÇOS ── */}
-      {tenant.showServices !== false && (
-        <section id="servicos" className="py-24 md:py-32" style={{ backgroundColor: "#0a0a0a" }}>
-          <div className="max-w-6xl mx-auto px-8 md:px-12">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-14">
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-6 h-px" style={{ backgroundColor: themeColor }} />
-                  <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: themeColor }}>Especialidades</span>
-                </div>
-                <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">O que fazemos</h2>
-              </div>
-              <Link to={bookingUrl} className="inline-flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors uppercase tracking-wider shrink-0">
-                Ver agenda <ArrowRight size={13} />
-              </Link>
-            </div>
-
-            {/* Lista de serviços — layout horizontal tipo "menu" */}
-            <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-              {services.slice(0, 6).map((service: any, i: number) => (
-                <motion.div
-                  key={service.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: i * 0.06 }}
-                  className="group flex items-center gap-6 py-5 hover:px-4 transition-all duration-300 rounded-xl cursor-pointer"
-                  style={{ borderTop: i === 0 ? "1px solid rgba(255,255,255,0.06)" : undefined }}
-                >
-                  {/* Número */}
-                  <span className="text-[11px] font-black tabular-nums w-6 shrink-0" style={{ color: themeColor }}>
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  {/* Nome */}
-                  <h3 className="font-black text-white text-base flex-1 group-hover:translate-x-1 transition-transform">
-                    {service.name}
-                  </h3>
-                  {/* Duração */}
-                  <span className="text-[11px] text-zinc-600 font-medium hidden sm:block shrink-0">{service.duration} min</span>
-                  {/* Preço */}
-                  <span className="font-black text-sm shrink-0" style={{ color: themeColor }}>{priceStr(service.price)}</span>
-                  {/* Botão */}
-                  <Link
-                    to={bookingUrl}
-                    className="shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold opacity-0 group-hover:opacity-100 transition-all"
-                    style={{ backgroundColor: themeColor, color: "#000" }}
-                  >
-                    Agendar
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-
-            <div className="mt-10 flex justify-center">
-              <Link to={bookingUrl} className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full font-bold text-sm border text-white hover:bg-white/5 transition-colors" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
-                Ver todos os serviços <ArrowRight size={14} />
-              </Link>
             </div>
           </div>
         </section>
       )}
 
-      {/* ── GALERIA ── */}
+      {/* Gallery — Immersive Grid */}
       <GallerySection images={galleryImages} themeColor={themeColor} dark />
 
-      {/* ── EQUIPE ── */}
+      {/* Team — Minimal Luxe */}
       {tenant.showTeam !== false && professionals.length > 0 && (
-        <section id="equipe" className="py-24 md:py-32" style={{ backgroundColor: "#111111" }}>
-          <div className="max-w-6xl mx-auto px-8 md:px-12">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-6 h-px" style={{ backgroundColor: themeColor }} />
-              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: themeColor }}>Especialistas</span>
-            </div>
-            <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-14">Nossa Equipe</h2>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+        <section id="equipe" className="py-40 bg-white/[0.01]">
+          <div className="max-w-7xl mx-auto px-6 text-center">
+            <span className="text-[11px] font-black uppercase tracking-[0.4em] mb-6 block text-white/30">Mestres</span>
+            <h2 className="text-5xl md:text-7xl font-black tracking-tighter mb-24 uppercase">Nosso Time</h2>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
               {professionals.map((prof: any, i: number) => (
-                <motion.div
+                <motion.div 
                   key={prof.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: i * 0.08 }}
-                  className="group"
+                  transition={{ delay: i * 0.1 }}
+                  className="group text-left"
                 >
-                  <div className="aspect-[3/4] rounded-2xl overflow-hidden mb-4 relative" style={{ backgroundColor: "#1a1a1a" }}>
-                    {prof.photo
-                      ? <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
-                      : <div className="w-full h-full flex items-center justify-center text-5xl font-black" style={{ color: themeColor }}>{prof.name.charAt(0)}</div>
-                    }
-                    {/* Overlay com botão ao hover */}
-                    <div className="absolute inset-0 flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)" }}>
-                      <Link
-                        to={`${bookingUrl}?profId=${prof.id}`}
-                        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold text-black active:scale-95 transition-all"
-                        style={{ backgroundColor: themeColor }}
-                      >
-                        <Calendar size={12} /> Agendar
-                      </Link>
+                  <div className="aspect-[4/5] rounded-[3rem] overflow-hidden bg-white/5 mb-8 relative grayscale group-hover:grayscale-0 transition-all duration-700">
+                    {prof.photo ? (
+                      <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-6xl font-black text-white/5">{prof.name.charAt(0)}</div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
+                    <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col justify-end h-1/2">
+                       <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-4 rounded-full bg-white text-black font-black text-[10px] tracking-widest uppercase scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500 shadow-2xl">RESERVAR</Link>
                     </div>
                   </div>
-                  <h3 className="font-black text-white text-sm mb-0.5">{prof.name}</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themeColor }}>{prof.role || "Especialista"}</p>
+                  <h3 className="text-2xl font-black tracking-tight">{prof.name}</h3>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mt-2" style={{ color: themeColor }}>{prof.role || "Especialista"}</p>
                 </motion.div>
               ))}
             </div>
@@ -794,18 +646,12 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
 
       <CartDrawer cartItems={cartItems} cartOpen={cartOpen} setCartOpen={setCartOpen} cartTotal={cartTotal} cartCount={cartCount} changeQty={changeQty} removeFromCart={removeFromCart} themeColor={themeColor} phone={tenant.phone} />
       <Footer tenant={tenant} slug={slug} bookingUrl={bookingUrl} themeColor={themeColor} products={products} dark />
-
+      
       {/* Mobile CTA */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
-        <div className={`p-3 backdrop-blur-md border-t shadow-2xl ${cartCount > 0 ? "flex gap-2" : ""}`} style={{ backgroundColor: "rgba(10,10,10,0.95)", borderColor: "rgba(255,255,255,0.08)" }}>
-          {cartCount > 0 && (
-            <button onClick={() => setCartOpen(true)} className="relative flex items-center justify-center px-4 py-3.5 rounded-xl text-sm font-bold shadow-lg active:scale-95 transition-all shrink-0" style={{ backgroundColor: themeColor, color: "#000" }}>
-              <ShoppingBag size={16} />
-              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">{cartCount}</span>
-            </button>
-          )}
-          <Link to={bookingUrl} className="flex items-center justify-center gap-2 flex-1 py-3.5 rounded-xl text-sm font-bold shadow-lg active:scale-95 transition-all" style={{ backgroundColor: themeColor, color: "#000" }}>
-            <Calendar size={16} /> Agendar Horário
+      <div className="fixed bottom-6 left-6 right-6 z-50 md:hidden">
+        <div className="flex gap-3">
+          <Link to={bookingUrl} className="flex-1 h-16 rounded-full text-black font-black text-xs flex items-center justify-center gap-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)] active:scale-95 transition-all" style={{ backgroundColor: themeColor }}>
+            <Calendar size={20} /> AGENDAR AGORA
           </Link>
         </div>
       </div>
@@ -814,137 +660,118 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TEMPLATE 3 — BOLD & CLEAN (branco, tipografia grande, hero centralizado)
+// TEMPLATE 3 — MODERN ORGANIC (Glassmorphism, soft colors, zen vibes)
 // ─────────────────────────────────────────────────────────────────────────────
 function TemplateBold({ tenant, professionals, services, products, galleryImages, slug, bookingUrl, themeColor, scrolled }: any) {
   const { cartItems, cartOpen, setCartOpen, cartCount, cartTotal, addToCart, changeQty, removeFromCart } = useCart();
   const heroImage = tenant.siteCoverUrl || tenant.coverUrl;
 
   return (
-    <div className="min-h-screen bg-white text-zinc-900 font-sans antialiased">
+    <div className="min-h-screen bg-[#f8f9fa] text-zinc-900 font-sans antialiased selection:bg-zinc-900 selection:text-white overflow-x-hidden">
       <Navbar tenant={tenant} slug={slug} bookingUrl={bookingUrl} scrolled={scrolled} themeColor={themeColor} products={products} services={services} />
 
-      {/* Hero — layout split: texto à esquerda, imagem à direita */}
-      <section className="relative pt-16 overflow-hidden bg-white">
-        <div className="h-1 w-full" style={{ backgroundColor: themeColor }} />
-        <div className="max-w-6xl mx-auto px-5">
-          <div className="grid md:grid-cols-2 gap-0 min-h-[520px] md:min-h-[600px] items-center">
-            {/* Lado esquerdo — texto */}
+      {/* Hero — Modern Glass */}
+      <section className="relative min-h-[95vh] flex items-center pt-20">
+        {/* Background shapes */}
+        <div className="absolute top-[-10%] right-[-5%] w-[60%] h-[60%] rounded-full blur-[100px] opacity-10 pointer-events-none" style={{ backgroundColor: themeColor }} />
+        <div className="absolute bottom-[5%] left-[-10%] w-[40%] h-[40%] rounded-full blur-[80px] opacity-10 pointer-events-none" style={{ backgroundColor: themeColor }} />
+
+        <div className="max-w-7xl mx-auto px-6 w-full relative z-10">
+          <div className="grid lg:grid-cols-[1.2fr_1fr] gap-16 items-center">
             <motion.div
-              initial={{ opacity: 0, x: -24 }}
+              initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              className="py-16 md:py-24 pr-0 md:pr-12 flex flex-col justify-center"
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             >
-              {tenant.logoUrl && (
-                <img src={tenant.logoUrl} alt={tenant.name} className="w-12 h-12 object-contain rounded-xl mb-6" />
-              )}
-              <div className="inline-flex items-center gap-2 mb-5 self-start">
-                <div className="w-8 h-0.5" style={{ backgroundColor: themeColor }} />
-                <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: themeColor }}>{tenant.name}</span>
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-12 h-[2px] rounded-full" style={{ backgroundColor: themeColor }} />
+                <span className="text-xs font-black text-zinc-400 uppercase tracking-[0.3em]">Modern & Professional</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-zinc-900 tracking-tight leading-[1.1] mb-5">
-                {tenant.welcomeMessage || `Bem-vindo ao ${tenant.name}`}
+              <h1 className="text-6xl sm:text-7xl md:text-8xl font-black tracking-tight leading-[0.9] mb-10 text-zinc-950">
+                {tenant.name}<span className="inline-block w-4 h-4 rounded-full ml-4" style={{ backgroundColor: themeColor }} />
               </h1>
-              <p className="text-zinc-500 text-base leading-relaxed mb-8 max-w-sm">
-                {tenant.description?.slice(0, 120) || "Atendimento premium para quem valoriza cada detalhe."}
+              <p className="text-xl md:text-2xl text-zinc-500 leading-relaxed max-w-xl mb-12 font-medium">
+                {tenant.welcomeMessage || "Redefinindo o conceito de autocuidado com tecnologia e arte."}
               </p>
-              <div className="flex flex-wrap gap-3">
-                <Link to={bookingUrl} className="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold rounded-full text-white shadow-lg hover:opacity-90 active:scale-95 transition-all" style={{ backgroundColor: themeColor }}>
-                  <Calendar size={15} /> Agendar Agora
+              <div className="flex flex-col sm:flex-row gap-5">
+                <Link 
+                  to={bookingUrl} 
+                  className="group h-16 px-10 rounded-2xl bg-zinc-950 text-white font-black text-sm flex items-center justify-center gap-3 hover:bg-zinc-800 transition-all shadow-xl shadow-zinc-950/20 active:scale-95"
+                >
+                  <Calendar size={20} /> AGENDAR HORÁRIO
                 </Link>
-                {tenant.instagram && (
-                  <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold rounded-full border border-zinc-200 text-zinc-600 hover:border-zinc-400 transition-colors">
-                    <Instagram size={15} /> Instagram
-                  </a>
-                )}
+                <button className="h-16 px-10 rounded-2xl bg-white border border-zinc-200 text-zinc-900 font-black text-sm hover:border-zinc-400 transition-all active:scale-95">
+                  VER SERVIÇOS
+                </button>
               </div>
-              {(tenant.experienceYears || professionals.length > 0 || services.length > 0) && (
-                <div className="flex gap-8 mt-10 pt-8 border-t border-zinc-100">
-                  {tenant.experienceYears && <div><p className="text-xl font-black text-zinc-900">{tenant.experienceYears}</p><p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Anos</p></div>}
-                  {professionals.length > 0 && <div><p className="text-xl font-black text-zinc-900">{professionals.length}+</p><p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Especialistas</p></div>}
-                  {services.length > 0 && <div><p className="text-xl font-black text-zinc-900">{services.length}+</p><p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Serviços</p></div>}
-                </div>
-              )}
             </motion.div>
 
-            {/* Lado direito — imagem */}
             <motion.div
-              initial={{ opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="hidden md:block relative h-full"
+              initial={{ opacity: 0, scale: 0.8, rotate: -3 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+              className="relative"
             >
-              <div className="absolute inset-y-0 right-0 left-0 overflow-hidden">
+              <div className="aspect-square rounded-[4rem] overflow-hidden shadow-2xl relative z-10">
                 {heroImage ? (
-                  <>
-                    <img src={heroImage} alt="" className="w-full h-full object-cover object-center" />
-                    <div className="absolute inset-0" style={{ background: `linear-gradient(to right, white 0%, transparent 20%)` }} />
-                  </>
+                  <img src={heroImage} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${themeColor}10 0%, ${themeColor}25 100%)` }}>
-                    <Scissors size={80} className="opacity-20" style={{ color: themeColor }} />
+                  <div className="w-full h-full bg-zinc-200 flex items-center justify-center">
+                     <Sparkles size={80} className="text-zinc-300" />
                   </div>
                 )}
               </div>
+              {/* Glass accents */}
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/40 backdrop-blur-3xl rounded-[3rem] border border-white/40 shadow-xl z-20 flex flex-col items-center justify-center text-center p-4">
+                 <p className="text-2xl font-black text-zinc-900 leading-none mb-1">5.0</p>
+                 <div className="flex gap-0.5 mb-2">
+                    {[1,2,3,4,5].map(i => <Star key={i} size={10} fill="#fbbf24" color="#fbbf24" />)}
+                 </div>
+                 <p className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Avaliações Google</p>
+              </div>
+              <div className="absolute -bottom-10 -left-10 w-48 h-24 bg-white/40 backdrop-blur-3xl rounded-[2rem] border border-white/40 shadow-xl z-20 flex items-center justify-center gap-4 px-6">
+                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: themeColor }}>
+                    <Heart size={20} />
+                 </div>
+                 <div>
+                    <p className="text-xs font-black text-zinc-900 leading-tight">Cuidado Especial</p>
+                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-tighter">Atendimento VIP</p>
+                 </div>
+              </div>
             </motion.div>
           </div>
         </div>
-
-        {/* Imagem mobile (aparece só no mobile, abaixo do texto) */}
-        {heroImage && (
-          <div className="md:hidden w-full h-52 overflow-hidden">
-            <img src={heroImage} alt="" className="w-full h-full object-cover object-center" />
-          </div>
-        )}
       </section>
 
-      {/* Sobre */}
-      <section id="sobre" className="py-20 md:py-28">
-        <div className="max-w-5xl mx-auto px-5 text-center">
-          <p className="text-[11px] font-black uppercase tracking-widest mb-3" style={{ color: themeColor }}>Quem Somos</p>
-          <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight mb-6">{tenant.aboutTitle || "Nossa História"}</h2>
-          <p className="text-zinc-500 text-lg leading-relaxed max-w-2xl mx-auto mb-14 whitespace-pre-line">{tenant.description || `${tenant.name} é referência em excelência e atendimento.`}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {[
-              tenant.feature1Title && { title: tenant.feature1Title, text: tenant.feature1Description },
-              tenant.feature2Title && { title: tenant.feature2Title, text: tenant.feature2Description },
-              tenant.feature3Title && { title: tenant.feature3Title, text: tenant.feature3Description },
-              !tenant.feature1Title && { title: "Qualidade", text: "Excelência em cada detalhe do atendimento." },
-              !tenant.feature2Title && { title: "Equipe", text: "Profissionais altamente qualificados." },
-              !tenant.feature3Title && { title: "Cuidado", text: "Seu bem-estar é nossa prioridade." },
-            ].filter(Boolean).slice(0, 3).map((item: any, i: number) => (
-              <div key={i} className="p-6 rounded-3xl border border-zinc-100 bg-zinc-50 text-left">
-                <div className="w-10 h-10 rounded-2xl mb-4 flex items-center justify-center" style={{ backgroundColor: `${themeColor}15` }}>
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: themeColor }} />
-                </div>
-                <h4 className="font-black text-zinc-900 mb-2">{item.title}</h4>
-                <p className="text-sm text-zinc-500 leading-relaxed">{item.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Serviços */}
+      {/* Featured Services — Grid Cards */}
       {tenant.showServices !== false && (
-        <section id="servicos" className="py-20 md:py-28" style={{ backgroundColor: `${themeColor}06` }}>
-          <div className="max-w-5xl mx-auto px-5">
-            <div className="text-center mb-14">
-              <p className="text-[11px] font-black uppercase tracking-widest mb-3" style={{ color: themeColor }}>Especialidades</p>
-              <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight">O que fazemos</h2>
+        <section id="servicos" className="py-40 bg-white relative overflow-hidden">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="text-center max-w-3xl mx-auto mb-24">
+              <h2 className="text-5xl md:text-6xl font-black tracking-tight text-zinc-950 mb-6">Explore nossas artes</h2>
+              <p className="text-lg text-zinc-500 font-medium">Cada serviço é uma obra de arte personalizada para o seu estilo.</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {services.slice(0, 6).map((service: any, i: number) => (
-                <motion.div key={service.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: i * 0.05 }} className="group bg-white rounded-3xl border border-zinc-100 p-6 hover:shadow-xl transition-all">
-                  <h3 className="text-base font-black text-zinc-900 mb-2">{service.name}</h3>
-                  <p className="text-xs text-zinc-500 leading-relaxed mb-5 line-clamp-2">{service.description || "Tratamento personalizado."}</p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {services.slice(0, 8).map((service: any, i: number) => (
+                <motion.div
+                  key={service.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="group relative bg-[#f8f9fa] rounded-[3rem] p-10 hover:bg-white hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] transition-all duration-700 border border-transparent hover:border-zinc-100"
+                >
+                  <div className="w-16 h-16 rounded-[1.5rem] bg-white shadow-xl flex items-center justify-center mb-10 group-hover:scale-110 transition-transform duration-500" style={{ color: themeColor }}>
+                    <Scissors size={28} />
+                  </div>
+                  <h3 className="text-2xl font-black text-zinc-950 mb-4">{service.name}</h3>
+                  <p className="text-zinc-500 text-sm leading-relaxed mb-8">{service.description || "Referência em qualidade e satisfação."}</p>
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xl font-black" style={{ color: themeColor }}>{priceStr(service.price)}</p>
-                      <p className="text-[10px] text-zinc-400 font-medium">{service.duration} min</p>
-                    </div>
-                    <Link to={bookingUrl} className="flex items-center gap-1 px-4 py-2 rounded-full text-xs font-bold text-white transition-all hover:opacity-90 active:scale-95" style={{ backgroundColor: themeColor }}><Calendar size={12} /> Agendar</Link>
+                    <span className="text-2xl font-black text-zinc-900">R$ {service.price}</span>
+                    <Link to={bookingUrl} className="w-12 h-12 rounded-2xl bg-zinc-950 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-500">
+                       <Plus size={24} />
+                    </Link>
                   </div>
                 </motion.div>
               ))}
@@ -953,40 +780,108 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
         </section>
       )}
 
-      {/* Galeria */}
+      {/* Team — Minimal & Round */}
+      {tenant.showTeam !== false && professionals.length > 0 && (
+        <section id="equipe" className="py-40 bg-zinc-50/50">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex flex-col md:flex-row items-end justify-between mb-20">
+              <div className="max-w-xl">
+                <span className="text-xs font-black text-zinc-400 uppercase tracking-[0.3em] mb-4 block">Especialistas</span>
+                <h2 className="text-5xl font-black text-zinc-950 tracking-tight">O time que transforma</h2>
+              </div>
+              <p className="text-sm text-zinc-500 font-medium max-w-xs md:text-right">Profissionais apaixonados por elevar sua autoestima e bem-estar.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
+              {professionals.map((prof: any, i: number) => (
+                <motion.div 
+                  key={prof.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="group"
+                >
+                  <div className="aspect-[3/4] rounded-[3rem] overflow-hidden bg-zinc-200 mb-8 relative">
+                    {prof.photo ? (
+                      <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-5xl font-black text-zinc-400 bg-zinc-200">{prof.name.charAt(0)}</div>
+                    )}
+                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-8">
+                       <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-4 bg-white rounded-2xl text-xs font-black text-zinc-950 shadow-2xl tracking-widest text-center">RESERVAR</Link>
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-black text-zinc-950 mb-1">{prof.name}</h3>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">{prof.role || "Especialista"}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Products — Minimal Shop */}
+      {tenant.showProducts !== false && products.length > 0 && (
+        <section id="produtos" className="py-40 bg-white">
+          <div className="max-w-7xl mx-auto px-6">
+             <div className="flex items-center justify-between mb-20">
+                <h2 className="text-5xl font-black tracking-tight text-zinc-950">Vitrine Shop</h2>
+                <button onClick={() => setCartOpen(true)} className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-zinc-950 text-white shadow-xl hover:scale-110 transition-transform">
+                   <ShoppingBag size={22} />
+                   {cartCount > 0 && <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">{cartCount}</span>}
+                </button>
+             </div>
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
+                {products.map((product: any) => {
+                  const inCart = cartItems.find(i => i.product.id === product.id);
+                  return (
+                    <div key={product.id} className="group">
+                       <div className="aspect-square rounded-[2.5rem] overflow-hidden bg-[#f8f9fa] mb-6 relative border border-transparent group-hover:border-zinc-200 transition-all">
+                          {product.photo ? (
+                            <img src={product.photo} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-zinc-200"><ShoppingBag size={40} /></div>
+                          )}
+                          <div className="absolute inset-0 flex items-end p-4 opacity-0 group-hover:opacity-100 transition-all">
+                             {inCart ? (
+                                <div className="w-full bg-white rounded-2xl p-2 flex items-center justify-between shadow-2xl">
+                                   <button onClick={() => changeQty(product.id, -1)} className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900"><Minus size={14} /></button>
+                                   <span className="text-sm font-black text-zinc-900">{inCart.quantity}</span>
+                                   <button onClick={() => changeQty(product.id, 1)} className="w-8 h-8 rounded-xl bg-zinc-950 flex items-center justify-center text-white"><Plus size={14} /></button>
+                                </div>
+                             ) : (
+                                <button onClick={() => addToCart(product)} className="w-full py-3 bg-zinc-950 text-white rounded-2xl text-xs font-black shadow-2xl">ADICIONAR</button>
+                             )}
+                          </div>
+                       </div>
+                       <h3 className="font-black text-zinc-950 text-sm mb-1 truncate">{product.name}</h3>
+                       <p className="text-lg font-black" style={{ color: themeColor }}>R$ {product.salePrice}</p>
+                    </div>
+                  );
+                })}
+             </div>
+          </div>
+        </section>
+      )}
+
+      {/* Gallery */}
       <GallerySection images={galleryImages} themeColor={themeColor} />
 
-      {/* Equipe */}
-      {tenant.showTeam !== false && professionals.length > 0 && (
-        <section id="equipe" className="py-20 md:py-28">
-          <div className="max-w-5xl mx-auto px-5">
-            <div className="text-center mb-14">
-              <p className="text-[11px] font-black uppercase tracking-widest mb-3" style={{ color: themeColor }}>Nosso Time</p>
-              <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight">Conheça a equipe</h2>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
-              {professionals.map((prof: any, i: number) => (
-                <motion.div key={prof.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: i * 0.06 }} className="text-center">
-                  <div className="aspect-square rounded-full overflow-hidden bg-zinc-100 mb-4 mx-auto w-32 h-32 border-4 border-white shadow-lg" style={{ outlineColor: themeColor }}>
-                    {prof.photo ? <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-3xl font-black text-white" style={{ backgroundColor: themeColor }}>{prof.name.charAt(0)}</div>}
-                  </div>
-                  <h3 className="font-black text-zinc-900 text-sm mb-0.5">{prof.name}</h3>
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">{prof.role || "Especialista"}</p>
-                  <Link to={`${bookingUrl}?profId=${prof.id}`} className="inline-flex items-center gap-1 px-4 py-2 rounded-full text-xs font-bold text-white active:scale-95 transition-all hover:opacity-90" style={{ backgroundColor: themeColor }}><Calendar size={11} />Agendar</Link>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* Experience Section */}
+      <section className="py-40 relative bg-zinc-950 text-white overflow-hidden rounded-[4rem] mx-6 mb-40">
+        <div className="absolute top-0 left-0 w-full h-full opacity-30 pointer-events-none">
+           <div className="absolute top-[20%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[120px]" style={{ backgroundColor: themeColor }} />
+        </div>
+        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+           <h2 className="text-5xl md:text-7xl font-black tracking-tight mb-12">Onde estilo e tradição se encontram.</h2>
+           <Link to={bookingUrl} className="inline-flex h-20 px-16 rounded-3xl font-black text-lg tracking-widest flex items-center justify-center transition-all hover:scale-105 active:scale-95" style={{ backgroundColor: themeColor, color: '#000' }}>
+              AGENDAR AGORA
+           </Link>
+        </div>
+      </section>
 
       <CartDrawer cartItems={cartItems} cartOpen={cartOpen} setCartOpen={setCartOpen} cartTotal={cartTotal} cartCount={cartCount} changeQty={changeQty} removeFromCart={removeFromCart} themeColor={themeColor} phone={tenant.phone} />
       <Footer tenant={tenant} slug={slug} bookingUrl={bookingUrl} themeColor={themeColor} products={products} />
-      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
-        <div className="p-3 bg-white/95 backdrop-blur-md border-t border-zinc-100 shadow-xl">
-          <Link to={bookingUrl} className="flex items-center justify-center gap-2 w-full py-3.5 rounded-full text-sm font-bold text-white shadow-lg active:scale-95 transition-all" style={{ backgroundColor: themeColor }}><Calendar size={16} /> Agendar Horário</Link>
-        </div>
-      </div>
     </div>
   );
 }
