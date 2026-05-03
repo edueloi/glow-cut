@@ -148,6 +148,9 @@ function PlansTab() {
     stripePriceId: "",
     features: "",
     permissions: {},
+    description: "",
+    isPopular: false,
+    showOnSite: true,
   };
 
 
@@ -172,6 +175,9 @@ function PlansTab() {
       priceExtraProfessional: String(p.priceExtraProfessional || "0"),
       stripePaymentLink: p.stripePaymentLink || "",
       stripePriceId: p.stripePriceId || "",
+      description: p.description || "",
+      isPopular: !!p.isPopular,
+      showOnSite: p.showOnSite !== false,
     });
     setModal(true);
   };
@@ -374,6 +380,26 @@ function PlansTab() {
             value={form.features}
             onChange={e => setF("features", e.target.value)}
           />
+          <Textarea
+            label="Descrição do Plano (exibida na landing page)"
+            rows={2}
+            placeholder="Para salões e barbearias que precisam controlar agenda, caixa e equipe."
+            value={form.description}
+            onChange={e => setF("description", e.target.value)}
+          />
+          <div className="space-y-1.5">
+            <label className="ds-label">Visibilidade na Landing Page</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <Switch checked={!!form.showOnSite} onCheckedChange={() => setF("showOnSite", !form.showOnSite)} />
+                <span className="text-[11px] font-semibold text-zinc-700">Exibir na landing page</span>
+              </label>
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <Switch checked={!!form.isPopular} onCheckedChange={() => setF("isPopular", !form.isPopular)} />
+                <span className="text-[11px] font-semibold text-zinc-700">★ Marcar como "Mais popular"</span>
+              </label>
+            </div>
+          </div>
           <FormRow cols={2}>
             <Button variant="ghost" onClick={() => setModal(false)} fullWidth>Cancelar</Button>
             <Button onClick={save} fullWidth>{editing ? "Salvar" : "Criar Plano"}</Button>

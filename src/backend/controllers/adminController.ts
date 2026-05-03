@@ -106,7 +106,7 @@ export const adminController = {
           ...(jobTitle !== undefined && { jobTitle }),
           ...(bio !== undefined && { bio }),
           ...(phone !== undefined && { phone }),
-          ...(password !== undefined && { password }),
+          ...(password !== undefined && password !== "" && { password }),
           ...(photo !== undefined && { photo }),
           ...(cpf !== undefined && { cpf }),
           ...(birthDate !== undefined && { birthDate }),
@@ -410,7 +410,7 @@ export const adminController = {
         data: {
           ...(name !== undefined && { name }),
           ...(email !== undefined && { email }),
-          ...(password !== undefined && { password }),
+          ...(password !== undefined && password !== "" && { password }),
           ...(role !== undefined && { role }),
           ...(jobTitle !== undefined && { jobTitle }),
           ...(phone !== undefined && { phone }),

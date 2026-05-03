@@ -168,7 +168,10 @@ authRouter.post("/login", async (req: Request, res: Response) => {
 // ─── REGISTRO PÚBLICO DE PARCEIROS (VENDAS) ───────────────────
 authRouter.get("/plans", async (req, res) => {
   try {
-    const plans = await (prisma as any).plan.findMany({ where: { isActive: true } });
+    const plans = await (prisma as any).plan.findMany({
+      where: { isActive: true, showOnSite: true },
+      orderBy: { price: "asc" },
+    });
     res.json(plans);
   } catch (e: any) {
     res.status(500).json({ error: e.message });

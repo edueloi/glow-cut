@@ -79,7 +79,7 @@ export default function LandingPage() {
     const primary = contacts.find(c => c.type === type && c.isPrimary);
     if (primary) return primary.phone;
     const first = contacts.find(c => c.type === type);
-    return first?.phone || "5511999999999"; // Fallback
+    return first?.phone || (type === "support" ? "5515997364674" : "5515997364674");
   };
 
   const renderCell = (val: boolean | string) => {
@@ -114,7 +114,7 @@ export default function LandingPage() {
           </ul>
           <div className="lp-nav-cta">
             <button className="lp-btn lp-btn-ghost" onClick={() => navigate("/login")}>Entrar</button>
-            <button className="lp-btn lp-btn-primary" onClick={() => openWpp("sales")}>Falar com vendas →</button>
+            <button className="lp-btn lp-btn-primary" onClick={() => openWpp("sales")}>Falar no WhatsApp →</button>
           </div>
           <button className={`lp-hamburger ${menuOpen ? "lp-active" : ""}`} onClick={() => setMenuOpen(!menuOpen)}>
             <span /><span /><span />
@@ -124,89 +124,74 @@ export default function LandingPage() {
 
       {/* Mobile menu */}
       <div className={`lp-mob-menu ${menuOpen ? "lp-open" : ""}`}>
-        <a href="#recursos"      onClick={() => scrollTo("#recursos")}>Recursos</a>
-        <a href="#como-funciona" onClick={() => scrollTo("#como-funciona")}>Como Funciona</a>
-        <a href="#precos"        onClick={() => scrollTo("#precos")}>Preços</a>
-        <a href="#depoimentos"   onClick={() => scrollTo("#depoimentos")}>Depoimentos</a>
-        <a href="/blog"          onClick={() => navigate("/blog")}>Blog</a>
-        <button className="lp-btn lp-btn-ghost"   onClick={() => navigate("/login")}>Entrar</button>
-        <button className="lp-btn lp-btn-primary" onClick={() => openWpp("sales")}>Falar com vendas →</button>
+        <div className="lp-mob-menu-header">
+          <img src={logoImg} alt="Agendelle" className="lp-mob-menu-logo" />
+          <button className="lp-mob-menu-close" onClick={() => setMenuOpen(false)}>✕</button>
+        </div>
+        <div className="lp-mob-menu-nav">
+          <a href="#recursos"      onClick={() => scrollTo("#recursos")}>Recursos</a>
+          <a href="#como-funciona" onClick={() => scrollTo("#como-funciona")}>Como Funciona</a>
+          <a href="#precos"        onClick={() => scrollTo("#precos")}>Preços</a>
+          <a href="#depoimentos"   onClick={() => scrollTo("#depoimentos")}>Depoimentos</a>
+          <a href="/blog"          onClick={() => navigate("/blog")}>Blog</a>
+        </div>
+        <div className="lp-mob-menu-footer">
+          <button className="lp-btn lp-btn-ghost"   onClick={() => navigate("/login")}>Entrar na conta</button>
+          <button className="lp-btn lp-btn-primary" onClick={() => openWpp("sales")}>Falar no WhatsApp →</button>
+        </div>
       </div>
 
       {/* ══ HERO ════════════════════════════════════ */}
       <section className="lp-hero">
-        <div className="lp-blob lp-blob-1" />
-        <div className="lp-blob lp-blob-2" />
-        <div className="lp-blob lp-blob-3" />
-        <div className="lp-container">
-          <div className="lp-hero-inner">
+        {/* Imagem de fundo */}
+        <div className="lp-hero-bg-img" />
+        {/* Overlay escuro */}
+        <div className="lp-hero-overlay" />
+        {/* Partículas douradas */}
+        <div className="lp-hero-particles">
+          {[...Array(18)].map((_,i) => <span key={i} className={`lp-particle lp-p${i%6}`} />)}
+        </div>
 
-            {/* Left */}
-            <div>
-              <div className="lp-hero-badge">
-                <span className="lp-tag">✨ Novo</span>
-                Versão 2.0 com Gestão Inteligente
-              </div>
-              <h1>
-                A sua <span className="lp-g">agenda inteligente</span><br />
-                e elegante para o seu<br />negócio de beleza
-              </h1>
-              <p className="lp-hero-sub">
-                Agendelle une organização inteligente com elegância — o sistema perfeito para salões e barbearias que querem crescer com profissionalismo.
-              </p>
-              <div className="lp-hero-actions">
-                <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>
-                  <Sparkles size={18} /> Solicitar teste de 30 dias
-                </button>
-                <button className="lp-btn lp-btn-ghost" onClick={() => scrollTo("#como-funciona")}>
-                  <Play size={18} /> Ver como funciona
-                </button>
-              </div>
-              <div className="lp-hero-trust">
-                <div className="lp-avs">
-                  <span className="lp-av lp-av1">MG</span>
-                  <span className="lp-av lp-av2">JL</span>
-                  <span className="lp-av lp-av3">RF</span>
-                  <span className="lp-av lp-av4">CS</span>
-                </div>
-                <div className="lp-trust-text">
-                  <strong>+2.800 negócios</strong> já confiam<br />na Agendelle todo dia
-                </div>
-              </div>
+        <div className="lp-hero-inner">
+          <div className="lp-hero-text">
+            <h1>
+              Pare de perder horários<br />
+              pelo <span className="lp-g">WhatsApp.</span>
+            </h1>
+            <p className="lp-hero-sub">
+              Com o Agendelle, seu salão, barbearia ou studio recebe agendamentos online, envia lembretes automáticos, cria um site profissional e organiza clientes, pagamentos e equipe em um só lugar.
+            </p>
+            <div className="lp-hero-actions">
+              <button className="lp-btn lp-btn-hero-primary" onClick={() => scrollTo("#precos")}>
+                Testar grátis por 30 dias
+              </button>
+              <button className="lp-btn lp-btn-hero-ghost" onClick={() => openWpp("sales")}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{flexShrink:0}}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Ver demonstração no WhatsApp
+              </button>
             </div>
-
-            {/* Right visual */}
-            <div className="lp-hero-visual lp-af">
-              <div className="lp-hero-card">
-                <div className="lp-hero-img">
-                  <img src={logoImg} alt="Agendelle — Agendamentos Inteligentes" />
-                </div>
-              </div>
-              <div className="lp-float-card lp-fc-top lp-afb">
-                <div className="lp-fc-row">
-                  <div className="lp-fc-ico">📅</div>
-                  <div>
-                    <div className="lp-fc-lbl">Agendamentos hoje</div>
-                    <div className="lp-fc-val">38 confirmados</div>
-                    <div className="lp-fc-sub">↑ +12 vs ontem</div>
-                  </div>
-                </div>
-              </div>
-              <div className="lp-float-card lp-fc-bot">
-                <div className="lp-fc-lbl">Receita do mês 💰</div>
-                <div className="lp-fc-val lp-g" style={{fontSize:"1.2rem"}}>R$ 18.430</div>
-                <div className="lp-fc-sub">↑ +38% esse mês</div>
-              </div>
+            <div className="lp-trust-pills">
+              <span className="lp-trust-pill"><Check size={12} /> Sem cartão</span>
+              <span className="lp-trust-pill"><Check size={12} /> Sem fidelidade</span>
+              <span className="lp-trust-pill"><Check size={12} /> Implantação assistida</span>
             </div>
-
           </div>
+        </div>
+
+        {/* Ondas SVG animadas na base */}
+        <div className="lp-hero-waves">
+          <svg viewBox="0 0 1440 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <path className="lp-wave lp-wave-1" d="M0,60 C360,120 1080,0 1440,60 L1440,120 L0,120 Z" />
+            <path className="lp-wave lp-wave-2" d="M0,80 C480,20 960,110 1440,70 L1440,120 L0,120 Z" />
+            <path className="lp-wave lp-wave-3" d="M0,100 C320,60 1120,100 1440,85 L1440,120 L0,120 Z" />
+          </svg>
         </div>
       </section>
 
       {/* ══ LOGOS BAR ═══════════════════════════════ */}
       <section className="lp-logos">
         <div className="lp-container">
-          <p className="lp-logos-label">Usado por profissionais de todo o Brasil</p>
+          <p className="lp-logos-label">Para profissionais de beleza de todo o Brasil</p>
           <div className="lp-logos-inner">
             {["Barbearias","Salões","Studios de Beleza","Spas","Barbearia Premium","Estéticas"].map((item, i, arr) => (
               <span key={item} style={{display:"flex",alignItems:"center"}}>
@@ -223,10 +208,10 @@ export default function LandingPage() {
         <div className="lp-container">
           <div className="lp-stats-grid">
             {[
-              { num: "2.800+", lbl: "Estabelecimentos ativos" },
-              { num: "1,2M+",  lbl: "Agendamentos realizados" },
-              { num: "98%",    lbl: "Taxa de satisfação" },
-              { num: "+40%",   lbl: "Aumento médio de receita" },
+              { num: "30 dias", lbl: "Teste grátis para usar na prática" },
+              { num: "5 min",   lbl: "Seu link de agendamento no ar" },
+              { num: "24h",     lbl: "Clientes agendando mesmo fora do horário" },
+              { num: "0",       lbl: "Fidelidade — cancele quando quiser" },
             ].map((s, i) => (
               <div key={s.num} className={`lp-stat lp-rv lp-d${i}`}>
                 <div className="lp-stat-num lp-g">{s.num}</div>
@@ -243,16 +228,16 @@ export default function LandingPage() {
           <div className="lp-sec-header">
             <div className="lp-chip lp-rv"><span className="lp-chip-dot" />Recursos</div>
             <h2 className="lp-sec-title lp-rv lp-d1">Tudo que você precisa<br /><span className="lp-g">em um só lugar</span></h2>
-            <p className="lp-sec-sub lp-rv lp-d2">Uma plataforma completa para gerenciar, crescer e encantar seus clientes — com tecnologia elegante e fácil de usar.</p>
+            <p className="lp-sec-sub lp-rv lp-d2">Chega de responder mensagem no WhatsApp para confirmar horário. O Agendelle organiza tudo de forma automática, profissional e simples.</p>
           </div>
           <div className="lp-feat-grid">
             {[
-              { ico:<Smartphone />, cls:"lp-fi1", title:"Agendamento Online 24/7",       desc:"Link personalizado da sua marca. Clientes agendam pelo celular a qualquer hora, com confirmação automática e fila de espera inteligente." },
-              { ico:<Globe />,      cls:"lp-fi2", title:"Site Próprio em 5 Minutos",      desc:"Cada profissional tem seu próprio site com serviços, fotos, equipe e tema personalizado. Pronto para compartilhar no Instagram em minutos — sem programador." },
-              { ico:<CreditCard />, cls:"lp-fi3", title:"Carrinho de Vendas Online",      desc:"Clientes adicionam serviços e produtos ao carrinho e finalizam direto no site do estabelecimento. Venda online sem precisar de loja separada." },
-              { ico:<Users />,      cls:"lp-fi4", title:"Comissões por Profissional",     desc:"Defina comissões em percentual ou valor fixo por serviço e por profissional. Relatórios automáticos de pagamento no fechamento do período." },
-              { ico:<BarChart3 />,  cls:"lp-fi5", title:"Fluxo de Caixa e Relatórios",   desc:"Dashboard financeiro completo: faturamento diário, ticket médio, serviços mais lucrativos, horários de pico e desempenho por profissional." },
-              { ico:<Star />,       cls:"lp-fi6", title:"Clube de Assinaturas",           desc:"Crie planos mensais com créditos de serviços. Clientes assinantes garantem receita recorrente e voltam mais vezes ao seu estabelecimento." },
+              { ico:<Smartphone />, cls:"lp-fi1", title:"Agendamento Online 24h",        desc:"Seu cliente escolhe serviço, profissional e horário pelo celular, sem depender de troca de mensagens." },
+              { ico:<Globe />,      cls:"lp-fi2", title:"Site Próprio em Minutos",        desc:"Tenha um link profissional com seus serviços, fotos, equipe e botão de agendamento para colocar na bio do Instagram." },
+              { ico:<Bell />,       cls:"lp-fi3", title:"Lembretes no WhatsApp",          desc:"Reduza faltas com confirmações e lembretes automáticos enviados antes do horário — sem você precisar fazer nada." },
+              { ico:<BarChart3 />,  cls:"lp-fi4", title:"Financeiro e Comissões",         desc:"Acompanhe faturamento, pagamentos, comissões e desempenho dos profissionais em um só painel." },
+              { ico:<Package />,    cls:"lp-fi5", title:"Produtos e Carrinho Online",     desc:"Venda serviços e produtos no seu próprio link, sem precisar criar uma loja separada." },
+              { ico:<Star />,       cls:"lp-fi6", title:"Clube de Assinaturas",           desc:"Crie planos mensais e aumente sua receita recorrente com clientes que voltam todo mês." },
             ].map((f, i) => (
               <div key={f.title} className={`lp-feat-card lp-rv lp-d${i}`}>
                 <div className={`lp-feat-ico ${f.cls}`}>{f.ico}</div>
@@ -423,13 +408,13 @@ export default function LandingPage() {
             <div className="lp-rv lp-d2">
               <div className="lp-chip"><span className="lp-chip-dot" />Resultados reais</div>
               <h2 className="lp-sec-title">Sua agenda cheia,<br /><span className="lp-g">seu negócio crescendo</span></h2>
-              <p className="lp-sec-sub">Deixe de usar papel ou grupos de WhatsApp para agendar. Com a Agendelle, tudo é automático, profissional e elegante.</p>
+              <p className="lp-sec-sub">Deixe de usar papel ou grupos de WhatsApp para agendar. Com o Agendelle, tudo é automático, profissional e simples de usar.</p>
               <ul className="lp-ben-list">
                 {[
-                  { ico:<TrendingUp size={20} />, cls:"lp-bi1", title:"Reduza faltas em até 70%",    desc:"Lembretes automáticos via WhatsApp, SMS e e-mail garantem que seus clientes apareçam." },
-                  { ico:<Clock size={20} />,      cls:"lp-bi2", title:"Economize 3h por dia",         desc:"Chega de responder mensagem para confirmar horário. Tudo acontece automaticamente." },
-                  { ico:<TrendingUp size={20} />, cls:"lp-bi3", title:"Aumente o ticket médio",        desc:"Sugira serviços complementares no momento do agendamento e venda mais sem esforço." },
-                  { ico:<Sparkles size={20} />,   cls:"lp-bi4", title:"Imagem profissional imediata",  desc:"Seu cliente percebe a diferença na hora — confirmação bonita, elegante e confiável." },
+                  { ico:<TrendingUp size={20} />, cls:"lp-bi1", title:"Menos faltas com lembretes automáticos",  desc:"O sistema avisa seu cliente no WhatsApp antes do horário — sem você precisar lembrar." },
+                  { ico:<Clock size={20} />,      cls:"lp-bi2", title:"Mais tempo para o que importa",           desc:"Chega de responder mensagem para confirmar horário. O cliente agenda sozinho pelo link." },
+                  { ico:<TrendingUp size={20} />, cls:"lp-bi3", title:"Aumente a percepção de profissionalismo", desc:"Seu cliente percebe a diferença na hora — confirmação bonita, elegante e confiável." },
+                  { ico:<Sparkles size={20} />,   cls:"lp-bi4", title:"Financeiro organizado em um lugar",       desc:"Veja faturamento, comissões e desempenho da equipe sem planilha nem papel." },
                 ].map(b => (
                   <li key={b.title} className="lp-ben-item">
                     <div className={`lp-ben-ico ${b.cls}`}>{b.ico}</div>
@@ -555,7 +540,7 @@ export default function LandingPage() {
           <div className="lp-sec-header">
             <div className="lp-chip lp-rv"><span className="lp-chip-dot" />Comparativo</div>
             <h2 className="lp-sec-title lp-rv lp-d1">Por que escolher<br /><span className="lp-g">o Agendelle?</span></h2>
-            <p className="lp-sec-sub lp-rv lp-d2">Veja como o Agendelle se compara com outras opções do mercado para salões e barbearias.</p>
+            <p className="lp-sec-sub lp-rv lp-d2">Veja como o Agendelle se compara com agenda manual no WhatsApp e sistemas tradicionais.</p>
           </div>
           <div className="lp-cmp-wrap lp-rv lp-d2">
             <table className="lp-cmp-table">
@@ -567,27 +552,26 @@ export default function LandingPage() {
                       <span className="lp-cmp-badge-winner">★ Agendelle</span>
                     </div>
                   </th>
-                  <th className="lp-cmp-other">Concorrente A</th>
-                  <th className="lp-cmp-other">Concorrente B</th>
+                  <th className="lp-cmp-other">Agenda no WhatsApp</th>
+                  <th className="lp-cmp-other">Sistemas Comuns</th>
                 </tr>
               </thead>
               <tbody>
                 {[
-                  { feat: "Agendamento online com link personalizado",        ag: true,  a: true,      b: true    },
-                  { feat: "Site próprio do profissional (em 5 minutos)",     ag: true,  a: false,     b: false   },
-                  { feat: "Carrinho de vendas online com produtos",          ag: true,  a: false,     b: false   },
-                  { feat: "Lembretes automáticos via WhatsApp",              ag: true,  a: true,      b: "parcial" },
-                  { feat: "Fluxo de caixa e relatórios financeiros",         ag: true,  a: true,      b: false   },
-                  { feat: "Comissões por profissional e por serviço",        ag: true,  a: true,      b: false   },
-                  { feat: "Controle de estoque com movimentações",           ag: true,  a: false,     b: false   },
-                  { feat: "Clube de assinaturas com créditos",               ag: true,  a: "parcial", b: false   },
-                  { feat: "Histórico completo e perfil do cliente",          ag: true,  a: true,      b: true    },
-                  { feat: "Agenda individual por profissional",              ag: true,  a: true,      b: true    },
-                  { feat: "Fila de espera / PAT (terminal de atendimento)",  ag: true,  a: false,     b: false   },
-                  { feat: "Agendamentos recorrentes e multi-sessão",         ag: true,  a: false,     b: false   },
-                  { feat: "Permissões de acesso por função",                 ag: true,  a: "parcial", b: false   },
-                  { feat: "Notificação ao profissional via WhatsApp",        ag: true,  a: false,     b: false   },
-                  { feat: "Teste gratuito de 30 dias",                       ag: true,  a: "5 dias",  b: false   },
+                  { feat: "Agendamento online 24h sem depender de você",     ag: true,  a: false,       b: true      },
+                  { feat: "Site próprio com link para o Instagram",          ag: true,  a: false,       b: false     },
+                  { feat: "Lembretes automáticos via WhatsApp",              ag: true,  a: false,       b: "parcial" },
+                  { feat: "Carrinho de vendas online com produtos",          ag: true,  a: false,       b: false     },
+                  { feat: "Fluxo de caixa e relatórios financeiros",         ag: true,  a: false,       b: true      },
+                  { feat: "Comissões por profissional e por serviço",        ag: true,  a: false,       b: "parcial" },
+                  { feat: "Clube de assinaturas com créditos",               ag: true,  a: false,       b: false     },
+                  { feat: "Controle de estoque com movimentações",           ag: true,  a: false,       b: false     },
+                  { feat: "Agenda individual por profissional",              ag: true,  a: false,       b: true      },
+                  { feat: "Notificação ao profissional via WhatsApp",        ag: true,  a: false,       b: false     },
+                  { feat: "Fila de espera automática",                       ag: true,  a: false,       b: false     },
+                  { feat: "Agendamentos recorrentes e multi-sessão",         ag: true,  a: false,       b: false     },
+                  { feat: "Suporte próximo na implantação",                  ag: true,  a: false,       b: "parcial" },
+                  { feat: "Teste gratuito de 30 dias",                       ag: true,  a: false,       b: "5 dias"  },
                 ].map((row, i) => (
                   <tr key={row.feat} className={i % 2 === 0 ? "lp-cmp-row-even" : ""}>
                     <td className="lp-cmp-feat-cell">{row.feat}</td>
@@ -599,7 +583,7 @@ export default function LandingPage() {
               </tbody>
             </table>
           </div>
-          <p className="lp-cmp-disclaimer lp-rv lp-d3">* Comparativo baseado em informações públicas dos sites dos concorrentes. Atualizado em 2026.</p>
+          <p className="lp-cmp-disclaimer lp-rv lp-d3">* Comparativo baseado em funcionalidades disponíveis publicamente. Atualizado em 2026.</p>
         </div>
       </section>
 
@@ -609,7 +593,7 @@ export default function LandingPage() {
           <div className="lp-sec-header">
             <div className="lp-chip lp-rv"><span className="lp-chip-dot" />Planos</div>
             <h2 className="lp-sec-title lp-rv lp-d1">O plano certo para<br /><span className="lp-g">cada momento</span></h2>
-            <p className="lp-sec-sub lp-rv lp-d2">Faça um teste de 30 dias e comprove o valor. Cancele quando quiser — sem contratos ou surpresas.</p>
+            <p className="lp-sec-sub lp-rv lp-d2">Teste 30 dias e comprove na prática. Cancele quando quiser, sem contratos ou fidelidade.</p>
           </div>
           <div className="lp-price-grid">
             {loadingPlans ? (
@@ -620,7 +604,7 @@ export default function LandingPage() {
                 .map((p, idx) => {
                   let features = [];
                   try { features = JSON.parse(p.features || "[]"); } catch(e) { features = []; }
-                  const isHot = p.name === "Pro" || p.is_popular || p.isPopular;
+                  const isHot = !!p.isPopular;
 
                 return (
                   <div key={p.id} className={`lp-price-card ${isHot ? "lp-hot" : ""} lp-rv lp-d${idx * 2}`}>
@@ -633,7 +617,11 @@ export default function LandingPage() {
                       </span>
                       <span className="lp-pper">/mês</span>
                     </div>
-                    <p className="lp-pdesc">{p.description || "O plano perfeito para o seu negócio."}</p>
+                    <p className="lp-pdesc">{p.description || (
+                      p.name === "Básico" ? "Para profissionais autônomos que querem organizar a agenda e receber agendamentos online." :
+                      p.name === "Pro" ? "Para salões e barbearias que precisam controlar agenda, caixa, comandas e equipe." :
+                      "Para negócios com equipe maior e necessidade de gestão completa."
+                    )}</p>
                     <div className="lp-pdiv" />
                     <ul className="lp-pfeats">
                       {features.map((f: string, i: number) => (
@@ -649,7 +637,7 @@ export default function LandingPage() {
                         navigate(`/assinar?${params.toString()}`);
                       }}
                     >
-                      Assinar Agora
+                      Testar grátis por 30 dias
                     </button>
                   </div>
                 );
@@ -661,59 +649,103 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ TESTIMONIALS ════════════════════════════ */}
-      <section className="lp-testi" id="depoimentos">
+      {/* ══ FAQ ═════════════════════════════════════ */}
+      <section className="lp-faq" id="depoimentos">
         <div className="lp-container">
-          <div className="lp-sec-header">
-            <div className="lp-chip lp-rv"><span className="lp-chip-dot" />Depoimentos</div>
-            <h2 className="lp-sec-title lp-rv lp-d1">O que dizem nossos<br /><span className="lp-g">clientes</span></h2>
-            <p className="lp-sec-sub lp-rv lp-d2">Mais de 2.800 profissionais já transformaram seus negócios com a Agendelle.</p>
-          </div>
-          <div className="lp-testi-grid">
-            {[
-              { av:"MG", cls:"lp-ta1", name:"Mariana Gomes",   role:"Salão Mariana Beauty · SP", quote:"Minha agenda estava bagunçada e eu perdia tempo no WhatsApp. Depois da Agendelle, tudo ficou automático. Minha receita cresceu 40% no primeiro mês!" },
-              { av:"JL", cls:"lp-ta2", name:"João Lima",        role:"Barbearia Corte & Arte · RJ", quote:"A função de lembrete via WhatsApp mudou tudo. As faltas caíram pra quase zero. Economizo mais de 2 horas por dia que eu gastava confirmando horário." },
-              { av:"RF", cls:"lp-ta3", name:"Renata Fonseca",  role:"Studio Renata · BH", quote:"O sistema é lindo, fácil de usar e meus clientes adoraram o link de agendamento. Parece coisa de empresa grande. Não abro mão nunca mais." },
-            ].map((t,i) => (
-              <div key={t.name} className={`lp-testi-card lp-rv lp-d${i*2}`}>
-                <div className="lp-stars">★★★★★</div>
-                <p className="lp-tquote">"{t.quote}"</p>
-                <div className="lp-tauthor">
-                  <div className={`lp-tav ${t.cls}`}>{t.av}</div>
-                  <div>
-                    <div className="lp-tname">{t.name}</div>
-                    <div className="lp-trole">{t.role}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="lp-faq-inner">
+
+            {/* Esquerda */}
+            <div className="lp-faq-left lp-rv">
+              <div className="lp-chip"><span className="lp-chip-dot" />Dúvidas frequentes</div>
+              <h2 className="lp-sec-title">Tem alguma<br /><span className="lp-g">dúvida?</span></h2>
+              <p className="lp-sec-sub">Respondemos as perguntas mais comuns. Se não encontrar o que procura, fale direto com a gente pelo WhatsApp.</p>
+              <button
+                className="lp-faq-wpp-btn lp-rv lp-d2"
+                onClick={() => openWpp("support")}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Tirar dúvidas no WhatsApp
+              </button>
+            </div>
+
+            {/* Direita — perguntas */}
+            <div className="lp-faq-list">
+              {[
+                { q: "Como funciona o teste de 30 dias?", a: "Você acessa o sistema completo por 30 dias sem nenhum custo. Nossa equipe te ajuda a configurar tudo — serviços, profissionais, horários e site. Só começa a cobrar depois do período de teste." },
+                { q: "Preciso instalar algum aplicativo?", a: "Não. O Agendelle funciona direto no navegador, no celular ou computador. Seus clientes agendam pelo link da sua marca, sem instalar nada." },
+                { q: "Posso usar para mais de um profissional?", a: "Sim. Você cadastra quantos profissionais quiser, cada um com sua própria agenda, serviços, horários e comissões." },
+                { q: "Como funciona o lembrete automático via WhatsApp?", a: "O sistema envia mensagens automáticas para seus clientes confirmando o agendamento, lembrando 24h antes e 1h antes do horário." },
+                { q: "Posso cancelar quando quiser?", a: "Sim, sem multa e sem fidelidade. Você cancela pelo painel a qualquer momento." },
+              ].map((item, i) => (
+                <details key={i} className={`lp-faq-item lp-rv lp-d${i}`}>
+                  <summary className="lp-faq-q">
+                    {item.q}
+                    <span className="lp-faq-icon">+</span>
+                  </summary>
+                  <p className="lp-faq-a">{item.a}</p>
+                </details>
+              ))}
+            </div>
+
           </div>
         </div>
       </section>
 
+      {/* ══ WHATSAPP FLUTUANTE ═══════════════════════ */}
+      <a
+        className="lp-wpp-float"
+        href={`https://wa.me/5515997364674?text=${encodeURIComponent("Olá! Tenho uma dúvida sobre o Agendelle.")}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Falar no WhatsApp"
+      >
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        <span>Falar com a gente</span>
+      </a>
+
       {/* ══ CTA ═════════════════════════════════════ */}
-      <section className="lp-cta">
+      <section className="lp-cta lp-rv">
+        <div className="lp-cta-glow lp-cta-g1" />
+        <div className="lp-cta-glow lp-cta-g2" />
         <div className="lp-container">
-          <div className="lp-cta-box lp-rv">
-            <div className="lp-cta-blob lp-cta-b1" />
-            <div className="lp-cta-blob lp-cta-b2" />
-            <h2>Pronto para ter a agenda<br />mais elegante do mercado?</h2>
-            <p>Faça o teste e comprove você mesmo. Em menos de 5 minutos seu negócio está online, elegante e recebendo agendamentos.</p>
-            <div className="lp-cta-acts">
-              <button className="lp-btn lp-btn-white" onClick={() => navigate("/login")}>
-                <Sparkles size={18} /> Solicitar teste de 30 dias
-              </button>
-              <button className="lp-btn lp-btn-clear" onClick={() => navigate("/login")}>
-                Falar com especialista
-              </button>
+          <div className="lp-cta-inner">
+
+            {/* Esquerda */}
+            <div className="lp-cta-left">
+              <div className="lp-cta-label">Comece hoje</div>
+              <h2>Organize sua<br />agenda em<br /><span className="lp-cta-gold">5 minutos.</span></h2>
+              <p>30 dias grátis para testar tudo.<br />Sem contrato, sem fidelidade.</p>
             </div>
-            <div className="lp-cta-note">
-              <span><Check size={16} /> 30 dias de teste</span> 
-              <span>·</span> 
-              <span><Check size={16} /> Sem fidelidade</span> 
-              <span>·</span> 
-              <span><Check size={16} /> Cancele quando quiser</span>
+
+            {/* Direita */}
+            <div className="lp-cta-right">
+              <div className="lp-cta-card">
+                <div className="lp-cta-checks">
+                  {[
+                    "Agenda online 24h no seu link",
+                    "Site profissional em 5 minutos",
+                    "Lembretes automáticos via WhatsApp",
+                    "Financeiro e comissões da equipe",
+                    "Suporte próximo na implantação",
+                  ].map(item => (
+                    <div key={item} className="lp-cta-check-item">
+                      <div className="lp-cta-check-ico"><Check size={13} /></div>
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="lp-cta-btns">
+                  <button className="lp-btn lp-cta-btn-primary" onClick={() => scrollTo("#precos")}>
+                    Testar grátis por 30 dias
+                  </button>
+                  <button className="lp-btn lp-cta-btn-ghost" onClick={() => openWpp("sales")}>
+                    Falar no WhatsApp →
+                  </button>
+                </div>
+                <p className="lp-cta-fine">Teste 30 dias grátis · Cancele quando quiser</p>
+              </div>
             </div>
+
           </div>
         </div>
       </section>
@@ -735,7 +767,7 @@ export default function LandingPage() {
                 <li><a href="#recursos">Recursos</a></li>
                 <li><a href="#precos">Preços</a></li>
                 <li><a href="#como-funciona">Como Funciona</a></li>
-                <li><button onClick={() => openWpp("sales")} className="lp-footer-link-btn">Falar com Vendas</button></li>
+                <li><button onClick={() => openWpp("sales")} className="lp-footer-link-btn">Falar no WhatsApp</button></li>
                 <li><button onClick={() => openWpp("support")} className="lp-footer-link-btn">Suporte Técnico</button></li>
               </ul>
             </div>
@@ -749,11 +781,13 @@ export default function LandingPage() {
             </div>
             <div className="lp-foot-col">
               <h5>Conecte-se</h5>
-              <div className="flex gap-3 mt-2">
-                <a href="#" className="w-10 h-10 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-400 hover:bg-zinc-900 hover:text-white transition-all">
-                  <Smartphone size={18} />
+              <div className="lp-foot-social">
+                <a href="https://www.instagram.com/develoi.solucoesdigitais/" target="_blank" rel="noopener noreferrer" className="lp-foot-social-btn lp-foot-social-ig" aria-label="Instagram Develoi">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
                 </a>
-                <a href="#" className="w-10 h-10 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-400 hover:bg-zinc-900 hover:text-white transition-all">
+                <a href="https://develoi.com.br/" target="_blank" rel="noopener noreferrer" className="lp-foot-social-btn lp-foot-social-web" aria-label="Site Develoi">
                   <Globe size={18} />
                 </a>
               </div>

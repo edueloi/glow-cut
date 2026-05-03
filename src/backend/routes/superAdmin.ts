@@ -551,7 +551,8 @@ superAdminRouter.post("/plans", async (req, res) => {
     canCreateAdminUsers, canDeleteAccount,
     systemBotEnabled, qrCodeBotEnabled, siteEnabled, agendaExternaEnabled,
     priceExtraProfessional, stripePaymentLink, stripePriceId,
-    features, permissions, wppEnabled
+    features, permissions, wppEnabled,
+    description, isPopular, showOnSite
   } = req.body;
 
   if (!name) return res.status(400).json({ error: "Nome do plano obrigatório." });
@@ -576,6 +577,9 @@ superAdminRouter.post("/plans", async (req, res) => {
         wppEnabled: !!wppEnabled,
         features: Array.isArray(features) ? JSON.stringify(features) : (features || "[]"),
         permissions: typeof permissions === "object" ? JSON.stringify(permissions) : (permissions || "{}"),
+        description: description || null,
+        isPopular: !!isPopular,
+        showOnSite: showOnSite !== undefined ? !!showOnSite : true,
       },
     });
     res.json(plan);
@@ -590,7 +594,8 @@ superAdminRouter.put("/plans/:id", async (req, res) => {
     canCreateAdminUsers, canDeleteAccount,
     systemBotEnabled, qrCodeBotEnabled, siteEnabled, agendaExternaEnabled,
     priceExtraProfessional, stripePaymentLink, stripePriceId,
-    features, permissions, isActive, wppEnabled
+    features, permissions, isActive, wppEnabled,
+    description, isPopular, showOnSite
   } = req.body;
 
   try {
@@ -613,6 +618,9 @@ superAdminRouter.put("/plans/:id", async (req, res) => {
     if (wppEnabled !== undefined) data.wppEnabled = wppEnabled ? true : false;
     if (features !== undefined) data.features = Array.isArray(features) ? JSON.stringify(features) : features;
     if (permissions !== undefined) data.permissions = typeof permissions === "object" ? JSON.stringify(permissions) : permissions;
+    if (description !== undefined) data.description = description || null;
+    if (isPopular !== undefined) data.isPopular = !!isPopular;
+    if (showOnSite !== undefined) data.showOnSite = !!showOnSite;
 
     const plan = await (prisma as any).plan.update({
       where: { id: req.params.id },
@@ -900,7 +908,7 @@ superAdminRouter.put("/admin-users/:id", async (req, res) => {
       data: {
         ...(name !== undefined && { name }),
         ...(email !== undefined && { email }),
-        ...(password !== undefined && { password }),
+        ...(password !== undefined && password !== "" && { password }),
         ...(role !== undefined && { role }),
         ...(jobTitle !== undefined && { jobTitle }),
         ...(phone !== undefined && { phone }),
