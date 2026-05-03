@@ -5869,8 +5869,8 @@ export default function SuperAdminDashboard({ username, onLogout, permissions }:
         </header>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
+        <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+          <div className="w-full max-w-none min-w-0">
             {tab === "dash"        && <DashboardTab />}
             {tab === "plans"       && <PlansTab />}
             {tab === "tenants"     && <TenantsTab plans={plans} />}
