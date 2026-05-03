@@ -131,14 +131,14 @@ export function StatCard({
 
       {/* Conteúdo */}
       <div className="relative z-10">
-        <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-0.5 sm:mb-1 truncate">
+        <p className="text-[8px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-0.5 sm:mb-1 truncate">
           {title}
         </p>
-        <h3 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tight leading-none">
+        <h3 className="text-base sm:text-2xl font-black text-zinc-900 tracking-tight leading-none">
           {value}
         </h3>
         {description && (
-          <p className="text-[9px] sm:text-[10px] text-zinc-400 mt-1 sm:mt-1.5 font-medium flex items-center gap-1">
+          <p className="hidden sm:flex text-[9px] sm:text-[10px] text-zinc-400 mt-1 sm:mt-1.5 font-medium items-center gap-1">
             <span className="w-1 h-1 rounded-full bg-zinc-300 shrink-0" />
             <span className="truncate">{description}</span>
           </p>

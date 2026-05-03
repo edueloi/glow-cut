@@ -221,6 +221,7 @@ export function ControleView() {
         </FilterLineSection>
         <FilterLineSection align="right">
           <FilterLineSegmented
+            size="sm"
             value={typeFilter}
             onChange={v => setTypeFilter(String(v))}
             options={[
@@ -229,15 +230,18 @@ export function ControleView() {
               { value: "expense", label: "Saídas" },
             ]}
           />
-          <Button
-            variant="primary"
-            size="sm"
-            iconLeft={<Plus size={14} />}
-            onClick={() => setShowModal(true)}
-          >
-            <span className="hidden sm:inline">Novo Lançamento</span>
-            <span className="sm:hidden">Novo</span>
-          </Button>
+          <div className="flex-1 xl:flex-none">
+            <Button
+              variant="primary"
+              size="sm"
+              fullWidth
+              iconLeft={<Plus size={14} />}
+              onClick={() => setShowModal(true)}
+              className="xl:w-auto"
+            >
+              Novo Lançamento
+            </Button>
+          </div>
         </FilterLineSection>
       </FilterLine>
 

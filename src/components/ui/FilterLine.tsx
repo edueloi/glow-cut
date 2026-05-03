@@ -71,7 +71,7 @@ interface FilterLineDateRangeProps {
 
 export const FilterLine: React.FC<FilterLineProps> = ({ children, className = '', ...props }) => (
   <div className={cx('w-full rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm md:p-4', className)} {...props}>
-    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+    <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
       {children}
     </div>
   </div>
@@ -82,13 +82,13 @@ export const FilterLineSection: React.FC<FilterLineSectionProps> = ({
 }) => (
   <div
     className={cx(
-      'min-w-0',
+      'min-w-0 w-full xl:w-auto',
       grow && 'flex-1',
-      'flex items-center gap-3',
+      'flex items-center gap-2 sm:gap-3',
       wrap ? 'flex-wrap' : 'flex-nowrap',
       align === 'left' && 'justify-start',
       align === 'center' && 'justify-center',
-      align === 'right' && 'justify-start xl:justify-end',
+      align === 'right' && 'justify-between xl:justify-end',
       className
     )}
     {...props}
@@ -134,7 +134,7 @@ export function FilterLineSegmented<T extends string | number = string>({
             onClick={() => onChange(option.value)}
             className={cx(
               'inline-flex items-center gap-2 rounded-lg font-bold transition-all',
-              size === 'sm' ? 'px-3 py-1.5 text-[10px]' : 'px-4 py-2 text-xs',
+              size === 'sm' ? 'px-3 py-1 h-7 text-[10px]' : 'px-4 py-2 text-xs',
               active ? 'bg-white text-amber-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'
             )}
           >
@@ -197,16 +197,16 @@ export const FilterLineSearch: React.FC<FilterLineSearchProps> = ({
 export const FilterLineDateRange: React.FC<FilterLineDateRangeProps> = ({
   from, to, onFromChange, onToChange, fromLabel = 'De', toLabel = 'Até', className = '',
 }) => (
-  <div className={cx('flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-3', className)}>
+  <div className={cx('flex w-full flex-col gap-2', className)}>
     <div className="flex items-center gap-2">
-      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{fromLabel}</span>
-      <div className="min-w-[140px]">
+      <span className="w-6 shrink-0 text-[10px] font-black uppercase tracking-widest text-zinc-400">{fromLabel}</span>
+      <div className="flex-1">
         <DatePicker value={from} onChange={onFromChange} />
       </div>
     </div>
     <div className="flex items-center gap-2">
-      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{toLabel}</span>
-      <div className="min-w-[140px]">
+      <span className="w-6 shrink-0 text-[10px] font-black uppercase tracking-widest text-zinc-400">{toLabel}</span>
+      <div className="flex-1">
         <DatePicker value={to} onChange={onToChange} />
       </div>
     </div>
