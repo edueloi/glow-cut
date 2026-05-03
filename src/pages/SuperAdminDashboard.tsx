@@ -5741,62 +5741,21 @@ function Sidebar({ tab, setTab, username, onLogout, onClose, permissions }: {
     return !!permissions[item.key]?.ver;
   });
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#fff", borderRight: "1px solid #f3f4f6", width: "100%" }}>
-      {/* Logo */}
-      <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid #f3f4f6", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 12, background: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <img src="/favicon.png" alt="Agendelle" style={{ width: 20, height: 20, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+        <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 mb-2">
+          <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+            <span className="text-sm font-black text-amber-500">{username[0]?.toUpperCase()}</span>
           </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: 14, fontWeight: 900, color: "#111", lineHeight: 1, margin: 0 }}>Agendelle</p>
-            <p style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.15em", margin: "3px 0 0" }}>Super Admin</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: "10px 8px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
-        {filteredItems.map(item => (
-          <button
-            key={item.key}
-            onClick={() => { setTab(item.key); navigate(item.path); onClose?.(); }}
-            style={{
-              width: "100%", display: "flex", alignItems: "center", gap: 10,
-              padding: "9px 12px", borderRadius: 10, border: "none", cursor: "pointer",
-              fontSize: 13, fontWeight: 700, textAlign: "left", transition: "all 0.15s",
-              background: tab === item.key ? "#f59e0b" : "transparent",
-              color: tab === item.key ? "#fff" : "#6b7280",
-            }}
-            onMouseEnter={e => { if (tab !== item.key) { (e.currentTarget as HTMLElement).style.background = "#fafafa"; (e.currentTarget as HTMLElement).style.color = "#111"; } }}
-            onMouseLeave={e => { if (tab !== item.key) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#6b7280"; } }}
-          >
-            <span style={{ flexShrink: 0, display: "flex" }}>{item.icon}</span>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
-          </button>
-        ))}
-      </nav>
-
-      {/* User / Logout */}
-      <div style={{ padding: "8px 8px 16px", borderTop: "1px solid #f3f4f6", flexShrink: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, background: "#fffbeb" }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: "#fde68a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <span style={{ fontSize: 12, fontWeight: 900, color: "#d97706" }}>{username[0]?.toUpperCase()}</span>
-          </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <p style={{ fontSize: 12, fontWeight: 800, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{username}</p>
-            <p style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.1em", margin: "2px 0 0" }}>Super Admin</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-white truncate leading-none">{username}</p>
+            <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mt-1">Super Admin</p>
           </div>
         </div>
         <button
           type="button" onClick={onLogout}
-          style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, border: "none", cursor: "pointer", background: "transparent", fontSize: 13, fontWeight: 700, color: "#9ca3af", transition: "all 0.15s" }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#fef2f2"; (e.currentTarget as HTMLElement).style.color = "#ef4444"; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#9ca3af"; }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-none cursor-pointer bg-transparent text-sm font-bold text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
         >
-          <LogOut size={14} />
-          <span>Sair</span>
+          <LogOut size={16} />
+          <span>Sair do sistema</span>
         </button>
       </div>
     </div>
@@ -5825,71 +5784,73 @@ export default function SuperAdminDashboard({ username, onLogout, permissions }:
   const currentNav = NAV_ITEMS.find(n => n.key === tab);
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#f8f9fa", overflow: "hidden", fontFamily: "'Inter', sans-serif" }}>
+    <div className="flex h-screen bg-zinc-50 overflow-hidden font-sans">
       {/* ── Sidebar desktop ── */}
-      <aside className="hidden md:block" style={{ width: 220, flexShrink: 0 }}>
+      <aside className="hidden md:flex w-64 shrink-0 shadow-2xl z-20">
         <Sidebar tab={tab} setTab={setTab} username={username} onLogout={onLogout} permissions={permissions} />
       </aside>
 
       {/* ── Sidebar mobile overlay ── */}
       {mobileOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex" }} className="md:hidden">
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }} onClick={() => setMobileOpen(false)} />
-          <aside style={{ position: "relative", width: 240, boxShadow: "4px 0 24px rgba(0,0,0,0.15)" }}>
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <aside className="relative w-64 shadow-2xl bg-zinc-950">
             <Sidebar tab={tab} setTab={setTab} username={username} onLogout={onLogout} onClose={() => setMobileOpen(false)} permissions={permissions} />
           </aside>
           <button
-            style={{ position: "absolute", top: 12, right: 12, background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", color: "#fff", borderRadius: 8, padding: 6, display: "flex" }}
+            className="absolute top-4 right-4 bg-white/10 text-white rounded-xl p-2 hover:bg-white/20 transition-colors"
             onClick={() => setMobileOpen(false)}
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
       )}
 
       {/* ── Main area ── */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
-        <header style={{ background: "#fff", borderBottom: "1px solid #f3f4f6", padding: "0 20px", height: 56, display: "flex", alignItems: "center", gap: 12, flexShrink: 0, boxShadow: "0 1px 0 #f3f4f6" }}>
-          {/* Mobile menu button + logo (só aparece em mobile, md:hidden) */}
-          <button
-            className="md:hidden"
-            onClick={() => setMobileOpen(true)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", padding: 4, borderRadius: 8, flexShrink: 0 }}
-          >
-            <Menu size={20} />
-          </button>
-          <div className="flex items-center gap-2 md:hidden" style={{ flexShrink: 0 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 8, background: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <img src="/favicon.png" alt="" style={{ width: 16, height: 16, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+        <header className="bg-white border-b border-zinc-200 px-6 h-16 flex items-center justify-between shrink-0 shadow-sm z-10">
+          <div className="flex items-center gap-4 min-w-0">
+            <button
+              className="md:hidden p-2 -ml-2 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 rounded-xl transition-colors shrink-0"
+              onClick={() => setMobileOpen(true)}
+            >
+              <Menu size={20} />
+            </button>
+            <div className="flex items-center gap-2 md:hidden shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-amber-500 flex items-center justify-center">
+                <img src="/favicon.png" alt="" className="w-4 h-4 object-contain brightness-0 invert" />
+              </div>
             </div>
-            <span style={{ fontSize: 13, fontWeight: 900, color: "#111" }}>Agendelle</span>
+            <h2 className="text-lg font-black text-zinc-800 truncate hidden sm:block">{currentNav?.label}</h2>
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 14, fontWeight: 800, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentNav?.label}</p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#fffbeb", border: "1px solid #fde68a", padding: "5px 12px", borderRadius: 8, flexShrink: 0 }}>
-            <Crown size={12} style={{ color: "#f59e0b" }} />
-            <span style={{ fontSize: 11, fontWeight: 800, color: "#d97706", textTransform: "uppercase", letterSpacing: "0.08em" }}>Super Admin</span>
+          
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
+              <Crown size={14} className="text-amber-500" />
+              <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest hidden sm:inline-block">Master Admin</span>
+            </div>
           </div>
         </header>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px" }}>
-          {tab === "dash"        && <DashboardTab />}
-          {tab === "plans"       && <PlansTab />}
-          {tab === "tenants"     && <TenantsTab plans={plans} />}
-          {tab === "users"       && <UsersTab tenants={tenants} />}
-          {tab === "permissions" && <PermissionsTab tenants={tenants} />}
-          {tab === "blog"        && <BlogTab />}
-          {tab === "wpp"         && <WppTab plans={plans} onUpdatePlans={() => { apiFetch("/api/super-admin/plans").then(r => r.json()).then(setPlans); }} />}
-          {tab === "sales"       && <SalesTab user={userData} plans={plans} />}
-          {tab === "commissions" && <CommissionsTab />}
-          {tab === "finance"     && <FinanceTab />}
-          {tab === "qa"          && <QATab />}
-          {tab === "staff"       && <StaffTab username={username} userPermissions={permissions} />}
-          {tab === "settings"    && <SettingsTab />}
-          {tab === "profile"     && <ProfileTab username={username} />}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto">
+            {tab === "dash"        && <DashboardTab />}
+            {tab === "plans"       && <PlansTab />}
+            {tab === "tenants"     && <TenantsTab plans={plans} />}
+            {tab === "users"       && <UsersTab tenants={tenants} />}
+            {tab === "permissions" && <PermissionsTab tenants={tenants} />}
+            {tab === "blog"        && <BlogTab />}
+            {tab === "wpp"         && <WppTab plans={plans} onUpdatePlans={() => { apiFetch("/api/super-admin/plans").then(r => r.json()).then(setPlans); }} />}
+            {tab === "sales"       && <SalesTab user={userData} plans={plans} />}
+            {tab === "commissions" && <CommissionsTab />}
+            {tab === "finance"     && <FinanceTab />}
+            {tab === "qa"          && <QATab />}
+            {tab === "staff"       && <StaffTab username={username} userPermissions={permissions} />}
+            {tab === "settings"    && <SettingsTab />}
+            {tab === "profile"     && <ProfileTab username={username} />}
+          </div>
         </div>
       </main>
     </div>
