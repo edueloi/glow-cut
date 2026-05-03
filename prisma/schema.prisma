@@ -514,6 +514,8 @@ model Tenant {
   showServices          Boolean     @default(true)
   showTeam              Boolean     @default(true)
   siteCoverUrl          String?     @db.LongText
+  siteTemplate          String?     @default("classic") @db.VarChar(20)
+  galleryImages         String?     @db.LongText
   adminuser             AdminUser[]
   plan                  Plan        @relation(fields: [planId], references: [id], map: "fk_tenant_plan")
   stripeCustomerId      String?     @db.VarChar(100)

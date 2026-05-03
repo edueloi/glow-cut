@@ -206,6 +206,8 @@ export const adminController = {
       if (req.body.showProducts !== undefined) data.showProducts = !!req.body.showProducts;
       if (req.body.showServices !== undefined) data.showServices = !!req.body.showServices;
       if (req.body.showTeam !== undefined) data.showTeam = !!req.body.showTeam;
+      if (req.body.siteTemplate !== undefined) data.siteTemplate = req.body.siteTemplate;
+      if (req.body.galleryImages !== undefined) data.galleryImages = req.body.galleryImages;
 
       const b = req.body;
       if (b.aboutTitle !== undefined) data.aboutTitle = b.aboutTitle;
@@ -309,7 +311,8 @@ export const adminController = {
         aboutTitle: true, experienceYears: true,
         feature1Title: true, feature1Description: true,
         feature2Title: true, feature2Description: true,
-        feature3Title: true, feature3Description: true
+        feature3Title: true, feature3Description: true,
+        siteTemplate: true, galleryImages: true
       }
     });
     if (!tenant) return res.status(404).json({ error: "Estúdio não encontrado." });

@@ -636,6 +636,10 @@
 .lp-pnum { font-size:2.2rem;font-weight:900;line-height:1; }
 .lp-pper { font-size:.85rem;color:var(--lp-text3); }
 .lp-pdesc { font-size:.85rem;color:var(--lp-text2);margin-bottom:24px;line-height:1.6; }
+.lp-plan-limit { display:flex;align-items:baseline;gap:6px;margin-bottom:16px; }
+.lp-plan-limit-num { font-size:1.6rem;font-weight:900;color:var(--lp-text1);line-height:1; }
+.lp-plan-limit-label { font-size:.78rem;font-weight:700;color:var(--lp-text3);text-transform:uppercase;letter-spacing:.06em; }
+.lp-hot .lp-plan-limit-num { color:#b45309; }
 .lp-pdiv { height:1px;background:var(--lp-border);margin-bottom:24px; }
 .lp-pfeats { list-style:none;display:flex;flex-direction:column;gap:12px;margin-bottom:28px; }
 .lp-pfeats li { display:flex;align-items:center;gap:10px;font-size:.87rem; }

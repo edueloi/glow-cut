@@ -622,6 +622,14 @@ export default function LandingPage() {
                       p.name === "Pro" ? "Para salões e barbearias que precisam controlar agenda, caixa, comandas e equipe." :
                       "Para negócios com equipe maior e necessidade de gestão completa."
                     )}</p>
+                    {p.maxProfessionals > 0 && (
+                      <div className="lp-plan-limit">
+                        <span className="lp-plan-limit-num">{p.maxProfessionals}</span>
+                        <span className="lp-plan-limit-label">
+                          {p.maxProfessionals === 1 ? "profissional" : "profissionais"}
+                        </span>
+                      </div>
+                    )}
                     <div className="lp-pdiv" />
                     <ul className="lp-pfeats">
                       {features.map((f: string, i: number) => (

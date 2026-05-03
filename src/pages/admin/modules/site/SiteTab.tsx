@@ -18,7 +18,10 @@ import {
   Star,
   Upload,
   X,
-  Camera
+  Camera,
+  Images,
+  Trash2,
+  LayoutTemplate,
 } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
 import { Input, Textarea } from "@/src/components/ui/Input";
@@ -241,13 +244,17 @@ export function SiteTab() {
     logoUrl: "",
     siteCoverUrl: "",
     coverUrl: "",
+    siteTemplate: "classic",
+    galleryImages: [] as string[],
   });
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const aboutInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -281,6 +288,8 @@ export function SiteTab() {
             logoUrl: data.logoUrl || "",
             siteCoverUrl: data.siteCoverUrl || "",
             coverUrl: data.coverUrl || "",
+            siteTemplate: data.siteTemplate || "classic",
+            galleryImages: (() => { try { return JSON.parse(data.galleryImages || "[]"); } catch { return []; } })(),
           });
           initialSlugRef.current = data.slug || "";
         }
@@ -304,10 +313,14 @@ export function SiteTab() {
     }
     setSaving(true);
     try {
+      const payload = {
+        ...formData,
+        galleryImages: JSON.stringify(formData.galleryImages),
+      };
       const res = await apiFetch("/api/admin/tenant/branding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         initialSlugRef.current = formData.slug;
@@ -322,6 +335,34 @@ export function SiteTab() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleGalleryUpload = async (files: FileList) => {
+    setUploadingGallery(true);
+    const newUrls: string[] = [];
+    for (const file of Array.from(files)) {
+      await new Promise<void>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          try {
+            const base64 = ev.target?.result as string;
+            const res = await apiFetch("/api/admin/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ data: base64, mimeType: file.type }),
+            });
+            if (res.ok) { const { url } = await res.json(); newUrls.push(url); }
+          } catch { /* skip */ }
+          resolve();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    if (newUrls.length) {
+      setFormData(prev => ({ ...prev, galleryImages: [...(prev.galleryImages as string[]), ...newUrls] }));
+      toast.success(`${newUrls.length} foto(s) adicionada(s) à galeria!`);
+    }
+    setUploadingGallery(false);
   };
 
   const handleImageUpload = async (
@@ -843,6 +884,142 @@ export function SiteTab() {
                   }}
                 />
               </div>
+            </div>
+          </PanelCard>
+
+          {/* ── Modelo do Site ───────────────────────────────────────────── */}
+          <PanelCard
+            title="Modelo do Site"
+            description="Escolha o visual que melhor combina com o seu negócio."
+            icon={LayoutTemplate}
+            iconWrapClassName="bg-violet-50 border-violet-100"
+            iconClassName="text-violet-600"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                {
+                  id: "classic",
+                  name: "Clássico",
+                  desc: "Elegante e atemporal. Fundo branco, seções limpas.",
+                  preview: (color: string) => (
+                    <div className="w-full h-20 rounded-xl overflow-hidden flex flex-col">
+                      <div className="h-10 w-full" style={{ background: `linear-gradient(135deg, ${color} 0%, #0f0f0f 100%)` }} />
+                      <div className="flex-1 bg-white flex items-center gap-1 px-2">
+                        <div className="w-8 h-2 rounded-full bg-zinc-200" />
+                        <div className="w-12 h-2 rounded-full bg-zinc-100" />
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  id: "dark",
+                  name: "Dark Luxury",
+                  desc: "Sofisticado e moderno. Fundo escuro com acentos coloridos.",
+                  preview: (color: string) => (
+                    <div className="w-full h-20 rounded-xl overflow-hidden flex flex-col bg-zinc-950">
+                      <div className="h-10 w-full flex items-end px-2 pb-1.5" style={{ background: `linear-gradient(135deg, #18181b 0%, ${color}55 100%)` }}>
+                        <div className="w-16 h-1.5 rounded-full bg-white/30" />
+                      </div>
+                      <div className="flex-1 flex items-center gap-1 px-2">
+                        <div className="w-8 h-1.5 rounded-full bg-white/10" />
+                        <div className="w-12 h-1.5 rounded-full bg-white/5" />
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  id: "bold",
+                  name: "Bold & Clean",
+                  desc: "Impactante e direto. Tipografia grande, hero centralizado.",
+                  preview: (color: string) => (
+                    <div className="w-full h-20 rounded-xl overflow-hidden bg-zinc-50 flex flex-col items-center justify-center gap-1.5 relative">
+                      <div className="absolute top-0 left-0 right-0 h-1 rounded-t-xl" style={{ backgroundColor: color }} />
+                      <div className="w-20 h-3 rounded-full bg-zinc-900" />
+                      <div className="w-12 h-1.5 rounded-full bg-zinc-300" />
+                      <div className="w-10 h-5 rounded-full mt-1" style={{ backgroundColor: color }} />
+                    </div>
+                  ),
+                },
+              ].map(tpl => {
+                const active = formData.siteTemplate === tpl.id;
+                return (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, siteTemplate: tpl.id }))}
+                    className={cn(
+                      "flex flex-col gap-2 p-3 rounded-2xl border-2 transition-all text-left",
+                      active ? "border-amber-400 bg-amber-50" : "border-zinc-200 bg-white hover:border-zinc-300"
+                    )}
+                  >
+                    {tpl.preview(formData.themeColor)}
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-black text-zinc-900">{tpl.name}</p>
+                        {active && <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">Ativo</span>}
+                      </div>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">{tpl.desc}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </PanelCard>
+
+          {/* ── Galeria de Fotos ─────────────────────────────────────────── */}
+          <PanelCard
+            title="Galeria de Fotos"
+            description="Fotos do seu espaço e trabalhos. Aparecem em destaque no site."
+            icon={Images}
+            iconWrapClassName="bg-emerald-50 border-emerald-100"
+            iconClassName="text-emerald-600"
+          >
+            <div className="space-y-4">
+              {/* Grid de fotos */}
+              {(formData.galleryImages as string[]).length > 0 && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {(formData.galleryImages as string[]).map((url, idx) => (
+                    <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden bg-zinc-100">
+                      <img src={url} alt={`Galeria ${idx + 1}`} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, galleryImages: (prev.galleryImages as string[]).filter((_, i) => i !== idx) }))}
+                          className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Upload */}
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                disabled={uploadingGallery}
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-zinc-200 text-xs font-bold text-zinc-500 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50 transition-all disabled:opacity-50"
+              >
+                {uploadingGallery ? (
+                  <div className="w-4 h-4 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
+                ) : (
+                  <Upload size={15} />
+                )}
+                {uploadingGallery ? "Enviando fotos..." : "Adicionar fotos à galeria"}
+              </button>
+              <p className="text-[10px] text-zinc-400 text-center">Selecione várias fotos de uma vez. Máximo recomendado: 12 fotos.</p>
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={e => {
+                  if (e.target.files?.length) handleGalleryUpload(e.target.files);
+                  e.target.value = "";
+                }}
+              />
             </div>
           </PanelCard>
 

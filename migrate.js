@@ -852,6 +852,10 @@ const MIGRATIONS = [
   { name: '046b_plan_add_isPopular',   sql: `ALTER TABLE Plan ADD COLUMN isPopular BOOLEAN NOT NULL DEFAULT FALSE AFTER description`, ignoreIfExists: true },
   { name: '046c_plan_add_showOnSite',  sql: `ALTER TABLE Plan ADD COLUMN showOnSite BOOLEAN NOT NULL DEFAULT TRUE AFTER isPopular`, ignoreIfExists: true },
 
+  // 047 — Tenant: template do site e galeria de fotos
+  { name: '047a_tenant_add_siteTemplate',  sql: `ALTER TABLE Tenant ADD COLUMN siteTemplate VARCHAR(20) NOT NULL DEFAULT 'classic' AFTER siteCoverUrl`, ignoreIfExists: true },
+  { name: '047b_tenant_add_galleryImages', sql: `ALTER TABLE Tenant ADD COLUMN galleryImages LONGTEXT NULL AFTER siteTemplate`, ignoreIfExists: true },
+
 ];
 
 // ─────────────────────────────────────────────────────────────
