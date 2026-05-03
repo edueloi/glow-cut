@@ -454,8 +454,10 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-4xl font-black text-zinc-200">{prof.name.charAt(0)}</div>
                     )}
-                    <div className="absolute inset-0 bg-black/40 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-4">
-                       <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-3 bg-white rounded-xl text-xs font-black text-zinc-950 shadow-xl text-center">AGENDAR</Link>
+                    <div className="absolute inset-0 bg-black/60 md:opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center p-6 backdrop-blur-[2px]">
+                       <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-3.5 bg-white rounded-2xl text-[10px] font-black text-zinc-950 shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest">
+                         <Calendar size={14} /> AGENDAR
+                       </Link>
                     </div>
                   </div>
                   <h3 className="text-lg font-black text-zinc-950">{prof.name}</h3>
@@ -504,8 +506,8 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
         {/* Background Gradients & Image */}
         {heroImage && (
           <div className="absolute inset-0 z-0">
-            <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40" />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-black/80" />
+            <img src={heroImage} alt="" className="w-full h-full object-cover opacity-60" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-black/20 to-black/90" />
           </div>
         )}
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
@@ -630,15 +632,20 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
                   transition={{ delay: i * 0.1 }}
                   className="group text-left"
                 >
-                  <div className="aspect-[4/5] rounded-[3rem] overflow-hidden bg-white/5 mb-8 relative grayscale group-hover:grayscale-0 transition-all duration-700">
+                  <div className="aspect-[4/5] rounded-[3rem] overflow-hidden bg-white/5 mb-8 relative transition-all duration-700">
                     {prof.photo ? (
                       <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-6xl font-black text-white/5">{prof.name.charAt(0)}</div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
-                     <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col justify-end h-1/2">
-                       <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-4 rounded-full bg-white text-black font-black text-[10px] tracking-widest uppercase md:scale-90 md:opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500 shadow-2xl">RESERVAR</Link>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80" />
+                     <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col justify-end h-3/4 bg-gradient-to-t from-black via-black/20 to-transparent">
+                       <Link 
+                         to={`${bookingUrl}?profId=${prof.id}`} 
+                         className="w-full py-4 rounded-full bg-white text-black font-black text-[10px] tracking-[0.2em] uppercase md:scale-90 md:opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500 shadow-[0_20px_50px_rgba(255,255,255,0.1)] flex items-center justify-center hover:bg-zinc-100"
+                        >
+                          RESERVAR
+                        </Link>
                     </div>
                   </div>
                   <h3 className="text-2xl font-black tracking-tight">{prof.name}</h3>
@@ -819,8 +826,13 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-5xl font-black text-zinc-400 bg-zinc-200">{prof.name.charAt(0)}</div>
                     )}
-                     <div className="absolute inset-0 bg-black/20 md:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-8">
-                        <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-4 bg-white rounded-2xl text-xs font-black text-zinc-950 shadow-2xl tracking-widest text-center">RESERVAR</Link>
+                     <div className="absolute inset-0 bg-black/40 md:opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-end p-8 backdrop-blur-[1px]">
+                        <Link 
+                          to={`${bookingUrl}?profId=${prof.id}`} 
+                          className="w-full py-4 bg-white rounded-[1.5rem] text-[10px] font-black text-zinc-950 shadow-[0_20px_40px_rgba(0,0,0,0.3)] tracking-[0.2em] flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
+                        >
+                          RESERVAR
+                        </Link>
                      </div>
                   </div>
                   <h3 className="text-2xl font-black text-zinc-950 mb-1">{prof.name}</h3>
