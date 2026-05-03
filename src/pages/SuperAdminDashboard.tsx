@@ -5741,13 +5741,48 @@ function Sidebar({ tab, setTab, username, onLogout, onClose, permissions }: {
     return !!permissions[item.key]?.ver;
   });
 
+  return (
+    <div className="flex flex-col h-full bg-zinc-950 w-full">
+      {/* Logo */}
+      <div className="p-5 border-b border-white/10 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center shrink-0">
+            <img src="/favicon.png" alt="Agendelle" className="w-5 h-5 object-contain brightness-0 invert" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-black text-white leading-none m-0">Agendelle</p>
+            <p className="text-[9px] font-bold text-amber-500 uppercase tracking-[0.15em] mt-1 m-0">Super Admin</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 p-3 overflow-y-auto flex flex-col gap-1.5 custom-scrollbar">
+        {filteredItems.map(item => (
+          <button
+            key={item.key}
+            onClick={() => { setTab(item.key); navigate(item.path); onClose?.(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-none cursor-pointer text-sm font-bold text-left transition-all ${
+              tab === item.key
+                ? "bg-amber-500 text-white"
+                : "bg-transparent text-zinc-400 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <span className="shrink-0 flex">{item.icon}</span>
+            <span className="overflow-hidden text-ellipsis whitespace-nowrap">{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* User / Logout */}
+      <div className="p-3 border-t border-white/10 shrink-0 flex flex-col gap-2">
         <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 mb-2">
           <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
             <span className="text-sm font-black text-amber-500">{username[0]?.toUpperCase()}</span>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-white truncate leading-none">{username}</p>
-            <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mt-1">Super Admin</p>
+            <p className="text-sm font-bold text-white truncate leading-none m-0">{username}</p>
+            <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mt-1 m-0">Super Admin</p>
           </div>
         </div>
         <button
