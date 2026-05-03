@@ -656,42 +656,77 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
     <div className="min-h-screen bg-white text-zinc-900 font-sans antialiased">
       <Navbar tenant={tenant} slug={slug} bookingUrl={bookingUrl} scrolled={scrolled} themeColor={themeColor} products={products} services={services} />
 
-      {/* Hero centralizado com barra de cor no topo */}
-      <section className="relative pt-16 overflow-hidden">
-        <div className="h-1.5 w-full" style={{ backgroundColor: themeColor }} />
-        {heroImage && (
-          <div className="relative w-full h-[55vh] min-h-[380px] max-h-[600px] overflow-hidden">
-            <img src={heroImage} alt="" className="w-full h-full object-cover object-center" />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/40 to-black/70" />
-            <div className="absolute inset-0 flex flex-col items-center justify-end pb-12 px-5 text-center">
-              {tenant.logoUrl && <img src={tenant.logoUrl} alt={tenant.name} className="w-16 h-16 object-contain rounded-2xl bg-white/10 backdrop-blur-sm p-1.5 mb-4" />}
-              <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight leading-[1.0] mb-4">
-                {tenant.welcomeMessage || tenant.name}
-              </motion.h1>
-              <p className="text-white/80 text-base max-w-md mb-7">{tenant.description?.slice(0, 100) || "Excelência em cada detalhe."}</p>
-              <Link to={bookingUrl} className="inline-flex items-center gap-2 px-8 py-4 text-sm font-black rounded-full shadow-xl active:scale-95 hover:opacity-90 transition-all text-white" style={{ backgroundColor: themeColor }}><Calendar size={16} /> Agendar Agora</Link>
-            </div>
-          </div>
-        )}
-        {!heroImage && (
-          <div className="flex flex-col items-center justify-center text-center px-5 py-32 md:py-44" style={{ background: `linear-gradient(180deg, ${themeColor}08 0%, #ffffff 100%)` }}>
-            {tenant.logoUrl && <img src={tenant.logoUrl} alt={tenant.name} className="w-20 h-20 object-contain rounded-2xl shadow-lg mb-6" />}
-            <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.0] mb-5 text-zinc-900">
-              {tenant.welcomeMessage || tenant.name}
-            </motion.h1>
-            <p className="text-zinc-500 text-lg max-w-md mb-8">{tenant.description?.slice(0, 120) || "Excelência em cada detalhe."}</p>
-            <Link to={bookingUrl} className="inline-flex items-center gap-2 px-8 py-4 text-sm font-black rounded-full shadow-xl active:scale-95 hover:opacity-90 transition-all text-white" style={{ backgroundColor: themeColor }}><Calendar size={16} /> Agendar Agora</Link>
-          </div>
-        )}
+      {/* Hero — layout split: texto à esquerda, imagem à direita */}
+      <section className="relative pt-16 overflow-hidden bg-white">
+        <div className="h-1 w-full" style={{ backgroundColor: themeColor }} />
+        <div className="max-w-6xl mx-auto px-5">
+          <div className="grid md:grid-cols-2 gap-0 min-h-[520px] md:min-h-[600px] items-center">
+            {/* Lado esquerdo — texto */}
+            <motion.div
+              initial={{ opacity: 0, x: -24 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6 }}
+              className="py-16 md:py-24 pr-0 md:pr-12 flex flex-col justify-center"
+            >
+              {tenant.logoUrl && (
+                <img src={tenant.logoUrl} alt={tenant.name} className="w-12 h-12 object-contain rounded-xl mb-6" />
+              )}
+              <div className="inline-flex items-center gap-2 mb-5 self-start">
+                <div className="w-8 h-0.5" style={{ backgroundColor: themeColor }} />
+                <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: themeColor }}>{tenant.name}</span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-zinc-900 tracking-tight leading-[1.1] mb-5">
+                {tenant.welcomeMessage || `Bem-vindo ao ${tenant.name}`}
+              </h1>
+              <p className="text-zinc-500 text-base leading-relaxed mb-8 max-w-sm">
+                {tenant.description?.slice(0, 120) || "Atendimento premium para quem valoriza cada detalhe."}
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Link to={bookingUrl} className="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold rounded-full text-white shadow-lg hover:opacity-90 active:scale-95 transition-all" style={{ backgroundColor: themeColor }}>
+                  <Calendar size={15} /> Agendar Agora
+                </Link>
+                {tenant.instagram && (
+                  <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold rounded-full border border-zinc-200 text-zinc-600 hover:border-zinc-400 transition-colors">
+                    <Instagram size={15} /> Instagram
+                  </a>
+                )}
+              </div>
+              {(tenant.experienceYears || professionals.length > 0 || services.length > 0) && (
+                <div className="flex gap-8 mt-10 pt-8 border-t border-zinc-100">
+                  {tenant.experienceYears && <div><p className="text-xl font-black text-zinc-900">{tenant.experienceYears}</p><p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Anos</p></div>}
+                  {professionals.length > 0 && <div><p className="text-xl font-black text-zinc-900">{professionals.length}+</p><p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Especialistas</p></div>}
+                  {services.length > 0 && <div><p className="text-xl font-black text-zinc-900">{services.length}+</p><p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Serviços</p></div>}
+                </div>
+              )}
+            </motion.div>
 
-        {/* Stats strip */}
-        {(tenant.experienceYears || professionals.length > 0 || services.length > 0) && (
-          <div className="border-y border-zinc-100 bg-white">
-            <div className="max-w-5xl mx-auto px-5 py-6 flex justify-center divide-x divide-zinc-100">
-              {tenant.experienceYears && <div className="px-8 text-center"><p className="text-2xl font-black text-zinc-900">{tenant.experienceYears}</p><p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Anos</p></div>}
-              {professionals.length > 0 && <div className="px-8 text-center"><p className="text-2xl font-black text-zinc-900">{professionals.length}+</p><p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Especialistas</p></div>}
-              {services.length > 0 && <div className="px-8 text-center"><p className="text-2xl font-black text-zinc-900">{services.length}+</p><p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Serviços</p></div>}
-            </div>
+            {/* Lado direito — imagem */}
+            <motion.div
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="hidden md:block relative h-full"
+            >
+              <div className="absolute inset-y-0 right-0 left-0 overflow-hidden">
+                {heroImage ? (
+                  <>
+                    <img src={heroImage} alt="" className="w-full h-full object-cover object-center" />
+                    <div className="absolute inset-0" style={{ background: `linear-gradient(to right, white 0%, transparent 20%)` }} />
+                  </>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${themeColor}10 0%, ${themeColor}25 100%)` }}>
+                    <Scissors size={80} className="opacity-20" style={{ color: themeColor }} />
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Imagem mobile (aparece só no mobile, abaixo do texto) */}
+        {heroImage && (
+          <div className="md:hidden w-full h-52 overflow-hidden">
+            <img src={heroImage} alt="" className="w-full h-full object-cover object-center" />
           </div>
         )}
       </section>
