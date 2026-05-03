@@ -20,7 +20,7 @@ transporter.sendMail = async (opts: any) => {
   return info;
 };
 
-const FROM = '"Agendelle" <agendelle@develoi.com.br>';
+const FROM = '"Agendelle" <contato@agendelle.com.br>';
 const ADMIN_EMAIL = "contato@agendelle.com.br";
 const APP_URL = process.env.APP_URL || "https://agendelle.com.br";
 
