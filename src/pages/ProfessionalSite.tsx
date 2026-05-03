@@ -541,17 +541,12 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
                 </span>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black leading-[1.1] tracking-tight mb-4 text-white">
-                {tenant.welcomeMessage
-                  ? tenant.welcomeMessage.length > 55
-                    ? tenant.welcomeMessage.slice(0, 55).trimEnd() + "…"
-                    : tenant.welcomeMessage
-                  : tenant.name}
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black leading-[1.15] tracking-tight mb-4 text-white">
+                {tenant.name}
               </h1>
-
               <p className="text-zinc-400 text-sm leading-relaxed mb-10 max-w-xs">
-                {tenant.description
-                  ? tenant.description.slice(0, 110) + (tenant.description.length > 110 ? "…" : "")
+                {(tenant.welcomeMessage || tenant.description)
+                  ? (tenant.welcomeMessage || tenant.description)!.slice(0, 100) + ((tenant.welcomeMessage || tenant.description)!.length > 100 ? "…" : "")
                   : "Experiência premium em beleza e bem-estar."}
               </p>
 
