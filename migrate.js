@@ -840,12 +840,17 @@ const MIGRATIONS = [
   {
     name: '045_adminuser_add_cpf_birthdate',
     sql: `
-      ALTER TABLE AdminUser 
+      ALTER TABLE AdminUser
       ADD COLUMN cpf VARCHAR(20) NULL AFTER phone,
       ADD COLUMN birthDate VARCHAR(20) NULL AFTER cpf;
     `,
     ignoreIfExists: true,
   },
+
+  // 046 — Plan: campos para landing page
+  { name: '046a_plan_add_description', sql: `ALTER TABLE Plan ADD COLUMN description VARCHAR(500) NULL AFTER features`, ignoreIfExists: true },
+  { name: '046b_plan_add_isPopular',   sql: `ALTER TABLE Plan ADD COLUMN isPopular BOOLEAN NOT NULL DEFAULT FALSE AFTER description`, ignoreIfExists: true },
+  { name: '046c_plan_add_showOnSite',  sql: `ALTER TABLE Plan ADD COLUMN showOnSite BOOLEAN NOT NULL DEFAULT TRUE AFTER isPopular`, ignoreIfExists: true },
 
 ];
 
