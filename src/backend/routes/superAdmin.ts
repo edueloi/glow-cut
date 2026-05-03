@@ -446,6 +446,7 @@ superAdminRouter.post("/stripe-connect", async (req, res) => {
         email: seller.email || undefined,
         business_type: 'individual',
         capabilities: {
+          card_payments: { requested: true },
           transfers: { requested: true },
         },
       });
