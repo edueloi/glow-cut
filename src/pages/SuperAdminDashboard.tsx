@@ -1393,22 +1393,22 @@ function SalesTab({ user }: { user: any }) {
     {
       title: "Abordagem Inicial",
       desc: "Primeiro contato para despertar interesse",
-      content: "Olá! Notei que você faz um trabalho incrível no seu estabelecimento. Você já utiliza alguma plataforma para agendamentos online e gestão? O Glow Cut está ajudando centenas de profissionais a organizarem a agenda e aumentarem o faturamento. Posso te enviar um link para teste grátis?"
+      content: "Olá! Notei que você faz um trabalho sensacional no seu estabelecimento. Você já utiliza alguma plataforma para agendamentos online e gestão? O Agendelle ajuda centenas de profissionais a organizarem a agenda e criarem um site completo em apenas 5 minutos. Posso te enviar um link para você testar grátis por 30 dias?"
     },
     {
       title: "Dúvidas sobre Planos",
       desc: "Explicação básica sobre preços e modelos",
-      content: "Temos planos super flexíveis! O Plano Basic custa apenas R$ 49,90 e já inclui agenda online e gestão de clientes. O Plano Pro libera o Bot de WhatsApp e Vitrine de Produtos. Qual seria o tamanho da sua equipe hoje para eu te indicar o melhor?"
+      content: "Temos planos para todos os tamanhos! O Plano Start custa apenas R$ 49,90 e já inclui agenda e gestão. O Plano Pro (R$ 99,90) é o nosso campeão de vendas pois libera o Bot de WhatsApp e o seu Site Próprio para vendas. Quantos profissionais tem na sua equipe hoje?"
     },
     {
       title: "Como funciona (Teste)",
       desc: "Link de indicação e período de experiência",
-      content: `É muito simples: você clica no meu link ( ${window.location.origin}/assinar?ref=${user?.id} ), faz um cadastro de 1 minuto e já tem acesso a tudo. Você pode testar por 7 dias sem compromisso. Se precisar de ajuda para configurar, eu te auxilio em cada passo!`
+      content: `É muito simples: você clica no meu link ( ${window.location.origin}/assinar?ref=${user?.id} ), faz um cadastro de 1 minuto e já sai com seu site pronto. Você tem 30 dias de teste grátis para testar todas as funcionalidades sem compromisso. Se precisar de ajuda, eu mesmo te auxilio na configuração!`
     },
     {
       title: "Vantagens e Benefícios",
       desc: "Argumentos de venda e diferenciais",
-      content: "As principais vantagens são:\n1. Lembretes automáticos por WhatsApp (reduz faltas em 40%)\n2. Sua própria vitrine de produtos\n3. Controle financeiro completo\n4. Agenda disponível 24h para seus clientes."
+      content: "As principais vantagens do Agendelle são:\n1. Site Profissional criado em 5 min\n2. Lembretes automáticos por WhatsApp (reduz faltas drasticamente)\n3. Sua própria vitrine de produtos online\n4. Controle financeiro e de comissões completo.\n\nÉ a ferramenta definitiva para escalar seu negócio!"
     }
   ];
 
