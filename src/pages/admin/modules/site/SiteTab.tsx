@@ -32,7 +32,8 @@ import { useToast } from "@/src/components/ui/Toast";
 import { apiFetch } from "@/src/lib/api";
 import { Badge } from "@/src/components/ui/Badge";
 import { cn } from "@/src/lib/utils";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, Monitor } from "lucide-react";
+import { Modal } from "@/src/components/ui/Modal";
 
 // ── Mobile Preview Component ─────────────────────────────────────────────
 function MobileSitePreview({ 
@@ -220,6 +221,7 @@ export function SiteTab() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [cep, setCep] = useState("");
 
   // Validação de slug
@@ -491,10 +493,19 @@ export function SiteTab() {
             <Button
               variant="outline"
               size="sm"
+              iconLeft={<Eye size={14} />}
+              onClick={() => setShowPreview(true)}
+              className="bg-white"
+            >
+              Visualizar Preview
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               iconLeft={<ExternalLink size={14} />}
               onClick={() => window.open(`/${formData.slug}`, "_blank")}
             >
-              Visualizar Site
+              Visitar Site
             </Button>
             <Button
               variant="primary"
@@ -509,8 +520,8 @@ export function SiteTab() {
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_auto] gap-6 lg:gap-8 pb-32">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-32">
+        <div className="lg:col-span-7 space-y-8">
 
 
           <PanelCard
@@ -777,7 +788,7 @@ export function SiteTab() {
           </PanelCard>
         </div>
 
-        <div className="space-y-6">
+        <div className="lg:col-span-5 space-y-8">
           {/* ── Imagens do Site ───────────────────────────────────────────── */}
           <PanelCard
             title="Imagens do Site"
@@ -1163,12 +1174,18 @@ export function SiteTab() {
             </p>
           </div>
         </div>
+      </div>
 
-        {/* Coluna 3: Preview High Fidelity */}
-        <div className="hidden 2xl:block">
+      <Modal
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        title="Preview Mobile"
+        size="md"
+      >
+        <div className="p-8 bg-zinc-100 flex justify-center">
           <MobileSitePreview data={formData} />
         </div>
-      </div>
+      </Modal>
 
       {/* Action Bar Flutuante — Refined Responsiveness */}
       <div className="sticky bottom-4 lg:bottom-8 left-0 right-0 z-[100] mt-10">
@@ -1180,23 +1197,33 @@ export function SiteTab() {
            
            <div className="flex items-center justify-between w-full lg:hidden px-1">
               <div className="flex flex-col">
-                 <span className="text-[10px] font-black text-zinc-800 uppercase">Site Admin</span>
-                 <span className="text-[9px] text-zinc-500">Toque para salvar</span>
+                 <span className="text-[10px] font-black text-zinc-800 uppercase">Configurar Site</span>
+                 <span className="text-[9px] text-zinc-500">Toque para publicar</span>
               </div>
-              <Badge color="success" className="text-[8px] py-0.5">Online</Badge>
+              <Button size="sm" variant="outline" onClick={() => setShowPreview(true)} className="h-8 px-3 text-[10px] bg-white">Preview</Button>
            </div>
 
-           <Button
-              onClick={handleSave}
-              disabled={saving || uploadingLogo || uploadingCover}
-              className={cn(
-                "w-full sm:w-[240px] md:w-[280px] h-11 md:h-14 rounded-2xl text-sm md:text-base font-black shadow-xl transition-all active:scale-95 group",
-                saving ? "bg-zinc-800" : "bg-zinc-950 hover:bg-black"
-              )}
-              iconLeft={saving ? <Loader2 size={18} className="animate-spin text-zinc-400" /> : <CheckCircle2 size={18} className="group-hover:scale-110 transition-transform" />}
-            >
-              {saving ? "Salvando..." : "Publicar Alterações"}
-            </Button>
+           <div className="flex items-center gap-3">
+             <Button
+                variant="outline"
+                onClick={() => setShowPreview(true)}
+                className="hidden lg:flex h-14 px-8 rounded-2xl text-sm font-black bg-white"
+                iconLeft={<Eye size={18} />}
+              >
+                Preview
+              </Button>
+             <Button
+                onClick={handleSave}
+                disabled={saving || uploadingLogo || uploadingCover}
+                className={cn(
+                  "w-full sm:w-[240px] md:w-[280px] h-11 md:h-14 rounded-2xl text-sm md:text-base font-black shadow-xl transition-all active:scale-95 group",
+                  saving ? "bg-zinc-800" : "bg-zinc-950 hover:bg-black"
+                )}
+                iconLeft={saving ? <Loader2 size={18} className="animate-spin text-zinc-400" /> : <CheckCircle2 size={18} className="group-hover:scale-110 transition-transform" />}
+              >
+                {saving ? "Salvando..." : "Publicar Alterações"}
+              </Button>
+           </div>
         </div>
       </div>
     </PageWrapper>
