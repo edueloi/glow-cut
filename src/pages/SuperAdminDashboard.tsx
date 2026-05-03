@@ -1591,13 +1591,21 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
 
       {activeSubTab === "dashboard" && (
         <div className="space-y-6">
-          <ContentCard className="bg-gradient-to-br from-amber-500 to-amber-600 border-none shadow-xl shadow-amber-500/20">
+          <ContentCard className={cn("bg-gradient-to-br border-none shadow-xl transition-all", (stripeStatus?.connected && stripeStatus?.payoutsEnabled) ? "from-amber-500 to-amber-600 shadow-amber-500/20" : "from-zinc-400 to-zinc-500 shadow-zinc-500/20")}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-2">
               <div className="space-y-2">
                 <h3 className="text-lg font-black text-white">Seu Link de Vendas</h3>
-                <p className="text-amber-100 text-sm font-medium">Compartilhe este link para cadastrar novos parceiros.</p>
+                <p className="text-white/80 text-sm font-medium">
+                  {(stripeStatus?.connected && stripeStatus?.payoutsEnabled) 
+                    ? "Compartilhe este link para cadastrar novos parceiros e receber comissões." 
+                    : "Conecte sua conta Stripe para liberar seu link e receber pagamentos."}
+                </p>
               </div>
-              <Button size="sm" variant="secondary" onClick={() => { navigator.clipboard.writeText(salesLink); toast.success("Link copiado!"); }} className="bg-white text-amber-600 border-none shadow-lg">Copiar Link</Button>
+              {(stripeStatus?.connected && stripeStatus?.payoutsEnabled) ? (
+                <Button size="sm" variant="secondary" onClick={() => { navigator.clipboard.writeText(salesLink); toast.success("Link copiado!"); }} className="bg-white text-amber-600 border-none shadow-lg">Copiar Link</Button>
+              ) : (
+                <Button size="sm" variant="secondary" onClick={() => setActiveSubTab("dashboard")} className="bg-zinc-100 text-zinc-600 border-none opacity-50 cursor-not-allowed">Link Bloqueado</Button>
+              )}
             </div>
           </ContentCard>
 
@@ -1668,10 +1676,24 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
                   <div className="w-12 h-12 rounded-2xl bg-[#635BFF]/10 flex items-center justify-center text-[#635BFF]"><CreditCard size={24} /></div>
                   <h3 className="text-base font-black text-zinc-900 leading-tight">Recebimento</h3>
                   {stripeStatus === undefined ? <div className="h-10 bg-zinc-100 animate-pulse rounded-xl" /> : stripeStatus.connected && stripeStatus.payoutsEnabled ? (
-                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100"><p className="text-sm font-bold text-emerald-700">Conta Conectada</p></div>
+                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-center">
+                      <p className="text-sm font-bold text-emerald-700">Conta Conectada</p>
+                      <p className="text-[10px] text-emerald-600 mt-1">Você está pronto para receber comissões.</p>
+                      <Button variant="ghost" size="sm" onClick={handleStripeConnect} className="mt-2 text-emerald-700 hover:bg-emerald-100">Ver Painel Stripe</Button>
+                    </div>
                   ) : stripeStatus.connected && !stripeStatus.payoutsEnabled ? (
-                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-100"><p className="text-[10px] text-amber-600">Documentação pendente no Stripe.</p><Button onClick={handleStripeConnect} className="w-full mt-2">Resolver no Stripe</Button></div>
-                  ) : <Button onClick={handleStripeConnect} loading={connecting} className="w-full">Conectar Stripe</Button>}
+                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                      <p className="text-xs font-bold text-amber-700">Pendente</p>
+                      <p className="text-[10px] text-amber-600">Finalize o cadastro no Stripe para liberar seus links.</p>
+                      <Button onClick={handleStripeConnect} loading={connecting} className="w-full mt-2 bg-amber-600 hover:bg-amber-700 border-amber-600">Resolver no Stripe</Button>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                      <p className="text-xs font-bold text-blue-700">Configuração Necessária</p>
+                      <p className="text-[10px] text-blue-600 mb-3">Você precisa de uma conta Stripe para gerar links de venda.</p>
+                      <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-[#635BFF] hover:bg-[#544ee0] border-[#635BFF]">Configurar Recebimentos</Button>
+                    </div>
+                  )}
                 </div>
               </ContentCard>
             </div>

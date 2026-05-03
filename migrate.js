@@ -892,7 +892,36 @@ const MIGRATIONS = [
     ignoreIfExists: true,
   },
 
+  // 051 — SuperAdmin: Adiciona campos faltantes (Stripe, Perfil, Comissão)
+  {
+    name: '051_superadmin_add_profile_and_stripe',
+    sql: `
+      ALTER TABLE SuperAdmin
+        ADD COLUMN name VARCHAR(255) NULL,
+        ADD COLUMN email VARCHAR(255) NULL,
+        ADD COLUMN phone VARCHAR(20) NULL,
+        ADD COLUMN birthday DATE NULL,
+        ADD COLUMN role VARCHAR(100) NULL,
+        ADD COLUMN bio TEXT NULL,
+        ADD COLUMN photo LONGTEXT NULL,
+        ADD COLUMN permissions TEXT NULL,
+        ADD COLUMN commissionType VARCHAR(20) NOT NULL DEFAULT 'percentage',
+        ADD COLUMN commissionValue DOUBLE NOT NULL DEFAULT 0,
+        ADD COLUMN commissionByPlan TEXT NULL,
+        ADD COLUMN trialDays INT NOT NULL DEFAULT 30,
+        ADD COLUMN stripeAccountId VARCHAR(150) NULL;
+    `,
+    ignoreIfExists: true,
+  },
+
+  {
+    name: '052_superadmin_add_unique_email',
+    sql: `ALTER TABLE SuperAdmin ADD UNIQUE INDEX uq_superadmin_email (email)`,
+    ignoreIfExists: true,
+  },
+
 ];
+
 
 
 // ─────────────────────────────────────────────────────────────
