@@ -6,7 +6,7 @@ import { cn } from "@/src/lib/utils";
 // Altura: h-10 mobile / h-11 sm+  (usa classe ds-input do CSS global)
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> {
   label?: string;
   error?: string;
   hint?: string;
@@ -15,10 +15,11 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   addonLeft?: React.ReactNode;
   addonRight?: React.ReactNode;
   wrapperClassName?: string;
+  size?: "sm" | "md" | "lg";
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  (
+      (
     {
       label,
       error,
@@ -32,6 +33,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       id,
       maxLength,
       value,
+      size = "md",
       ...props
     },
     ref
@@ -63,7 +65,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             "group relative flex items-stretch overflow-hidden transition-all duration-200",
             "rounded-[10px] bg-zinc-50 border border-zinc-200 shadow-sm",
             "focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-500/10 focus-within:bg-white",
-            error && "border-red-400 focus-within:border-red-500 focus-within:ring-red-500/10 bg-red-50/30"
+            error && "border-red-400 focus-within:border-red-500 focus-within:ring-red-500/10 bg-red-50/30",
+            size === "sm" && "h-9"
           )}
         >
           {addonLeft && (
@@ -88,8 +91,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                 "w-full bg-transparent px-3 py-2.5 outline-none",
                 "text-sm text-zinc-800 placeholder:text-zinc-400 font-bold tracking-tight",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
-                iconLeft && "pl-9",
-                iconRight && "pr-9",
+                size === "sm" && "py-1.5 text-xs",
+                iconLeft && (size === "sm" ? "pl-8" : "pl-9"),
+                iconRight && (size === "sm" ? "pr-8" : "pr-9"),
                 className
               )}
               {...props}

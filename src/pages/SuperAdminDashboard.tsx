@@ -34,6 +34,8 @@ import {
   Camera, Phone,
   ChevronRight,
   AlertCircle,
+  Star,
+  Copy,
 } from "lucide-react";
 import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/permissions";
 
@@ -1389,28 +1391,64 @@ function SalesTab({ user }: { user: any }) {
   const [leadSearch, setLeadSearch] = useState("");
   const [leadForm, setLeadForm] = useState({ name: "", phone: "", status: "new", notes: "" });
 
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(`sales_favs_${user?.id}`) || "[]");
+    } catch { return []; }
+  });
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [msgSearch, setMsgSearch] = useState("");
+
   const templates = [
-    {
-      title: "Abordagem Inicial",
-      desc: "Primeiro contato para despertar interesse",
-      content: "Olá! Notei que você faz um trabalho sensacional no seu estabelecimento. Você já utiliza alguma plataforma para agendamentos online e gestão? O Agendelle ajuda centenas de profissionais a organizarem a agenda e criarem um site completo em apenas 5 minutos. Posso te enviar um link para você testar grátis por 30 dias?"
-    },
-    {
-      title: "Dúvidas sobre Planos",
-      desc: "Explicação básica sobre preços e modelos",
-      content: "Temos planos para todos os tamanhos! O Plano Start custa apenas R$ 49,90 e já inclui agenda e gestão. O Plano Pro (R$ 99,90) é o nosso campeão de vendas pois libera o Bot de WhatsApp e o seu Site Próprio para vendas. Quantos profissionais tem na sua equipe hoje?"
-    },
-    {
-      title: "Como funciona (Teste)",
-      desc: "Link de indicação e período de experiência",
-      content: `É muito simples: você clica no meu link ( ${window.location.origin}/assinar?ref=${user?.id} ), faz um cadastro de 1 minuto e já sai com seu site pronto. Você tem 30 dias de teste grátis para testar todas as funcionalidades sem compromisso. Se precisar de ajuda, eu mesmo te auxilio na configuração!`
-    },
-    {
-      title: "Vantagens e Benefícios",
-      desc: "Argumentos de venda e diferenciais",
-      content: "As principais vantagens do Agendelle são:\n1. Site Profissional criado em 5 min\n2. Lembretes automáticos por WhatsApp (reduz faltas drasticamente)\n3. Sua própria vitrine de produtos online\n4. Controle financeiro e de comissões completo.\n\nÉ a ferramenta definitiva para escalar seu negócio!"
-    }
+    { id: "1", category: "Abordagem", title: "Abordagem inicial fria", desc: "Primeiro contato para despertar interesse.", content: "Oi, tudo bem? Vi o perfil de vocês e achei muito bonito o trabalho.\n\nEstou entrando em contato porque estamos lançando o Agendelle, uma plataforma feita para salões, barbearias e profissionais de beleza organizarem agenda, clientes, serviços, pagamentos e terem um site próprio para receber agendamentos online.\n\nA ideia é simples: ajudar você a perder menos tempo respondendo horário no WhatsApp e deixar sua agenda mais profissional.\n\nEstamos com teste grátis de 30 dias.\n\nPosso te mandar o link para conhecer?" },
+    { id: "2", category: "Abordagem", title: "Abordagem mais curta", desc: "Ideal para Direct ou WhatsApp rápido.", content: "Oi, tudo bem? Vi o trabalho de vocês e queria apresentar uma solução que pode ajudar bastante na organização da agenda.\n\nO Agendelle cria uma agenda online e um site profissional para seu negócio receber agendamentos, organizar clientes, serviços e pagamentos em um só lugar.\n\nEstamos liberando 30 dias grátis para teste.\n\nPosso te mandar o link?" },
+    { id: "3", category: "Segmentos", title: "Para Barbearia", desc: "Foco em barbeiros e agendamento por profissional.", content: "Oi, tudo bem? Vi a barbearia de vocês e achei o trabalho muito bom.\n\nQueria apresentar o Agendelle, uma plataforma feita para barbearias organizarem horários, clientes, serviços, pagamentos e terem um link profissional de agendamento.\n\nCom ele, o cliente consegue ver os serviços, escolher horário e agendar online, sem depender só de troca de mensagens no WhatsApp.\n\nEstamos com teste grátis por 30 dias.\n\nPosso te mandar o link para conhecer?" },
+    { id: "4", category: "Segmentos", title: "Para Salão de Beleza", desc: "Foco em equipe e redução de correria.", content: "Oi, tudo bem? Vi o salão de vocês e achei muito bonito.\n\nEstou apresentando o Agendelle, uma plataforma para salões organizarem agenda, clientes, serviços, equipe, pagamentos e ainda terem um site próprio para receber agendamentos online.\n\nA ideia é deixar o atendimento mais profissional e reduzir aquela correria de confirmar horários manualmente pelo WhatsApp.\n\nEstamos com teste grátis por 30 dias.\n\nPosso te mandar o link?" },
+    { id: "5", category: "Segmentos", title: "Para Autônomo", desc: "Manicure, Lash, Sobrancelha, etc.", content: "Oi, tudo bem? Vi seu trabalho e achei muito profissional.\n\nQueria te apresentar o Agendelle, uma agenda online para profissionais de beleza que querem organizar horários, clientes, serviços e pagamentos de forma simples.\n\nVocê ganha um link próprio para colocar na bio do Instagram ou enviar pelo WhatsApp, e seus clientes conseguem solicitar agendamento com mais facilidade.\n\nEstamos liberando teste grátis por 30 dias.\n\nPosso te mandar?" },
+    { id: "6", category: "Links", title: "Quando aceitam o link", desc: "Resposta para 'pode mandar'.", content: "Perfeito.\n\nEsse é o link para conhecer e testar o Agendelle:\n\nhttps://agendelle.com.br/\n\nCom ele você consegue organizar sua agenda, cadastrar serviços, clientes, profissionais, controlar pagamentos e criar uma página própria para o seu negócio receber agendamentos online.\n\nO teste é grátis por 30 dias, sem fidelidade. Se precisar, eu também posso te ajudar na configuração inicial." },
+    { id: "7", category: "Explicação", title: "Como funciona o teste", desc: "Detalhes dos 30 dias grátis.", content: "Funciona assim: você faz seu cadastro, configura o nome do seu negócio, serviços, horários e profissionais, e já pode começar a usar sua agenda online.\n\nO teste é grátis por 30 dias. Nesse período, você consegue conhecer o sistema com calma e ver se faz sentido para sua rotina.\n\nDepois dos 30 dias, você escolhe se quer continuar em algum plano. Não tem fidelidade e você pode cancelar quando quiser." },
+    { id: "8", category: "Explicação", title: "Explicação dos Planos", desc: "Resumo rápido Start vs Pro.", content: "Temos planos para diferentes momentos do negócio.\n\nO plano Start é ideal para quem quer começar organizando agenda, clientes e serviços.\n\nO plano Pro é mais completo e libera recursos como site profissional, WhatsApp, financeiro, comandas e mais ferramentas de gestão.\n\nO plano mais completo é indicado para negócios com equipe maior, vários profissionais e necessidade de controle mais avançado.\n\nMe conta uma coisa: hoje vocês trabalham com quantos profissionais?" },
+    { id: "9", category: "Benefícios", title: "Vantagens Principais", desc: "Lista de benefícios diretos.", content: "As principais vantagens do Agendelle são:\n\n1. Agenda online para seus clientes solicitarem horários.\n2. Site profissional para divulgar seus serviços.\n3. Organização de clientes, serviços e pagamentos em um só lugar.\n4. Lembretes automáticos pelo WhatsApp para reduzir faltas.\n5. Controle financeiro e de comissões completo.\n\nA proposta é tirar a agenda do improviso e deixar seu atendimento mais profissional." },
+    { id: "10", category: "Benefícios", title: "Mensagem Vendedora", desc: "Foco em profissionalismo e valor.", content: "O Agendelle não é só uma agenda.\n\nEle ajuda seu negócio a parecer mais profissional, organizar melhor os horários, reduzir confusão no atendimento e facilitar a vida do cliente na hora de agendar.\n\nEm vez de depender apenas de mensagens soltas no WhatsApp, você passa a ter uma estrutura mais organizada, com link de agendamento, site próprio, serviços cadastrados, clientes e financeiro em um só lugar." },
+    { id: "11", category: "Dúvidas", title: "Precisa instalar app?", desc: "Esclarecendo que é 100% online.", content: "Não precisa instalar nada para começar.\n\nO Agendelle funciona online. Você acessa pelo navegador no celular ou computador.\n\nSeu cliente também não precisa baixar aplicativo. Ele acessa seu link, vê seus serviços e consegue solicitar o agendamento de forma simples." },
+    { id: "12", category: "Objeções", title: "Achei caro", desc: "Contorno focado em ROI.", content: "Entendo totalmente.\n\nMas pensa assim: se o sistema ajudar você a evitar poucos horários perdidos no mês, ele praticamente já se paga.\n\nAlém disso, ele não serve só para agenda. Ele ajuda a organizar clientes, serviços, financeiro, pagamentos, profissionais e ainda melhora a imagem do seu negócio.\n\nMesmo assim, você pode testar por 30 dias grátis antes de decidir continuar." },
+    { id: "13", category: "Objeções", title: "Vou pensar", desc: "Incentivo ao teste sem compromisso.", content: "Claro, sem problema.\n\nSó recomendo você fazer o teste grátis, porque olhando por dentro fica muito mais fácil entender se faz sentido para sua rotina.\n\nVocê não precisa decidir agora. Pode testar, configurar sua agenda e ver se realmente ajuda no dia a dia.\n\nQuer que eu te mande o link de cadastro?" },
+    { id: "14", category: "Follow-up", title: "Follow-up (24h)", desc: "Primeiro retorno após envio do link.", content: "Oi, tudo bem? Passando só para saber se você conseguiu olhar o Agendelle.\n\nAcredito que ele pode ajudar bastante na organização da agenda e na apresentação profissional do seu negócio.\n\nSe quiser, posso te orientar nos primeiros passos para configurar serviços, horários e link de agendamento." },
+    { id: "15", category: "Follow-up", title: "Follow-up (48h/72h)", desc: "Segundo retorno mais direto.", content: "Oi, tudo bem? Você chegou a testar o Agendelle? Estamos ajudando os primeiros profissionais na configuração inicial para deixar a agenda pronta mais rápido.\n\nSe quiser, posso te acompanhar nesse começo e te mostrar o caminho mais simples." },
+    { id: "16", category: "Pós-venda", title: "Boas-vindas", desc: "Após cadastro ou assinatura.", content: "Que bom ter você com a gente no Agendelle!\n\nAgora o próximo passo é configurar seu negócio com calma: nome, serviços, horários, profissionais e o link da sua agenda online.\n\nQualquer dúvida nesse começo, pode me chamar. Queremos que sua experiência seja simples e útil desde o primeiro dia." },
+    { id: "17", category: "Objeções", title: "Já uso WhatsApp", desc: "Foco na organização vs conversa.", content: "Perfeito, muitos profissionais começam assim mesmo.\n\nO ponto é que o WhatsApp ajuda na conversa, mas nem sempre organiza bem a agenda.\n\nCom o Agendelle, você continua usando o WhatsApp, mas passa a ter uma estrutura melhor: link de agendamento, serviços cadastrados, horários organizados e lembretes.\n\nEle não substitui seu atendimento humano. Ele organiza a parte que costuma dar trabalho." }
   ];
+
+  const categories = [
+    { id: "all", name: "Todas" },
+    { id: "fav", name: "Favoritas", icon: <Star size={14} /> },
+    { id: "Abordagem", name: "Abordagem" },
+    { id: "Segmentos", name: "Segmentos" },
+    { id: "Links", name: "Links" },
+    { id: "Explicação", name: "Explicação" },
+    { id: "Benefícios", name: "Benefícios" },
+    { id: "Dúvidas", name: "Dúvidas" },
+    { id: "Objeções", name: "Objeções" },
+    { id: "Follow-up", name: "Follow-up" },
+    { id: "Pós-venda", name: "Pós-venda" },
+  ];
+
+  useEffect(() => {
+    localStorage.setItem(`sales_favs_${user?.id}`, JSON.stringify(favorites));
+  }, [favorites, user?.id]);
+
+  const toggleFavorite = (id: string) => {
+    setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
+  };
+
+  const filteredTemplates = templates.filter(t => {
+    const matchesSearch = t.title.toLowerCase().includes(msgSearch.toLowerCase()) || 
+                         t.content.toLowerCase().includes(msgSearch.toLowerCase());
+    const matchesCategory = activeCategory === "all" ? true : 
+                           activeCategory === "fav" ? favorites.includes(t.id) : 
+                           t.category === activeCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   useEffect(() => {
     const saved = localStorage.getItem(`sales_leads_${user?.id}`);
@@ -1647,18 +1685,96 @@ function SalesTab({ user }: { user: any }) {
       )}
 
       {activeSubTab === "messages" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {templates.map((t, i) => (
-            <ContentCard key={i}>
-              <h3 className="font-black text-sm">{t.title}</h3>
-              <p className="text-xs text-zinc-400 mt-1 mb-4">{t.desc}</p>
-              <div className="bg-zinc-50 p-4 rounded-xl text-xs text-zinc-600 mb-4">{t.content}</div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="ghost" onClick={() => copyToClipboard(t.content)}>Copiar</Button>
-                <Button size="sm" onClick={() => openWhatsapp("", t.content)}>Enviar WA</Button>
+        <div className="space-y-6">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            <div className="flex flex-wrap gap-2">
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-1.5",
+                    activeCategory === cat.id 
+                      ? "bg-zinc-900 border-zinc-900 text-white shadow-lg shadow-zinc-950/20" 
+                      : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-300"
+                  )}
+                >
+                  {cat.icon}
+                  {cat.name}
+                  {cat.id === "fav" && favorites.length > 0 && (
+                    <span className="bg-amber-400 text-zinc-900 w-4 h-4 rounded-full flex items-center justify-center text-[8px]">{favorites.length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="w-full md:w-64">
+              <Input 
+                placeholder="Buscar mensagem..." 
+                value={msgSearch} 
+                onChange={e => setMsgSearch(e.target.value)}
+                iconLeft={<Search size={14} />}
+                size="sm"
+              />
+            </div>
+          </div>
+
+          {filteredTemplates.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredTemplates.map((t) => {
+                const isFav = favorites.includes(t.id);
+                return (
+                  <ContentCard key={t.id} className="group hover:border-zinc-300 transition-all">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <Badge color="info" className="text-[8px] mb-1">{t.category}</Badge>
+                        <h3 className="font-black text-sm text-zinc-800 leading-tight">{t.title}</h3>
+                      </div>
+                      <button 
+                        onClick={() => toggleFavorite(t.id)}
+                        className={cn(
+                          "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+                          isFav ? "bg-amber-50 text-amber-500" : "bg-zinc-50 text-zinc-300 hover:text-zinc-400"
+                        )}
+                      >
+                        <Star size={16} fill={isFav ? "currentColor" : "none"} />
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-zinc-400 mb-4 line-clamp-1">{t.desc}</p>
+                    <div className="bg-zinc-50 p-4 rounded-xl text-[11px] text-zinc-600 mb-4 leading-relaxed line-clamp-4 min-h-[100px] border border-zinc-100 italic">
+                      {t.content}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => copyToClipboard(t.content)}
+                        className="flex-1 text-[10px] uppercase font-black"
+                        iconLeft={<Copy size={14} />}
+                      >
+                        Copiar
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        onClick={() => openWhatsapp("", t.content)}
+                        className="flex-1 text-[10px] uppercase font-black"
+                        iconLeft={<MessageCircle size={14} />}
+                      >
+                        Enviar WA
+                      </Button>
+                    </div>
+                  </ContentCard>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-20 text-center bg-zinc-50 rounded-3xl border-2 border-dashed border-zinc-200">
+              <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center text-zinc-400 mx-auto mb-4">
+                <Search size={24} />
               </div>
-            </ContentCard>
-          ))}
+              <h4 className="text-sm font-black text-zinc-800">Nenhuma mensagem encontrada</h4>
+              <p className="text-xs text-zinc-500 mt-1">Tente mudar o filtro ou termo de busca.</p>
+            </div>
+          )}
         </div>
       )}
 
