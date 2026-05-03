@@ -1682,15 +1682,49 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
                       <Button variant="ghost" size="sm" onClick={handleStripeConnect} className="mt-2 text-emerald-700 hover:bg-emerald-100">Ver Painel Stripe</Button>
                     </div>
                   ) : stripeStatus.connected && !stripeStatus.payoutsEnabled ? (
-                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
-                      <p className="text-xs font-bold text-amber-700">Pendente</p>
-                      <p className="text-[10px] text-amber-600">Finalize o cadastro no Stripe para liberar seus links.</p>
-                      <Button onClick={handleStripeConnect} loading={connecting} className="w-full mt-2 bg-amber-600 hover:bg-amber-700 border-amber-600">Resolver no Stripe</Button>
+                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 space-y-3">
+                      <p className="text-xs font-bold text-amber-700">⏳ Cadastro Pendente</p>
+                      <p className="text-[10px] text-amber-600">Finalize o cadastro no Stripe para liberar seus links e receber comissões.</p>
+                      
+                      {/* Lista de itens pendentes traduzidos */}
+                      {stripeStatus.pendingItems && stripeStatus.pendingItems.length > 0 && (
+                        <div className="bg-white/60 rounded-lg p-2.5 border border-amber-200/50">
+                          <p className="text-[9px] font-black text-amber-800 uppercase tracking-widest mb-1.5">O que falta:</p>
+                          <ul className="space-y-1">
+                            {stripeStatus.pendingItems.map((item: string, i: number) => (
+                              <li key={i} className="flex items-center gap-1.5 text-[10px] text-amber-700">
+                                <span className="w-1 h-1 rounded-full bg-amber-400 shrink-0" />
+                                {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {stripeStatus.disabledReason && (
+                        <p className="text-[9px] text-red-500 font-medium bg-red-50 px-2 py-1 rounded-lg">
+                          Motivo: {stripeStatus.disabledReason === "requirements.past_due" ? "Documentos vencidos — clique abaixo para resolver" : stripeStatus.disabledReason}
+                        </p>
+                      )}
+
+                      <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-amber-600 hover:bg-amber-700 border-amber-600">
+                        {stripeStatus.detailsSubmitted ? "Completar Cadastro" : "Iniciar Cadastro no Stripe"}
+                      </Button>
+                      <button 
+                        onClick={handleStripeReset} 
+                        disabled={connecting}
+                        className="w-full text-[9px] text-zinc-400 hover:text-red-500 font-bold uppercase tracking-widest transition-colors pt-1"
+                      >
+                        Problemas? Resetar conta e começar de novo
+                      </button>
                     </div>
                   ) : (
-                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 space-y-3">
                       <p className="text-xs font-bold text-blue-700">Configuração Necessária</p>
-                      <p className="text-[10px] text-blue-600 mb-3">Você precisa de uma conta Stripe para gerar links de venda.</p>
+                      <p className="text-[10px] text-blue-600">Você precisa de uma conta Stripe para gerar links de venda e receber comissões.</p>
+                      {stripeStatus.message && (
+                        <p className="text-[9px] text-orange-600 font-medium bg-orange-50 px-2 py-1 rounded-lg">{stripeStatus.message}</p>
+                      )}
                       <Button onClick={handleStripeConnect} loading={connecting} className="w-full bg-[#635BFF] hover:bg-[#544ee0] border-[#635BFF]">Configurar Recebimentos</Button>
                     </div>
                   )}

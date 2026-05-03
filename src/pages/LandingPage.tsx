@@ -23,6 +23,7 @@ import { apiFetch } from "../lib/api";
 import "./LandingPage.css";
 
 import logoImg          from "../images/system/imagem-agendele.png";
+import logoWhiteImg     from "../images/system/imagem-agendele-branco.png";
 import faviconImg       from "../images/system/logo-favicon.png";
 import mockupApp        from "../images/system/agendelle_mockup_dashboard.png";
 import mockupDashboard  from "../../public/mockup-app-agendelle.png";
@@ -103,7 +104,7 @@ export default function LandingPage() {
       <nav className={`lp-nav ${scrolled ? "lp-scrolled" : ""}`}>
         <div className="lp-nav-inner">
           <a href="/" className="lp-nav-logo">
-            <img src={logoImg} alt="Agendelle" />
+            <img src={scrolled ? logoImg : logoWhiteImg} alt="Agendelle" />
           </a>
           <ul className="lp-nav-links">
             <li><a href="#recursos"      onClick={e => { e.preventDefault(); scrollTo("#recursos"); }}>Recursos</a></li>

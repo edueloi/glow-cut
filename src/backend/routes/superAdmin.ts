@@ -427,49 +427,158 @@ superAdminRouter.get("/commissions/:id/summary", async (req, res) => {
 
 // ═════════════════════════════════════════════════════════════
 //  SUPER-ADMIN — Stripe Connect (Afiliados/Vendedores)
+//  Robusto: lock anti-dup, metadata, business_profile, conta rejeitada/inválida
 // ═════════════════════════════════════════════════════════════
+
+// Evita chamadas duplicadas de onboarding no mesmo processo
+const onboardingLocks = new Map<string, boolean>();
+
+// Mapeamento legível de campos do Stripe → português
+const STRIPE_REQUIREMENT_LABELS: Record<string, string> = {
+  "individual.first_name": "Nome",
+  "individual.last_name": "Sobrenome",
+  "individual.dob.day": "Data de nascimento (dia)",
+  "individual.dob.month": "Data de nascimento (mês)",
+  "individual.dob.year": "Data de nascimento (ano)",
+  "individual.address.line1": "Endereço (rua/número)",
+  "individual.address.city": "Cidade",
+  "individual.address.state": "Estado",
+  "individual.address.postal_code": "CEP",
+  "individual.id_number": "CPF",
+  "individual.phone": "Telefone",
+  "individual.email": "E-mail",
+  "individual.verification.document": "Documento de identidade (frente)",
+  "individual.verification.additional_document": "Documento de identidade (verso)",
+  "business_profile.url": "URL do negócio",
+  "business_profile.mcc": "Código de atividade (MCC)",
+  "business_profile.product_description": "Descrição do serviço",
+  "external_account": "Dados bancários para recebimento",
+  "tos_acceptance.date": "Aceite dos termos de serviço",
+  "tos_acceptance.ip": "Aceite dos termos de serviço",
+  "representative.first_name": "Nome do representante",
+  "representative.last_name": "Sobrenome do representante",
+};
+
 superAdminRouter.post("/stripe-connect", async (req, res) => {
+  const userId = (req as any).auth?.sub;
   try {
-    const userId = (req as any).auth?.sub;
     if (!userId) return res.status(401).json({ error: "Usuário não identificado" });
+
+    // Lock anti-duplicidade — evita múltiplas contas por cliques duplos
+    if (onboardingLocks.has(userId)) {
+      return res.status(429).json({
+        error: "Onboarding já em andamento. Aguarde alguns segundos e tente novamente."
+      });
+    }
+    onboardingLocks.set(userId, true);
 
     const seller = await (prisma as any).superAdmin.findUnique({ where: { id: userId } });
     if (!seller) return res.status(404).json({ error: "Vendedor não encontrado" });
 
     let accountId = seller.stripeAccountId;
 
-    // Se ainda não tem conta Stripe, cria uma
-    if (!accountId) {
+    // Se já tem accountId, verifica se ainda é válido no Stripe
+    if (accountId) {
+      try {
+        await stripe.accounts.retrieve(accountId);
+      } catch (stripeError: any) {
+        // Conta inválida ou inacessível → limpa e cria nova
+        if (stripeError.code === "account_invalid" || stripeError.statusCode === 403) {
+          console.warn(`[Stripe Connect] Conta inválida (${accountId}). Limpando para usuário ${userId}...`);
+          accountId = null;
+          await (prisma as any).superAdmin.update({
+            where: { id: userId },
+            data: { stripeAccountId: null }
+          });
+        } else {
+          throw stripeError;
+        }
+      }
+    }
+
+    // Função para criar nova conta Stripe Connect
+    const createNewAccount = async () => {
       const account = await stripe.accounts.create({
-        type: 'express',
-        country: 'BR',
+        type: "express",
+        country: "BR",
         email: seller.email || undefined,
-        business_type: 'individual',
+        business_type: "individual",
+        business_profile: {
+          product_description: "Comissões de vendas - Agendelle",
+          mcc: "7298", // MCC para salões de beleza / serviços de beleza
+        },
         capabilities: {
           card_payments: { requested: true },
           transfers: { requested: true },
         },
+        metadata: {
+          user_id: userId,
+          username: seller.username || "",
+          nome_completo: seller.name || "",
+          platform: "agendelle",
+          created_at: new Date().toISOString(),
+        },
+      } as any, {
+        idempotencyKey: `acct_create_user_${userId}_${Date.now()}`
       });
+
       accountId = account.id;
 
       await (prisma as any).superAdmin.update({
         where: { id: userId },
         data: { stripeAccountId: accountId }
       });
+
+      console.log("✅ [Stripe Connect] Conta criada:", { accountId, userId, nome: seller.name });
+    };
+
+    // Cria conta se não existe
+    if (!accountId) {
+      await createNewAccount();
     }
 
+    // Gera Account Link para onboarding
     const origin = req.headers.origin || "https://agendelle.com.br";
-    const accountLink = await stripe.accountLinks.create({
-      account: accountId,
-      refresh_url: `${origin}/super-admin/vendas?refresh=true`,
-      return_url: `${origin}/super-admin/vendas?success=true`,
-      type: 'account_onboarding',
+    let accountLink;
+    try {
+      accountLink = await stripe.accountLinks.create({
+        account: accountId!,
+        refresh_url: `${origin}/super-admin/vendas?refresh=true`,
+        return_url: `${origin}/super-admin/vendas?success=true`,
+        type: "account_onboarding",
+      });
+    } catch (linkError: any) {
+      const msg = linkError?.raw?.message || linkError?.message || "";
+      // Conta rejeitada pelo Stripe → limpa e recria
+      if (msg.includes("account has been rejected")) {
+        console.warn(`[Stripe Connect] Conta rejeitada (${accountId}). Recriando para ${userId}...`);
+        await (prisma as any).superAdmin.update({
+          where: { id: userId },
+          data: { stripeAccountId: null }
+        });
+        accountId = null;
+        await createNewAccount();
+        accountLink = await stripe.accountLinks.create({
+          account: accountId!,
+          refresh_url: `${origin}/super-admin/vendas?refresh=true`,
+          return_url: `${origin}/super-admin/vendas?success=true`,
+          type: "account_onboarding",
+        });
+      } else {
+        throw linkError;
+      }
+    }
+
+    console.log("✅ [Stripe Connect] Account Link criado:", {
+      accountId, url: accountLink.url, expires_at: accountLink.expires_at
     });
 
     res.json({ url: accountLink.url });
   } catch (e: any) {
     console.error("[Stripe Connect Error]:", e);
     res.status(500).json({ error: e.message });
+  } finally {
+    if (userId) onboardingLocks.delete(userId);
   }
 });
 
@@ -514,17 +623,51 @@ superAdminRouter.get("/stripe-connect/status", async (req, res) => {
       return res.json({ connected: false });
     }
 
-    const account = await stripe.accounts.retrieve(seller.stripeAccountId);
-    const requiresAction = (account.requirements?.currently_due?.length ?? 0) > 0
-      || (account.requirements?.past_due?.length ?? 0) > 0;
+    let account;
+    try {
+      account = await stripe.accounts.retrieve(seller.stripeAccountId);
+    } catch (stripeError: any) {
+      // Conta inválida → limpa automaticamente e retorna não conectado
+      if (stripeError.code === "account_invalid" || stripeError.statusCode === 403) {
+        console.warn(`[Stripe Connect Status] Conta inválida (${seller.stripeAccountId}). Limpando...`);
+        await (prisma as any).superAdmin.update({
+          where: { id: userId },
+          data: { stripeAccountId: null }
+        });
+        return res.json({
+          connected: false,
+          message: "Conta Stripe anterior não é mais válida. Por favor, conecte uma nova conta."
+        });
+      }
+      throw stripeError;
+    }
+
+    // Mapeia requisitos pendentes para termos em português
+    const currentlyDue = account.requirements?.currently_due || [];
+    const pastDue = account.requirements?.past_due || [];
+    const eventuallyDue = account.requirements?.eventually_due || [];
+    const disabledReason = account.requirements?.disabled_reason || null;
+
+    const requiresAction = currentlyDue.length > 0 || pastDue.length > 0;
+
+    // Traduz os campos pendentes para exibição amigável
+    const pendingItems = [...new Set([...pastDue, ...currentlyDue])].map(
+      (field: string) => STRIPE_REQUIREMENT_LABELS[field] || field
+    );
+
     res.json({
       connected: true,
       detailsSubmitted: account.details_submitted,
+      chargesEnabled: account.charges_enabled,
       payoutsEnabled: account.payouts_enabled,
       requiresAction,
-      accountId: seller.stripeAccountId
+      disabledReason,
+      pendingItems,
+      pendingCount: pendingItems.length,
+      accountId: seller.stripeAccountId,
     });
   } catch (e: any) {
+    console.error("[Stripe Connect Status Error]:", e);
     res.status(500).json({ error: e.message });
   }
 });
