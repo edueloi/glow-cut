@@ -21,7 +21,7 @@ transporter.sendMail = async (opts: any) => {
 };
 
 const FROM = '"Agendelle" <agendelle@develoi.com.br>';
-const ADMIN_EMAIL = "contato@develoi.com.br";
+const ADMIN_EMAIL = "contato@agendelle.com.br";
 const APP_URL = process.env.APP_URL || "https://agendelle.com.br";
 
 // ─── Email para o novo cliente: link de criação de senha ────────────────────
@@ -70,7 +70,7 @@ export async function sendSetupAccountEmail(opts: {
   });
 }
 
-// ─── Email para contato@develoi.com.br: aviso de nova assinatura ────────────
+// ─── Email para contato@agendelle.com.br>: aviso de nova assinatura ────────────
 export async function sendAdminNewSubscriptionEmail(opts: {
   tenantName: string;
   ownerName: string;
