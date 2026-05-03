@@ -814,9 +814,65 @@ superAdminRouter.put("/tenants/:id", async (req, res) => {
 });
 
 superAdminRouter.delete("/tenants/:id", async (req, res) => {
+  const { id } = req.params;
   try {
-    await (prisma as any).adminUser.deleteMany({ where: { tenantId: req.params.id } });
-    await (prisma as any).tenant.delete({ where: { id: req.params.id } });
+    // Delete in dependency order to avoid FK violations
+    await (prisma as any).wppMessageSent.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).wppMessageTemplate.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).wppBotConfig.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).wppInstance.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).userPreferences.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).agendaSettings.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).closedDay.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).scheduleRelease.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).specialScheduleDay.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).cashEntry.deleteMany({ where: { tenantId: id } });
+    // Subscriptions (child records first)
+    await (prisma as any).subscriptionPayment.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).subscriptionCredit.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).clientSubscription.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).membershipPlan.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).clientPortalUser.deleteMany({ where: { tenantId: id } });
+    // Appointments reference comanda, client, professional, service — clear first
+    await (prisma as any).appointment.deleteMany({ where: { tenantId: id } });
+    // ComandaItems cascade from Comanda; delete comanda deletes items
+    const comandas = await (prisma as any).comanda.findMany({ where: { tenantId: id }, select: { id: true } });
+    const comandaIds = comandas.map((c: any) => c.id);
+    if (comandaIds.length > 0) {
+      await (prisma as any).comandaItem.deleteMany({ where: { comandaId: { in: comandaIds } } });
+    }
+    await (prisma as any).comanda.deleteMany({ where: { tenantId: id } });
+    // Stock movements reference products
+    await (prisma as any).stockMovement.deleteMany({ where: { tenantId: id } });
+    // ServiceConsumption + ServiceProduct reference services and products
+    await (prisma as any).serviceConsumption.deleteMany({ where: { tenantId: id } });
+    // Services (packageService cascades on delete)
+    const services = await (prisma as any).service.findMany({ where: { tenantId: id }, select: { id: true } });
+    const serviceIds = services.map((s: any) => s.id);
+    if (serviceIds.length > 0) {
+      await (prisma as any).packageService.deleteMany({ where: { packageId: { in: serviceIds } } });
+      await (prisma as any).packageService.deleteMany({ where: { serviceId: { in: serviceIds } } });
+      await (prisma as any).serviceProduct.deleteMany({ where: { serviceId: { in: serviceIds } } });
+    }
+    await (prisma as any).service.deleteMany({ where: { tenantId: id } });
+    // Products (serviceProduct/stockMovement already cleared)
+    await (prisma as any).product.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).sector.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).supplier.deleteMany({ where: { tenantId: id } });
+    await (prisma as any).manufacturer.deleteMany({ where: { tenantId: id } });
+    // Professionals (workingHours reference professional)
+    const professionals = await (prisma as any).professional.findMany({ where: { tenantId: id }, select: { id: true } });
+    const profIds = professionals.map((p: any) => p.id);
+    if (profIds.length > 0) {
+      await (prisma as any).workingHours.deleteMany({ where: { professionalId: { in: profIds } } });
+    }
+    await (prisma as any).professional.deleteMany({ where: { tenantId: id } });
+    // Clients
+    await (prisma as any).client.deleteMany({ where: { tenantId: id } });
+    // Admin users
+    await (prisma as any).adminUser.deleteMany({ where: { tenantId: id } });
+    // Finally delete the tenant
+    await (prisma as any).tenant.delete({ where: { id } });
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message || "Erro ao excluir parceiro." });
