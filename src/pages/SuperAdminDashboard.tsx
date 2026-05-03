@@ -1439,12 +1439,24 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
     { id: "Pós-venda", name: "Pós-venda" },
   ];
 
-  useEffect(() => {
-    localStorage.setItem(`sales_favs_${user?.id}`, JSON.stringify(favorites));
-  }, [favorites, user?.id]);
+  const LEAD_STATUS: any = {
+    new: { label: "Novo", color: "info" },
+    contacted: { label: "Contatado", color: "purple" },
+    success: { label: "Deu Certo", color: "success" },
+    failed: { label: "Não Deu Certo", color: "danger" },
+    follow_up: { label: "Retornar", color: "warning" },
+    talk_to_someone: { label: "Falar com Alguém", color: "amber" },
+  };
 
-  const toggleFavorite = (id: string) => {
-    setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
+  const toggleFavorite = async (id: string) => {
+    const newFavs = favorites.includes(id) ? favorites.filter(f => f !== id) : [...favorites, id];
+    setFavorites(newFavs);
+    try {
+      await apiFetch("/api/super-admin/favorites", {
+        method: "POST",
+        body: JSON.stringify({ favorites: newFavs })
+      });
+    } catch { toast.error("Erro ao salvar favoritos"); }
   };
 
   const filteredTemplates = templates.filter(t => {
@@ -1456,29 +1468,33 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
     return matchesSearch && matchesCategory;
   });
 
-  useEffect(() => {
-    const saved = localStorage.getItem(`sales_leads_${user?.id}`);
-    if (saved) setLeads(JSON.parse(saved));
-  }, [user?.id]);
-
-  const saveLeads = (newList: any[]) => {
-    setLeads(newList);
-    localStorage.setItem(`sales_leads_${user?.id}`, JSON.stringify(newList));
-  };
-
-  const handleSaveLead = () => {
+  const handleSaveLead = async () => {
     if (!leadForm.name || !leadForm.phone) return;
-    if (editingLead) {
-      saveLeads(leads.map(l => l.id === editingLead.id ? { ...l, ...leadForm, updatedAt: new Date().toISOString() } : l));
-    } else {
-      const newLead = { ...leadForm, id: Date.now().toString(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-      saveLeads([newLead, ...leads]);
-    }
-    setLeadModal(false);
-    setLeadForm({ name: "", phone: "", status: "new", notes: "" });
+    try {
+      const res = await apiFetch("/api/super-admin/leads", {
+        method: "POST",
+        body: JSON.stringify({ ...leadForm, id: editingLead?.id })
+      });
+      const data = await res.json();
+      if (editingLead) {
+        setLeads(leads.map(l => l.id === editingLead.id ? data : l));
+      } else {
+        setLeads([data, ...leads]);
+      }
+      setLeadModal(false);
+      setLeadForm({ name: "", phone: "", status: "new", notes: "" });
+      toast.success("Lead salvo com sucesso!");
+    } catch { toast.error("Erro ao salvar lead"); }
   };
 
-  const deleteLead = (id: string) => saveLeads(leads.filter(l => l.id !== id));
+  const deleteLead = async (id: string) => {
+    if (!confirm("Excluir este contato?")) return;
+    try {
+      await apiFetch(`/api/super-admin/leads/${id}`, { method: "DELETE" });
+      setLeads(leads.filter(l => l.id !== id));
+      toast.success("Lead removido");
+    } catch { toast.error("Erro ao excluir lead"); }
+  };
 
   const openWhatsapp = (phone: string, template?: string) => {
     const clean = phone.replace(/\D/g, "");
@@ -1494,11 +1510,13 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
   const fetchData = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const [statsData, stripeData] = await Promise.all([
+      const [statsData, stripeData, leadsData, favsData] = await Promise.all([
         apiFetch("/api/super-admin/sales-stats").then(r => r.json()).catch(() => null),
         apiFetch("/api/super-admin/stripe-connect/status")
           .then(async r => r.ok ? r.json() : { connected: false, error: true })
-          .catch(() => ({ connected: false, error: true }))
+          .catch(() => ({ connected: false, error: true })),
+        apiFetch("/api/super-admin/leads").then(r => r.json()).catch(() => []),
+        apiFetch("/api/super-admin/favorites").then(r => r.json()).catch(() => [])
       ]);
       setStats({
         totalSales: statsData?.totalSales ?? 0,
@@ -1508,6 +1526,8 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
         clients: Array.isArray(statsData?.clients) ? statsData.clients : [],
       });
       setStripeStatus(stripeData);
+      setLeads(leadsData);
+      setFavorites(favsData);
     } finally {
       setLoading(false);
     }
@@ -1662,20 +1682,50 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
             <Button iconLeft={<Plus size={16} />} onClick={() => { setEditingLead(null); setLeadModal(true); }}>Novo Lead</Button>
           </div>
           <ContentCard padding="none">
-            <table className="w-full">
-              <tbody className="divide-y divide-zinc-100">
-                {leads.filter(l => l.name.toLowerCase().includes(leadSearch.toLowerCase())).map(l => (
-                  <tr key={l.id}>
-                    <td className="px-5 py-4 text-sm font-bold">{l.name}</td>
-                    <td className="px-5 py-4 text-xs text-zinc-500">{l.phone}</td>
-                    <td className="px-5 py-4 text-right">
-                      <IconButton variant="ghost" onClick={() => openWhatsapp(l.phone)}><MessageCircle size={14} /></IconButton>
-                      <IconButton variant="ghost" onClick={() => deleteLead(l.id)}><Trash2 size={14} /></IconButton>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-zinc-50 border-b border-zinc-100">
+                  <tr>
+                    <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Contato</th>
+                    <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">WhatsApp</th>
+                    <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Status</th>
+                    <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Notas</th>
+                    <th className="px-5 py-3 text-right text-[10px] font-black text-zinc-400 uppercase tracking-widest">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {leads.filter(l => l.name.toLowerCase().includes(leadSearch.toLowerCase())).map(l => (
+                    <tr key={l.id} className="hover:bg-zinc-50/50 group">
+                      <td className="px-5 py-4 text-sm font-bold text-zinc-800">{l.name}</td>
+                      <td className="px-5 py-4 text-xs text-zinc-500 font-medium">{l.phone}</td>
+                      <td className="px-5 py-4">
+                        <Badge color={LEAD_STATUS[l.status]?.color || "default"}>
+                          {LEAD_STATUS[l.status]?.label || "Novo"}
+                        </Badge>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="text-[11px] text-zinc-400 line-clamp-1 max-w-[200px]" title={l.notes}>
+                          {l.notes || "—"}
+                        </p>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex justify-end gap-1">
+                          <IconButton variant="ghost" size="sm" onClick={() => openWhatsapp(l.phone)} title="Enviar WhatsApp">
+                            <MessageCircle size={14} className="text-zinc-400 group-hover:text-emerald-500" />
+                          </IconButton>
+                          <IconButton variant="ghost" size="sm" onClick={() => { setEditingLead(l); setLeadForm({ name: l.name, phone: l.phone, status: l.status, notes: l.notes || "" }); setLeadModal(true); }} title="Editar">
+                            <Edit2 size={14} className="text-zinc-400 group-hover:text-blue-500" />
+                          </IconButton>
+                          <IconButton variant="ghost" size="sm" onClick={() => deleteLead(l.id)} title="Excluir">
+                            <Trash2 size={14} className="text-zinc-400 group-hover:text-red-500" />
+                          </IconButton>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </ContentCard>
         </div>
       )}

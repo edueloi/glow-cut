@@ -549,8 +549,24 @@ model SuperAdmin {
   commissionByPlan String?  @db.Text
   trialDays        Int      @default(30) // dias de trial sem cobrar comissão
   stripeAccountId  String?  @db.VarChar(150) // Stripe Connect Account ID
+  favoriteTemplates String? @db.Text // JSON array de IDs ["1", "5", "8"]
   createdAt        DateTime @default(now()) @db.DateTime(0)
   tenantsSold      Tenant[]
+  leads            SuperAdminLead[]
+}
+
+model SuperAdminLead {
+  id        String   @id @db.VarChar(36)
+  sellerId  String   @db.VarChar(36)
+  name      String   @db.VarChar(255)
+  phone     String   @db.VarChar(30)
+  status    String   @default("new") @db.VarChar(50) // new, contacted, success, failed, follow_up, talk_to_someone
+  notes     String?  @db.Text
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @updatedAt @db.DateTime(0)
+  seller    SuperAdmin @relation(fields: [sellerId], references: [id])
+
+  @@index([sellerId])
 }
 
 model WppBotConfig {

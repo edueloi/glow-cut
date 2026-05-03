@@ -856,7 +856,44 @@ const MIGRATIONS = [
   { name: '047a_tenant_add_siteTemplate',  sql: `ALTER TABLE Tenant ADD COLUMN siteTemplate VARCHAR(20) NOT NULL DEFAULT 'classic' AFTER siteCoverUrl`, ignoreIfExists: true },
   { name: '047b_tenant_add_galleryImages', sql: `ALTER TABLE Tenant ADD COLUMN galleryImages LONGTEXT NULL AFTER siteTemplate`, ignoreIfExists: true },
 
+  // 048 — Sales CRM: Favorite Templates
+  {
+    name: '048_superadmin_add_favoriteTemplates',
+    sql: `ALTER TABLE SuperAdmin ADD COLUMN favoriteTemplates TEXT NULL`,
+    ignoreIfExists: true,
+  },
+
+  // 049 — Sales CRM: SuperAdminLead Table
+  {
+    name: '049_create_superadmin_lead',
+    sql: `
+      CREATE TABLE IF NOT EXISTS SuperAdminLead (
+        id        VARCHAR(36)  NOT NULL PRIMARY KEY,
+        sellerId  VARCHAR(36)  NOT NULL,
+        name      VARCHAR(255) NOT NULL,
+        phone     VARCHAR(30)  NOT NULL,
+        status    VARCHAR(50)  NOT NULL DEFAULT 'new',
+        notes     TEXT         NULL,
+        createdAt DATETIME(0)  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME(0)  NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_salelead_seller (sellerId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
+  // 050 — Sales CRM: SuperAdminLead Foreign Key
+  {
+    name: '050_add_fk_salelead_seller',
+    sql: `
+      ALTER TABLE SuperAdminLead
+        ADD CONSTRAINT fk_salelead_seller
+        FOREIGN KEY (sellerId) REFERENCES SuperAdmin(id) ON DELETE CASCADE;
+    `,
+    ignoreIfExists: true,
+  },
+
 ];
+
 
 // ─────────────────────────────────────────────────────────────
 //  Runner

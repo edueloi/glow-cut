@@ -1841,3 +1841,90 @@ superAdminRouter.get("/finance/categories", async (_req, res) => {
   });
 });
 
+// ─── CRM LEADS & FAVORITOS ────────────────────────────────────
+superAdminRouter.get("/leads", async (req, res) => {
+  try {
+    const userId = (req as any).auth?.sub;
+    if (!userId) return res.status(401).json({ error: "Não autorizado" });
+    const leads = await (prisma as any).superAdminLead.findMany({
+      where: { sellerId: userId },
+      orderBy: { updatedAt: "desc" }
+    });
+    res.json(leads);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+superAdminRouter.post("/leads", async (req, res) => {
+  try {
+    const userId = (req as any).auth?.sub;
+    if (!userId) return res.status(401).json({ error: "Não autorizado" });
+    const { id, name, phone, status, notes } = req.body;
+    
+    if (id) {
+      const updated = await (prisma as any).superAdminLead.update({
+        where: { id, sellerId: userId },
+        data: { name, phone, status, notes }
+      });
+      return res.json(updated);
+    }
+
+    const created = await (prisma as any).superAdminLead.create({
+      data: {
+        id: randomUUID(),
+        sellerId: userId,
+        name,
+        phone,
+        status: status || "new",
+        notes
+      }
+    });
+    res.json(created);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+superAdminRouter.delete("/leads/:id", async (req, res) => {
+  try {
+    const userId = (req as any).auth?.sub;
+    if (!userId) return res.status(401).json({ error: "Não autorizado" });
+    await (prisma as any).superAdminLead.delete({
+      where: { id: req.params.id, sellerId: userId }
+    });
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+superAdminRouter.get("/favorites", async (req, res) => {
+  try {
+    const userId = (req as any).auth?.sub;
+    if (!userId) return res.status(401).json({ error: "Não autorizado" });
+    const user = await (prisma as any).superAdmin.findUnique({
+      where: { id: userId },
+      select: { favoriteTemplates: true }
+    });
+    res.json(JSON.parse(user?.favoriteTemplates || "[]"));
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+superAdminRouter.post("/favorites", async (req, res) => {
+  try {
+    const userId = (req as any).auth?.sub;
+    if (!userId) return res.status(401).json({ error: "Não autorizado" });
+    const { favorites } = req.body;
+    await (prisma as any).superAdmin.update({
+      where: { id: userId },
+      data: { favoriteTemplates: JSON.stringify(favorites) }
+    });
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
