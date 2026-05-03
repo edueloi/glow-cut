@@ -1202,5 +1202,3 @@ export function SiteTab() {
     </PageWrapper>
   );
 }
-
-

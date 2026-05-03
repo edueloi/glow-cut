@@ -454,8 +454,8 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-4xl font-black text-zinc-200">{prof.name.charAt(0)}</div>
                     )}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-4">
-                      <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-3 bg-white rounded-xl text-xs font-black text-zinc-950 shadow-xl">AGENDAR</Link>
+                    <div className="absolute inset-0 bg-black/40 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-4">
+                       <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-3 bg-white rounded-xl text-xs font-black text-zinc-950 shadow-xl text-center">AGENDAR</Link>
                     </div>
                   </div>
                   <h3 className="text-lg font-black text-zinc-950">{prof.name}</h3>
@@ -501,10 +501,16 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
 
       {/* Hero — Immersive Dark */}
       <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
-        {/* Background Gradients */}
-        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full opacity-20 blur-[120px]" style={{ backgroundColor: themeColor }} />
-          <div className="absolute bottom-[10%] right-[-10%] w-[40%] h-[40%] rounded-full opacity-10 blur-[120px]" style={{ backgroundColor: themeColor }} />
+        {/* Background Gradients & Image */}
+        {heroImage && (
+          <div className="absolute inset-0 z-0">
+            <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-black/80" />
+          </div>
+        )}
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full opacity-30 blur-[120px]" style={{ backgroundColor: themeColor }} />
+          <div className="absolute bottom-[10%] right-[-10%] w-[40%] h-[40%] rounded-full opacity-20 blur-[120px]" style={{ backgroundColor: themeColor }} />
         </div>
 
         <div className="max-w-7xl mx-auto px-6 w-full relative z-10 text-center">
@@ -529,8 +535,8 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
               <Link 
                 to={bookingUrl} 
-                className="group relative px-12 py-5 rounded-full font-black text-sm uppercase tracking-widest overflow-hidden transition-all active:scale-95"
-                style={{ backgroundColor: themeColor, color: '#000' }}
+                className="group relative px-12 py-5 rounded-full font-black text-sm uppercase tracking-widest overflow-hidden transition-all active:scale-95 shadow-2xl"
+                style={{ backgroundColor: themeColor, color: '#fff' }}
               >
                 <span className="relative z-10">Agendar Agora</span>
                 <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
@@ -631,8 +637,8 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
                       <div className="w-full h-full flex items-center justify-center text-6xl font-black text-white/5">{prof.name.charAt(0)}</div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
-                    <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col justify-end h-1/2">
-                       <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-4 rounded-full bg-white text-black font-black text-[10px] tracking-widest uppercase scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500 shadow-2xl">RESERVAR</Link>
+                     <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col justify-end h-1/2">
+                       <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-4 rounded-full bg-white text-black font-black text-[10px] tracking-widest uppercase md:scale-90 md:opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500 shadow-2xl">RESERVAR</Link>
                     </div>
                   </div>
                   <h3 className="text-2xl font-black tracking-tight">{prof.name}</h3>
@@ -672,9 +678,15 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
 
       {/* Hero — Modern Glass */}
       <section className="relative min-h-[95vh] flex items-center pt-20">
-        {/* Background shapes */}
-        <div className="absolute top-[-10%] right-[-5%] w-[60%] h-[60%] rounded-full blur-[100px] opacity-10 pointer-events-none" style={{ backgroundColor: themeColor }} />
-        <div className="absolute bottom-[5%] left-[-10%] w-[40%] h-[40%] rounded-full blur-[80px] opacity-10 pointer-events-none" style={{ backgroundColor: themeColor }} />
+        {/* Background shapes & Image */}
+        {heroImage && (
+          <div className="absolute inset-0 z-0">
+            <img src={heroImage} alt="" className="w-full h-full object-cover opacity-[0.05]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#f8f9fa] via-[#f8f9fa]/80 to-transparent" />
+          </div>
+        )}
+        <div className="absolute top-[-10%] right-[-5%] w-[60%] h-[60%] rounded-full blur-[100px] opacity-10 pointer-events-none z-0" style={{ backgroundColor: themeColor }} />
+        <div className="absolute bottom-[5%] left-[-10%] w-[40%] h-[40%] rounded-full blur-[80px] opacity-10 pointer-events-none z-0" style={{ backgroundColor: themeColor }} />
 
         <div className="max-w-7xl mx-auto px-6 w-full relative z-10">
           <div className="grid lg:grid-cols-[1.2fr_1fr] gap-16 items-center">
@@ -807,9 +819,9 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-5xl font-black text-zinc-400 bg-zinc-200">{prof.name.charAt(0)}</div>
                     )}
-                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-8">
-                       <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-4 bg-white rounded-2xl text-xs font-black text-zinc-950 shadow-2xl tracking-widest text-center">RESERVAR</Link>
-                    </div>
+                     <div className="absolute inset-0 bg-black/20 md:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-8">
+                        <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-4 bg-white rounded-2xl text-xs font-black text-zinc-950 shadow-2xl tracking-widest text-center">RESERVAR</Link>
+                     </div>
                   </div>
                   <h3 className="text-2xl font-black text-zinc-950 mb-1">{prof.name}</h3>
                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">{prof.role || "Especialista"}</p>
