@@ -1831,7 +1831,19 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
       <Modal isOpen={leadModal} onClose={() => setLeadModal(false)} title={editingLead ? "Editar Contato" : "Novo Contato"}>
         <div className="space-y-4 p-5">
           <Input label="Nome completo" value={leadForm.name} onChange={e => setLeadForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: João da Barbearia" />
-          <Input label="WhatsApp / Telefone" value={leadForm.phone} onChange={e => setLeadForm(p => ({ ...p, phone: e.target.value }))} placeholder="Ex: 11999999999" />
+          <Input 
+            label="WhatsApp / Telefone" 
+            value={leadForm.phone} 
+            onChange={e => {
+              const masked = e.target.value
+                .replace(/\D/g, "")
+                .replace(/(\d{2})(\d)/, "($1) $2")
+                .replace(/(\d{5})(\d)/, "$1-$2")
+                .replace(/(-\d{4})\d+?$/, "$1");
+              setLeadForm(p => ({ ...p, phone: masked }));
+            }} 
+            placeholder="(11) 99999-9999" 
+          />
           
           <div className="space-y-1">
             <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">Status do Atendimento</label>
