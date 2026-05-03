@@ -1385,6 +1385,8 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [leadModal, setLeadModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [leadToDelete, setLeadToDelete] = useState<any>(null);
   const [editingLead, setEditingLead] = useState<any>(null);
   const [leadSearch, setLeadSearch] = useState("");
   const [leadForm, setLeadForm] = useState({ name: "", phone: "", status: "new", notes: "" });
@@ -1487,12 +1489,14 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
     } catch { toast.error("Erro ao salvar lead"); }
   };
 
-  const deleteLead = async (id: string) => {
-    if (!confirm("Excluir este contato?")) return;
+  const deleteLead = async () => {
+    if (!leadToDelete) return;
     try {
-      await apiFetch(`/api/super-admin/leads/${id}`, { method: "DELETE" });
-      setLeads(leads.filter(l => l.id !== id));
+      await apiFetch(`/api/super-admin/leads/${leadToDelete.id}`, { method: "DELETE" });
+      setLeads(leads.filter(l => l.id !== leadToDelete.id));
       toast.success("Lead removido");
+      setDeleteModal(false);
+      setLeadToDelete(null);
     } catch { toast.error("Erro ao excluir lead"); }
   };
 
@@ -1716,7 +1720,7 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
                           <IconButton variant="ghost" size="sm" onClick={() => { setEditingLead(l); setLeadForm({ name: l.name, phone: l.phone, status: l.status, notes: l.notes || "" }); setLeadModal(true); }} title="Editar">
                             <Edit2 size={14} className="text-zinc-400 group-hover:text-blue-500" />
                           </IconButton>
-                          <IconButton variant="ghost" size="sm" onClick={() => deleteLead(l.id)} title="Excluir">
+                          <IconButton variant="ghost" size="sm" onClick={() => { setLeadToDelete(l); setDeleteModal(true); }} title="Excluir">
                             <Trash2 size={14} className="text-zinc-400 group-hover:text-red-500" />
                           </IconButton>
                         </div>
@@ -1824,13 +1828,59 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
         </div>
       )}
 
-      <Modal isOpen={leadModal} onClose={() => setLeadModal(false)} title="Lead">
+      <Modal isOpen={leadModal} onClose={() => setLeadModal(false)} title={editingLead ? "Editar Contato" : "Novo Contato"}>
         <div className="space-y-4 p-5">
-          <Input label="Nome" value={leadForm.name} onChange={e => setLeadForm(p => ({ ...p, name: e.target.value }))} />
-          <Input label="WhatsApp" value={leadForm.phone} onChange={e => setLeadForm(p => ({ ...p, phone: e.target.value }))} />
-          <Button fullWidth onClick={handleSaveLead}>Salvar</Button>
+          <Input label="Nome completo" value={leadForm.name} onChange={e => setLeadForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: João da Barbearia" />
+          <Input label="WhatsApp / Telefone" value={leadForm.phone} onChange={e => setLeadForm(p => ({ ...p, phone: e.target.value }))} placeholder="Ex: 11999999999" />
+          
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">Status do Atendimento</label>
+            <select 
+              value={leadForm.status} 
+              onChange={e => setLeadForm(p => ({ ...p, status: e.target.value }))}
+              className="w-full h-10 px-3 rounded-xl border border-zinc-200 text-sm focus:border-zinc-400 focus:ring-0 transition-all outline-none appearance-none bg-white"
+            >
+              {Object.entries(LEAD_STATUS).map(([key, val]: [string, any]) => (
+                <option key={key} value={key}>{val.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">Observações / Histórico</label>
+            <textarea
+              className="w-full p-4 rounded-xl border border-zinc-200 text-sm focus:border-zinc-400 focus:ring-0 transition-all outline-none min-h-[100px] resize-none"
+              value={leadForm.notes}
+              onChange={e => setLeadForm(p => ({ ...p, notes: e.target.value }))}
+              placeholder="Descreva o que foi conversado, objeções, data de retorno..."
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 p-5 pt-0">
+          <Button variant="ghost" onClick={() => setLeadModal(false)}>Cancelar</Button>
+          <Button onClick={handleSaveLead}>{editingLead ? "Salvar Alterações" : "Cadastrar Lead"}</Button>
         </div>
       </Modal>
+
+      <Modal isOpen={deleteModal} onClose={() => setDeleteModal(false)} title="Excluir Contato">
+        <div className="p-6 space-y-4">
+          <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center text-red-500 mx-auto">
+            <Trash2 size={32} />
+          </div>
+          <div className="text-center">
+            <h3 className="text-lg font-black text-zinc-800">Tem certeza?</h3>
+            <p className="text-sm text-zinc-500 mt-2">
+              Você está prestes a excluir o contato <span className="font-bold text-zinc-800">"{leadToDelete?.name}"</span>. 
+              Esta ação não pode ser desfeita.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-3 p-5 pt-0">
+          <Button variant="ghost" className="flex-1" onClick={() => setDeleteModal(false)}>Cancelar</Button>
+          <Button variant="danger" className="flex-1 bg-red-600 hover:bg-red-700 border-red-600" onClick={deleteLead}>Excluir Agora</Button>
+        </div>
+      </Modal>
+
     </div>
   );
 }
