@@ -1393,6 +1393,7 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
   const [leadToDelete, setLeadToDelete] = useState<any>(null);
   const [editingLead, setEditingLead] = useState<any>(null);
   const [leadSearch, setLeadSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [leadForm, setLeadForm] = useState({ name: "", phone: "", city: "", status: "new", notes: "" });
   const toast = useToast();
   const location = useLocation();
@@ -1474,6 +1475,18 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
     return matchesSearch && matchesCategory;
   });
 
+  const filteredLeads = leads.filter(l => {
+    const term = leadSearch.toLowerCase();
+    const matchesSearch = 
+      l.name.toLowerCase().includes(term) || 
+      (l.phone || "").toLowerCase().includes(term) || 
+      (l.city || "").toLowerCase().includes(term);
+    
+    const matchesStatus = statusFilter === "all" ? true : l.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
   const handleSaveLead = async () => {
     if (!leadForm.name || !leadForm.phone) return;
     try {
@@ -1481,7 +1494,14 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
         method: "POST",
         body: JSON.stringify({ ...leadForm, id: editingLead?.id })
       });
+      
       const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "Erro ao salvar lead");
+        return;
+      }
+
       if (editingLead) {
         setLeads(leads.map(l => l.id === editingLead.id ? data : l));
       } else {
@@ -1490,7 +1510,9 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
       setLeadModal(false);
       setLeadForm({ name: "", phone: "", city: "", status: "new", notes: "" });
       toast.success("Lead salvo com sucesso!");
-    } catch { toast.error("Erro ao salvar lead"); }
+    } catch (e: any) { 
+      toast.error(e.message || "Erro ao conectar com o servidor"); 
+    }
   };
 
   const deleteLead = async () => {
@@ -1767,55 +1789,111 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
 
       {activeSubTab === "leads" && (
         <div className="space-y-5">
-          <div className="flex justify-between items-center">
-            <Input placeholder="Buscar..." value={leadSearch} onChange={e => setLeadSearch(e.target.value)} />
-            <Button iconLeft={<Plus size={16} />} onClick={() => { setEditingLead(null); setLeadModal(true); }}>Novo Lead</Button>
-          </div>
-          <ContentCard padding="none">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-zinc-50 border-b border-zinc-100">
-                  <tr>
-                    <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Contato</th>
-                    <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">WhatsApp</th>
-                    <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Cidade</th>
-                    <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Status</th>
-                    <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Notas</th>
-                    <th className="px-5 py-3 text-right text-[10px] font-black text-zinc-400 uppercase tracking-widest">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {leads.filter(l => l.name.toLowerCase().includes(leadSearch.toLowerCase()) || (l.city || "").toLowerCase().includes(leadSearch.toLowerCase())).map(l => (
-                    <tr key={l.id} className="hover:bg-zinc-50/50 group cursor-pointer transition-colors" onClick={() => { setEditingLead(l); setLeadForm({ name: l.name, phone: l.phone, city: l.city || "", status: l.status, notes: l.notes || "" }); setLeadModal(true); }}>
-                      <td className="px-5 py-4 text-sm font-bold text-zinc-800">{l.name}</td>
-                      <td className="px-5 py-4 text-xs text-zinc-500 font-medium">{l.phone}</td>
-                      <td className="px-5 py-4 text-xs font-bold text-zinc-600">{l.city || "—"}</td>
-                      <td className="px-5 py-4">
-                        <Badge color={LEAD_STATUS[l.status]?.color || "default"}>
-                          {LEAD_STATUS[l.status]?.label || "Novo"}
-                        </Badge>
-                      </td>
-                      <td className="px-5 py-4">
-                        <p className="text-[11px] text-zinc-400 line-clamp-1 max-w-[200px]" title={l.notes}>
-                          {l.notes || "—"}
-                        </p>
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex justify-end gap-1">
-                          <IconButton variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openWhatsapp(l.phone); }} title="Enviar WhatsApp">
-                            <MessageCircle size={14} className="text-zinc-400 group-hover:text-emerald-500" />
-                          </IconButton>
-                          <IconButton variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setLeadToDelete(l); setDeleteModal(true); }} title="Excluir">
-                            <Trash2 size={14} className="text-zinc-400 group-hover:text-red-500" />
-                          </IconButton>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+            <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto flex-1">
+              <Input 
+                placeholder="Nome, telefone ou cidade..." 
+                value={leadSearch} 
+                onChange={e => setLeadSearch(e.target.value)} 
+                iconLeft={<Search size={14} />}
+                className="w-full md:max-w-xs"
+              />
+              <select 
+                value={statusFilter} 
+                onChange={e => setStatusFilter(e.target.value)}
+                className="h-10 px-3 rounded-xl border border-zinc-200 text-xs font-bold focus:border-zinc-400 focus:ring-0 transition-all outline-none bg-white min-w-[140px]"
+              >
+                <option value="all">Todos os Status</option>
+                {Object.entries(LEAD_STATUS).map(([key, val]: [string, any]) => (
+                  <option key={key} value={key}>{val.label}</option>
+                ))}
+              </select>
             </div>
-          </ContentCard>
+            <Button iconLeft={<Plus size={16} />} onClick={() => { setEditingLead(null); setLeadModal(true); }} className="w-full md:w-auto">Novo Lead</Button>
+          </div>
+
+          {/* Versão Mobile (Cards) */}
+          <div className="grid grid-cols-1 gap-4 md:hidden">
+            {filteredLeads.length > 0 ? filteredLeads.map(l => (
+              <ContentCard key={l.id} className="cursor-pointer active:scale-[0.98] transition-all" onClick={() => { setEditingLead(l); setLeadForm({ name: l.name, phone: l.phone, city: l.city || "", status: l.status, notes: l.notes || "" }); setLeadModal(true); }}>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="text-sm font-black text-zinc-800 leading-tight">{l.name}</h3>
+                    <p className="text-[11px] text-zinc-500 font-medium mt-0.5">{l.phone}</p>
+                  </div>
+                  <Badge color={LEAD_STATUS[l.status]?.color || "default"}>
+                    {LEAD_STATUS[l.status]?.label || "Novo"}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-zinc-400">
+                  <MapPin size={10} />
+                  <span>{l.city || "Cidade não informada"}</span>
+                </div>
+                {l.notes && (
+                  <p className="text-[10px] text-zinc-400 mt-3 line-clamp-2 italic bg-zinc-50 p-2 rounded-lg border border-zinc-100">
+                    {l.notes}
+                  </p>
+                )}
+                <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-zinc-50">
+                   <Button size="xs" variant="ghost" onClick={(e) => { e.stopPropagation(); openWhatsapp(l.phone); }} iconLeft={<MessageCircle size={12} />} className="text-emerald-600">WhatsApp</Button>
+                   <Button size="xs" variant="ghost" onClick={(e) => { e.stopPropagation(); setLeadToDelete(l); setDeleteModal(true); }} iconLeft={<Trash2 size={12} />} className="text-red-500">Excluir</Button>
+                </div>
+              </ContentCard>
+            )) : (
+              <div className="py-20 text-center bg-zinc-50 rounded-3xl border-2 border-dashed border-zinc-200">
+                <p className="text-sm text-zinc-400">Nenhum contato encontrado.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Versão Desktop (Table) */}
+          <div className="hidden md:block">
+            <ContentCard padding="none">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-zinc-50 border-b border-zinc-100">
+                    <tr>
+                      <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Contato</th>
+                      <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">WhatsApp</th>
+                      <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Cidade</th>
+                      <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Status</th>
+                      <th className="px-5 py-3 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Notas</th>
+                      <th className="px-5 py-3 text-right text-[10px] font-black text-zinc-400 uppercase tracking-widest">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {filteredLeads.map(l => (
+                      <tr key={l.id} className="hover:bg-zinc-50/50 group cursor-pointer transition-colors" onClick={() => { setEditingLead(l); setLeadForm({ name: l.name, phone: l.phone, city: l.city || "", status: l.status, notes: l.notes || "" }); setLeadModal(true); }}>
+                        <td className="px-5 py-4 text-sm font-bold text-zinc-800">{l.name}</td>
+                        <td className="px-5 py-4 text-xs text-zinc-500 font-medium">{l.phone}</td>
+                        <td className="px-5 py-4 text-xs font-bold text-zinc-600">{l.city || "—"}</td>
+                        <td className="px-5 py-4">
+                          <Badge color={LEAD_STATUS[l.status]?.color || "default"}>
+                            {LEAD_STATUS[l.status]?.label || "Novo"}
+                          </Badge>
+                        </td>
+                        <td className="px-5 py-4">
+                          <p className="text-[11px] text-zinc-400 line-clamp-1 max-w-[200px]" title={l.notes}>
+                            {l.notes || "—"}
+                          </p>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex justify-end gap-1">
+                            <IconButton variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openWhatsapp(l.phone); }} title="Enviar WhatsApp">
+                              <MessageCircle size={14} className="text-zinc-400 group-hover:text-emerald-500" />
+                            </IconButton>
+                            <IconButton variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setLeadToDelete(l); setDeleteModal(true); }} title="Excluir">
+                              <Trash2 size={14} className="text-zinc-400 group-hover:text-red-500" />
+                            </IconButton>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </ContentCard>
+          </div>
         </div>
       )}
 
@@ -1964,9 +2042,15 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
       )}
 
       <Modal isOpen={leadModal} onClose={() => setLeadModal(false)} title={editingLead ? "Detalhes do Contato" : "Novo Contato"}>
-        <div className="space-y-4 p-5">
-          <Input label="Nome completo" value={leadForm.name} onChange={e => setLeadForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: João da Barbearia" />
-          <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-5 p-6">
+          <Input 
+            label="Nome completo" 
+            value={leadForm.name} 
+            onChange={e => setLeadForm(p => ({ ...p, name: e.target.value }))} 
+            placeholder="Ex: João da Barbearia" 
+          />
+          
+          <div className="space-y-5">
             <Input 
               label="WhatsApp / Telefone" 
               value={leadForm.phone} 
@@ -1980,43 +2064,37 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
               }} 
               placeholder="(11) 99999-9999" 
             />
-            <Input label="Cidade" value={leadForm.city} onChange={e => setLeadForm(p => ({ ...p, city: e.target.value }))} placeholder="Ex: Sorocaba" />
+            <Input 
+              label="Cidade" 
+              value={leadForm.city} 
+              onChange={e => setLeadForm(p => ({ ...p, city: e.target.value }))} 
+              placeholder="Ex: Sorocaba" 
+            />
           </div>
           
-          <div className="space-y-1">
-            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">Status do Atendimento</label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
-              {Object.entries(LEAD_STATUS).map(([key, val]: [string, any]) => (
-                <button
-                  key={key}
-                  onClick={() => setLeadForm(p => ({ ...p, status: key }))}
-                  className={cn(
-                    "px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center justify-center gap-1.5",
-                    leadForm.status === key
-                      ? "bg-zinc-800 border-zinc-800 text-white shadow-md"
-                      : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-300 hover:bg-zinc-50"
-                  )}
-                >
-                  <span className={cn("w-2 h-2 rounded-full", `bg-${val.color}-400`)} />
-                  {val.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <Select 
+            label="Status do Atendimento" 
+            value={leadForm.status} 
+            onChange={e => setLeadForm(p => ({ ...p, status: e.target.value }))}
+          >
+            {Object.entries(LEAD_STATUS).map(([key, val]: [string, any]) => (
+              <option key={key} value={key}>{val.label}</option>
+            ))}
+          </Select>
 
           <div className="space-y-1">
             <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">Observações / Histórico</label>
             <textarea
-              className="w-full p-4 rounded-xl border border-zinc-200 text-sm focus:border-zinc-400 focus:ring-0 transition-all outline-none min-h-[100px] resize-none"
+              className="w-full p-4 rounded-xl border border-zinc-200 text-sm focus:border-zinc-400 focus:ring-0 transition-all outline-none min-h-[120px] resize-none bg-zinc-50/50"
               value={leadForm.notes}
               onChange={e => setLeadForm(p => ({ ...p, notes: e.target.value }))}
               placeholder="Descreva o que foi conversado, objeções, data de retorno..."
             />
           </div>
         </div>
-        <div className="flex justify-end gap-2 p-5 pt-0">
-          <Button variant="ghost" onClick={() => setLeadModal(false)}>Cancelar</Button>
-          <Button onClick={handleSaveLead}>{editingLead ? "Salvar Alterações" : "Cadastrar Lead"}</Button>
+        <div className="flex gap-3 p-6 pt-0">
+          <Button variant="ghost" className="flex-1" onClick={() => setLeadModal(false)}>Cancelar</Button>
+          <Button className="flex-1" onClick={handleSaveLead}>{editingLead ? "Salvar Alterações" : "Cadastrar Lead"}</Button>
         </div>
       </Modal>
 

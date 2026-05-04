@@ -2014,6 +2014,25 @@ superAdminRouter.post("/leads", async (req, res) => {
     const userId = (req as any).auth?.sub;
     if (!userId) return res.status(401).json({ error: "Não autorizado" });
     const { id, name, phone, city, status, notes } = req.body;
+
+    if (phone) {
+      const existingLead = await (prisma as any).superAdminLead.findFirst({
+        where: {
+          phone,
+          id: { not: id || undefined }
+        },
+        include: {
+          seller: { select: { name: true, username: true } }
+        }
+      });
+
+      if (existingLead) {
+        const ownerName = existingLead.seller?.name || existingLead.seller?.username || "outro vendedor";
+        return res.status(400).json({ 
+          error: `O telefone ${phone} já está cadastrado pelo vendedor: ${ownerName}.` 
+        });
+      }
+    }
     
     if (id) {
       const updated = await (prisma as any).superAdminLead.update({
