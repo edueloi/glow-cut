@@ -1809,7 +1809,17 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
                 ))}
               </select>
             </div>
-            <Button iconLeft={<Plus size={16} />} onClick={() => { setEditingLead(null); setLeadModal(true); }} className="w-full md:w-auto">Novo Lead</Button>
+            <Button 
+              iconLeft={<Plus size={16} />} 
+              onClick={() => { 
+                setEditingLead(null); 
+                setLeadForm({ name: "", phone: "", city: "", status: "new", notes: "" });
+                setLeadModal(true); 
+              }} 
+              className="w-full md:w-auto"
+            >
+              Novo Lead
+            </Button>
           </div>
 
           {/* Versão Mobile (Cards) */}
