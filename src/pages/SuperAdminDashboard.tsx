@@ -4633,7 +4633,7 @@ function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => vo
   const [saving, setSaving] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
-  const [form, setForm] = useState({
+  const initialForm = {
     title: post?.title || "",
     excerpt: post?.excerpt || "",
     content: post?.content || "",
@@ -4646,8 +4646,52 @@ function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => vo
     seoTitle: post?.seoTitle || "",
     seoDescription: post?.seoDescription || "",
     seoKeywords: post?.seoKeywords || "",
-  });
+  };
+  const [form, setForm] = useState(initialForm);
+  const initialFormRef = useRef(initialForm);
   const [activeTab, setActiveTab] = useState<"content" | "seo" | "settings">("content");
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const justSavedRef = useRef(false);
+
+  // Detecta se o form foi alterado em relação ao estado inicial
+  const isDirty = useCallback(() => {
+    if (justSavedRef.current) return false;
+    const init = initialFormRef.current;
+    return (
+      form.title !== init.title ||
+      form.excerpt !== init.excerpt ||
+      form.content !== init.content ||
+      form.coverImage !== init.coverImage ||
+      form.tags !== init.tags ||
+      form.categoryId !== init.categoryId ||
+      form.authorId !== init.authorId ||
+      form.seoTitle !== init.seoTitle ||
+      form.seoDescription !== init.seoDescription ||
+      form.seoKeywords !== init.seoKeywords ||
+      form.featured !== init.featured
+    );
+  }, [form]);
+
+  // Bloqueia refresh/fechar aba se houver alterações não salvas
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty()) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
+  // Intercepta clique de voltar para mostrar modal se dirty
+  const handleBack = useCallback(() => {
+    if (isDirty()) {
+      setShowUnsavedModal(true);
+    } else {
+      onBack();
+    }
+  }, [isDirty, onBack]);
 
   useEffect(() => {
     Promise.all([
@@ -4714,6 +4758,7 @@ function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => vo
         const err = await r.json();
         toast.error(err.error || "Erro ao salvar post");
       } else {
+        justSavedRef.current = true;
         toast.success(publishNow ? "Post publicado!" : post ? "Post atualizado!" : "Post salvo como rascunho!");
         onSaved();
       }
@@ -4724,7 +4769,7 @@ function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => vo
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 transition-colors">
+        <button onClick={handleBack} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 transition-colors">
           <ArrowLeft size={16} />
         </button>
         <SectionTitle title={post ? "Editar Post" : "Novo Post"} description="Editor de artigo do blog" icon={FileText} />
@@ -4908,6 +4953,56 @@ function BlogPostEditor({ post, onBack, onSaved }: { post: any; onBack: () => vo
           </div>
         </ContentCard>
       )}
+
+      {/* Modal de alterações não salvas */}
+      <Modal isOpen={showUnsavedModal} onClose={() => setShowUnsavedModal(false)} title="Alterações não salvas" size="sm">
+        <div className="p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+              <AlertCircle size={20} className="text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-zinc-800">Você tem alterações não salvas!</p>
+              <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                Se você sair agora, todas as alterações feitas no post serão perdidas. Deseja salvar como rascunho antes de sair?
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 pt-2">
+            <Button
+              onClick={async () => {
+                setShowUnsavedModal(false);
+                await handleSave(false);
+              }}
+              disabled={saving || !form.title || !form.content}
+              fullWidth
+            >
+              <span className="flex items-center gap-1.5 justify-center">
+                <FileText size={14} /> Salvar rascunho e sair
+              </span>
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                justSavedRef.current = true;
+                setShowUnsavedModal(false);
+                onBack();
+              }}
+              fullWidth
+              className="text-red-500 hover:bg-red-50 hover:text-red-600"
+            >
+              Descartar alterações e sair
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setShowUnsavedModal(false)}
+              fullWidth
+            >
+              Continuar editando
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
