@@ -1372,6 +1372,75 @@ function PermissionsTab({ tenants }: { tenants: any[] }) {
   );
 }
 
+function CityInput({ value, onChange, knownCities }: { value: string; onChange: (v: string) => void; knownCities: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setQuery(value); }, [value]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const suggestions = knownCities.filter(c => c.toLowerCase().includes(query.toLowerCase()) && c.toLowerCase() !== query.toLowerCase());
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    onChange(e.target.value);
+    setOpen(true);
+  };
+
+  const select = (city: string) => {
+    setQuery(city);
+    onChange(city);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} className="relative space-y-1">
+      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">Cidade</label>
+      <div className="relative">
+        <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+        <input
+          value={query}
+          onChange={handleChange}
+          onFocus={() => setOpen(true)}
+          placeholder="Ex: Sorocaba"
+          className="w-full h-10 pl-9 pr-3 rounded-xl border border-zinc-200 text-sm focus:border-zinc-400 focus:ring-0 transition-all outline-none bg-white"
+        />
+      </div>
+      {open && (suggestions.length > 0 || (query && !knownCities.includes(query))) && (
+        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-zinc-200 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+          {suggestions.map(city => (
+            <button
+              key={city}
+              type="button"
+              onMouseDown={() => select(city)}
+              className="w-full text-left px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-amber-50 flex items-center gap-2 transition-colors"
+            >
+              <MapPin size={12} className="text-zinc-400 shrink-0" /> {city}
+            </button>
+          ))}
+          {query && !knownCities.map(c => c.toLowerCase()).includes(query.toLowerCase()) && (
+            <button
+              type="button"
+              onMouseDown={() => select(query)}
+              className="w-full text-left px-4 py-2.5 text-sm font-bold text-amber-700 hover:bg-amber-50 flex items-center gap-2 transition-colors border-t border-zinc-100"
+            >
+              <Plus size={12} className="shrink-0" /> Adicionar "{query}"
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SalesTab({ user, plans }: { user: any, plans: any[] }) {
   const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "leads" | "messages" | "reps">("dashboard");
   const [leads, setLeads] = useState<any[]>([]);
@@ -1393,7 +1462,13 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
   const [leadToDelete, setLeadToDelete] = useState<any>(null);
   const [editingLead, setEditingLead] = useState<any>(null);
   const [leadSearch, setLeadSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(() => {
+    try { return localStorage.getItem(`leads_statusFilter_${user?.id || "sa"}`) || "all"; } catch { return "all"; }
+  });
+  const [perPage, setPerPage] = useState<number>(() => {
+    try { return parseInt(localStorage.getItem(`leads_perPage_${user?.id || "sa"}`) || "20", 10); } catch { return 20; }
+  });
+  const [currentPage, setCurrentPage] = useState(1);
   const [leadForm, setLeadForm] = useState({ name: "", phone: "", city: "", status: "new", notes: "" });
   const toast = useToast();
   const location = useLocation();
@@ -1443,7 +1518,13 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
     { id: "28", category: "Explicação", title: "Como funciona a agenda online", desc: "Explica o fluxo para o cliente final.", content: "A agenda online funciona assim:\n\n1. Você configura seus serviços, horários e profissionais.\n2. O sistema gera um link único para o seu negócio.\n3. Seu cliente acessa esse link, vê os serviços disponíveis, escolhe o horário e faz a solicitação.\n4. Você recebe a notificação e confirma o agendamento.\n5. O sistema envia lembretes automáticos para o cliente antes do horário.\n\nTudo isso sem precisar ficar trocando mensagem para confirmar horário manualmente." },
     { id: "29", category: "Benefícios", title: "Redução de faltas e cancelamentos", desc: "Foco nos lembretes automáticos.", content: "Uma das maiores dores de quem trabalha com beleza é o cliente que marca e não aparece.\n\nO Agendelle envia lembretes automáticos pelo WhatsApp para os clientes antes do horário marcado. Um aviso com 24h de antecedência e outro com 1h.\n\nIsso reduz bastante as faltas e ainda evita que você precise ficar lembrando cada cliente manualmente.\n\nPequena mudança, grande diferença no faturamento do mês." },
     { id: "30", category: "Pós-venda", title: "Verificação após 1 semana usando", desc: "Acompanhar se está usando e ajudar com dificuldades.", content: "Oi, tudo bem? Faz uma semana que você entrou no Agendelle e queria saber como está sendo a experiência.\n\nJá conseguiu configurar seus serviços e horários? Tem alguma dúvida que posso te ajudar a resolver?\n\nEstamos aqui para garantir que você tire o máximo da plataforma desde o começo." },
-    { id: "31", category: "Pós-venda", title: "Indicação de outros profissionais", desc: "Pedir indicação após cliente satisfeito.", content: "Que bom que está gostando do Agendelle!\n\nSe você conhece outros salões, barbearias ou profissionais de beleza que poderiam se beneficiar também, fico feliz se puder indicar.\n\nTemos um programa de indicação onde você pode ganhar benefícios por cada pessoa que entrar pelo seu contato.\n\nDeixa eu te explicar como funciona?" }
+    { id: "31", category: "Pós-venda", title: "Indicação de outros profissionais", desc: "Pedir indicação após cliente satisfeito.", content: "Que bom que está gostando do Agendelle!\n\nSe você conhece outros salões, barbearias ou profissionais de beleza que poderiam se beneficiar também, fico feliz se puder indicar.\n\nTemos um programa de indicação onde você pode ganhar benefícios por cada pessoa que entrar pelo seu contato.\n\nDeixa eu te explicar como funciona?" },
+    { id: "32", category: "Concorrência", title: "Já usa Salon Soft", desc: "Para quem já usa o Salon Soft.", content: "Perfeito! 😊\n\nO Salon Soft realmente é bastante conhecido no mercado.\n\nO diferencial do Agendelle é que ele vai além da agenda tradicional. Nosso foco é trazer mais automação, presença digital e praticidade para o salão.\n\nHoje temos planos a partir de R$49,90/mês e conseguimos montar um plano personalizado para atender exatamente a necessidade do estabelecimento. 😊\n\nAlém da agenda, vocês teriam:\n\n• Automação inteligente no WhatsApp\n• Robô de confirmação e lembretes automáticos\n• Site próprio para agendamentos online\n• Página individual para cada profissional\n• Catálogo de produtos e carrinho de vendas\n• Controle financeiro e estoque\n• Agenda online 24h\n• Implementação e configuração feita por nós\n\nE o principal: fazemos toda a migração e ajustes iniciais para vocês testarem sem preocupação.\n\nEstamos deixando 30 dias gratuitos justamente para conhecerem tudo funcionando na prática. 🚀" },
+    { id: "33", category: "Concorrência", title: "Já usa Trinks", desc: "Para quem já usa o Trinks.", content: "Perfeito! 😊\n\nO Trinks é bastante usado no mercado, conheço bem.\n\nO que diferencia o Agendelle é o foco em automação de WhatsApp e presença digital — coisas que a maioria dos sistemas de agenda não entrega de forma completa.\n\nNo Agendelle, além da agenda organizada, vocês teriam:\n\n• Mensagens automáticas enviadas do seu próprio número de WhatsApp\n• Confirmação de agendamento e lembretes automáticos (24h e 1h antes)\n• Site profissional para receber agendamentos online\n• Catálogo de produtos com carrinho de vendas\n• Controle financeiro e comissões por profissional\n• Parabéns automático no aniversário do cliente\n\nTudo isso sem precisar fazer nada manualmente.\n\nComo nossos planos começam em R$49,90/mês, muitas vezes o custo é equivalente ou até menor, com muito mais recursos.\n\nVale a pena conhecer os 30 dias gratuitos para comparar na prática. Posso te mandar o link?" },
+    { id: "34", category: "Concorrência", title: "Já usa Booksy", desc: "Para quem já usa o Booksy.", content: "O Booksy tem uma base bem sólida, entendo a escolha! 😊\n\nO que o Agendelle traz de diferente é uma plataforma pensada especialmente para o mercado brasileiro, com suporte em português, valores acessíveis e recursos que vão além do agendamento.\n\nPontos que nossos clientes costumam valorizar em relação ao Booksy:\n\n• Automação de WhatsApp pelo próprio número do salão\n• Site profissional próprio, não um perfil dentro de uma plataforma\n• Planos a partir de R$49,90/mês (sem comissão sobre agendamentos)\n• Suporte e implementação direto com a nossa equipe\n• Financeiro, estoque e comissões integrados\n\nNos 30 dias de teste, você pode rodar os dois em paralelo e comparar. Sem compromisso.\n\nQuer o link para conhecer?" },
+    { id: "35", category: "Concorrência", title: "Já usa Mindbody", desc: "Para quem já usa o Mindbody.", content: "O Mindbody é uma plataforma internacional bem completa, faz sentido você conhecê-la!\n\nO que o Agendelle oferece de diferente para o mercado brasileiro:\n\n• Plataforma 100% em português, pensada para salões e barbearias do Brasil\n• Planos a partir de R$49,90/mês — muito mais acessível\n• Automação de WhatsApp integrada (o cliente recebe confirmação e lembretes pelo próprio WhatsApp do salão)\n• Site profissional para agendamentos online\n• Suporte local e configuração feita pela nossa equipe\n\nPara quem usa o Mindbody mas sente que é complexo demais ou caro para o que precisa, o Agendelle costuma ser uma alternativa prática e com ótimo custo-benefício.\n\nEstamos com 30 dias grátis. Posso te mandar o link para conhecer?" },
+    { id: "36", category: "Concorrência", title: "Já usa iSalon / outro sistema genérico", desc: "Para sistemas menores ou desconhecidos.", content: "Que bom que vocês já têm uma rotina organizada com um sistema! 😊\n\nPasso apresentar o Agendelle mesmo assim, porque pode ser que ele traga funcionalidades que o sistema atual não cobre.\n\nO que costuma fazer diferença para quem migra:\n\n• Automação de WhatsApp — mensagens automáticas de confirmação, lembrete e aniversário saindo do seu próprio número\n• Site profissional integrado para receber agendamentos online\n• Catálogo de produtos com carrinho de vendas\n• Controle financeiro e de comissões por profissional\n• Implementação e migração feita pela nossa equipe\n\nSe quiser, posso te mostrar o que temos em 30 dias grátis. Não precisa sair do sistema atual de imediato, dá para testar em paralelo.\n\nPosso te mandar o link?" },
+    { id: "37", category: "Concorrência", title: "Usa planilha / agenda manual", desc: "Para quem ainda usa papel ou planilha.", content: "Entendo! Muitos profissionais ainda organizam tudo assim e funciona razoavelmente bem.\n\nO ponto é que a planilha e a agenda manual não conseguem fazer algumas coisas que hoje fazem toda a diferença:\n\n• Não avisam o cliente automaticamente antes do horário\n• Não recebem agendamento enquanto você está atendendo\n• Não mostram relatório de faturamento de forma rápida\n• Não dão uma imagem digital e profissional para o negócio\n\nO Agendelle resolve exatamente isso. E a transição é simples — nossa equipe ajuda a migrar tudo.\n\nO teste é grátis por 30 dias. Quer dar uma olhada?" }
   ];
 
   const categories = [
@@ -1456,6 +1537,7 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
     { id: "Benefícios", name: "Benefícios" },
     { id: "Dúvidas", name: "Dúvidas" },
     { id: "Objeções", name: "Objeções" },
+    { id: "Concorrência", name: "Já usa sistema" },
     { id: "Retorno", name: "Retorno / Follow-up" },
     { id: "Pós-venda", name: "Pós-venda" },
   ];
@@ -1489,17 +1571,33 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
     return matchesSearch && matchesCategory;
   });
 
-  const filteredLeads = leads.filter(l => {
+  const knownCities = Array.from(new Set(leads.map(l => l.city).filter(Boolean))).sort() as string[];
+
+  const allFilteredLeads = leads.filter(l => {
     const term = leadSearch.toLowerCase();
-    const matchesSearch = 
-      l.name.toLowerCase().includes(term) || 
-      (l.phone || "").toLowerCase().includes(term) || 
+    const matchesSearch =
+      l.name.toLowerCase().includes(term) ||
+      (l.phone || "").toLowerCase().includes(term) ||
       (l.city || "").toLowerCase().includes(term);
-    
     const matchesStatus = statusFilter === "all" ? true : l.status === statusFilter;
-    
     return matchesSearch && matchesStatus;
   });
+
+  const totalPages = Math.max(1, Math.ceil(allFilteredLeads.length / perPage));
+  const safePage = Math.min(currentPage, totalPages);
+  const filteredLeads = allFilteredLeads.slice((safePage - 1) * perPage, safePage * perPage);
+
+  const handleStatusFilter = (val: string) => {
+    setStatusFilter(val);
+    setCurrentPage(1);
+    try { localStorage.setItem(`leads_statusFilter_${user?.id || "sa"}`, val); } catch {}
+  };
+
+  const handlePerPage = (val: number) => {
+    setPerPage(val);
+    setCurrentPage(1);
+    try { localStorage.setItem(`leads_perPage_${user?.id || "sa"}`, String(val)); } catch {}
+  };
 
   const handleSaveLead = async () => {
     if (!leadForm.name || !leadForm.phone) return;
@@ -1805,16 +1903,16 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
         <div className="space-y-5">
           <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
             <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto flex-1">
-              <Input 
-                placeholder="Nome, telefone ou cidade..." 
-                value={leadSearch} 
-                onChange={e => setLeadSearch(e.target.value)} 
+              <Input
+                placeholder="Nome, telefone ou cidade..."
+                value={leadSearch}
+                onChange={e => { setLeadSearch(e.target.value); setCurrentPage(1); }}
                 iconLeft={<Search size={14} />}
                 className="w-full md:max-w-xs"
               />
-              <select 
-                value={statusFilter} 
-                onChange={e => setStatusFilter(e.target.value)}
+              <select
+                value={statusFilter}
+                onChange={e => handleStatusFilter(e.target.value)}
                 className="h-10 px-3 rounded-xl border border-zinc-200 text-xs font-bold focus:border-zinc-400 focus:ring-0 transition-all outline-none bg-white min-w-[140px]"
               >
                 <option value="all">Todos os Status</option>
@@ -1822,14 +1920,23 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
                   <option key={key} value={key}>{val.label}</option>
                 ))}
               </select>
+              <select
+                value={perPage}
+                onChange={e => handlePerPage(Number(e.target.value))}
+                className="h-10 px-3 rounded-xl border border-zinc-200 text-xs font-bold focus:border-zinc-400 focus:ring-0 transition-all outline-none bg-white min-w-[110px]"
+              >
+                {[10, 20, 50, 100].map(n => (
+                  <option key={n} value={n}>{n} por página</option>
+                ))}
+              </select>
             </div>
-            <Button 
-              iconLeft={<Plus size={16} />} 
-              onClick={() => { 
-                setEditingLead(null); 
+            <Button
+              iconLeft={<Plus size={16} />}
+              onClick={() => {
+                setEditingLead(null);
                 setLeadForm({ name: "", phone: "", city: "", status: "new", notes: "" });
-                setLeadModal(true); 
-              }} 
+                setLeadModal(true);
+              }}
               className="w-full md:w-auto"
             >
               Novo Lead
@@ -1886,7 +1993,7 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
-                    {filteredLeads.map(l => (
+                    {filteredLeads.length > 0 ? filteredLeads.map(l => (
                       <tr key={l.id} className="hover:bg-zinc-50/50 group cursor-pointer transition-colors" onClick={() => { setEditingLead(l); setLeadForm({ name: l.name, phone: l.phone, city: l.city || "", status: l.status, notes: l.notes || "" }); setLeadModal(true); }}>
                         <td className="px-5 py-4 text-sm font-bold text-zinc-800">{l.name}</td>
                         <td className="px-5 py-4 text-xs text-zinc-500 font-medium">{l.phone}</td>
@@ -1912,12 +2019,53 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )) : (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-16 text-center text-sm text-zinc-400">Nenhum contato encontrado.</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
             </ContentCard>
           </div>
+
+          {/* Paginação */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-[11px] text-zinc-400 font-medium">
+                Mostrando {(safePage - 1) * perPage + 1}–{Math.min(safePage * perPage, allFilteredLeads.length)} de {allFilteredLeads.length} contatos
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  disabled={safePage <= 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  className="h-8 px-3 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  ← Anterior
+                </button>
+                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                  const page = totalPages <= 7 ? i + 1 : safePage <= 4 ? i + 1 : safePage >= totalPages - 3 ? totalPages - 6 + i : safePage - 3 + i;
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`h-8 w-8 rounded-lg text-xs font-black transition-all ${page === safePage ? "bg-zinc-900 text-white" : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+                <button
+                  disabled={safePage >= totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  className="h-8 px-3 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  Próxima →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2088,11 +2236,10 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
               }} 
               placeholder="(11) 99999-9999" 
             />
-            <Input 
-              label="Cidade" 
-              value={leadForm.city} 
-              onChange={e => setLeadForm(p => ({ ...p, city: e.target.value }))} 
-              placeholder="Ex: Sorocaba" 
+            <CityInput
+              value={leadForm.city}
+              onChange={v => setLeadForm(p => ({ ...p, city: v }))}
+              knownCities={knownCities}
             />
           </div>
           
