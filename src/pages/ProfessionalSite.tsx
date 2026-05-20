@@ -469,9 +469,59 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
         </section>
       )}
 
+      {/* Products — Classic Shop */}
+      {tenant.showProducts !== false && products.length > 0 && (
+        <section id="produtos" className="py-32 bg-[#fafafa]">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex items-center justify-between mb-16">
+              <div>
+                <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-4 block">Loja</span>
+                <h2 className="text-4xl md:text-5xl font-black text-zinc-950 tracking-tight">Vitrine Shop</h2>
+              </div>
+              {cartCount > 0 && (
+                <button onClick={() => setCartOpen(true)} className="relative flex items-center gap-2 px-5 py-3 rounded-full bg-zinc-950 text-white text-sm font-black hover:bg-zinc-800 transition-colors">
+                  <ShoppingBag size={18} />
+                  <span>Ver carrinho</span>
+                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-black text-[10px] font-black flex items-center justify-center" style={{ backgroundColor: themeColor }}>{cartCount}</span>
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {products.map((product: any) => {
+                const inCart = cartItems.find(i => i.product.id === product.id);
+                return (
+                  <div key={product.id} className="group">
+                    <div className="aspect-square rounded-[2rem] overflow-hidden bg-white mb-5 relative border border-zinc-100 group-hover:border-zinc-200 group-hover:shadow-xl group-hover:shadow-zinc-950/5 transition-all duration-500">
+                      {product.photo ? (
+                        <img src={product.photo} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-200"><ShoppingBag size={40} /></div>
+                      )}
+                      <div className="absolute inset-0 flex items-end p-4 opacity-0 group-hover:opacity-100 transition-all">
+                        {inCart ? (
+                          <div className="w-full bg-white rounded-2xl p-2 flex items-center justify-between shadow-2xl border border-zinc-100">
+                            <button onClick={() => changeQty(product.id, -1)} className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900"><Minus size={14} /></button>
+                            <span className="text-sm font-black text-zinc-900">{inCart.quantity}</span>
+                            <button onClick={() => changeQty(product.id, 1)} className="w-8 h-8 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: themeColor }}><Plus size={14} /></button>
+                          </div>
+                        ) : (
+                          <button onClick={() => addToCart(product)} className="w-full py-3 text-white rounded-2xl text-xs font-black shadow-2xl" style={{ backgroundColor: themeColor }}>ADICIONAR</button>
+                        )}
+                      </div>
+                    </div>
+                    <h3 className="font-black text-zinc-950 text-sm mb-1 truncate">{product.name}</h3>
+                    <p className="text-lg font-black" style={{ color: themeColor }}>R$ {parseFloat(product.salePrice).toFixed(2).replace(".", ",")}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
       <CartDrawer cartItems={cartItems} cartOpen={cartOpen} setCartOpen={setCartOpen} cartTotal={cartTotal} cartCount={cartCount} changeQty={changeQty} removeFromCart={removeFromCart} themeColor={themeColor} phone={tenant.phone} />
       <Footer tenant={tenant} slug={slug} bookingUrl={bookingUrl} themeColor={themeColor} products={products} />
-      
+
       {/* Mobile CTA */}
       <div className="fixed bottom-6 left-6 right-6 z-50 md:hidden">
         <div className="flex gap-3">
@@ -657,9 +707,59 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
         </section>
       )}
 
+      {/* Products — Dark Shop */}
+      {tenant.showProducts !== false && products.length > 0 && (
+        <section id="produtos" className="py-32 bg-[#0a0a0a]">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex items-center justify-between mb-16">
+              <div>
+                <span className="text-[11px] font-black uppercase tracking-[0.4em] mb-4 block text-white/30">Loja</span>
+                <h2 className="text-5xl md:text-6xl font-black tracking-tight leading-none text-white">Vitrine Shop</h2>
+              </div>
+              {cartCount > 0 && (
+                <button onClick={() => setCartOpen(true)} className="relative flex items-center gap-2 px-5 py-3 rounded-full border border-white/10 text-white text-sm font-black hover:bg-white/5 transition-colors">
+                  <ShoppingBag size={18} />
+                  <span>Ver carrinho</span>
+                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-black text-[10px] font-black flex items-center justify-center" style={{ backgroundColor: themeColor }}>{cartCount}</span>
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {products.map((product: any) => {
+                const inCart = cartItems.find(i => i.product.id === product.id);
+                return (
+                  <div key={product.id} className="group">
+                    <div className="aspect-square rounded-2xl overflow-hidden bg-white/5 mb-4 relative border border-white/5 group-hover:border-white/20 transition-all duration-500">
+                      {product.photo ? (
+                        <img src={product.photo} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-white/20"><ShoppingBag size={40} /></div>
+                      )}
+                      <div className="absolute inset-0 flex items-end p-3 opacity-0 group-hover:opacity-100 transition-all">
+                        {inCart ? (
+                          <div className="w-full bg-black/80 backdrop-blur-sm rounded-xl p-2 flex items-center justify-between border border-white/10">
+                            <button onClick={() => changeQty(product.id, -1)} className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center text-white"><Minus size={12} /></button>
+                            <span className="text-sm font-black text-white">{inCart.quantity}</span>
+                            <button onClick={() => changeQty(product.id, 1)} className="w-7 h-7 rounded-lg flex items-center justify-center text-black" style={{ backgroundColor: themeColor }}><Plus size={12} /></button>
+                          </div>
+                        ) : (
+                          <button onClick={() => addToCart(product)} className="w-full py-2.5 text-black rounded-xl text-xs font-black shadow-2xl" style={{ backgroundColor: themeColor }}>ADICIONAR</button>
+                        )}
+                      </div>
+                    </div>
+                    <h3 className="font-black text-white text-sm mb-1 truncate">{product.name}</h3>
+                    <p className="text-base font-black" style={{ color: themeColor }}>R$ {parseFloat(product.salePrice).toFixed(2).replace(".", ",")}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
       <CartDrawer cartItems={cartItems} cartOpen={cartOpen} setCartOpen={setCartOpen} cartTotal={cartTotal} cartCount={cartCount} changeQty={changeQty} removeFromCart={removeFromCart} themeColor={themeColor} phone={tenant.phone} />
       <Footer tenant={tenant} slug={slug} bookingUrl={bookingUrl} themeColor={themeColor} products={products} dark />
-      
+
       {/* Mobile CTA */}
       <div className="fixed bottom-6 left-6 right-6 z-50 md:hidden">
         <div className="flex gap-3">
@@ -879,7 +979,7 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
                           </div>
                        </div>
                        <h3 className="font-black text-zinc-950 text-sm mb-1 truncate">{product.name}</h3>
-                       <p className="text-lg font-black" style={{ color: themeColor }}>R$ {product.salePrice}</p>
+                       <p className="text-lg font-black" style={{ color: themeColor }}>R$ {parseFloat(product.salePrice).toFixed(2).replace(".", ",")}</p>
                     </div>
                   );
                 })}

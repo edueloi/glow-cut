@@ -55,13 +55,17 @@ const prisma = new PrismaClient();
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getSaudacao(): string {
-  // Pega a hora atual no fuso do Brasil, independente do fuso do servidor
   const dateStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo", hour: "numeric", hour12: false });
   const h = parseInt(dateStr, 10);
-  
   if (h >= 6 && h < 12) return "Bom dia";
   if (h >= 12 && h < 18) return "Boa tarde";
   return "Boa noite";
+}
+
+/** Retorna a data/hora atual no fuso de Brasília como objeto Date "ingênuo" (sem shift de UTC) */
+function nowBrasilia(): Date {
+  const str = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+  return new Date(str);
 }
 
 function applyVars(template: string, vars: Record<string, string>): string {
@@ -133,9 +137,16 @@ async function tenantHasWpp(tenantId: string): Promise<boolean> {
 // ─── Cron: Lembrete 24h ──────────────────────────────────────────────────────
 
 async function processReminders24h(): Promise<void> {
-  const now = new Date();
-  const windowStart = addHours(now, 23);
-  const windowEnd = addHours(now, 25);
+  const nowBr = nowBrasilia();
+  const windowStart = addHours(nowBr, 23);
+  const windowEnd = addHours(nowBr, 25);
+
+  const dateStart = format(windowStart, "yyyy-MM-dd");
+  const dateEnd = format(windowEnd, "yyyy-MM-dd");
+  const timeStart = format(windowStart, "HH:mm");
+  const timeEnd = format(windowEnd, "HH:mm");
+
+  console.log(`[WPP 24h] Janela: ${dateStart} ${timeStart} → ${dateEnd} ${timeEnd}`);
 
   try {
     const appts: any[] = await (prisma as any).$queryRawUnsafe(`
@@ -149,21 +160,33 @@ async function processReminders24h(): Promise<void> {
       LEFT JOIN Professional p ON p.id = a.professionalId
       LEFT JOIN Service      s ON s.id = a.serviceId
       WHERE a.status IN ('scheduled','confirmed')
-        AND a.date >= ? AND a.date < ?
-    `, windowStart, windowEnd);
+        AND (
+          (DATE(a.date) = ? AND a.startTime >= ?)
+          OR (DATE(a.date) > ? AND DATE(a.date) < ?)
+          OR (DATE(a.date) = ? AND a.startTime < ?)
+        )
+    `, dateStart, timeStart, dateStart, dateEnd, dateEnd, timeEnd);
+
+    console.log(`[WPP 24h] Encontrados: ${appts.length} agendamentos`);
 
     for (const appt of appts) {
       if (!appt.tenantId) continue;
 
       const isWppEnabled = await tenantHasWpp(appt.tenantId);
-      if (!isWppEnabled) continue;
+      if (!isWppEnabled) {
+        console.log(`[WPP 24h] Tenant ${appt.tenantId} sem WPP ativo — pulando`);
+        continue;
+      }
 
       const [config, tenant] = await Promise.all([
         (prisma as any).wppBotConfig.findUnique({ where: { tenantId: appt.tenantId } }),
         (prisma as any).tenant.findUnique({ where: { id: appt.tenantId }, select: { name: true } }),
       ]);
 
-      if (!config?.botEnabled) continue;
+      if (!config?.botEnabled) {
+        console.log(`[WPP 24h] Bot desabilitado para tenant ${appt.tenantId} — pulando`);
+        continue;
+      }
 
       const vars: Record<string, string> = {
         saudacao: getSaudacao(),
@@ -183,8 +206,12 @@ async function processReminders24h(): Promise<void> {
           if (tpl) {
             await sendWppToPhone(appt.tenantId, appt.clientPhone, applyVars(tpl, vars));
             await markSent(appt.id, key, appt.tenantId);
-            console.log(`[WPP 24h] Cliente ${appt.clientName} → ${appt.clientPhone}`);
+            console.log(`[WPP 24h] ✓ Cliente ${appt.clientName} → ${appt.clientPhone}`);
+          } else {
+            console.log(`[WPP 24h] Template reminder_24h não encontrado para tenant ${appt.tenantId}`);
           }
+        } else {
+          console.log(`[WPP 24h] Já enviado (cliente) para appt ${appt.id}`);
         }
       }
 
@@ -196,7 +223,9 @@ async function processReminders24h(): Promise<void> {
           if (tpl) {
             await sendWppToPhone(appt.tenantId, appt.profPhone, applyVars(tpl, vars));
             await markSent(appt.id, key, appt.tenantId);
-            console.log(`[WPP 24h] Profissional ${appt.profName} → ${appt.profPhone}`);
+            console.log(`[WPP 24h] ✓ Profissional ${appt.profName} → ${appt.profPhone}`);
+          } else {
+            console.log(`[WPP 24h] Template prof_reminder_24h não encontrado para tenant ${appt.tenantId}`);
           }
         }
       }
@@ -209,42 +238,75 @@ async function processReminders24h(): Promise<void> {
 // ─── Cron: Lembrete 60min ────────────────────────────────────────────────────
 
 async function processReminders60min(): Promise<void> {
-  const now = new Date();
-  const windowStart = addMinutes(now, 55);
-  const windowEnd = addMinutes(now, 65);
+  // Usa horário de Brasília para não errar quando o servidor está em UTC
+  const nowBr = nowBrasilia();
+  const windowStart = addMinutes(nowBr, 55);
+  const windowEnd = addMinutes(nowBr, 65);
 
   const timeStart = format(windowStart, "HH:mm");
   const timeEnd = format(windowEnd, "HH:mm");
-  const dateStr = format(now, "yyyy-MM-dd");
+  const dateStr = format(nowBr, "yyyy-MM-dd");
+
+  // Janela cruza meia-noite (ex: 23:05 → 00:05)
+  const crossMidnight = timeEnd < timeStart;
+  // Data do dia seguinte (quando a janela cruza meia-noite)
+  const nextDateStr = format(addMinutes(nowBr, 65), "yyyy-MM-dd");
+
+  console.log(`[WPP 60min] Janela: ${dateStr} ${timeStart} → ${crossMidnight ? nextDateStr : dateStr} ${timeEnd}`);
 
   try {
-    const appts: any[] = await (prisma as any).$queryRawUnsafe(`
-      SELECT
-        a.id, a.tenantId, a.startTime, a.date,
-        c.name  AS clientName,  c.phone AS clientPhone,
-        p.name  AS profName,    p.phone AS profPhone,
-        s.name  AS serviceName
-      FROM Appointment a
-      LEFT JOIN Client       c ON c.id = a.clientId
-      LEFT JOIN Professional p ON p.id = a.professionalId
-      LEFT JOIN Service      s ON s.id = a.serviceId
-      WHERE a.status IN ('scheduled','confirmed')
-        AND DATE(a.date) = ?
-        AND a.startTime >= ? AND a.startTime < ?
-    `, dateStr, timeStart, timeEnd);
+    const appts: any[] = crossMidnight
+      ? await (prisma as any).$queryRawUnsafe(`
+          SELECT
+            a.id, a.tenantId, a.startTime, a.date,
+            c.name  AS clientName,  c.phone AS clientPhone,
+            p.name  AS profName,    p.phone AS profPhone,
+            s.name  AS serviceName
+          FROM Appointment a
+          LEFT JOIN Client       c ON c.id = a.clientId
+          LEFT JOIN Professional p ON p.id = a.professionalId
+          LEFT JOIN Service      s ON s.id = a.serviceId
+          WHERE a.status IN ('scheduled','confirmed')
+            AND (
+              (DATE(a.date) = ? AND a.startTime >= ?)
+              OR (DATE(a.date) = ? AND a.startTime < ?)
+            )
+        `, dateStr, timeStart, nextDateStr, timeEnd)
+      : await (prisma as any).$queryRawUnsafe(`
+          SELECT
+            a.id, a.tenantId, a.startTime, a.date,
+            c.name  AS clientName,  c.phone AS clientPhone,
+            p.name  AS profName,    p.phone AS profPhone,
+            s.name  AS serviceName
+          FROM Appointment a
+          LEFT JOIN Client       c ON c.id = a.clientId
+          LEFT JOIN Professional p ON p.id = a.professionalId
+          LEFT JOIN Service      s ON s.id = a.serviceId
+          WHERE a.status IN ('scheduled','confirmed')
+            AND DATE(a.date) = ?
+            AND a.startTime >= ? AND a.startTime < ?
+        `, dateStr, timeStart, timeEnd);
+
+    console.log(`[WPP 60min] Encontrados: ${appts.length} agendamentos`);
 
     for (const appt of appts) {
       if (!appt.tenantId) continue;
 
       const isWppEnabled = await tenantHasWpp(appt.tenantId);
-      if (!isWppEnabled) continue;
+      if (!isWppEnabled) {
+        console.log(`[WPP 60min] Tenant ${appt.tenantId} sem WPP ativo — pulando`);
+        continue;
+      }
 
       const [config, tenant] = await Promise.all([
         (prisma as any).wppBotConfig.findUnique({ where: { tenantId: appt.tenantId } }),
         (prisma as any).tenant.findUnique({ where: { id: appt.tenantId }, select: { name: true } }),
       ]);
 
-      if (!config?.botEnabled) continue;
+      if (!config?.botEnabled) {
+        console.log(`[WPP 60min] Bot desabilitado para tenant ${appt.tenantId} — pulando`);
+        continue;
+      }
 
       const vars: Record<string, string> = {
         saudacao: getSaudacao(),
@@ -264,8 +326,12 @@ async function processReminders60min(): Promise<void> {
           if (tpl) {
             await sendWppToPhone(appt.tenantId, appt.clientPhone, applyVars(tpl, vars));
             await markSent(appt.id, key, appt.tenantId);
-            console.log(`[WPP 60min] Cliente ${appt.clientName} → ${appt.clientPhone}`);
+            console.log(`[WPP 60min] ✓ Cliente ${appt.clientName} → ${appt.clientPhone}`);
+          } else {
+            console.log(`[WPP 60min] Template reminder_60min não encontrado para tenant ${appt.tenantId}`);
           }
+        } else {
+          console.log(`[WPP 60min] Já enviado (cliente) para appt ${appt.id}`);
         }
       }
 
@@ -277,7 +343,9 @@ async function processReminders60min(): Promise<void> {
           if (tpl) {
             await sendWppToPhone(appt.tenantId, appt.profPhone, applyVars(tpl, vars));
             await markSent(appt.id, key, appt.tenantId);
-            console.log(`[WPP 60min] Profissional ${appt.profName} → ${appt.profPhone}`);
+            console.log(`[WPP 60min] ✓ Profissional ${appt.profName} → ${appt.profPhone}`);
+          } else {
+            console.log(`[WPP 60min] Template prof_reminder_60min não encontrado para tenant ${appt.tenantId}`);
           }
         }
       }
@@ -290,16 +358,17 @@ async function processReminders60min(): Promise<void> {
 // ─── Cron: Aniversários ──────────────────────────────────────────────────────
 
 async function processBirthdays(): Promise<void> {
-  const now = new Date();
   const brHourStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo", hour: "numeric", hour12: false });
   const brHour = parseInt(brHourStr, 10);
 
   // Somente envia feliz aniversário entre as 08:00 e 18:00
   if (brHour < 8 || brHour > 18) return;
 
-  const currentMonthNum = now.getMonth() + 1;
-  const currentDay = now.getDate();
-  const currentYear = now.getFullYear();
+  // Usa horário Brasília para não errar a data perto da virada (meia-noite UTC = 21h Brasília)
+  const nowBr = nowBrasilia();
+  const currentMonthNum = nowBr.getMonth() + 1;
+  const currentDay = nowBr.getDate();
+  const currentYear = nowBr.getFullYear();
 
   try {
     const clients: any[] = await (prisma as any).$queryRawUnsafe(`

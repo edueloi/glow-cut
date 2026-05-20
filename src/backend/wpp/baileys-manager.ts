@@ -1373,7 +1373,7 @@ export async function initSession(tenantId: string): Promise<void> {
       const senderJids = enrichJidsFromCache(getMessageSenderJids(msg, remoteJid));
       const clientKey = pickBestClientKey(senderJids, remoteJid);
       const pushName: string = msg.pushName || clientKey;
-      // if (tenantId !== "system") continue;
+      if (tenantId !== "system") continue; // Bot do usuário: apenas envia automáticos, não processa mensagens recebidas
       console.log(`[Bot] ${clientKey} (${pushName}) jids=[${senderJids.join(",")}]: ${text}`);
       try {
         const handled = await handleAttendant(tenantId, sock, senderJids, remoteJid, pushName, text);
