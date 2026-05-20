@@ -772,7 +772,7 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
 
       {!cartOpen && (
         <div className="fixed bottom-4 left-4 right-4 z-[60] md:hidden">
-          <Link to={bookingUrl} className="flex w-full h-14 rounded-2xl text-black font-black text-sm items-center justify-center gap-2 shadow-2xl active:scale-95 transition-all" style={{ backgroundColor: themeColor }}>
+          <Link to={bookingUrl} className="flex w-full h-14 rounded-2xl text-white font-black text-sm items-center justify-center gap-2 shadow-2xl active:scale-95 transition-all" style={{ backgroundColor: themeColor }}>
             <Calendar size={18} /> AGENDAR AGORA
           </Link>
         </div>
@@ -1016,7 +1016,7 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
         </div>
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
            <h2 className="text-5xl md:text-7xl font-black tracking-tight mb-12">Onde estilo e tradição se encontram.</h2>
-           <Link to={bookingUrl} className="inline-flex h-20 px-16 rounded-3xl font-black text-lg tracking-widest flex items-center justify-center transition-all hover:scale-105 active:scale-95" style={{ backgroundColor: themeColor, color: '#000' }}>
+           <Link to={bookingUrl} className="inline-flex h-20 px-16 rounded-3xl font-black text-lg tracking-widest flex items-center justify-center transition-all hover:scale-105 active:scale-95" style={{ backgroundColor: themeColor, color: '#fff' }}>
               AGENDAR AGORA
            </Link>
         </div>
