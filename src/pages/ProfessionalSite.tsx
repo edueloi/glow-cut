@@ -121,8 +121,8 @@ function GallerySection({ images, themeColor, dark = false }: { images: string[]
   const sub = dark ? "text-zinc-400" : "text-zinc-500";
 
   return (
-    <section id="galeria" className={`py-20 md:py-28 ${bg}`}>
-      <div className="max-w-6xl mx-auto px-5">
+    <section id="galeria" className={`py-16 md:py-28 ${bg}`}>
+      <div className="max-w-6xl mx-auto px-4 md:px-5">
         <div className="mb-10">
           <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-bold uppercase tracking-widest mb-4 ${dark ? "border-zinc-800 text-zinc-400" : "border-zinc-200 text-zinc-500 bg-white"}`}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
@@ -308,59 +308,65 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
       <Navbar tenant={tenant} slug={slug} bookingUrl={bookingUrl} scrolled={scrolled} themeColor={themeColor} products={products} services={services} />
 
       {/* Hero — Luxury Split */}
-      <section className="relative min-h-[90vh] flex items-center overflow-hidden pt-16">
+      <section className="relative min-h-[85vh] md:min-h-[90vh] flex items-center overflow-hidden pt-16">
+        {heroImage && (
+          <div className="absolute inset-0 z-0 lg:hidden">
+            <img src={heroImage} alt="" className="w-full h-full object-cover opacity-10" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#fafafa]/80 to-[#fafafa]" />
+          </div>
+        )}
         <div className="absolute top-0 right-0 w-1/2 h-full bg-zinc-100/50 hidden lg:block" />
-        <div className="max-w-7xl mx-auto px-6 w-full relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <motion.div 
-              initial={{ opacity: 0, y: 30 }} 
-              animate={{ opacity: 1, y: 0 }} 
+        <div className="max-w-7xl mx-auto px-5 md:px-6 w-full relative z-10">
+          <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               className="max-w-xl"
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white shadow-sm border border-zinc-100 text-[10px] font-black uppercase tracking-[0.2em] mb-8" style={{ color: themeColor }}>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white shadow-sm border border-zinc-100 text-[10px] font-black uppercase tracking-[0.2em] mb-6 md:mb-8" style={{ color: themeColor }}>
                 <Sparkles size={10} /> {tenant.name}
               </div>
-              <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[0.95] mb-8 text-zinc-950">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[0.95] mb-5 md:mb-8 text-zinc-950">
                 {tenant.welcomeMessage || "Sua melhor versão começa aqui."}
               </h1>
-              <p className="text-lg text-zinc-500 leading-relaxed mb-10 font-medium">
+              <p className="text-base md:text-lg text-zinc-500 leading-relaxed mb-8 font-medium">
                 {tenant.description || "Experiência premium em beleza e bem-estar, pensada em cada detalhe para você."}
               </p>
-              <div className="flex flex-wrap gap-4">
-                <Link 
-                  to={bookingUrl} 
-                  className="px-8 py-4 rounded-2xl font-black text-sm shadow-2xl shadow-zinc-950/10 hover:translate-y-[-2px] transition-all active:scale-95 text-white" 
+              <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
+                <Link
+                  to={bookingUrl}
+                  className="w-full sm:w-auto px-8 py-4 rounded-2xl font-black text-sm shadow-xl shadow-zinc-950/10 hover:translate-y-[-2px] transition-all active:scale-95 text-white text-center"
                   style={{ backgroundColor: themeColor }}
                 >
                   Agendar Agora
                 </Link>
                 {tenant.instagram && (
-                  <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="px-8 py-4 rounded-2xl font-black text-sm border border-zinc-200 bg-white hover:bg-zinc-50 transition-all active:scale-95 text-zinc-900">
+                  <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto px-8 py-4 rounded-2xl font-black text-sm border border-zinc-200 bg-white hover:bg-zinc-50 transition-all active:scale-95 text-zinc-900 text-center">
                     Instagram
                   </a>
                 )}
               </div>
-              
-              <div className="grid grid-cols-3 gap-8 mt-16 pt-8 border-t border-zinc-100">
+
+              <div className="grid grid-cols-3 gap-4 md:gap-8 mt-10 md:mt-16 pt-8 border-t border-zinc-100">
                 <div>
-                  <p className="text-3xl font-black text-zinc-950">{tenant.experienceYears || "10+"}</p>
+                  <p className="text-2xl md:text-3xl font-black text-zinc-950">{tenant.experienceYears || "10+"}</p>
                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Anos</p>
                 </div>
                 <div>
-                  <p className="text-3xl font-black text-zinc-950">{professionals.length}+</p>
+                  <p className="text-2xl md:text-3xl font-black text-zinc-950">{professionals.length}+</p>
                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Especialistas</p>
                 </div>
                 <div>
-                  <p className="text-3xl font-black text-zinc-950">{services.length}+</p>
+                  <p className="text-2xl md:text-3xl font-black text-zinc-950">{services.length}+</p>
                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Serviços</p>
                 </div>
               </div>
             </motion.div>
 
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, rotate: 2 }} 
-              animate={{ opacity: 1, scale: 1, rotate: 0 }} 
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, rotate: 2 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
               transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
               className="relative hidden lg:block"
             >
@@ -373,7 +379,6 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
                   </div>
                 )}
               </div>
-              {/* Floating element */}
               <div className="absolute -bottom-8 -left-8 bg-white p-6 rounded-3xl shadow-2xl border border-zinc-50 max-w-[200px]">
                 <div className="flex gap-1 mb-2">
                   {[1, 2, 3, 4, 5].map(i => <Star key={i} size={12} fill={themeColor} color={themeColor} />)}
@@ -386,40 +391,42 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
         </div>
       </section>
 
-      {/* Services — Horizontal Scroll / Grid */}
+      {/* Services — Grid */}
       {tenant.showServices !== false && (
-        <section id="servicos" className="py-32 bg-white">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
-              <div className="max-w-xl">
-                <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-4 block">Especialidades</span>
-                <h2 className="text-4xl md:text-5xl font-black text-zinc-950 tracking-tight">Serviços Exclusivos</h2>
+        <section id="servicos" className="py-16 md:py-28 bg-white">
+          <div className="max-w-7xl mx-auto px-4 md:px-6">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10 md:mb-14">
+              <div>
+                <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-3 block">Especialidades</span>
+                <h2 className="text-3xl md:text-5xl font-black text-zinc-950 tracking-tight">Serviços Exclusivos</h2>
               </div>
-              <Link to={bookingUrl} className="text-sm font-black uppercase tracking-widest hover:translate-x-1 transition-transform" style={{ color: themeColor }}>Ver todos <ArrowRight className="inline-block ml-1" size={16} /></Link>
+              <Link to={bookingUrl} className="text-sm font-black uppercase tracking-widest hover:translate-x-1 transition-transform shrink-0" style={{ color: themeColor }}>Ver todos <ArrowRight className="inline-block ml-1" size={16} /></Link>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {services.slice(0, 6).map((service: any, i: number) => (
-                <motion.div 
+                <motion.div
                   key={service.id}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="group bg-[#fafafa] rounded-[2rem] p-8 hover:bg-white hover:shadow-2xl hover:shadow-zinc-950/5 transition-all duration-500 border border-transparent hover:border-zinc-100"
+                  transition={{ delay: i * 0.08 }}
+                  className="group bg-[#fafafa] rounded-2xl md:rounded-[2rem] p-5 md:p-7 hover:bg-white hover:shadow-xl hover:shadow-zinc-950/5 transition-all duration-400 border border-transparent hover:border-zinc-100"
                 >
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110 duration-500 shadow-sm" style={{ backgroundColor: `${themeColor}15`, color: themeColor }}>
-                    <Scissors size={20} />
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-5" style={{ backgroundColor: `${themeColor}15`, color: themeColor }}>
+                    <Scissors size={18} />
                   </div>
-                  <h3 className="text-xl font-black text-zinc-950 mb-3">{service.name}</h3>
-                  <p className="text-sm text-zinc-500 leading-relaxed mb-8 line-clamp-2">{service.description || "Tratamento de alto padrão realizado por nossos especialistas."}</p>
-                  <div className="flex items-center justify-between pt-6 border-t border-zinc-200/50">
+                  <h3 className="text-base md:text-xl font-black text-zinc-950 mb-2">{service.name}</h3>
+                  {service.description && (
+                    <p className="text-xs md:text-sm text-zinc-500 leading-relaxed mb-5 line-clamp-2">{service.description}</p>
+                  )}
+                  <div className="flex items-center justify-between pt-4 border-t border-zinc-200/50 mt-auto">
                     <div>
-                      <p className="text-lg font-black text-zinc-950">R$ {service.price}</p>
+                      <p className="text-base md:text-lg font-black text-zinc-950">R$ {parseFloat(service.price).toFixed(2).replace(".", ",")}</p>
                       <p className="text-[10px] font-bold text-zinc-400 uppercase">{service.duration} min</p>
                     </div>
-                    <Link to={bookingUrl} className="w-10 h-10 rounded-full flex items-center justify-center bg-white border border-zinc-200 text-zinc-400 hover:text-white transition-all duration-300 hover:bg-zinc-900">
-                      <ArrowRight size={18} />
+                    <Link to={bookingUrl} className="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center bg-white border border-zinc-200 text-zinc-400 hover:text-white transition-all duration-300 hover:bg-zinc-900">
+                      <ArrowRight size={16} />
                     </Link>
                   </div>
                 </motion.div>
@@ -434,13 +441,15 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
 
       {/* Team */}
       {tenant.showTeam !== false && professionals.length > 0 && (
-        <section id="equipe" className="py-32 bg-white">
-          <div className="max-w-7xl mx-auto px-6 text-center">
-            <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-4 block">Nosso Time</span>
-            <h2 className="text-4xl md:text-5xl font-black text-zinc-950 tracking-tight mb-20">Especialistas Certificados</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <section id="equipe" className="py-16 md:py-28 bg-white">
+          <div className="max-w-7xl mx-auto px-4 md:px-6">
+            <div className="mb-10 md:mb-14">
+              <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-3 block">Nosso Time</span>
+              <h2 className="text-3xl md:text-5xl font-black text-zinc-950 tracking-tight">Especialistas Certificados</h2>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">
               {professionals.map((prof: any, i: number) => (
-                <motion.div 
+                <motion.div
                   key={prof.id}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -448,20 +457,21 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
                   transition={{ delay: i * 0.1 }}
                   className="group"
                 >
-                  <div className="aspect-[3/4] rounded-[2rem] overflow-hidden bg-zinc-50 mb-6 relative shadow-lg shadow-zinc-950/5 border-4 border-white">
+                  <div className="aspect-[3/4] rounded-2xl md:rounded-[2rem] overflow-hidden bg-zinc-50 mb-3 md:mb-4 relative shadow-md shadow-zinc-950/5 border-2 md:border-4 border-white">
                     {prof.photo ? (
-                      <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                      <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-4xl font-black text-zinc-200">{prof.name.charAt(0)}</div>
+                      <div className="w-full h-full flex items-center justify-center text-3xl font-black text-zinc-200">{prof.name.charAt(0)}</div>
                     )}
-                    <div className="absolute inset-0 bg-black/60 md:opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center p-6 backdrop-blur-[2px]">
-                       <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-3.5 bg-white rounded-2xl text-[10px] font-black text-zinc-950 shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest">
-                         <Calendar size={14} /> AGENDAR
-                       </Link>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-2.5 md:p-4">
+                      <Link to={`${bookingUrl}?profId=${prof.id}`} className="w-full py-2 md:py-3 bg-white rounded-xl md:rounded-2xl text-[10px] font-black text-zinc-950 shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5 uppercase tracking-widest">
+                        <Calendar size={12} /> Agendar
+                      </Link>
                     </div>
                   </div>
-                  <h3 className="text-lg font-black text-zinc-950">{prof.name}</h3>
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em] mt-1">{prof.role || "Especialista"}</p>
+                  <h3 className="text-sm md:text-base font-black text-zinc-950 truncate">{prof.name}</h3>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em] mt-0.5">{prof.role || "Especialista"}</p>
                 </motion.div>
               ))}
             </div>
@@ -576,25 +586,25 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
               <span className="text-[11px] font-black uppercase tracking-[0.3em] text-white/70">Experiência Premium</span>
             </div>
             
-            <h1 className="text-6xl sm:text-7xl md:text-9xl font-black tracking-tighter leading-[0.85] mb-8 uppercase">
+            <h1 className="text-5xl sm:text-7xl md:text-9xl font-black tracking-tighter leading-[0.88] mb-6 uppercase px-2">
               {tenant.name}
             </h1>
-            
-            <p className="text-xl md:text-2xl text-white/50 font-medium max-w-2xl mx-auto mb-14 leading-relaxed italic">
+
+            <p className="text-base md:text-xl text-white/50 font-medium max-w-xl mx-auto mb-10 leading-relaxed italic px-4">
               "{tenant.welcomeMessage || "Onde a excelência encontra a sofisticação."}"
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-              <Link 
-                to={bookingUrl} 
-                className="group relative px-12 py-5 rounded-full font-black text-sm uppercase tracking-widest overflow-hidden transition-all active:scale-95 shadow-2xl"
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 px-4">
+              <Link
+                to={bookingUrl}
+                className="group relative w-full sm:w-auto px-10 py-4 rounded-full font-black text-sm uppercase tracking-widest overflow-hidden transition-all active:scale-95 shadow-2xl text-center"
                 style={{ backgroundColor: themeColor, color: '#fff' }}
               >
                 <span className="relative z-10">Agendar Agora</span>
                 <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
               </Link>
               {tenant.instagram && (
-                <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="px-12 py-5 rounded-full font-black text-sm uppercase tracking-widest border border-white/10 hover:bg-white/5 transition-all active:scale-95">
+                <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto px-10 py-4 rounded-full font-black text-sm uppercase tracking-widest border border-white/10 hover:bg-white/5 transition-all active:scale-95 text-center">
                   Instagram
                 </a>
               )}
@@ -615,48 +625,45 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
 
       {/* Services — Luxury List */}
       {tenant.showServices !== false && (
-        <section id="servicos" className="py-40 relative">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="grid lg:grid-cols-[1fr_2fr] gap-20">
-              <div>
-                <div className="sticky top-32">
-                  <span className="text-[11px] font-black uppercase tracking-[0.4em] mb-6 block text-white/30">Menu de Serviços</span>
-                  <h2 className="text-5xl md:text-6xl font-black tracking-tight leading-none mb-8">Nossas<br/>Especialidades</h2>
-                  <p className="text-lg text-white/40 leading-relaxed font-medium">Oferecemos o que há de mais moderno em técnicas e produtos para garantir o resultado que você merece.</p>
-                  <div className="mt-12 w-20 h-1 rounded-full" style={{ backgroundColor: themeColor }} />
-                </div>
-              </div>
+        <section id="servicos" className="py-20 md:py-40 relative">
+          <div className="max-w-5xl mx-auto px-4 md:px-6">
+            <div className="mb-10 md:mb-16">
+              <span className="text-[11px] font-black uppercase tracking-[0.4em] mb-4 block text-white/30">Menu de Serviços</span>
+              <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-tight mb-4">Nossas Especialidades</h2>
+              <div className="w-16 h-1 rounded-full" style={{ backgroundColor: themeColor }} />
+            </div>
 
-              <div className="space-y-4">
-                {services.slice(0, 8).map((service: any, i: number) => (
-                  <motion.div 
-                    key={service.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.05 }}
-                    className="group relative p-8 rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-500 cursor-pointer overflow-hidden"
-                  >
-                    <div className="absolute top-0 left-0 w-1 h-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: themeColor }} />
-                    <div className="flex items-center justify-between gap-6 relative z-10">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl md:text-2xl font-black tracking-tight group-hover:translate-x-2 transition-transform duration-500">{service.name}</h3>
-                          {service.isFeatured && <Badge color="warning" className="text-[8px] px-2 py-0.5">TOP</Badge>}
-                        </div>
-                        <p className="text-sm text-white/40 font-medium line-clamp-1">{service.description || "Atendimento personalizado com os melhores produtos do mercado."}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-2xl font-black group-hover:scale-110 transition-transform duration-500" style={{ color: themeColor }}>R$ {service.price}</p>
-                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mt-1">{service.duration} MIN</p>
-                      </div>
-                      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500">
-                        <Plus size={20} />
-                      </div>
+            <div className="space-y-3">
+              {services.slice(0, 8).map((service: any, i: number) => (
+                <motion.div
+                  key={service.id}
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.04 }}
+                  className="group relative p-5 md:p-7 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-300 overflow-hidden"
+                >
+                  <div className="absolute top-0 left-0 w-1 h-full opacity-0 group-hover:opacity-100 transition-opacity rounded-l-2xl" style={{ backgroundColor: themeColor }} />
+                  <div className="flex items-center justify-between gap-4 relative z-10">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base md:text-xl font-black tracking-tight truncate">{service.name}</h3>
+                      {service.description && (
+                        <p className="text-xs text-white/35 font-medium mt-1 line-clamp-1 hidden sm:block">{service.description}</p>
+                      )}
                     </div>
-                  </motion.div>
-                ))}
-              </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-lg md:text-2xl font-black" style={{ color: themeColor }}>R$ {parseFloat(service.price).toFixed(2).replace(".", ",")}</p>
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">{service.duration} MIN</p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="mt-8 text-center">
+              <Link to={bookingUrl} className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-black text-sm uppercase tracking-widest text-white active:scale-95 transition-all" style={{ backgroundColor: themeColor }}>
+                <Calendar size={16} /> Agendar Agora
+              </Link>
             </div>
           </div>
         </section>
@@ -667,39 +674,41 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
 
       {/* Team — Minimal Luxe */}
       {tenant.showTeam !== false && professionals.length > 0 && (
-        <section id="equipe" className="py-40 bg-white/[0.01]">
-          <div className="max-w-7xl mx-auto px-6 text-center">
-            <span className="text-[11px] font-black uppercase tracking-[0.4em] mb-6 block text-white/30">Mestres</span>
-            <h2 className="text-5xl md:text-7xl font-black tracking-tighter mb-24 uppercase">Nosso Time</h2>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
+        <section id="equipe" className="py-20 md:py-32 bg-white/[0.01]">
+          <div className="max-w-7xl mx-auto px-4 md:px-6">
+            <div className="mb-10 md:mb-16">
+              <span className="text-[11px] font-black uppercase tracking-[0.4em] mb-4 block text-white/30">Mestres</span>
+              <h2 className="text-4xl md:text-6xl font-black tracking-tighter uppercase">Nosso Time</h2>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
               {professionals.map((prof: any, i: number) => (
-                <motion.div 
+                <motion.div
                   key={prof.id}
                   initial={{ opacity: 0, scale: 0.9 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
-                  className="group text-left"
+                  className="group"
                 >
-                  <div className="aspect-[4/5] rounded-[3rem] overflow-hidden bg-white/5 mb-8 relative transition-all duration-700">
+                  <div className="aspect-[3/4] rounded-2xl md:rounded-[2.5rem] overflow-hidden bg-white/5 mb-3 md:mb-5 relative">
                     {prof.photo ? (
-                      <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                      <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-6xl font-black text-white/5">{prof.name.charAt(0)}</div>
+                      <div className="w-full h-full flex items-center justify-center text-4xl font-black text-white/10">{prof.name.charAt(0)}</div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80" />
-                     <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col justify-end h-3/4 bg-gradient-to-t from-black via-black/20 to-transparent">
-                       <Link 
-                         to={`${bookingUrl}?profId=${prof.id}`} 
-                         className="w-full py-4 rounded-full bg-white text-black font-black text-[10px] tracking-[0.2em] uppercase md:scale-90 md:opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500 shadow-[0_20px_50px_rgba(255,255,255,0.1)] flex items-center justify-center hover:bg-zinc-100"
-                        >
-                          RESERVAR
-                        </Link>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-3 md:p-5">
+                      <Link
+                        to={`${bookingUrl}?profId=${prof.id}`}
+                        className="w-full py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-white text-black font-black text-[10px] tracking-widest uppercase flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-95 transition-all"
+                      >
+                        <Calendar size={12} /> Agendar
+                      </Link>
                     </div>
                   </div>
-                  <h3 className="text-2xl font-black tracking-tight">{prof.name}</h3>
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mt-2" style={{ color: themeColor }}>{prof.role || "Especialista"}</p>
+                  <h3 className="text-sm md:text-lg font-black tracking-tight truncate">{prof.name}</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mt-0.5" style={{ color: themeColor }}>{prof.role || "Especialista"}</p>
                 </motion.div>
               ))}
             </div>
@@ -795,33 +804,35 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
         <div className="absolute top-[-10%] right-[-5%] w-[60%] h-[60%] rounded-full blur-[100px] opacity-10 pointer-events-none z-0" style={{ backgroundColor: themeColor }} />
         <div className="absolute bottom-[5%] left-[-10%] w-[40%] h-[40%] rounded-full blur-[80px] opacity-10 pointer-events-none z-0" style={{ backgroundColor: themeColor }} />
 
-        <div className="max-w-7xl mx-auto px-6 w-full relative z-10">
-          <div className="grid lg:grid-cols-[1.2fr_1fr] gap-16 items-center">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 w-full relative z-10">
+          <div className="grid lg:grid-cols-[1.2fr_1fr] gap-8 md:gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             >
-              <div className="flex items-center gap-3 mb-8">
-                <div className="w-12 h-[2px] rounded-full" style={{ backgroundColor: themeColor }} />
-                <span className="text-xs font-black text-zinc-400 uppercase tracking-[0.3em]">Modern & Professional</span>
+              <div className="flex items-center gap-3 mb-6 md:mb-8">
+                <div className="w-8 md:w-12 h-[2px] rounded-full" style={{ backgroundColor: themeColor }} />
+                <span className="text-xs font-black text-zinc-400 uppercase tracking-[0.2em] md:tracking-[0.3em]">Modern & Professional</span>
               </div>
-              <h1 className="text-6xl sm:text-7xl md:text-8xl font-black tracking-tight leading-[0.9] mb-10 text-zinc-950">
-                {tenant.name}<span className="inline-block w-4 h-4 rounded-full ml-4" style={{ backgroundColor: themeColor }} />
+              <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9] mb-6 md:mb-10 text-zinc-950">
+                {tenant.name}<span className="inline-block w-3 h-3 md:w-4 md:h-4 rounded-full ml-3" style={{ backgroundColor: themeColor }} />
               </h1>
-              <p className="text-xl md:text-2xl text-zinc-500 leading-relaxed max-w-xl mb-12 font-medium">
+              <p className="text-base md:text-xl text-zinc-500 leading-relaxed max-w-xl mb-8 md:mb-12 font-medium">
                 {tenant.welcomeMessage || "Redefinindo o conceito de autocuidado com tecnologia e arte."}
               </p>
-              <div className="flex flex-col sm:flex-row gap-5">
-                <Link 
-                  to={bookingUrl} 
-                  className="group h-16 px-10 rounded-2xl bg-zinc-950 text-white font-black text-sm flex items-center justify-center gap-3 hover:bg-zinc-800 transition-all shadow-xl shadow-zinc-950/20 active:scale-95"
+              <div className="flex flex-col sm:flex-row gap-3 md:gap-5">
+                <Link
+                  to={bookingUrl}
+                  className="h-14 md:h-16 px-8 md:px-10 rounded-xl md:rounded-2xl bg-zinc-950 text-white font-black text-sm flex items-center justify-center gap-3 hover:bg-zinc-800 transition-all shadow-xl shadow-zinc-950/20 active:scale-95"
                 >
-                  <Calendar size={20} /> AGENDAR HORÁRIO
+                  <Calendar size={18} /> AGENDAR HORÁRIO
                 </Link>
-                <button className="h-16 px-10 rounded-2xl bg-white border border-zinc-200 text-zinc-900 font-black text-sm hover:border-zinc-400 transition-all active:scale-95">
-                  VER SERVIÇOS
-                </button>
+                {tenant.instagram && (
+                  <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="h-14 md:h-16 px-8 md:px-10 rounded-xl md:rounded-2xl bg-white border border-zinc-200 text-zinc-900 font-black text-sm hover:border-zinc-400 transition-all active:scale-95 flex items-center justify-center">
+                    Instagram
+                  </a>
+                )}
               </div>
             </motion.div>
 
@@ -864,32 +875,37 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
 
       {/* Featured Services — Grid Cards */}
       {tenant.showServices !== false && (
-        <section id="servicos" className="py-40 bg-white relative overflow-hidden">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center max-w-3xl mx-auto mb-24">
-              <h2 className="text-5xl md:text-6xl font-black tracking-tight text-zinc-950 mb-6">Explore nossas artes</h2>
-              <p className="text-lg text-zinc-500 font-medium">Cada serviço é uma obra de arte personalizada para o seu estilo.</p>
+        <section id="servicos" className="py-16 md:py-32 bg-white relative overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 md:px-6">
+            <div className="mb-10 md:mb-16 md:text-center">
+              <h2 className="text-3xl md:text-5xl font-black tracking-tight text-zinc-950 mb-3">Explore nossas artes</h2>
+              <p className="text-sm md:text-lg text-zinc-500 font-medium">Cada serviço é uma obra de arte personalizada para o seu estilo.</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
               {services.slice(0, 8).map((service: any, i: number) => (
                 <motion.div
                   key={service.id}
                   initial={{ opacity: 0, y: 30 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="group relative bg-[#f8f9fa] rounded-[3rem] p-10 hover:bg-white hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] transition-all duration-700 border border-transparent hover:border-zinc-100"
+                  transition={{ delay: i * 0.08 }}
+                  className="group relative bg-[#f8f9fa] rounded-2xl md:rounded-[2.5rem] p-5 md:p-8 hover:bg-white hover:shadow-xl hover:shadow-zinc-950/5 transition-all duration-500 border border-transparent hover:border-zinc-100 flex flex-col"
                 >
-                  <div className="w-16 h-16 rounded-[1.5rem] bg-white shadow-xl flex items-center justify-center mb-10 group-hover:scale-110 transition-transform duration-500" style={{ color: themeColor }}>
-                    <Scissors size={28} />
+                  <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-[1.5rem] bg-white shadow-md flex items-center justify-center mb-4 md:mb-6" style={{ color: themeColor }}>
+                    <Scissors size={18} />
                   </div>
-                  <h3 className="text-2xl font-black text-zinc-950 mb-4">{service.name}</h3>
-                  <p className="text-zinc-500 text-sm leading-relaxed mb-8">{service.description || "Referência em qualidade e satisfação."}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-black text-zinc-900">R$ {service.price}</span>
-                    <Link to={bookingUrl} className="w-12 h-12 rounded-2xl bg-zinc-950 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-500">
-                       <Plus size={24} />
+                  <h3 className="text-sm md:text-xl font-black text-zinc-950 mb-2 leading-tight">{service.name}</h3>
+                  {service.description && (
+                    <p className="text-zinc-500 text-xs leading-relaxed mb-4 line-clamp-2 hidden sm:block">{service.description}</p>
+                  )}
+                  <div className="flex items-center justify-between mt-auto pt-3 border-t border-zinc-100">
+                    <div>
+                      <span className="text-base md:text-xl font-black text-zinc-900">R$ {parseFloat(service.price).toFixed(2).replace(".", ",")}</span>
+                      <p className="text-[10px] text-zinc-400 font-bold">{service.duration} min</p>
+                    </div>
+                    <Link to={bookingUrl} className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-zinc-950 text-white flex items-center justify-center active:scale-95 transition-all">
+                      <Plus size={16} />
                     </Link>
                   </div>
                 </motion.div>
@@ -901,18 +917,17 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
 
       {/* Team — Minimal & Round */}
       {tenant.showTeam !== false && professionals.length > 0 && (
-        <section id="equipe" className="py-40 bg-zinc-50/50">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="flex flex-col md:flex-row items-end justify-between mb-20">
-              <div className="max-w-xl">
-                <span className="text-xs font-black text-zinc-400 uppercase tracking-[0.3em] mb-4 block">Especialistas</span>
-                <h2 className="text-5xl font-black text-zinc-950 tracking-tight">O time que transforma</h2>
+        <section id="equipe" className="py-16 md:py-28 bg-zinc-50/50">
+          <div className="max-w-7xl mx-auto px-4 md:px-6">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10 md:mb-16">
+              <div>
+                <span className="text-xs font-black text-zinc-400 uppercase tracking-[0.3em] mb-3 block">Especialistas</span>
+                <h2 className="text-3xl md:text-5xl font-black text-zinc-950 tracking-tight">O time que transforma</h2>
               </div>
-              <p className="text-sm text-zinc-500 font-medium max-w-xs md:text-right">Profissionais apaixonados por elevar sua autoestima e bem-estar.</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
               {professionals.map((prof: any, i: number) => (
-                <motion.div 
+                <motion.div
                   key={prof.id}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -920,22 +935,23 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
                   transition={{ delay: i * 0.1 }}
                   className="group"
                 >
-                  <div className="aspect-[3/4] rounded-[3rem] overflow-hidden bg-zinc-200 mb-8 relative">
+                  <div className="aspect-[3/4] rounded-2xl md:rounded-[2.5rem] overflow-hidden bg-zinc-200 mb-3 md:mb-5 relative">
                     {prof.photo ? (
-                      <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                      <img src={prof.photo} alt={prof.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-5xl font-black text-zinc-400 bg-zinc-200">{prof.name.charAt(0)}</div>
+                      <div className="w-full h-full flex items-center justify-center text-4xl font-black text-zinc-400">{prof.name.charAt(0)}</div>
                     )}
-                     <div className="absolute inset-0 bg-black/40 md:opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-end p-8 backdrop-blur-[1px]">
-                        <Link 
-                          to={`${bookingUrl}?profId=${prof.id}`} 
-                          className="w-full py-4 bg-white rounded-[1.5rem] text-[10px] font-black text-zinc-950 shadow-[0_20px_40px_rgba(0,0,0,0.3)] tracking-[0.2em] flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
-                        >
-                          RESERVAR
-                        </Link>
-                     </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-3 md:p-5">
+                      <Link
+                        to={`${bookingUrl}?profId=${prof.id}`}
+                        className="w-full py-2.5 md:py-3.5 bg-white rounded-xl md:rounded-[1.5rem] text-[10px] font-black text-zinc-950 shadow-xl tracking-widest flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                      >
+                        <Calendar size={12} /> Agendar
+                      </Link>
+                    </div>
                   </div>
-                  <h3 className="text-2xl font-black text-zinc-950 mb-1">{prof.name}</h3>
+                  <h3 className="text-sm md:text-lg font-black text-zinc-950 mb-0.5 truncate">{prof.name}</h3>
                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">{prof.role || "Especialista"}</p>
                 </motion.div>
               ))}
@@ -946,44 +962,46 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
 
       {/* Products — Minimal Shop */}
       {tenant.showProducts !== false && products.length > 0 && (
-        <section id="produtos" className="py-40 bg-white">
-          <div className="max-w-7xl mx-auto px-6">
-             <div className="flex items-center justify-between mb-20">
-                <h2 className="text-5xl font-black tracking-tight text-zinc-950">Vitrine Shop</h2>
-                <button onClick={() => setCartOpen(true)} className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-zinc-950 text-white shadow-xl hover:scale-110 transition-transform">
-                   <ShoppingBag size={22} />
-                   {cartCount > 0 && <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">{cartCount}</span>}
+        <section id="produtos" className="py-16 md:py-28 bg-white">
+          <div className="max-w-7xl mx-auto px-4 md:px-6">
+            <div className="flex items-center justify-between mb-10 md:mb-16">
+              <h2 className="text-3xl md:text-5xl font-black tracking-tight text-zinc-950">Vitrine Shop</h2>
+              {cartCount > 0 && (
+                <button onClick={() => setCartOpen(true)} className="relative flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-zinc-950 text-white shadow-xl hover:scale-105 active:scale-95 transition-all">
+                  <ShoppingBag size={20} />
+                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">{cartCount}</span>
                 </button>
-             </div>
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
-                {products.map((product: any) => {
-                  const inCart = cartItems.find(i => i.product.id === product.id);
-                  return (
-                    <div key={product.id} className="group">
-                       <div className="aspect-square rounded-[2.5rem] overflow-hidden bg-[#f8f9fa] mb-6 relative border border-transparent group-hover:border-zinc-200 transition-all">
-                          {product.photo ? (
-                            <img src={product.photo} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-zinc-200"><ShoppingBag size={40} /></div>
-                          )}
-                          <div className="absolute inset-0 flex items-end p-4 opacity-0 group-hover:opacity-100 transition-all">
-                             {inCart ? (
-                                <div className="w-full bg-white rounded-2xl p-2 flex items-center justify-between shadow-2xl">
-                                   <button onClick={() => changeQty(product.id, -1)} className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900"><Minus size={14} /></button>
-                                   <span className="text-sm font-black text-zinc-900">{inCart.quantity}</span>
-                                   <button onClick={() => changeQty(product.id, 1)} className="w-8 h-8 rounded-xl bg-zinc-950 flex items-center justify-center text-white"><Plus size={14} /></button>
-                                </div>
-                             ) : (
-                                <button onClick={() => addToCart(product)} className="w-full py-3 bg-zinc-950 text-white rounded-2xl text-xs font-black shadow-2xl">ADICIONAR</button>
-                             )}
+              )}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+              {products.map((product: any) => {
+                const inCart = cartItems.find(i => i.product.id === product.id);
+                return (
+                  <div key={product.id} className="group">
+                    <div className="aspect-square rounded-2xl md:rounded-[2.5rem] overflow-hidden bg-[#f8f9fa] mb-3 md:mb-5 relative border border-transparent group-hover:border-zinc-200 transition-all">
+                      {product.photo ? (
+                        <img src={product.photo} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-200"><ShoppingBag size={32} /></div>
+                      )}
+                      <div className="absolute inset-0 flex items-end p-2.5 md:p-4">
+                        {inCart ? (
+                          <div className="w-full bg-white rounded-xl p-1.5 md:p-2 flex items-center justify-between shadow-xl opacity-0 group-hover:opacity-100 transition-all">
+                            <button onClick={() => changeQty(product.id, -1)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-900"><Minus size={12} /></button>
+                            <span className="text-sm font-black text-zinc-900">{inCart.quantity}</span>
+                            <button onClick={() => changeQty(product.id, 1)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-zinc-950 flex items-center justify-center text-white"><Plus size={12} /></button>
                           </div>
-                       </div>
-                       <h3 className="font-black text-zinc-950 text-sm mb-1 truncate">{product.name}</h3>
-                       <p className="text-lg font-black" style={{ color: themeColor }}>R$ {parseFloat(product.salePrice).toFixed(2).replace(".", ",")}</p>
+                        ) : (
+                          <button onClick={() => addToCart(product)} className="w-full py-2.5 bg-zinc-950 text-white rounded-xl text-[10px] font-black shadow-xl opacity-0 group-hover:opacity-100 transition-all">ADICIONAR</button>
+                        )}
+                      </div>
                     </div>
-                  );
-                })}
-             </div>
+                    <h3 className="font-black text-zinc-950 text-xs md:text-sm mb-1 truncate">{product.name}</h3>
+                    <p className="text-sm md:text-base font-black" style={{ color: themeColor }}>R$ {parseFloat(product.salePrice).toFixed(2).replace(".", ",")}</p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </section>
       )}
