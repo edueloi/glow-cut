@@ -164,6 +164,29 @@ function GallerySection({ images, themeColor, dark = false }: { images: string[]
   );
 }
 
+// ── Cart FAB — botão flutuante de carrinho ───────────────────────────────────
+function CartFAB({ cartCount, cartOpen, setCartOpen, themeColor }: any) {
+  if (cartCount === 0 || cartOpen) return null;
+  return (
+    <AnimatePresence>
+      <motion.button
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0, opacity: 0 }}
+        onClick={() => setCartOpen(true)}
+        className="fixed bottom-24 right-4 z-[70] flex items-center gap-2 pl-3 pr-4 py-2.5 rounded-full shadow-2xl text-white font-black text-sm"
+        style={{ backgroundColor: themeColor, boxShadow: `0 8px 32px ${themeColor}55` }}
+      >
+        <div className="relative">
+          <ShoppingBag size={20} />
+          <span className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-white text-[9px] font-black flex items-center justify-center" style={{ color: themeColor }}>{cartCount}</span>
+        </div>
+        <span className="text-xs tracking-wide">Carrinho</span>
+      </motion.button>
+    </AnimatePresence>
+  );
+}
+
 // ── Shared Cart + Products ───────────────────────────────────────────────────
 function useCart() {
   const [cartItems, setCartItems] = useState<{ product: any; quantity: number }[]>([]);
@@ -195,8 +218,8 @@ function CartDrawer({ cartItems, cartOpen, setCartOpen, cartTotal, cartCount, ch
     <AnimatePresence>
       {cartOpen && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={() => setCartOpen(false)} />
-          <motion.aside initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm bg-white shadow-2xl flex flex-col">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[80] bg-black/40 backdrop-blur-sm" onClick={() => setCartOpen(false)} />
+          <motion.aside initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="fixed right-0 top-0 bottom-0 z-[90] w-full max-w-sm bg-white shadow-2xl flex flex-col">
             <div className="flex items-center justify-between px-5 h-16 border-b border-zinc-100">
               <div className="flex items-center gap-2">
                 <ShoppingBag size={18} style={{ color: themeColor }} />
@@ -483,18 +506,9 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
       {tenant.showProducts !== false && products.length > 0 && (
         <section id="produtos" className="py-32 bg-[#fafafa]">
           <div className="max-w-7xl mx-auto px-6">
-            <div className="flex items-center justify-between mb-16">
-              <div>
-                <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-4 block">Loja</span>
-                <h2 className="text-4xl md:text-5xl font-black text-zinc-950 tracking-tight">Vitrine Shop</h2>
-              </div>
-              {cartCount > 0 && (
-                <button onClick={() => setCartOpen(true)} className="relative flex items-center gap-2 px-5 py-3 rounded-full bg-zinc-950 text-white text-sm font-black hover:bg-zinc-800 transition-colors">
-                  <ShoppingBag size={18} />
-                  <span>Ver carrinho</span>
-                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-black text-[10px] font-black flex items-center justify-center" style={{ backgroundColor: themeColor }}>{cartCount}</span>
-                </button>
-              )}
+            <div className="mb-16">
+              <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-4 block">Loja</span>
+              <h2 className="text-4xl md:text-5xl font-black text-zinc-950 tracking-tight">Vitrine Shop</h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               {products.map((product: any) => {
@@ -530,22 +544,17 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
       )}
 
       <CartDrawer cartItems={cartItems} cartOpen={cartOpen} setCartOpen={setCartOpen} cartTotal={cartTotal} cartCount={cartCount} changeQty={changeQty} removeFromCart={removeFromCart} themeColor={themeColor} phone={tenant.phone} />
+      <CartFAB cartCount={cartCount} cartOpen={cartOpen} setCartOpen={setCartOpen} themeColor={themeColor} />
       <Footer tenant={tenant} slug={slug} bookingUrl={bookingUrl} themeColor={themeColor} products={products} />
 
-      {/* Mobile CTA */}
-      <div className="fixed bottom-6 left-6 right-6 z-50 md:hidden">
-        <div className="flex gap-3">
-          {cartCount > 0 && (
-            <button onClick={() => setCartOpen(true)} className="h-14 w-14 rounded-2xl bg-white shadow-2xl border border-zinc-100 flex items-center justify-center relative text-zinc-900">
-              <ShoppingBag size={20} />
-              <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">{cartCount}</span>
-            </button>
-          )}
-          <Link to={bookingUrl} className="flex-1 h-14 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2 shadow-2xl" style={{ backgroundColor: themeColor }}>
+      {/* Mobile CTA — só aparece quando o carrinho está fechado */}
+      {!cartOpen && (
+        <div className="fixed bottom-4 left-4 right-4 z-[60] md:hidden">
+          <Link to={bookingUrl} className="flex w-full h-14 rounded-2xl text-white font-black text-sm items-center justify-center gap-2 shadow-2xl active:scale-95 transition-all" style={{ backgroundColor: themeColor }}>
             <Calendar size={18} /> AGENDAR AGORA
           </Link>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -594,18 +603,18 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
               "{tenant.welcomeMessage || "Onde a excelência encontra a sofisticação."}"
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 px-4">
+            <div className="flex items-center justify-center gap-3 px-4 flex-wrap">
               <Link
                 to={bookingUrl}
-                className="group relative w-full sm:w-auto px-10 py-4 rounded-full font-black text-sm uppercase tracking-widest overflow-hidden transition-all active:scale-95 shadow-2xl text-center"
+                className="group relative px-8 py-3.5 rounded-full font-black text-sm uppercase tracking-widest overflow-hidden transition-all active:scale-95 shadow-2xl"
                 style={{ backgroundColor: themeColor, color: '#fff' }}
               >
-                <span className="relative z-10">Agendar Agora</span>
-                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+                <span className="relative z-10 flex items-center gap-2"><Calendar size={15} /> Agendar Agora</span>
+                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-15 transition-opacity" />
               </Link>
               {tenant.instagram && (
-                <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto px-10 py-4 rounded-full font-black text-sm uppercase tracking-widest border border-white/10 hover:bg-white/5 transition-all active:scale-95 text-center">
-                  Instagram
+                <a href={tenant.instagram} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-6 py-3.5 rounded-full font-bold text-sm border border-white/15 bg-white/5 hover:bg-white/10 transition-all active:scale-95 text-white/80">
+                  <Instagram size={15} /> Instagram
                 </a>
               )}
             </div>
@@ -720,18 +729,9 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
       {tenant.showProducts !== false && products.length > 0 && (
         <section id="produtos" className="py-32 bg-[#0a0a0a]">
           <div className="max-w-7xl mx-auto px-6">
-            <div className="flex items-center justify-between mb-16">
-              <div>
-                <span className="text-[11px] font-black uppercase tracking-[0.4em] mb-4 block text-white/30">Loja</span>
-                <h2 className="text-5xl md:text-6xl font-black tracking-tight leading-none text-white">Vitrine Shop</h2>
-              </div>
-              {cartCount > 0 && (
-                <button onClick={() => setCartOpen(true)} className="relative flex items-center gap-2 px-5 py-3 rounded-full border border-white/10 text-white text-sm font-black hover:bg-white/5 transition-colors">
-                  <ShoppingBag size={18} />
-                  <span>Ver carrinho</span>
-                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-black text-[10px] font-black flex items-center justify-center" style={{ backgroundColor: themeColor }}>{cartCount}</span>
-                </button>
-              )}
+            <div className="mb-16">
+              <span className="text-[11px] font-black uppercase tracking-[0.4em] mb-4 block text-white/30">Loja</span>
+              <h2 className="text-5xl md:text-6xl font-black tracking-tight leading-none text-white">Vitrine Shop</h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {products.map((product: any) => {
@@ -767,16 +767,16 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
       )}
 
       <CartDrawer cartItems={cartItems} cartOpen={cartOpen} setCartOpen={setCartOpen} cartTotal={cartTotal} cartCount={cartCount} changeQty={changeQty} removeFromCart={removeFromCart} themeColor={themeColor} phone={tenant.phone} />
+      <CartFAB cartCount={cartCount} cartOpen={cartOpen} setCartOpen={setCartOpen} themeColor={themeColor} />
       <Footer tenant={tenant} slug={slug} bookingUrl={bookingUrl} themeColor={themeColor} products={products} dark />
 
-      {/* Mobile CTA */}
-      <div className="fixed bottom-6 left-6 right-6 z-50 md:hidden">
-        <div className="flex gap-3">
-          <Link to={bookingUrl} className="flex-1 h-16 rounded-full text-black font-black text-xs flex items-center justify-center gap-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)] active:scale-95 transition-all" style={{ backgroundColor: themeColor }}>
-            <Calendar size={20} /> AGENDAR AGORA
+      {!cartOpen && (
+        <div className="fixed bottom-4 left-4 right-4 z-[60] md:hidden">
+          <Link to={bookingUrl} className="flex w-full h-14 rounded-2xl text-black font-black text-sm items-center justify-center gap-2 shadow-2xl active:scale-95 transition-all" style={{ backgroundColor: themeColor }}>
+            <Calendar size={18} /> AGENDAR AGORA
           </Link>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -1023,7 +1023,16 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
       </section>
 
       <CartDrawer cartItems={cartItems} cartOpen={cartOpen} setCartOpen={setCartOpen} cartTotal={cartTotal} cartCount={cartCount} changeQty={changeQty} removeFromCart={removeFromCart} themeColor={themeColor} phone={tenant.phone} />
+      <CartFAB cartCount={cartCount} cartOpen={cartOpen} setCartOpen={setCartOpen} themeColor={themeColor} />
       <Footer tenant={tenant} slug={slug} bookingUrl={bookingUrl} themeColor={themeColor} products={products} />
+
+      {!cartOpen && (
+        <div className="fixed bottom-4 left-4 right-4 z-[60] md:hidden">
+          <Link to={bookingUrl} className="flex w-full h-14 rounded-2xl text-white font-black text-sm items-center justify-center gap-2 shadow-2xl active:scale-95 transition-all" style={{ backgroundColor: themeColor }}>
+            <Calendar size={18} /> AGENDAR AGORA
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

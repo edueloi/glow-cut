@@ -1428,10 +1428,22 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
     { id: "11", category: "Dúvidas", title: "Precisa instalar app?", desc: "Esclarecendo que é 100% online.", content: "Não precisa instalar nada para começar.\n\nO Agendelle funciona online. Você acessa pelo navegador no celular ou computador.\n\nSeu cliente também não precisa baixar aplicativo. Ele acessa seu link, vê seus serviços e consegue solicitar o agendamento de forma simples." },
     { id: "12", category: "Objeções", title: "Achei caro", desc: "Contorno focado em ROI.", content: "Entendo totalmente.\n\nMas pensa assim: se o sistema ajudar você a evitar poucos horários perdidos no mês, ele praticamente já se paga.\n\nAlém disso, ele não serve só para agenda. Ele ajuda a organizar clientes, serviços, financeiro, pagamentos, profissionais e ainda melhora a imagem do seu negócio.\n\nMesmo assim, você pode testar por 30 dias grátis antes de decidir continuar." },
     { id: "13", category: "Objeções", title: "Vou pensar", desc: "Incentivo ao teste sem compromisso.", content: "Claro, sem problema.\n\nSó recomendo você fazer o teste grátis, porque olhando por dentro fica muito mais fácil entender se faz sentido para sua rotina.\n\nVocê não precisa decidir agora. Pode testar, configurar sua agenda e ver se realmente ajuda no dia a dia.\n\nQuer que eu te mande o link de cadastro?" },
-    { id: "14", category: "Follow-up", title: "Follow-up (24h)", desc: "Primeiro retorno após envio do link.", content: "Oi, tudo bem? Passando só para saber se você conseguiu olhar o Agendelle.\n\nAcredito que ele pode ajudar bastante na organização da agenda e na apresentação profissional do seu negócio.\n\nSe quiser, posso te orientar nos primeiros passos para configurar serviços, horários e link de agendamento." },
-    { id: "15", category: "Follow-up", title: "Follow-up (48h/72h)", desc: "Segundo retorno mais direto.", content: "Oi, tudo bem? Você chegou a testar o Agendelle? Estamos ajudando os primeiros profissionais na configuração inicial para deixar a agenda pronta mais rápido.\n\nSe quiser, posso te acompanhar nesse começo e te mostrar o caminho mais simples." },
+    { id: "14", category: "Retorno", title: "Retorno após 24h", desc: "Primeiro retorno após envio do link.", content: "Oi, tudo bem? Passando só para saber se você conseguiu olhar o Agendelle.\n\nAcredito que ele pode ajudar bastante na organização da agenda e na apresentação profissional do seu negócio.\n\nSe quiser, posso te orientar nos primeiros passos para configurar serviços, horários e link de agendamento." },
+    { id: "15", category: "Retorno", title: "Retorno após 48h / 72h", desc: "Segundo retorno mais direto.", content: "Oi, tudo bem? Você chegou a testar o Agendelle? Estamos ajudando os primeiros profissionais na configuração inicial para deixar a agenda pronta mais rápido.\n\nSe quiser, posso te acompanhar nesse começo e te mostrar o caminho mais simples." },
+    { id: "20", category: "Retorno", title: "Retorno após 1 semana", desc: "Quando não houve resposta por vários dias.", content: "Oi, tudo bem? Faz alguns dias que mandei o link do Agendelle e queria saber se você teve tempo de olhar.\n\nSei que a rotina de quem trabalha no salão é puxada, então não tem problema.\n\nSe preferir, posso fazer uma apresentação rápida de 10 minutinhos para mostrar como funciona. Fica à vontade." },
+    { id: "21", category: "Retorno", title: "Retorno curto e direto", desc: "Para quem sumiu sem responder.", content: "Oi! Tudo bem com vocês?\n\nFicou faltando sua resposta aqui. 😄\n\nAinda há interesse em conhecer o Agendelle?" },
     { id: "16", category: "Pós-venda", title: "Boas-vindas", desc: "Após cadastro ou assinatura.", content: "Que bom ter você com a gente no Agendelle!\n\nAgora o próximo passo é configurar seu negócio com calma: nome, serviços, horários, profissionais e o link da sua agenda online.\n\nQualquer dúvida nesse começo, pode me chamar. Queremos que sua experiência seja simples e útil desde o primeiro dia." },
-    { id: "17", category: "Objeções", title: "Já uso WhatsApp", desc: "Foco na organização vs conversa.", content: "Perfeito, muitos profissionais começam assim mesmo.\n\nO ponto é que o WhatsApp ajuda na conversa, mas nem sempre organiza bem a agenda.\n\nCom o Agendelle, você continua usando o WhatsApp, mas passa a ter uma estrutura melhor: link de agendamento, serviços cadastrados, horários organizados e lembretes.\n\nEle não substitui seu atendimento humano. Ele organiza a parte que costuma dar trabalho." }
+    { id: "17", category: "Objeções", title: "Já uso WhatsApp", desc: "Foco na organização vs conversa.", content: "Perfeito, muitos profissionais começam assim mesmo.\n\nO ponto é que o WhatsApp ajuda na conversa, mas nem sempre organiza bem a agenda.\n\nCom o Agendelle, você continua usando o WhatsApp, mas passa a ter uma estrutura melhor: link de agendamento, serviços cadastrados, horários organizados e lembretes.\n\nEle não substitui seu atendimento humano. Ele organiza a parte que costuma dar trabalho." },
+    { id: "22", category: "Objeções", title: "Não tenho tempo agora", desc: "Contorno para quem diz estar ocupado.", content: "Entendo! Quem trabalha no dia a dia do salão não tem tempo sobrando mesmo.\n\nE é exatamente por isso que o Agendelle pode ajudar: ele resolve a parte que mais consome tempo, que é ficar respondendo horário no WhatsApp e confirmando agendamento um por um.\n\nO cadastro é rápido e posso te ajudar a configurar tudo. Você não precisa parar o que está fazendo agora para testar. Que tal dar uma olhada quando tiver um tempinho?" },
+    { id: "23", category: "Objeções", title: "Meus clientes não usam internet", desc: "Quebrar a crença de que o público não é digital.", content: "Esse é um receio bastante comum no começo.\n\nMas na prática, a maioria das pessoas hoje agenda pelo celular e prefere fazer isso por link do que esperar resposta no WhatsApp.\n\nAlém disso, você também pode continuar usando o WhatsApp normalmente. O Agendelle não substitui nada, ele só organiza a parte que já acontece no seu dia a dia.\n\nVale a pena testar nos 30 dias grátis para ver como seus próprios clientes reagem." },
+    { id: "24", category: "Objeções", title: "Tenho pouco movimento", desc: "Para negócios que se acham pequenos demais.", content: "Entendo. Mas é justamente quando o movimento é menor que a organização faz mais diferença.\n\nCom poucos agendamentos, você não quer perder nenhum por falta de controle ou por esquecer de confirmar.\n\nO Agendelle ajuda a manter tudo organizado e dá uma imagem mais profissional para o negócio, o que pode ajudar a atrair mais clientes também.\n\nO teste é grátis. Não custa nada experimentar." },
+    { id: "25", category: "Abordagem", title: "Abordagem via Instagram", desc: "Para quando encontrou pelo perfil do Instagram.", content: "Oi, tudo bem? Vi o perfil de vocês no Instagram e gostei muito do trabalho.\n\nSou do Agendelle, uma plataforma feita para profissionais de beleza organizarem horários, clientes, serviços e terem um link de agendamento próprio.\n\nA ideia é reduzir a correria de confirmar horário no WhatsApp e deixar seu atendimento mais profissional.\n\nEstamos com 30 dias grátis de teste. Posso te explicar melhor?" },
+    { id: "26", category: "Segmentos", title: "Para Studio de Sobrancelha / Lash", desc: "Foco em profissionais de micropigmentação e cílios.", content: "Oi, tudo bem? Vi o trabalho de vocês e achei incrível.\n\nEstou apresentando o Agendelle, uma plataforma para profissionais de sobrancelha, lash e micropigmentação organizarem agenda, clientes e serviços em um só lugar.\n\nCom ele, você tem um link de agendamento profissional para colocar na bio, seus clientes conseguem solicitar horário sem precisar te chamar no WhatsApp, e você recebe lembretes automáticos para não esquecer nenhum atendimento.\n\nEstamos com teste grátis de 30 dias. Posso te mandar o link?" },
+    { id: "27", category: "Segmentos", title: "Para Manicure / Pedicure", desc: "Foco em agenda e controle de clientes recorrentes.", content: "Oi, tudo bem? Vi seu trabalho e achei muito caprichado.\n\nQueria te apresentar o Agendelle, uma agenda online para manicures e pedicures organizarem horários, clientes fixos, serviços e pagamentos de forma simples.\n\nVocê ganha um link de agendamento próprio, seus clientes conseguem solicitar horário de onde estiverem, e o sistema avisa automaticamente antes de cada atendimento.\n\nEstamos liberando 30 dias grátis para teste. Posso te mandar?" },
+    { id: "28", category: "Explicação", title: "Como funciona a agenda online", desc: "Explica o fluxo para o cliente final.", content: "A agenda online funciona assim:\n\n1. Você configura seus serviços, horários e profissionais.\n2. O sistema gera um link único para o seu negócio.\n3. Seu cliente acessa esse link, vê os serviços disponíveis, escolhe o horário e faz a solicitação.\n4. Você recebe a notificação e confirma o agendamento.\n5. O sistema envia lembretes automáticos para o cliente antes do horário.\n\nTudo isso sem precisar ficar trocando mensagem para confirmar horário manualmente." },
+    { id: "29", category: "Benefícios", title: "Redução de faltas e cancelamentos", desc: "Foco nos lembretes automáticos.", content: "Uma das maiores dores de quem trabalha com beleza é o cliente que marca e não aparece.\n\nO Agendelle envia lembretes automáticos pelo WhatsApp para os clientes antes do horário marcado. Um aviso com 24h de antecedência e outro com 1h.\n\nIsso reduz bastante as faltas e ainda evita que você precise ficar lembrando cada cliente manualmente.\n\nPequena mudança, grande diferença no faturamento do mês." },
+    { id: "30", category: "Pós-venda", title: "Verificação após 1 semana usando", desc: "Acompanhar se está usando e ajudar com dificuldades.", content: "Oi, tudo bem? Faz uma semana que você entrou no Agendelle e queria saber como está sendo a experiência.\n\nJá conseguiu configurar seus serviços e horários? Tem alguma dúvida que posso te ajudar a resolver?\n\nEstamos aqui para garantir que você tire o máximo da plataforma desde o começo." },
+    { id: "31", category: "Pós-venda", title: "Indicação de outros profissionais", desc: "Pedir indicação após cliente satisfeito.", content: "Que bom que está gostando do Agendelle!\n\nSe você conhece outros salões, barbearias ou profissionais de beleza que poderiam se beneficiar também, fico feliz se puder indicar.\n\nTemos um programa de indicação onde você pode ganhar benefícios por cada pessoa que entrar pelo seu contato.\n\nDeixa eu te explicar como funciona?" }
   ];
 
   const categories = [
@@ -1444,7 +1456,7 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
     { id: "Benefícios", name: "Benefícios" },
     { id: "Dúvidas", name: "Dúvidas" },
     { id: "Objeções", name: "Objeções" },
-    { id: "Follow-up", name: "Follow-up" },
+    { id: "Retorno", name: "Retorno / Follow-up" },
     { id: "Pós-venda", name: "Pós-venda" },
   ];
 
@@ -2132,25 +2144,41 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
       <Modal isOpen={sendWaModal.open} onClose={() => setSendWaModal({ open: false, template: null })} title="Enviar Mensagem">
         <div className="p-5 space-y-4">
           <p className="text-sm text-zinc-600">Selecione um contato da sua lista para enviar esta mensagem:</p>
-          <div className="max-h-60 overflow-y-auto border border-zinc-100 rounded-xl divide-y divide-zinc-100">
-            {leads.length > 0 ? leads.map(l => (
-              <div 
-                key={l.id} 
-                onClick={() => {
-                  setSendWaModal({ open: false, template: null });
-                  openWhatsapp(l.phone, sendWaModal.template || "");
-                }}
-                className="p-3 hover:bg-amber-50 cursor-pointer flex justify-between items-center transition-colors group"
-              >
-                <div>
-                  <p className="text-sm font-bold text-zinc-800">{l.name}</p>
-                  <p className="text-[10px] text-zinc-500">{l.phone} {l.city ? `• ${l.city}` : ""}</p>
+          <div className="max-h-72 overflow-y-auto border border-zinc-100 rounded-xl divide-y divide-zinc-100">
+            {leads.length > 0 ? leads.map(l => {
+              const statusInfo = LEAD_STATUS[l.status] || { label: "Novo", color: "info" };
+              const statusColors: Record<string, string> = {
+                info: "bg-blue-100 text-blue-700",
+                purple: "bg-purple-100 text-purple-700",
+                success: "bg-emerald-100 text-emerald-700",
+                danger: "bg-red-100 text-red-700",
+                warning: "bg-amber-100 text-amber-700",
+                amber: "bg-orange-100 text-orange-700",
+              };
+              return (
+                <div
+                  key={l.id}
+                  onClick={() => {
+                    setSendWaModal({ open: false, template: null });
+                    openWhatsapp(l.phone, sendWaModal.template || "");
+                  }}
+                  className="p-3 hover:bg-amber-50 cursor-pointer flex justify-between items-center transition-colors group"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-sm font-bold text-zinc-800 truncate">{l.name}</p>
+                      <span className={`shrink-0 text-[9px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded-full ${statusColors[statusInfo.color] || "bg-zinc-100 text-zinc-500"}`}>
+                        {statusInfo.label}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-zinc-500">{l.phone}{l.city ? ` • ${l.city}` : ""}</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                    <MessageCircle size={14} />
+                  </div>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <MessageCircle size={14} />
-                </div>
-              </div>
-            )) : (
+              );
+            }) : (
               <div className="p-4 text-center text-sm text-zinc-400">Nenhum contato na lista.</div>
             )}
           </div>
