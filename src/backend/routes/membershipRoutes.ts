@@ -114,11 +114,12 @@ membershipRouter.get("/subscriptions", async (req: Request, res: Response) => {
     let sql = `
       SELECT cs.id, cs.status, cs.currentPeriodStart, cs.currentPeriodEnd, cs.nextChargeDate,
              cs.clientId, cs.membershipPlanId, cs.notes, cs.createdAt,
-             c.name as clientName, c.phone as clientPhone, c.email as clientEmail,
+             COALESCE(c.name, '(cliente removido)') as clientName,
+             c.phone as clientPhone, c.email as clientEmail,
              mp.name as planName, mp.price as planPrice, mp.billingCycle, mp.creditsPerCycle
       FROM ClientSubscription cs
-      JOIN Client c ON c.id = cs.clientId
-      JOIN MembershipPlan mp ON mp.id = cs.membershipPlanId
+      LEFT JOIN Client c ON c.id = cs.clientId
+      LEFT JOIN MembershipPlan mp ON mp.id = cs.membershipPlanId
       WHERE cs.tenantId = ?
     `;
     const params: any[] = [tid];
@@ -152,11 +153,12 @@ membershipRouter.get("/subscriptions/:id", async (req: Request, res: Response) =
     const tid = tenantId(req);
     const { id } = req.params;
     const [sub] = await (prisma as any).$queryRawUnsafe(
-      `SELECT cs.*, c.name as clientName, c.phone as clientPhone, c.email as clientEmail,
+      `SELECT cs.*, COALESCE(c.name, '(cliente removido)') as clientName,
+              c.phone as clientPhone, c.email as clientEmail,
               mp.name as planName, mp.price as planPrice, mp.billingCycle, mp.creditsPerCycle, mp.includedServices, mp.cancelRules
        FROM ClientSubscription cs
-       JOIN Client c ON c.id = cs.clientId
-       JOIN MembershipPlan mp ON mp.id = cs.membershipPlanId
+       LEFT JOIN Client c ON c.id = cs.clientId
+       LEFT JOIN MembershipPlan mp ON mp.id = cs.membershipPlanId
        WHERE cs.id=? AND cs.tenantId=?`,
       id, tid
     );

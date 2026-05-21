@@ -356,6 +356,106 @@ authRouter.post("/register-tenant", async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/register-free-trial
+// Cadastro via link de indicação — plano Premium, 30 dias grátis, ativação imediata
+// ─────────────────────────────────────────────────────────────────────────────
+authRouter.post("/register-free-trial", async (req: Request, res: Response) => {
+  const { name, slug, ownerName, ownerEmail, ownerPhone, ownerCpf, adminPassword } = req.body;
+
+  if (!name || !slug || !ownerName || !ownerEmail || !adminPassword) {
+    return res.status(400).json({ error: "Preencha todos os campos obrigatórios." });
+  }
+  if (adminPassword.length < 8) return res.status(400).json({ error: "A senha deve ter no mínimo 8 caracteres." });
+  if (!/[a-z]/.test(adminPassword)) return res.status(400).json({ error: "A senha deve conter pelo menos uma letra minúscula." });
+  if (!/[^a-zA-Z0-9]/.test(adminPassword)) return res.status(400).json({ error: "A senha deve conter pelo menos um caractere especial." });
+
+  try {
+    const existing = await (prisma as any).tenant.findFirst({ where: { slug } });
+    if (existing) return res.status(400).json({ error: "Este endereço já está em uso. Escolha outro." });
+
+    const existingEmail = await (prisma as any).adminUser.findFirst({ where: { email: ownerEmail } });
+    if (existingEmail) return res.status(400).json({ error: "Este e-mail já está cadastrado." });
+
+    // Busca o plano Premium (ou o mais avançado disponível)
+    let plan = await (prisma as any).plan.findFirst({
+      where: { isActive: true, name: { contains: "Premium" } },
+      orderBy: { price: "desc" },
+    });
+    if (!plan) {
+      plan = await (prisma as any).plan.findFirst({ where: { isActive: true }, orderBy: { price: "desc" } });
+    }
+    if (!plan) return res.status(500).json({ error: "Nenhum plano disponível no momento." });
+
+    const tenantId = randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    const tenantData: any = {
+      id: tenantId,
+      name,
+      slug,
+      ownerName,
+      ownerEmail,
+      ownerPhone: ownerPhone || null,
+      planId: plan.id,
+      isActive: true,
+      expiresAt,
+      themeColor: "#c9a96e",
+    };
+    if (ownerCpf) { try { tenantData.ownerCpf = ownerCpf; } catch {} }
+
+    await (prisma as any).tenant.create({ data: tenantData });
+
+    await (prisma as any).adminUser.create({
+      data: {
+        id: randomUUID(),
+        name: ownerName,
+        email: ownerEmail,
+        password: adminPassword,
+        role: "owner",
+        tenantId,
+        isActive: true,
+        permissions: JSON.stringify(["all"]),
+      },
+    });
+
+    const ownerProfId = randomUUID();
+    await (prisma as any).professional.create({
+      data: {
+        id: ownerProfId,
+        tenantId,
+        name: ownerName,
+        email: ownerEmail,
+        phone: ownerPhone || null,
+        accessLevel: "full",
+        permissions: "{}",
+        isOwner: true,
+        attendsSchedule: false,
+        isActive: true,
+        patAccess: false,
+        canAddServicePhotos: false,
+      },
+    });
+
+    const days = [1, 2, 3, 4, 5, 6, 0];
+    for (const dayOfWeek of days) {
+      await (prisma as any).workingHours.create({
+        data: { id: randomUUID(), professionalId: ownerProfId, dayOfWeek, isOpen: false, startTime: "09:00", endTime: "20:00" },
+      });
+    }
+
+    // Envia e-mail de boas-vindas se disponível
+    try {
+      await sendWelcomeEmail({ toEmail: ownerEmail, toName: ownerName, tenantSlug: slug });
+    } catch {}
+
+    res.json({ success: true, tenantId, planName: plan.name });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/auth/me
 // Retorna dados + permissões do usuário autenticado pelo token
 // ─────────────────────────────────────────────────────────────────────────────

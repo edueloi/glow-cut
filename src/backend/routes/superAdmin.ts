@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../prisma";
-import { randomUUID } from "crypto";
+import { randomUUID, randomBytes } from "crypto";
 import Stripe from "stripe";
 import {
   connectSession,
@@ -2123,14 +2123,75 @@ superAdminRouter.put("/sales-reps/:id/cities", async (req, res) => {
   try {
     const { id } = req.params;
     const { responsableCities } = req.body;
-    
+
     const updated = await (prisma as any).superAdmin.update({
       where: { id },
       data: { responsableCities }
     });
-    
+
     res.json(updated);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
+
+// ═════════════════════════════════════════════════════════════
+//  SUPER-ADMIN — Convites de Período Gratuito
+// ═════════════════════════════════════════════════════════════
+
+// Listar todos os convites
+superAdminRouter.get("/free-trial-invites", async (req, res) => {
+  try {
+    const invites = await (prisma as any).freeTrialInvite.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    // Enrich with plan name
+    const plans = await (prisma as any).plan.findMany({ select: { id: true, name: true } });
+    const planMap = Object.fromEntries(plans.map((p: any) => [p.id, p.name]));
+    res.json(invites.map((i: any) => ({ ...i, planName: planMap[i.planId] ?? "—" })));
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Criar novo convite
+superAdminRouter.post("/free-trial-invites", async (req, res) => {
+  const { planId, trialDays, label, createdBy, linkExpiryDays } = req.body;
+  if (!planId || !createdBy) return res.status(400).json({ error: "planId e createdBy são obrigatórios." });
+
+  const plan = await (prisma as any).plan.findUnique({ where: { id: planId } });
+  if (!plan) return res.status(400).json({ error: "Plano não encontrado." });
+
+  const token = randomBytes(24).toString("hex"); // 48 hex chars
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + (linkExpiryDays ?? 7));
+
+  try {
+    const invite = await (prisma as any).freeTrialInvite.create({
+      data: {
+        id: randomUUID(),
+        token,
+        planId,
+        trialDays: trialDays ?? 30,
+        label: label || null,
+        createdBy,
+        expiresAt,
+      },
+    });
+    const appUrl = process.env.APP_URL || "https://agendelle.com.br";
+    res.json({ ...invite, url: `${appUrl}/comecar?token=${token}` });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Revogar/deletar convite
+superAdminRouter.delete("/free-trial-invites/:id", async (req, res) => {
+  try {
+    await (prisma as any).freeTrialInvite.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+

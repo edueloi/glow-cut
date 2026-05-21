@@ -17,6 +17,7 @@ import SiteLegalPage from "./pages/SiteLegalPage";
 import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
 import RegistrationPage from "./pages/RegistrationPage";
+import FreeTrialPage from "./pages/FreeTrialPage";
 import SetupAccountPage from "./pages/SetupAccountPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import OnboardingPage from "./pages/OnboardingPage";
@@ -637,6 +638,7 @@ function App() {
           <Route path="/agendar/:slug" element={<ClientBooking />} />
           <Route path="/portal/:slug" element={<ClientPortalPage />} />
           <Route path="/assinar" element={<RegistrationPage />} />
+          <Route path="/comecar" element={<FreeTrialPage />} />
           <Route path="/setup-account" element={<SetupAccountPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/termos" element={<PlatformLegalPage type="terms" />} />

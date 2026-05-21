@@ -927,6 +927,23 @@ model SubscriptionPayment {
   @@index([status], map: "idx_sp_status")
 }
 
+// ── Convites de Período Gratuito ─────────────────────────────────────────────
+
+model FreeTrialInvite {
+  id          String    @id @db.VarChar(36)
+  token       String    @unique @db.VarChar(64)
+  planId      String    @db.VarChar(36)
+  trialDays   Int       @default(30)
+  label       String?   @db.VarChar(255)   // Ex: "Convite para Maria - Salão X"
+  createdBy   String    @db.VarChar(36)    // SuperAdmin id
+  usedAt      DateTime? @db.DateTime(0)
+  usedBy      String?   @db.VarChar(36)   // Tenant id gerado
+  expiresAt   DateTime  @db.DateTime(0)
+  createdAt   DateTime  @default(now()) @db.DateTime(0)
+
+  @@index([token], map: "idx_fti_token")
+}
+
 // ── QA / Testes do Sistema ────────────────────────────────────────────────────
 
 model QATestRun {
