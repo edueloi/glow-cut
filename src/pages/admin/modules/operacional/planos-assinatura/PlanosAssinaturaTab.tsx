@@ -703,6 +703,8 @@ export default function PlanosAssinaturaTab() {
   const [newSubModal, setNewSubModal] = useState(false);
   const [newSubForPlan, setNewSubForPlan] = useState<string | null>(null);
   const [detailSub, setDetailSub] = useState<Subscription | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<MembershipPlan | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -720,14 +722,17 @@ export default function PlanosAssinaturaTab() {
 
   useEffect(() => { load(); }, [load]);
 
-  const deletePlan = async (plan: MembershipPlan) => {
-    if (!confirm(`Desativar o plano "${plan.name}"? Assinantes existentes não serão afetados.`)) return;
+  const deletePlan = async () => {
+    if (!deleteConfirm) return;
+    setDeleteLoading(true);
     try {
-      const res = await apiFetch(`/api/memberships/plans/${plan.id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/memberships/plans/${deleteConfirm.id}`, { method: "DELETE" });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
       toast.success("Plano desativado.");
+      setDeleteConfirm(null);
       load();
     } catch (e: any) { toast.error(e.message); }
+    finally { setDeleteLoading(false); }
   };
 
   const portalLink = user?.tenantSlug ? `${appUrl}/portal/${user.tenantSlug}` : null;
@@ -924,21 +929,21 @@ export default function PlanosAssinaturaTab() {
         description="Crie planos recorrentes e gerencie as assinaturas dos seus clientes."
         icon={Crown}
         action={
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             {portalLink && (
               <Button variant="ghost" onClick={copyPortal} className="h-9 text-xs font-black gap-1.5 text-zinc-500 hover:text-zinc-900 hidden sm:flex">
-                <Link size={13} /> Copiar link do portal
+                <Link size={13} /> Copiar link
               </Button>
             )}
-            <Button variant="ghost" onClick={load} className="h-9 w-9 p-0 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100" title="Atualizar">
+            <Button variant="ghost" onClick={load} className="h-9 w-9 p-0 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 shrink-0" title="Atualizar">
               <RefreshCw size={14} />
             </Button>
             {view === "plans" ? (
-              <Button onClick={() => setPlanModal("new")} className="h-9 text-xs font-black bg-amber-500 hover:bg-amber-600 text-white gap-1.5">
+              <Button onClick={() => setPlanModal("new")} className="h-9 flex-1 sm:flex-none text-xs font-black bg-amber-500 hover:bg-amber-600 text-white gap-1.5 min-w-[130px]">
                 <Plus size={14} /> Novo Plano
               </Button>
             ) : (
-              <Button onClick={() => setNewSubModal(true)} disabled={activePlans === 0} className="h-9 text-xs font-black bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5 disabled:opacity-50">
+              <Button onClick={() => setNewSubModal(true)} disabled={activePlans === 0} className="h-9 flex-1 sm:flex-none text-xs font-black bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5 disabled:opacity-50 min-w-[140px]">
                 <Plus size={14} /> Nova Assinatura
               </Button>
             )}
@@ -1032,11 +1037,12 @@ export default function PlanosAssinaturaTab() {
       {/* ── PLANOS ─────────────────────────────────────────────────────────────── */}
       {view === "plans" && (
         loading ? (
-          <div className="flex items-center justify-center py-20">
+          <div className="flex items-center justify-center py-20 mt-4">
             <div className="w-7 h-7 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filteredPlans.length === 0 ? (
           <EmptyState
+            className="mt-4"
             icon={Crown}
             title={search ? "Nenhum plano encontrado" : "Nenhum plano criado"}
             description={search ? "Tente outro termo de busca." : "Crie planos de assinatura para oferecer serviços recorrentes aos seus clientes."}
@@ -1047,14 +1053,14 @@ export default function PlanosAssinaturaTab() {
             ) : undefined}
           />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mt-4">
             {filteredPlans.map(plan => (
               <PlanCard
                 key={plan.id}
                 plan={plan}
                 planStats={stats?.plans?.find((p: any) => p.id === plan.id)}
                 onEdit={() => setPlanModal(plan)}
-                onDelete={() => deletePlan(plan)}
+                onDelete={() => setDeleteConfirm(plan)}
                 onNewSub={() => { setNewSubForPlan(plan.id); setNewSubModal(true); }}
               />
             ))}
@@ -1199,6 +1205,47 @@ export default function PlanosAssinaturaTab() {
       )}
       {detailSub && (
         <SubscriptionDetailModal sub={detailSub} onClose={() => setDetailSub(null)} onRefresh={load} />
+      )}
+
+      {/* Modal de confirmação de desativação */}
+      {deleteConfirm && (
+        <Modal
+          isOpen
+          onClose={() => !deleteLoading && setDeleteConfirm(null)}
+          title="Desativar plano"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-4 bg-red-50 rounded-2xl border border-red-100">
+              <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 size={16} className="text-red-500" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-zinc-900">Desativar "{deleteConfirm.name}"?</p>
+                <p className="text-xs text-zinc-500 font-medium mt-1 leading-relaxed">
+                  Assinantes existentes não serão afetados. O plano ficará inativo e não poderá ser assinado por novos clientes.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 h-10 text-xs font-black rounded-xl"
+                onClick={() => setDeleteConfirm(null)}
+                disabled={deleteLoading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="flex-1 h-10 text-xs font-black rounded-xl bg-red-500 hover:bg-red-600 text-white"
+                onClick={deletePlan}
+                loading={deleteLoading}
+              >
+                Sim, desativar
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </PageWrapper>
   );
