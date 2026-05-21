@@ -131,10 +131,16 @@ membershipRouter.get("/subscriptions", async (req: Request, res: Response) => {
     sql += ` ORDER BY cs.createdAt DESC`;
 
     const subscriptions = await (prisma as any).$queryRawUnsafe(sql, ...params);
-    console.log(`[memberships/subscriptions] tenantId=${tid} found=${(subscriptions as any[]).length} rows`);
+
+    // Converter BigInt para Number (Prisma $queryRawUnsafe retorna BigInt para colunas numéricas MySQL)
+    const normalizedSubs = (subscriptions as any[]).map((row: any) => ({
+      ...row,
+      planPrice: row.planPrice !== undefined ? Number(row.planPrice) : undefined,
+      creditsPerCycle: row.creditsPerCycle !== undefined ? Number(row.creditsPerCycle) : undefined,
+    }));
 
     // Para cada assinatura, buscar créditos do ciclo atual
-    const enriched = await Promise.all((subscriptions as any[]).map(async (sub: any) => {
+    const enriched = await Promise.all(normalizedSubs.map(async (sub: any) => {
       const credits = await (prisma as any).$queryRawUnsafe(
         `SELECT * FROM SubscriptionCredit WHERE subscriptionId=? ORDER BY createdAt DESC LIMIT 1`,
         sub.id
@@ -165,6 +171,12 @@ membershipRouter.get("/subscriptions/:id", async (req: Request, res: Response) =
     );
     if (!sub) return res.status(404).json({ error: "Assinatura não encontrada." });
 
+    const normalizedSub = {
+      ...sub,
+      planPrice: sub.planPrice !== undefined ? Number(sub.planPrice) : undefined,
+      creditsPerCycle: sub.creditsPerCycle !== undefined ? Number(sub.creditsPerCycle) : undefined,
+    };
+
     const credits = await (prisma as any).$queryRawUnsafe(
       `SELECT * FROM SubscriptionCredit WHERE subscriptionId=? ORDER BY createdAt DESC`,
       id
@@ -173,7 +185,16 @@ membershipRouter.get("/subscriptions/:id", async (req: Request, res: Response) =
       `SELECT * FROM SubscriptionPayment WHERE subscriptionId=? ORDER BY createdAt DESC LIMIT 12`,
       id
     );
-    res.json({ ...sub, credits, payments });
+    const normalizedCredits = (credits as any[]).map((c: any) => ({
+      ...c,
+      totalCredits: c.totalCredits !== undefined ? Number(c.totalCredits) : undefined,
+      usedCredits: c.usedCredits !== undefined ? Number(c.usedCredits) : undefined,
+    }));
+    const normalizedPayments = (payments as any[]).map((p: any) => ({
+      ...p,
+      amount: p.amount !== undefined ? Number(p.amount) : undefined,
+    }));
+    res.json({ ...normalizedSub, credits: normalizedCredits, payments: normalizedPayments });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -418,26 +439,6 @@ membershipRouter.get("/stats", async (req: Request, res: Response) => {
     }));
 
     res.json({ totals, plans });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// GET /api/memberships/debug-subs  (debug temporário — remove depois)
-membershipRouter.get("/debug-subs", async (req: Request, res: Response) => {
-  try {
-    const tid = tenantId(req);
-    const raw = await (prisma as any).$queryRawUnsafe(
-      `SELECT cs.id, cs.status, cs.tenantId, cs.clientId, cs.membershipPlanId,
-              c.id as c_id, c.name as c_name, c.tenantId as c_tenantId,
-              mp.id as mp_id, mp.name as mp_name, mp.tenantId as mp_tenantId
-       FROM ClientSubscription cs
-       LEFT JOIN Client c ON c.id = cs.clientId
-       LEFT JOIN MembershipPlan mp ON mp.id = cs.membershipPlanId
-       WHERE cs.tenantId = ?
-       LIMIT 20`, tid
-    );
-    res.json({ tenantId: tid, count: (raw as any[]).length, rows: raw });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
