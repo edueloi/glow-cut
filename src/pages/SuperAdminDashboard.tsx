@@ -43,7 +43,7 @@ import { MODULE_META, DEFAULT_ROLE_PROFILES, type RoleSlug } from "@/src/lib/per
 /* ═══════════════════════════════════════════
    TIPOS
 ═══════════════════════════════════════════ */
-type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp" | "blog" | "sales" | "settings" | "finance" | "commissions" | "qa";
+type TabKey = "dash" | "plans" | "tenants" | "users" | "permissions" | "staff" | "profile" | "wpp" | "blog" | "sales" | "settings" | "finance" | "commissions" | "qa" | "invites";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
@@ -6203,26 +6203,210 @@ const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: stri
   { key: "commissions", icon: <DollarSign size={17} />,      label: "Comissões",      path: "/super-admin/comissoes" },
   { key: "finance",     icon: <BarChart2 size={17} />,        label: "Financeiro",     path: "/super-admin/financeiro" },
   { key: "qa",          icon: <CheckCircle size={17} />,      label: "Testes QA",      path: "/super-admin/qa" },
+  { key: "invites",     icon: <Crown size={17} />,           label: "Convites Free Trial", path: "/super-admin/convites" },
   { key: "staff",       icon: <Shield size={17} />,          label: "Minha Equipe",   path: "/super-admin/equipe" },
   { key: "settings",    icon: <Globe size={17} />,           label: "Configurações",   path: "/super-admin/configuracoes" },
   { key: "profile",     icon: <User size={17} />,            label: "Meu Perfil",     path: "/super-admin/perfil" },
 ];
 
+/* ═══════════════════════════════════════════
+   ABA: CONVITES FREE TRIAL
+═══════════════════════════════════════════ */
+function FreeTrialInvitesTab() {
+  const toast = useToast();
+  const [invites, setInvites] = useState<any[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [revokeTarget, setRevokeTarget] = useState<any | null>(null);
+  const [revoking, setRevoking] = useState(false);
+  const [form, setForm] = useState({ label: "", trialDays: "30" });
+  const [showForm, setShowForm] = useState(false);
+
+  const appUrl = typeof window !== "undefined" ? window.location.origin : "https://agendelle.com.br";
+
+  const load = useCallback(async () => {
+    setLoadingList(true);
+    try {
+      const res = await apiFetch("/api/super-admin/free-trial-invites");
+      const data = await res.json();
+      setInvites(Array.isArray(data) ? data : []);
+    } catch { setInvites([]); }
+    finally { setLoadingList(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const create = async () => {
+    setCreating(true);
+    try {
+      const res = await apiFetch("/api/super-admin/free-trial-invites", {
+        method: "POST",
+        body: JSON.stringify({ label: form.label || undefined, trialDays: Number(form.trialDays) || 30 }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success("Convite criado!");
+      setShowForm(false);
+      setForm({ label: "", trialDays: "30" });
+      load();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setCreating(false); }
+  };
+
+  const revoke = async () => {
+    if (!revokeTarget) return;
+    setRevoking(true);
+    try {
+      const res = await apiFetch(`/api/super-admin/free-trial-invites/${revokeTarget.id}`, { method: "DELETE" });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      toast.success("Convite revogado.");
+      setRevokeTarget(null);
+      load();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setRevoking(false); }
+  };
+
+  const copyUrl = (token: string) => {
+    const url = `${appUrl}/comecar?token=${token}`;
+    navigator.clipboard.writeText(url).then(() => toast.success("Link copiado!")).catch(() => toast.error("Não foi possível copiar."));
+  };
+
+  const statusBadge = (inv: any) => {
+    if (inv.usedAt) return <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-400">Usado</span>;
+    if (new Date() > new Date(inv.expiresAt)) return <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-red-50 text-red-400">Expirado</span>;
+    return <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">Ativo</span>;
+  };
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle
+        title="Convites Free Trial"
+        description="Gere links únicos para dar acesso Premium gratuito por tempo limitado."
+        action={
+          <Button size="sm" onClick={() => setShowForm(v => !v)} className="bg-amber-500 hover:bg-amber-600 text-white">
+            <Plus size={14} className="mr-1" /> Novo Convite
+          </Button>
+        }
+      />
+
+      {/* Formulário de criação */}
+      {showForm && (
+        <ContentCard>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+            <div className="sm:col-span-2">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-1.5">Label / Identificação (opcional)</label>
+              <input
+                className="w-full border border-zinc-200 rounded-xl px-3 h-10 text-sm font-bold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 transition-all"
+                placeholder="Ex: Parceiro João, Evento X..."
+                value={form.label}
+                onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-1.5">Dias de trial</label>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                className="w-full border border-zinc-200 rounded-xl px-3 h-10 text-sm font-bold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 transition-all"
+                value={form.trialDays}
+                onChange={e => setForm(f => ({ ...f, trialDays: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div className="flex gap-3 mt-4">
+            <Button onClick={create} loading={creating} className="bg-amber-500 hover:bg-amber-600 text-white">
+              Gerar link
+            </Button>
+            <Button variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button>
+          </div>
+        </ContentCard>
+      )}
+
+      {/* Lista */}
+      {loadingList ? (
+        <div className="flex items-center justify-center py-16">
+          <RefreshCw size={20} className="animate-spin text-zinc-400" />
+        </div>
+      ) : invites.length === 0 ? (
+        <EmptyState icon={Crown} title="Nenhum convite criado" description="Clique em 'Novo Convite' para gerar o primeiro link." />
+      ) : (
+        <div className="space-y-3">
+          {invites.map(inv => {
+            const url = `${appUrl}/comecar?token=${inv.token}`;
+            const isActive = !inv.usedAt && new Date() <= new Date(inv.expiresAt);
+            return (
+              <ContentCard key={inv.id}>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {statusBadge(inv)}
+                      {inv.label && <span className="text-sm font-black text-zinc-800">{inv.label}</span>}
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase">{inv.trialDays ?? 30} dias</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 font-mono truncate max-w-xs sm:max-w-none">{url}</p>
+                    <div className="flex gap-4 text-[10px] text-zinc-400 font-bold">
+                      <span>Criado: {new Date(inv.createdAt).toLocaleDateString("pt-BR")}</span>
+                      <span>Expira: {new Date(inv.expiresAt).toLocaleDateString("pt-BR")}</span>
+                      {inv.usedAt && <span className="text-zinc-500">Usado: {new Date(inv.usedAt).toLocaleDateString("pt-BR")}</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    {isActive && (
+                      <button
+                        onClick={() => copyUrl(inv.token)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-black hover:bg-amber-100 transition-colors"
+                      >
+                        <Copy size={12} /> Copiar link
+                      </button>
+                    )}
+                    {!inv.usedAt && (
+                      <button
+                        onClick={() => setRevokeTarget(inv)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-500 text-[11px] font-black hover:bg-red-100 transition-colors"
+                      >
+                        <Trash2 size={12} /> Revogar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </ContentCard>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal revogar */}
+      <ConfirmModal
+        isOpen={!!revokeTarget}
+        title="Revogar convite?"
+        message={`O link "${revokeTarget?.label || revokeTarget?.token?.slice(0, 12) + "..."}" será desativado e não poderá mais ser usado.`}
+        confirmLabel="Revogar"
+        variant="danger"
+        loading={revoking}
+        onConfirm={revoke}
+        onClose={() => setRevokeTarget(null)}
+      />
+    </div>
+  );
+}
+
 function pathToTab(pathname: string): TabKey {
   if (pathname === "/super-admin" || pathname === "/super-admin/") return "dash";
-  if (pathname.includes("/planos"))      return "plans";
-  if (pathname.includes("/parceiros"))   return "tenants";
-  if (pathname.includes("/usuarios"))    return "users";
-  if (pathname.includes("/permissoes"))  return "permissions";
-  if (pathname.includes("/blog"))        return "blog";
-  if (pathname.includes("/whatsapp"))    return "wpp";
-  if (pathname.includes("/vendas"))      return "sales";
-  if (pathname.includes("/comissoes"))   return "commissions";
-  if (pathname.includes("/financeiro"))  return "finance";
-  if (pathname.includes("/qa"))           return "qa";
-  if (pathname.includes("/equipe"))      return "staff";
+  if (pathname.includes("/planos"))        return "plans";
+  if (pathname.includes("/parceiros"))     return "tenants";
+  if (pathname.includes("/usuarios"))      return "users";
+  if (pathname.includes("/permissoes"))    return "permissions";
+  if (pathname.includes("/blog"))          return "blog";
+  if (pathname.includes("/whatsapp"))      return "wpp";
+  if (pathname.includes("/vendas"))        return "sales";
+  if (pathname.includes("/comissoes"))     return "commissions";
+  if (pathname.includes("/financeiro"))    return "finance";
+  if (pathname.includes("/qa"))            return "qa";
+  if (pathname.includes("/equipe"))        return "staff";
   if (pathname.includes("/configuracoes")) return "settings";
-  if (pathname.includes("/perfil"))      return "profile";
+  if (pathname.includes("/perfil"))        return "profile";
+  if (pathname.includes("/convites"))      return "invites";
   return "dash";
 }
 
@@ -6379,6 +6563,7 @@ export default function SuperAdminDashboard({ username, onLogout, permissions }:
             {tab === "commissions" && <CommissionsTab />}
             {tab === "finance"     && <FinanceTab />}
             {tab === "qa"          && <QATab />}
+            {tab === "invites"     && <FreeTrialInvitesTab />}
             {tab === "staff"       && <StaffTab username={username} userPermissions={permissions} />}
             {tab === "settings"    && <SettingsTab />}
             {tab === "profile"     && <ProfileTab username={username} />}

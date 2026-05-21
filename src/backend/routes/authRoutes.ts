@@ -360,7 +360,7 @@ authRouter.post("/register-tenant", async (req, res) => {
 // Cadastro via link de indicação — plano Premium, 30 dias grátis, ativação imediata
 // ─────────────────────────────────────────────────────────────────────────────
 authRouter.post("/register-free-trial", async (req: Request, res: Response) => {
-  const { name, slug, ownerName, ownerEmail, ownerPhone, ownerCpf, adminPassword } = req.body;
+  const { name, slug, ownerName, ownerEmail, ownerPhone, ownerCpf, adminPassword, inviteToken } = req.body;
 
   if (!name || !slug || !ownerName || !ownerEmail || !adminPassword) {
     return res.status(400).json({ error: "Preencha todos os campos obrigatórios." });
@@ -370,17 +370,34 @@ authRouter.post("/register-free-trial", async (req: Request, res: Response) => {
   if (!/[^a-zA-Z0-9]/.test(adminPassword)) return res.status(400).json({ error: "A senha deve conter pelo menos um caractere especial." });
 
   try {
+    // Valida o token de convite se fornecido
+    let invite: any = null;
+    let trialDays = 30;
+    if (inviteToken) {
+      invite = await (prisma as any).freeTrialInvite.findUnique({ where: { token: inviteToken } });
+      if (!invite) return res.status(400).json({ error: "Token de convite inválido." });
+      if (invite.usedAt) return res.status(400).json({ error: "Este convite já foi utilizado." });
+      if (new Date() > new Date(invite.expiresAt)) return res.status(400).json({ error: "Este convite expirou." });
+      trialDays = invite.trialDays ?? 30;
+    }
+
     const existing = await (prisma as any).tenant.findFirst({ where: { slug } });
     if (existing) return res.status(400).json({ error: "Este endereço já está em uso. Escolha outro." });
 
     const existingEmail = await (prisma as any).adminUser.findFirst({ where: { email: ownerEmail } });
     if (existingEmail) return res.status(400).json({ error: "Este e-mail já está cadastrado." });
 
-    // Busca o plano Premium (ou o mais avançado disponível)
-    let plan = await (prisma as any).plan.findFirst({
-      where: { isActive: true, name: { contains: "Premium" } },
-      orderBy: { price: "desc" },
-    });
+    // Busca o plano do convite, ou Premium, ou o mais avançado disponível
+    let plan: any = null;
+    if (invite?.planId) {
+      plan = await (prisma as any).plan.findUnique({ where: { id: invite.planId } });
+    }
+    if (!plan) {
+      plan = await (prisma as any).plan.findFirst({
+        where: { isActive: true, name: { contains: "Premium" } },
+        orderBy: { price: "desc" },
+      });
+    }
     if (!plan) {
       plan = await (prisma as any).plan.findFirst({ where: { isActive: true }, orderBy: { price: "desc" } });
     }
@@ -388,7 +405,7 @@ authRouter.post("/register-free-trial", async (req: Request, res: Response) => {
 
     const tenantId = randomUUID();
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setDate(expiresAt.getDate() + trialDays);
 
     const tenantData: any = {
       id: tenantId,
@@ -444,12 +461,20 @@ authRouter.post("/register-free-trial", async (req: Request, res: Response) => {
       });
     }
 
+    // Marca o convite como utilizado
+    if (invite) {
+      await (prisma as any).freeTrialInvite.update({
+        where: { id: invite.id },
+        data: { usedAt: new Date(), usedBy: tenantId },
+      });
+    }
+
     // Envia e-mail de boas-vindas se disponível
     try {
       await sendWelcomeEmail({ toEmail: ownerEmail, toName: ownerName, tenantSlug: slug });
     } catch {}
 
-    res.json({ success: true, tenantId, planName: plan.name });
+    res.json({ success: true, tenantId, planName: plan.name, trialDays });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -951,6 +976,33 @@ authRouter.post("/reset-password", async (req: Request, res: Response) => {
   });
 
   res.json({ success: true });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/auth/invite/:token — valida token de convite free trial (público)
+// ─────────────────────────────────────────────────────────────────────────────
+authRouter.get("/invite/:token", async (req: Request, res: Response) => {
+  const { token } = req.params;
+  if (!token) return res.status(400).json({ error: "Token inválido." });
+
+  const invite = await (prisma as any).freeTrialInvite.findUnique({
+    where: { token },
+    include: { plan: { select: { id: true, name: true } } },
+  }).catch(() => null);
+
+  // Fallback sem include se freeTrialInvite não tem relação plan configurada
+  const inv = invite ?? await (prisma as any).freeTrialInvite.findUnique({ where: { token } }).catch(() => null);
+
+  if (!inv) return res.status(404).json({ error: "Link de convite inválido." });
+  if (inv.usedAt) return res.status(410).json({ error: "Este convite já foi utilizado." });
+  if (new Date() > new Date(inv.expiresAt)) return res.status(410).json({ error: "Este convite expirou." });
+
+  res.json({
+    valid: true,
+    label: inv.label || null,
+    trialDays: inv.trialDays ?? 30,
+    planId: inv.planId,
+  });
 });
 
 // GET /api/auth/plans — retorna planos ativos (público)
