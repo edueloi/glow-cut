@@ -543,7 +543,8 @@ export default function AdminDashboard() {
     recurrence: { type: "none" as "none" | "weekly" | "custom", count: 1, interval: 7 },
     comandaId: "" as string | null,
     type: "atendimento" as "atendimento" | "bloqueio" | "pessoal",
-    isFullDay: false
+    isFullDay: false,
+    clientLocked: false,
   };
 
   // New Appointment State

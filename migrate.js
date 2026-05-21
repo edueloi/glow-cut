@@ -932,6 +932,26 @@ const MIGRATIONS = [
     ignoreIfExists: true,
   },
 
+  {
+    name: '054_create_free_trial_invite',
+    sql: `
+      CREATE TABLE IF NOT EXISTS FreeTrialInvite (
+        id          VARCHAR(36)  NOT NULL PRIMARY KEY,
+        token       VARCHAR(64)  NOT NULL UNIQUE,
+        planId      VARCHAR(36)  NOT NULL,
+        trialDays   INT          NOT NULL DEFAULT 30,
+        label       VARCHAR(255) NULL,
+        createdBy   VARCHAR(36)  NOT NULL,
+        usedAt      DATETIME     NULL,
+        usedBy      VARCHAR(36)  NULL,
+        expiresAt   DATETIME     NOT NULL,
+        createdAt   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_fti_token (token)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+    ignoreIfExists: true,
+  },
+
 ];
 
 
