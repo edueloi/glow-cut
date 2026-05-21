@@ -2381,6 +2381,8 @@ function FinanceTab() {
   });
   const [allocForm, setAllocForm] = useState<any>({ name: "", percentage: "", color: "#f59e0b" });
   const [editingAlloc, setEditingAlloc] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<any | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const loadSummary = useCallback(async () => {
     const params = new URLSearchParams();
@@ -2424,10 +2426,15 @@ function FinanceTab() {
     else toast.error("Erro ao salvar lançamento");
   };
 
-  const deleteEntry = async (id: string) => {
-    if (!confirm("Excluir este lançamento?")) return;
-    const r = await apiFetch(`/api/super-admin/finance/entries/${id}`, { method: "DELETE" });
-    if (r.ok) { toast.success("Excluído!"); loadSummary(); loadEntries(); }
+  const deleteEntry = async () => {
+    if (!deleteConfirm) return;
+    setDeleteLoading(true);
+    try {
+      const r = await apiFetch(`/api/super-admin/finance/entries/${deleteConfirm.id}`, { method: "DELETE" });
+      if (r.ok) { toast.success("Excluído!"); setDeleteConfirm(null); loadSummary(); loadEntries(); }
+      else { const d = await r.json(); toast.error(d.error || "Erro ao excluir."); }
+    } catch { toast.error("Erro ao excluir."); }
+    finally { setDeleteLoading(false); }
   };
 
   const openForm = (entry?: any) => {
@@ -2608,7 +2615,7 @@ function FinanceTab() {
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-1">
                           <IconButton variant="ghost" size="xs" onClick={() => openForm(e)}><Edit2 size={13} /></IconButton>
-                          <IconButton variant="danger" size="xs" onClick={() => deleteEntry(e.id)}><Trash2 size={13} /></IconButton>
+                          <IconButton variant="danger" size="xs" onClick={() => setDeleteConfirm(e)}><Trash2 size={13} /></IconButton>
                         </div>
                       </td>
                     </tr>
@@ -2718,6 +2725,17 @@ function FinanceTab() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={!!deleteConfirm}
+        title="Excluir lançamento?"
+        message={deleteConfirm ? `"${deleteConfirm.description || deleteConfirm.category}" — ${deleteConfirm.type === "income" ? "+" : "−"} R$ ${Number(deleteConfirm.amount).toFixed(2).replace(".", ",")}` : ""}
+        confirmLabel="Excluir"
+        variant="danger"
+        loading={deleteLoading}
+        onConfirm={deleteEntry}
+        onClose={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }
