@@ -78,6 +78,15 @@ authRouter.post("/login", async (req: Request, res: Response) => {
     include: { tenant: { include: { plan: true } } },
   });
   if (admin) {
+    // Bloqueia login se o tenant foi bloqueado manualmente pelo super-admin
+    if (admin.tenant && admin.tenant.blockedAt && !admin.tenant.isActive) {
+      recordFailedAttempt(ip);
+      return res.status(403).json({
+        error: "Sua conta foi bloqueada. Entre em contato com o suporte para regularizar sua situação.",
+        blocked: true,
+      });
+    }
+
     // Bloqueia login se a assinatura do tenant ainda não foi ativada via pagamento
     if (admin.tenant && !admin.tenant.isActive) {
       let checkoutUrl: string | null = null;
@@ -136,8 +145,17 @@ authRouter.post("/login", async (req: Request, res: Response) => {
       password,
       isActive: true,
     },
+    include: { tenant: true },
   });
   if (prof) {
+    // Bloqueia se o tenant do profissional estiver bloqueado
+    if (prof.tenant && prof.tenant.blockedAt && !prof.tenant.isActive) {
+      recordFailedAttempt(ip);
+      return res.status(403).json({
+        error: "O acesso a esta conta foi bloqueado. Entre em contato com o estabelecimento.",
+        blocked: true,
+      });
+    }
     clearAttempts(ip);
     const token = signToken({
       sub: prof.id,

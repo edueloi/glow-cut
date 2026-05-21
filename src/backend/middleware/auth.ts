@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { prisma } from "../prisma";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "glow_cut_jwt_secret_2024_change_in_prod";
 export const JWT_EXPIRES = "7d";
@@ -46,6 +47,20 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!payload) return res.status(401).json({ error: "Token inválido ou expirado." });
 
   (req as any).auth = payload;
+
+  // Para admin/profissional, verifica em tempo real se o tenant está bloqueado
+  if (payload.tenantId && (payload.type === "admin" || payload.type === "professional")) {
+    (prisma as any).tenant.findUnique({ where: { id: payload.tenantId }, select: { isActive: true, blockedAt: true } })
+      .then((tenant: any) => {
+        if (tenant && tenant.blockedAt && !tenant.isActive) {
+          return res.status(403).json({ error: "Conta bloqueada. Entre em contato com o suporte.", blocked: true });
+        }
+        next();
+      })
+      .catch(() => next());
+    return;
+  }
+
   next();
 }
 

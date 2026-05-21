@@ -80,18 +80,23 @@ function parseIncluded(raw?: string | null): string[] {
 
 // ─── Componente de crédito visual ────────────────────────────────────────────
 
-function CreditBar({ used, total }: { used: number; total: number }) {
+function CreditBar({ used, total, cycleEnd }: { used: number; total: number; cycleEnd?: string }) {
   const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
   const remaining = total - used;
+  const barColor = pct >= 100 ? "bg-red-400" : pct > 60 ? "bg-amber-400" : "bg-emerald-400";
+  const textColor = pct >= 100 ? "text-red-500" : pct > 60 ? "text-amber-500" : "text-emerald-600";
   return (
-    <div className="flex items-center gap-2 min-w-0">
-      <div className="flex-1 bg-zinc-100 rounded-full h-1.5 min-w-[40px]">
-        <div
-          className={`h-1.5 rounded-full transition-all ${pct >= 100 ? "bg-red-400" : pct > 60 ? "bg-amber-400" : "bg-emerald-400"}`}
-          style={{ width: `${pct}%` }}
-        />
+    <div className="space-y-1 min-w-[80px]">
+      <div className="flex items-center justify-between gap-2">
+        <span className={`text-[10px] font-black ${textColor}`}>{remaining} restantes</span>
+        <span className="text-[9px] text-zinc-400">{used}/{total}</span>
       </div>
-      <span className="text-[10px] font-bold text-zinc-500 whitespace-nowrap">{remaining}/{total}</span>
+      <div className="w-full bg-zinc-100 rounded-full h-1.5">
+        <div className={`h-1.5 rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+      </div>
+      {cycleEnd && (
+        <p className="text-[9px] text-zinc-400">renova {new Date(cycleEnd).toLocaleDateString("pt-BR")}</p>
+      )}
     </div>
   );
 }
@@ -752,37 +757,85 @@ export default function PlanosAssinaturaTab() {
   const subColumns: Column<Subscription>[] = [
     {
       header: "Cliente",
-      render: (row) => (
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-black
-            ${row.status === "active" ? "bg-emerald-100 text-emerald-700" : row.status === "pending" ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-500"}`}>
-            {row.clientName?.charAt(0)?.toUpperCase() || "?"}
+      render: (row) => {
+        const initials = row.clientName?.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() || "?";
+        const avatarBg = row.status === "active" ? "bg-emerald-100 text-emerald-700" : row.status === "pending" ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-500";
+        const memberSince = row.createdAt ? Math.floor((Date.now() - new Date(row.createdAt).getTime()) / 86400000) : null;
+
+        // Mobile: card compacto com info essencial
+        const mobileInfo = (
+          <div className="flex items-start gap-2.5 min-w-0 lg:hidden">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-xs font-black ${avatarBg}`}>
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="text-xs font-black text-zinc-900 truncate">{row.clientName}</p>
+                <Badge color={statusColor(row.status)} className="text-[8px] px-1.5 py-0.5 shrink-0">{statusLabel(row.status)}</Badge>
+              </div>
+              <p className="text-[10px] text-zinc-500 mt-0.5 truncate">{row.planName} · {fmt(row.planPrice)}<span className="text-zinc-400">/{cycleLabel(row.billingCycle)}</span></p>
+              {row.clientPhone && <p className="text-[9px] text-zinc-400">{row.clientPhone}</p>}
+              {row.status === "pending" && (
+                <span className="text-[8px] text-amber-600 font-black bg-amber-50 px-1.5 py-0.5 rounded-md mt-1 inline-block">Aguardando pagamento</span>
+              )}
+              {row.status === "active" && (() => {
+                const d = row.currentPeriodEnd;
+                if (!d) return null;
+                const diff = Math.ceil((new Date(d).getTime() - Date.now()) / 86400000);
+                const expired = diff < 0;
+                const soon = diff >= 0 && diff <= 5;
+                if (!expired && !soon) return null;
+                return (
+                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md mt-1 inline-block ${expired ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"}`}>
+                    {expired ? `Vencido há ${Math.abs(diff)}d` : `Vence em ${diff}d`}
+                  </span>
+                );
+              })()}
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-xs font-black text-zinc-900 truncate">{row.clientName}</p>
-            {row.clientPhone && <p className="text-[10px] text-zinc-400">{row.clientPhone}</p>}
+        );
+
+        // Desktop: só avatar + nome
+        const desktopInfo = (
+          <div className="hidden lg:flex items-center gap-2.5 min-w-0">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-xs font-black ${avatarBg}`}>
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-black text-zinc-900 truncate">{row.clientName}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {row.clientPhone && <p className="text-[9px] text-zinc-400">{row.clientPhone}</p>}
+                {memberSince !== null && memberSince > 0 && (
+                  <span className="text-[8px] text-zinc-300 font-bold">· há {memberSince}d</span>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      ),
+        );
+
+        return <>{mobileInfo}{desktopInfo}</>;
+      },
     },
     {
-      header: "Plano",
+      header: "Plano & Status",
       hideOnMobile: true,
       render: (row) => (
-        <div>
-          <p className="text-xs font-bold text-zinc-800 truncate">{row.planName}</p>
-          <p className="text-[10px] text-zinc-400">{fmt(row.planPrice)}/{cycleLabel(row.billingCycle)}</p>
-        </div>
-      ),
-    },
-    {
-      header: "Status",
-      render: (row) => (
-        <div className="flex flex-col gap-1">
-          <Badge color={statusColor(row.status)} className="text-[9px]">{statusLabel(row.status)}</Badge>
-          {row.status === "pending" && (
-            <span className="text-[8px] text-amber-600 font-bold">Aguard. pagamento</span>
-          )}
+        <div className="space-y-1">
+          <p className="text-xs font-black text-zinc-800 truncate">{row.planName}</p>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-bold text-zinc-500">{fmt(row.planPrice)}<span className="text-zinc-400">/{cycleLabel(row.billingCycle)}</span></span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <Badge color={statusColor(row.status)} className="text-[8px] px-1.5 py-0.5">{statusLabel(row.status)}</Badge>
+            {row.status === "pending" && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setDetailSub(row); }}
+                className="flex items-center gap-1 h-5 px-2 rounded-md bg-amber-500 hover:bg-amber-600 text-white text-[8px] font-black transition-colors whitespace-nowrap"
+              >
+                <DollarSign size={9} /> Confirmar
+              </button>
+            )}
+          </div>
         </div>
       ),
     },
@@ -792,10 +845,10 @@ export default function PlanosAssinaturaTab() {
       render: (row) => {
         if (row.status === "pending") {
           return (
-            <div>
-              <p className="text-[10px] text-zinc-400">Início:</p>
-              <p className="text-xs font-black text-zinc-700">{fmtDate(row.currentPeriodStart)}</p>
-              <p className="text-[9px] text-amber-600 font-bold mt-0.5">Ativar após pagamento</p>
+            <div className="space-y-0.5">
+              <p className="text-[9px] text-zinc-400 uppercase tracking-wide">Início previsto</p>
+              <p className="text-xs font-black text-zinc-600">{fmtDate(row.currentPeriodStart)}</p>
+              <p className="text-[9px] text-amber-600 font-bold">Ativar após pgto</p>
             </div>
           );
         }
@@ -805,14 +858,16 @@ export default function PlanosAssinaturaTab() {
         const expired = diff < 0;
         const soon = diff >= 0 && diff <= 5;
         return (
-          <div>
-            <p className="text-[9px] text-zinc-400">Vence em:</p>
-            <p className={`text-xs font-black ${expired ? "text-red-500" : soon ? "text-amber-600" : "text-zinc-700"}`}>
+          <div className="space-y-0.5">
+            <p className="text-[9px] text-zinc-400 uppercase tracking-wide">Próx. renovação</p>
+            <p className={`text-xs font-black ${expired ? "text-red-500" : soon ? "text-amber-600" : "text-zinc-800"}`}>
               {fmtDate(d)}
             </p>
-            <p className={`text-[9px] font-bold ${expired ? "text-red-400" : soon ? "text-amber-500" : "text-zinc-400"}`}>
+            <div className={`inline-flex items-center gap-1 text-[8px] font-black px-1.5 py-0.5 rounded-md
+              ${expired ? "bg-red-50 text-red-600" : soon ? "bg-amber-50 text-amber-600" : "bg-zinc-50 text-zinc-400"}`}>
+              {expired ? <AlertCircle size={9} /> : <Clock size={9} />}
               {expired ? `Vencido há ${Math.abs(diff)}d` : `${diff}d restantes`}
-            </p>
+            </div>
           </div>
         );
       },
@@ -823,17 +878,24 @@ export default function PlanosAssinaturaTab() {
       render: (row) => {
         if (row.status === "pending") {
           return (
-            <button
-              onClick={(e) => { e.stopPropagation(); setDetailSub(row); }}
-              className="flex items-center gap-1 h-7 px-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black transition-colors whitespace-nowrap"
-            >
-              <DollarSign size={11} /> Confirmar pgto
-            </button>
+            <div className="space-y-1">
+              <p className="text-[9px] text-zinc-300 uppercase tracking-wide">Aguard. ativação</p>
+              <div className="w-full bg-zinc-100 rounded-full h-1.5">
+                <div className="h-1.5 rounded-full bg-zinc-200 w-0" />
+              </div>
+              <p className="text-[9px] text-zinc-300">— / —</p>
+            </div>
           );
         }
         const c = row.currentCredit;
         if (!c) return <span className="text-[10px] text-zinc-300">—</span>;
-        return <CreditBar used={Number(c.usedCredits)} total={Number(c.totalCredits)} />;
+        return (
+          <CreditBar
+            used={Number(c.usedCredits)}
+            total={Number(c.totalCredits)}
+            cycleEnd={c.cycleEnd}
+          />
+        );
       },
     },
     {
