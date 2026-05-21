@@ -521,7 +521,7 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-zinc-200"><ShoppingBag size={40} /></div>
                       )}
-                      <div className="absolute inset-0 flex items-end p-4 opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="absolute bottom-0 left-0 right-0 p-3">
                         {inCart ? (
                           <div className="w-full bg-white rounded-2xl p-2 flex items-center justify-between shadow-2xl border border-zinc-100">
                             <button onClick={() => changeQty(product.id, -1)} className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900"><Minus size={14} /></button>
@@ -529,7 +529,7 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
                             <button onClick={() => changeQty(product.id, 1)} className="w-8 h-8 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: themeColor }}><Plus size={14} /></button>
                           </div>
                         ) : (
-                          <button onClick={() => addToCart(product)} className="w-full py-3 text-white rounded-2xl text-xs font-black shadow-2xl" style={{ backgroundColor: themeColor }}>ADICIONAR</button>
+                          <button onClick={() => addToCart(product)} className="w-full py-3 text-white rounded-2xl text-xs font-black shadow-2xl md:opacity-0 md:group-hover:opacity-100 md:transition-opacity" style={{ backgroundColor: themeColor }}>ADICIONAR</button>
                         )}
                       </div>
                     </div>
@@ -744,20 +744,20 @@ function TemplateDark({ tenant, professionals, services, products, galleryImages
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-white/20"><ShoppingBag size={40} /></div>
                       )}
-                      <div className="absolute inset-0 flex items-end p-3 opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="absolute bottom-0 left-0 right-0 p-3">
                         {inCart ? (
                           <div className="w-full bg-black/80 backdrop-blur-sm rounded-xl p-2 flex items-center justify-between border border-white/10">
                             <button onClick={() => changeQty(product.id, -1)} className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center text-white"><Minus size={12} /></button>
                             <span className="text-sm font-black text-white">{inCart.quantity}</span>
-                            <button onClick={() => changeQty(product.id, 1)} className="w-7 h-7 rounded-lg flex items-center justify-center text-black" style={{ backgroundColor: themeColor }}><Plus size={12} /></button>
+                            <button onClick={() => changeQty(product.id, 1)} className="w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: themeColor }}><Plus size={12} /></button>
                           </div>
                         ) : (
-                          <button onClick={() => addToCart(product)} className="w-full py-2.5 text-black rounded-xl text-xs font-black shadow-2xl" style={{ backgroundColor: themeColor }}>ADICIONAR</button>
+                          <button onClick={() => addToCart(product)} className="w-full py-2.5 text-white rounded-xl text-xs font-black shadow-2xl md:opacity-0 md:group-hover:opacity-100 md:transition-opacity" style={{ backgroundColor: themeColor }}>ADICIONAR</button>
                         )}
                       </div>
                     </div>
                     <h3 className="font-black text-white text-sm mb-1 truncate">{product.name}</h3>
-                    <p className="text-base font-black" style={{ color: themeColor }}>R$ {parseFloat(product.salePrice).toFixed(2).replace(".", ",")}</p>
+                    <p className="text-sm font-black text-white/50">R$ {parseFloat(product.salePrice).toFixed(2).replace(".", ",")}</p>
                   </div>
                 );
               })}
@@ -984,15 +984,15 @@ function TemplateBold({ tenant, professionals, services, products, galleryImages
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-zinc-200"><ShoppingBag size={32} /></div>
                       )}
-                      <div className="absolute inset-0 flex items-end p-2.5 md:p-4">
+                      <div className="absolute bottom-0 left-0 right-0 p-2.5 md:p-4">
                         {inCart ? (
-                          <div className="w-full bg-white rounded-xl p-1.5 md:p-2 flex items-center justify-between shadow-xl opacity-0 group-hover:opacity-100 transition-all">
+                          <div className="w-full bg-white rounded-xl p-1.5 md:p-2 flex items-center justify-between shadow-xl">
                             <button onClick={() => changeQty(product.id, -1)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-900"><Minus size={12} /></button>
                             <span className="text-sm font-black text-zinc-900">{inCart.quantity}</span>
                             <button onClick={() => changeQty(product.id, 1)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-zinc-950 flex items-center justify-center text-white"><Plus size={12} /></button>
                           </div>
                         ) : (
-                          <button onClick={() => addToCart(product)} className="w-full py-2.5 bg-zinc-950 text-white rounded-xl text-[10px] font-black shadow-xl opacity-0 group-hover:opacity-100 transition-all">ADICIONAR</button>
+                          <button onClick={() => addToCart(product)} className="w-full py-2.5 bg-zinc-950 text-white rounded-xl text-[10px] font-black shadow-xl md:opacity-0 md:group-hover:opacity-100 md:transition-all">ADICIONAR</button>
                         )}
                       </div>
                     </div>

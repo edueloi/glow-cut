@@ -26,10 +26,10 @@ export function PageWrapper({
       className={cn(
         // Ocupa toda a largura útil do painel
         "w-full max-w-none min-w-0",
-        // Padding horizontal mais equilibrado para admin
-        "px-4 sm:px-5 lg:px-6 xl:px-8",
-        // Padding vertical menor para reduzir o "vazio" no topo
-        "pt-3 sm:pt-4 lg:pt-5",
+        // Padding horizontal — menor no mobile para aproveitar mais tela
+        "px-2 sm:px-4 lg:px-6 xl:px-8",
+        // Padding vertical
+        "pt-2 sm:pt-4 lg:pt-5",
         // Bottom spacing
         mobileBottomPad ? "pb-24 sm:pb-5 lg:pb-6" : "pb-0",
         className
@@ -66,20 +66,20 @@ export function SectionTitle({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
-        divider && "mb-4 border-b border-zinc-100 pb-4 sm:mb-5 sm:pb-5",
+        "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between",
+        divider && "mb-3 border-b border-zinc-100 pb-3 sm:mb-5 sm:pb-5",
         className
       )}
     >
       <div className="flex min-w-0 items-center gap-3">
         {Icon && (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-amber-100 bg-amber-50">
-            <Icon size={18} className="text-amber-600" />
+          <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl border border-amber-100 bg-amber-50">
+            <Icon size={15} className="text-amber-600 sm:text-[18px]" />
           </div>
         )}
 
         <div className="min-w-0">
-          <h1 className="truncate font-display text-lg font-black tracking-tight text-zinc-900 sm:text-xl lg:text-2xl">
+          <h1 className="truncate font-display text-base font-black tracking-tight text-zinc-900 sm:text-xl lg:text-2xl">
             {title}
           </h1>
 
@@ -122,7 +122,7 @@ export function StatGrid({
   };
 
   return (
-    <div className={cn("grid gap-3 sm:gap-4", colsMap[cols], className)} {...props}>
+    <div className={cn("grid gap-2 sm:gap-4", colsMap[cols], className)} {...props}>
       {children}
     </div>
   );
@@ -145,9 +145,9 @@ export function ContentCard({
 }: ContentCardProps) {
   const paddingMap = {
     none: "",
-    sm: "p-3 sm:p-4",
-    md: "p-4 sm:p-5",
-    lg: "p-5 sm:p-6 lg:p-7",
+    sm: "p-2.5 sm:p-4",
+    md: "p-3 sm:p-5",
+    lg: "p-4 sm:p-6 lg:p-7",
   };
 
   return (
@@ -181,7 +181,7 @@ export function FormRow({ children, cols = 2, className }: FormRowProps) {
     3: "grid-cols-1 md:grid-cols-2 xl:grid-cols-3",
   };
 
-  return <div className={cn("grid gap-4", colsMap[cols], className)}>{children}</div>;
+  return <div className={cn("grid gap-3 sm:gap-4", colsMap[cols], className)}>{children}</div>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

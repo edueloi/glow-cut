@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Truck, Plus, Edit2, Trash2, Phone, Mail, MapPin, User, FileText } from "lucide-react";
+import { Truck, Plus, Edit2, Trash2, Phone, Mail, MapPin, User, FileText, Loader2, Search } from "lucide-react";
 import { apiFetch } from "@/src/lib/api";
 import { DeleteConfirmModal } from "@/src/pages/admin/dashboard/components/modals/DeleteConfirmModal";
 import {
@@ -14,6 +14,34 @@ import {
   useToast,
 } from "@/src/components/ui";
 
+// ─── Máscaras ─────────────────────────────────────────────────────────────────
+function maskCnpjCpf(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 14);
+  if (d.length <= 11) {
+    return d
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
+  return d
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+}
+
+function maskPhone(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 10) {
+    return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d)/, "$1-$2");
+  }
+  return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
+}
+
+function maskCep(v: string) {
+  return v.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Supplier {
   id: string;
@@ -27,7 +55,7 @@ interface Supplier {
   isActive: boolean | number;
 }
 
-const EMPTY_FORM = { name: "", cnpj: "", phone: "", email: "", contact: "", address: "", notes: "" };
+const EMPTY_FORM = { name: "", cnpj: "", phone: "", email: "", contact: "", cep: "", address: "", notes: "" };
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 function SupplierModal({ isOpen, onClose, editingItem, onSaved }: {
@@ -35,28 +63,45 @@ function SupplierModal({ isOpen, onClose, editingItem, onSaved }: {
 }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [cepLoading, setCepLoading] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
     setForm(editingItem
-      ? { name: editingItem.name || "", cnpj: editingItem.cnpj || "", phone: editingItem.phone || "", email: editingItem.email || "", contact: editingItem.contact || "", address: editingItem.address || "", notes: editingItem.notes || "" }
+      ? { name: editingItem.name || "", cnpj: editingItem.cnpj || "", phone: editingItem.phone || "", email: editingItem.email || "", contact: editingItem.contact || "", cep: "", address: editingItem.address || "", notes: editingItem.notes || "" }
       : EMPTY_FORM
     );
   }, [editingItem, isOpen]);
 
-  const f = (k: keyof typeof EMPTY_FORM) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-      setForm(p => ({ ...p, [k]: e.target.value }));
+  const set = (k: keyof typeof EMPTY_FORM, v: string) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleCep = async (raw: string) => {
+    const masked = maskCep(raw);
+    set("cep", masked);
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (data.erro) { toast.warning("CEP não encontrado."); return; }
+      const addr = [data.logradouro, data.bairro, data.localidade, data.uf].filter(Boolean).join(", ");
+      set("address", addr);
+      toast.success("Endereço preenchido automaticamente!");
+    } catch { toast.error("Erro ao buscar CEP."); }
+    finally { setCepLoading(false); }
+  };
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.warning("Nome é obrigatório."); return; }
     setSaving(true);
+    const payload = { name: form.name, cnpj: form.cnpj, phone: form.phone, email: form.email, contact: form.contact, address: form.address, notes: form.notes };
     try {
       if (editingItem) {
-        await apiFetch(`/api/inventory/suppliers/${editingItem.id}`, { method: "PUT", body: JSON.stringify(form) });
+        await apiFetch(`/api/inventory/suppliers/${editingItem.id}`, { method: "PUT", body: JSON.stringify(payload) });
         toast.success("Fornecedor atualizado!");
       } else {
-        await apiFetch("/api/inventory/suppliers", { method: "POST", body: JSON.stringify(form) });
+        await apiFetch("/api/inventory/suppliers", { method: "POST", body: JSON.stringify(payload) });
         toast.success("Fornecedor cadastrado!");
       }
       onSaved(); onClose();
@@ -74,17 +119,62 @@ function SupplierModal({ isOpen, onClose, editingItem, onSaved }: {
       }
     >
       <div className="space-y-4">
-        <Input label="Nome do fornecedor *" value={form.name} onChange={f("name")} placeholder="Ex: Distribuidora Alfa" />
+        <Input label="Nome do fornecedor *" value={form.name} onChange={e => set("name", e.target.value)} placeholder="Ex: Distribuidora Alfa" />
         <FormRow cols={2}>
-          <Input label="CNPJ / Documento" value={form.cnpj} onChange={f("cnpj")} placeholder="00.000.000/0001-00" />
-          <Input label="Telefone" value={form.phone} onChange={f("phone")} placeholder="(11) 9 9999-9999" iconLeft={<Phone size={14} />} />
+          <Input
+            label="CNPJ / CPF"
+            value={form.cnpj}
+            onChange={e => set("cnpj", maskCnpjCpf(e.target.value))}
+            placeholder="00.000.000/0001-00"
+            iconLeft={<FileText size={14} />}
+          />
+          <Input
+            label="Telefone"
+            value={form.phone}
+            onChange={e => set("phone", maskPhone(e.target.value))}
+            placeholder="(11) 9 9999-9999"
+            iconLeft={<Phone size={14} />}
+          />
         </FormRow>
         <FormRow cols={2}>
-          <Input label="E-mail" value={form.email} onChange={f("email")} placeholder="contato@fornecedor.com.br" iconLeft={<Mail size={14} />} />
-          <Input label="Contato / Responsável" value={form.contact} onChange={f("contact")} placeholder="Nome do contato" iconLeft={<User size={14} />} />
+          <Input label="E-mail" value={form.email} onChange={e => set("email", e.target.value)} placeholder="contato@fornecedor.com.br" iconLeft={<Mail size={14} />} />
+          <Input label="Contato / Responsável" value={form.contact} onChange={e => set("contact", e.target.value)} placeholder="Nome do contato" iconLeft={<User size={14} />} />
         </FormRow>
-        <Input label="Endereço" value={form.address} onChange={f("address")} placeholder="Rua, número, cidade" iconLeft={<MapPin size={14} />} />
-        <Textarea label="Observações" value={form.notes} onChange={f("notes")} rows={3} placeholder="Informações adicionais..." />
+
+        {/* CEP + endereço */}
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-0.5">CEP</label>
+            <div className="relative">
+              <input
+                value={form.cep}
+                onChange={e => handleCep(e.target.value)}
+                placeholder="00000-000"
+                maxLength={9}
+                className="w-full h-10 pl-9 pr-10 rounded-xl border border-zinc-200 text-sm focus:border-zinc-400 focus:ring-0 transition-all outline-none bg-white"
+              />
+              <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                {cepLoading
+                  ? <Loader2 size={14} className="animate-spin text-zinc-400" />
+                  : form.cep.replace(/\D/g, "").length === 8
+                    ? <Search size={14} className="text-blue-500" />
+                    : null
+                }
+              </div>
+            </div>
+            <p className="text-[10px] text-zinc-400 px-0.5">Digite o CEP para preencher o endereço automaticamente.</p>
+          </div>
+          <Input
+            label="Endereço completo"
+            value={form.address}
+            onChange={e => set("address", e.target.value)}
+            placeholder="Rua, número, bairro, cidade — UF"
+            iconLeft={<MapPin size={14} />}
+          />
+        </div>
+
+        <Textarea label="Observações" value={form.notes} onChange={e => set("notes", e.target.value)} rows={3} placeholder="Informações adicionais..." />
       </div>
     </Modal>
   );

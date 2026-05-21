@@ -549,7 +549,7 @@ export function AdminDashboardShell({
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 scrollbar-hide md:p-6 lg:p-8">{children}</div>
+        <div className="flex-1 overflow-y-auto px-2 pt-3 pb-4 scrollbar-hide md:p-6 lg:p-8">{children}</div>
       </main>
     </div>
   );
