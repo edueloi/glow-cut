@@ -105,6 +105,23 @@ app.use("/api/wpp", requireAuth, wppRouter);
 // ── Agenda (protegido) ──────────────────────────────────────────────────────
 app.use("/api", requireAuth, agendaRouter);
 
+// ── DEBUG TEMPORÁRIO — remover depois ─────────────────────────────────────────
+app.get("/api/debug-subs-raw", async (req: any, res: any) => {
+  try {
+    const { prisma: p } = await import("./src/backend/prisma");
+    const subs: any[] = await (p as any).$queryRawUnsafe(`
+      SELECT cs.id, cs.status, cs.tenantId as cs_tenantId, cs.clientId, cs.membershipPlanId,
+             c.id as c_id, c.name as c_name, c.tenantId as c_tenantId,
+             mp.id as mp_id, mp.name as mp_name, mp.tenantId as mp_tenantId
+      FROM ClientSubscription cs
+      LEFT JOIN Client c ON c.id = cs.clientId
+      LEFT JOIN MembershipPlan mp ON mp.id = cs.membershipPlanId
+      ORDER BY cs.createdAt DESC LIMIT 20
+    `);
+    res.json({ total: subs.length, rows: subs });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Planos de assinatura do salão (protegido) ─────────────────────────────────
 app.use("/api/memberships", requireAuth, membershipRouter);
 
