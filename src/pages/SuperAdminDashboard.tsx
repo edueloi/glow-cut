@@ -6212,15 +6212,23 @@ const NAV_ITEMS: { key: TabKey; icon: React.ReactNode; label: string; path: stri
 /* ═══════════════════════════════════════════
    ABA: CONVITES FREE TRIAL
 ═══════════════════════════════════════════ */
-function FreeTrialInvitesTab() {
+function FreeTrialInvitesTab({ plans = [], userId = "" }: { plans?: any[]; userId?: string }) {
   const toast = useToast();
   const [invites, setInvites] = useState<any[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [creating, setCreating] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<any | null>(null);
   const [revoking, setRevoking] = useState(false);
-  const [form, setForm] = useState({ label: "", trialDays: "30" });
+  const [form, setForm] = useState({ label: "", trialDays: "30", planId: "" });
   const [showForm, setShowForm] = useState(false);
+
+  // Seleciona o plano Premium por padrão quando os planos carregam
+  useEffect(() => {
+    if (plans.length > 0 && !form.planId) {
+      const premium = plans.find(p => p.name?.toLowerCase().includes("premium")) || plans[plans.length - 1];
+      if (premium) setForm(f => ({ ...f, planId: premium.id }));
+    }
+  }, [plans]);
 
   const appUrl = typeof window !== "undefined" ? window.location.origin : "https://agendelle.com.br";
 
@@ -6237,17 +6245,24 @@ function FreeTrialInvitesTab() {
   useEffect(() => { load(); }, [load]);
 
   const create = async () => {
+    if (!form.planId) { toast.warning("Selecione um plano."); return; }
     setCreating(true);
     try {
       const res = await apiFetch("/api/super-admin/free-trial-invites", {
         method: "POST",
-        body: JSON.stringify({ label: form.label || undefined, trialDays: Number(form.trialDays) || 30 }),
+        body: JSON.stringify({
+          planId: form.planId,
+          createdBy: userId,
+          label: form.label || undefined,
+          trialDays: Number(form.trialDays) || 30,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       toast.success("Convite criado!");
       setShowForm(false);
-      setForm({ label: "", trialDays: "30" });
+      const premium = plans.find(p => p.name?.toLowerCase().includes("premium")) || plans[plans.length - 1];
+      setForm({ label: "", trialDays: "30", planId: premium?.id || "" });
       load();
     } catch (e: any) { toast.error(e.message); }
     finally { setCreating(false); }
@@ -6313,6 +6328,19 @@ function FreeTrialInvitesTab() {
                 onChange={e => setForm(f => ({ ...f, trialDays: e.target.value }))}
               />
             </div>
+          </div>
+          <div className="mt-4">
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-1.5">Plano <span className="text-red-400">*</span></label>
+            <select
+              className="w-full border border-zinc-200 rounded-xl px-3 h-10 text-sm font-bold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 transition-all bg-white"
+              value={form.planId}
+              onChange={e => setForm(f => ({ ...f, planId: e.target.value }))}
+            >
+              <option value="">Selecione o plano...</option>
+              {plans.filter(p => p.isActive !== false).map(p => (
+                <option key={p.id} value={p.id}>{p.name} {p.price ? `— R$ ${Number(p.price).toFixed(2).replace(".", ",")}` : ""}</option>
+              ))}
+            </select>
           </div>
           <div className="flex gap-3 mt-4">
             <Button onClick={create} loading={creating} className="bg-amber-500 hover:bg-amber-600 text-white">
@@ -6563,7 +6591,7 @@ export default function SuperAdminDashboard({ username, onLogout, permissions }:
             {tab === "commissions" && <CommissionsTab />}
             {tab === "finance"     && <FinanceTab />}
             {tab === "qa"          && <QATab />}
-            {tab === "invites"     && <FreeTrialInvitesTab />}
+            {tab === "invites"     && <FreeTrialInvitesTab plans={plans} userId={userData?.id || username} />}
             {tab === "staff"       && <StaffTab username={username} userPermissions={permissions} />}
             {tab === "settings"    && <SettingsTab />}
             {tab === "profile"     && <ProfileTab username={username} />}
