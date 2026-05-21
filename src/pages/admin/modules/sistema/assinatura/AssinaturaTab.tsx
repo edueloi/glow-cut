@@ -28,7 +28,7 @@ export function AssinaturaTab() {
         const res = await apiFetch("/api/admin/all-plans");
         if (res.ok) {
           const data = await res.json();
-          setPlans(data);
+          setPlans(Array.isArray(data) ? data.filter((p: any) => p.showOnSite) : []);
         }
       } catch (err) {
         console.error("Erro ao carregar planos:", err);

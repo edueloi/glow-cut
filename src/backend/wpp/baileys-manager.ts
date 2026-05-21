@@ -649,7 +649,7 @@ function msgConhecerDeveloi(): string {
 async function sendPlanosFlow(sock: any, remoteJid: string, name: string, sectors: any[]) {
   try {
     const plans = await (prisma as any).plan.findMany({
-      where: { isActive: true },
+      where: { isActive: true, showOnSite: true },
       orderBy: { price: 'asc' }
     });
     

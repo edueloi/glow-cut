@@ -454,6 +454,7 @@ export const adminController = {
   async getPlans(req: Request, res: Response) {
     try {
       const plans = await (prisma as any).plan.findMany({
+        where: { isActive: true, showOnSite: true },
         orderBy: { price: "asc" },
       });
       
