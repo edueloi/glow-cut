@@ -131,6 +131,7 @@ membershipRouter.get("/subscriptions", async (req: Request, res: Response) => {
     sql += ` ORDER BY cs.createdAt DESC`;
 
     const subscriptions = await (prisma as any).$queryRawUnsafe(sql, ...params);
+    console.log(`[memberships/subscriptions] tenantId=${tid} found=${(subscriptions as any[]).length} rows`);
 
     // Para cada assinatura, buscar créditos do ciclo atual
     const enriched = await Promise.all((subscriptions as any[]).map(async (sub: any) => {
@@ -417,6 +418,26 @@ membershipRouter.get("/stats", async (req: Request, res: Response) => {
     }));
 
     res.json({ totals, plans });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/memberships/debug-subs  (debug temporário — remove depois)
+membershipRouter.get("/debug-subs", async (req: Request, res: Response) => {
+  try {
+    const tid = tenantId(req);
+    const raw = await (prisma as any).$queryRawUnsafe(
+      `SELECT cs.id, cs.status, cs.tenantId, cs.clientId, cs.membershipPlanId,
+              c.id as c_id, c.name as c_name, c.tenantId as c_tenantId,
+              mp.id as mp_id, mp.name as mp_name, mp.tenantId as mp_tenantId
+       FROM ClientSubscription cs
+       LEFT JOIN Client c ON c.id = cs.clientId
+       LEFT JOIN MembershipPlan mp ON mp.id = cs.membershipPlanId
+       WHERE cs.tenantId = ?
+       LIMIT 20`, tid
+    );
+    res.json({ tenantId: tid, count: (raw as any[]).length, rows: raw });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
