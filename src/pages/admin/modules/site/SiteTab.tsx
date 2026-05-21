@@ -489,7 +489,7 @@ export function SiteTab() {
         description="Personalize como o mundo vê o seu negócio na sua página exclusiva."
         icon={Globe}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -497,7 +497,7 @@ export function SiteTab() {
               onClick={() => setShowPreview(true)}
               className="bg-white"
             >
-              Visualizar Preview
+              <span className="hidden sm:inline">Visualizar Preview</span>
             </Button>
             <Button
               variant="outline"
@@ -505,7 +505,7 @@ export function SiteTab() {
               iconLeft={<ExternalLink size={14} />}
               onClick={() => window.open(`/${formData.slug}`, "_blank")}
             >
-              Visitar Site
+              <span className="hidden sm:inline">Visitar Site</span>
             </Button>
             <Button
               variant="primary"
@@ -514,7 +514,7 @@ export function SiteTab() {
               iconLeft={<Save size={14} />}
               onClick={handleSave}
             >
-              Salvar Alterações
+              <span className="hidden xs:inline sm:inline">Salvar</span>
             </Button>
           </div>
         }

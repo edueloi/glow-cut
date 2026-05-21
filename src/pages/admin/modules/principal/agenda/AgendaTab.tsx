@@ -190,7 +190,7 @@ export function AgendaTab(props: AgendaTabProps) {
               professionals={props.professionals}
               services={props.services ?? []}
               onNewAppointment={(client) => {
-                const empty = { id: undefined, date: new Date(), startTime: "09:00", duration: 60, clientId: client.id, clientPhone: "", clientName: "", serviceId: "", packageId: "", serviceIds: [], professionalId: "", status: "agendado", notes: "", recurrence: { type: "none", count: 1, interval: 7 }, comandaId: "", type: "atendimento" };
+                const empty = { id: undefined, date: new Date(), startTime: "09:00", duration: 60, clientId: client.id, clientPhone: client.phone ?? "", clientName: client.name ?? "", serviceId: "", packageId: "", serviceIds: [], professionalId: "", status: "agendado", notes: "", recurrence: { type: "none", count: 1, interval: 7 }, comandaId: "", type: "atendimento", clientLocked: true };
                 props.setNewAppointment(empty);
                 props.setIsAppointmentModalOpen(true);
               }}

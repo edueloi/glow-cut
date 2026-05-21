@@ -1765,7 +1765,8 @@ export default function AdminDashboard() {
             }
           >
             <div className="space-y-4">
-              {/* Tipo de agendamento */}
+              {/* Tipo de agendamento — oculto quando cliente bloqueado (sempre atendimento) */}
+              {!newAppointment.clientLocked && (
               <div className="flex gap-1 p-1 bg-zinc-100 rounded-xl">
                 {([
                   { value:'atendimento', label:'Agendamento', shortLabel:'Agend.', icon:<Scissors size={12}/> },
@@ -1787,6 +1788,7 @@ export default function AdminDashboard() {
                   </button>
                 ))}
               </div>
+              )}
 
               {newAppointment.type === 'atendimento' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
@@ -1797,6 +1799,20 @@ export default function AdminDashboard() {
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Cliente</label>
+                      {newAppointment.clientLocked ? (
+                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white text-xs font-black">
+                            {newAppointment.clientName?.[0]?.toUpperCase() ?? "?"}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-zinc-900 truncate">{newAppointment.clientName}</p>
+                            {newAppointment.clientPhone && (
+                              <p className="text-[10px] text-zinc-400">{newAppointment.clientPhone}</p>
+                            )}
+                          </div>
+                          <span className="text-[9px] font-black text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-md border border-amber-200 uppercase">Selecionado</span>
+                        </div>
+                      ) : (
                       <div className="relative">
                         <Input
                           type="text"
@@ -1840,7 +1856,8 @@ export default function AdminDashboard() {
                           </div>
                         )}
                       </div>
-                      {newAppointment.clientId && (
+                      )}
+                      {newAppointment.clientId && !newAppointment.clientLocked && (
                         <p className="text-[9px] text-emerald-600 font-bold flex items-center gap-1 ml-1">
                           <CheckCircle size={10}/> {newAppointment.clientPhone}
                         </p>

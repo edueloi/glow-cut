@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Calendar, Clock, User, Scissors, ChevronRight, Phone, X, Plus, History, CalendarClock } from "lucide-react";
+import { Calendar, Clock, User, Scissors, ChevronRight, Phone, X, History, CalendarClock, ArrowLeft, Mail } from "lucide-react";
 import { format, isFuture, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "motion/react";
@@ -7,7 +7,6 @@ import { cn } from "@/src/lib/utils";
 import {
   Badge,
   Button,
-  IconButton,
   Input,
   SectionTitle,
   ContentCard,
@@ -81,19 +80,50 @@ export function AgendaPorCliente({
     setFilter("all");
   };
 
-  return (
-    <div className="space-y-4 sm:space-y-5 pb-20 sm:pb-6 px-4 sm:px-5 lg:px-6 xl:px-8 pt-3 sm:pt-4 lg:pt-5">
+  // On mobile: if a client is selected, show full detail panel (hide list)
+  const showDetail = !!selectedClient;
 
-      <SectionTitle
-        title="Agenda por Cliente"
-        description="Pesquise um cliente para ver o histórico completo de agendamentos."
-        icon={User}
-      />
+  return (
+    <div className="space-y-4 sm:space-y-5 pb-20 sm:pb-6 px-2 sm:px-4 lg:px-6 xl:px-8 pt-3 sm:pt-4 lg:pt-5">
+
+      {/* Header — back button on mobile when viewing a client */}
+      {showDetail ? (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSelectedClient(null)}
+            className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 hover:text-zinc-800 transition-colors lg:hidden"
+          >
+            <ArrowLeft size={14} /> Voltar
+          </button>
+          <SectionTitle
+            title={selectedClient.name}
+            description="Histórico completo de agendamentos"
+            icon={User}
+            action={onNewAppointment && (
+              <Button
+                size="sm"
+                iconLeft={<Calendar size={13} />}
+                onClick={() => onNewAppointment(selectedClient)}
+              >
+                <span className="hidden sm:inline">Novo Agendamento</span>
+                <span className="sm:hidden">Agendar</span>
+              </Button>
+            )}
+            className="flex-1"
+          />
+        </div>
+      ) : (
+        <SectionTitle
+          title="Agenda por Cliente"
+          description="Pesquise um cliente para ver o histórico completo de agendamentos."
+          icon={User}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[320px,1fr] gap-4">
 
-        {/* ── Coluna esquerda: lista de clientes ── */}
-        <div className="flex flex-col gap-3">
+        {/* ── Coluna esquerda: lista de clientes — oculta no mobile quando cliente selecionado ── */}
+        <div className={cn("flex flex-col gap-3", showDetail && "hidden lg:flex")}>
           <Input
             placeholder="Nome, telefone ou CPF..."
             value={search}
@@ -132,7 +162,6 @@ export function AgendaPorCliente({
                           : "hover:bg-zinc-50 border-l-transparent"
                       )}
                     >
-                      {/* Avatar */}
                       <div className={cn(
                         "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black transition-all",
                         isActive ? "bg-amber-500 text-white" : "bg-zinc-100 text-zinc-500"
@@ -140,7 +169,6 @@ export function AgendaPorCliente({
                         {client.name?.[0]?.toUpperCase() ?? "?"}
                       </div>
 
-                      {/* Info */}
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-zinc-900 truncate">{client.name}</p>
                         <p className="text-[10px] text-zinc-400 truncate flex items-center gap-1 mt-0.5">
@@ -148,12 +176,14 @@ export function AgendaPorCliente({
                         </p>
                       </div>
 
-                      {/* Contadores */}
-                      <div className="shrink-0 text-right space-y-0.5">
-                        <p className="text-xs font-black text-zinc-600">{total} <span className="text-[9px] font-medium text-zinc-400">total</span></p>
-                        {upcoming > 0 && (
-                          <p className="text-[9px] font-bold text-amber-600">{upcoming} próx.</p>
-                        )}
+                      <div className="shrink-0 flex items-center gap-2">
+                        <div className="text-right space-y-0.5">
+                          <p className="text-xs font-black text-zinc-600">{total} <span className="text-[9px] font-medium text-zinc-400">total</span></p>
+                          {upcoming > 0 && (
+                            <p className="text-[9px] font-bold text-amber-600">{upcoming} próx.</p>
+                          )}
+                        </div>
+                        <ChevronRight size={13} className="text-zinc-300" />
                       </div>
                     </button>
                   );
@@ -164,7 +194,7 @@ export function AgendaPorCliente({
         </div>
 
         {/* ── Coluna direita: histórico do cliente ── */}
-        <div className="flex flex-col gap-4 min-w-0">
+        <div className={cn("flex flex-col gap-4 min-w-0", !showDetail && "hidden lg:flex")}>
           {!selectedClient ? (
             <EmptyState
               icon={User}
@@ -176,38 +206,31 @@ export function AgendaPorCliente({
             <>
               {/* Card do cliente */}
               <ContentCard padding="sm">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center gap-4">
                   {/* Avatar grande */}
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-white text-xl font-black shadow-md shadow-amber-500/20">
+                  <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white text-xl sm:text-2xl font-black shadow-lg shadow-amber-500/20">
                     {selectedClient.name?.[0]?.toUpperCase()}
                   </div>
 
                   {/* Dados */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-base font-black text-zinc-900">{selectedClient.name}</p>
-                    <div className="flex flex-wrap gap-3 mt-1">
+                    <p className="text-base sm:text-lg font-black text-zinc-900">{selectedClient.name}</p>
+                    <div className="flex flex-col gap-0.5 mt-1">
                       {selectedClient.phone && (
                         <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-                          <Phone size={11} />{selectedClient.phone}
+                          <Phone size={11} className="text-zinc-400 shrink-0" />{selectedClient.phone}
                         </span>
                       )}
                       {selectedClient.email && (
-                        <span className="text-xs text-zinc-400 truncate">{selectedClient.email}</span>
+                        <span className="flex items-center gap-1.5 text-xs text-zinc-400 truncate">
+                          <Mail size={11} className="shrink-0" />{selectedClient.email}
+                        </span>
                       )}
                     </div>
+                    {selectedClient.cpf && (
+                      <p className="text-[10px] text-zinc-300 mt-1">CPF: {selectedClient.cpf}</p>
+                    )}
                   </div>
-
-                  {/* Botão novo agendamento */}
-                  {onNewAppointment && (
-                    <Button
-                      size="sm"
-                      iconLeft={<Calendar size={13} />}
-                      onClick={() => onNewAppointment(selectedClient)}
-                      className="shrink-0"
-                    >
-                      Novo Agendamento
-                    </Button>
-                  )}
                 </div>
               </ContentCard>
 
