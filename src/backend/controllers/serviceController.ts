@@ -83,14 +83,14 @@ export const serviceController = {
   async create(req: Request, res: Response) {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
-    const { name, description, price, duration, type, discount, discountType, includedServices, professionalIds, productsConsumed, commissionValue, commissionType, taxRate } = req.body;
+    const { name, description, price, duration, type, discount, discountType, includedServices, professionalIds, productsConsumed, commissionValue, commissionType, taxRate, photo } = req.body;
     if (!name || !price) return res.status(400).json({ error: "Nome e preço são obrigatórios." });
     let serviceId: string | null = null;
     try {
       serviceId = randomUUID();
       await (prisma as any).$executeRawUnsafe(
-        `INSERT INTO Service (id, name, description, price, duration, type, discount, discountType, professionalIds, tenantId, commissionValue, commissionType, taxRate)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO Service (id, name, description, price, duration, type, discount, discountType, professionalIds, tenantId, commissionValue, commissionType, taxRate, photo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         serviceId,
         name,
         description || null,
@@ -103,7 +103,8 @@ export const serviceController = {
         tenantId,
         parseFloat(commissionValue) || 0,
         commissionType || "percentage",
-        parseFloat(taxRate) || 0
+        parseFloat(taxRate) || 0,
+        photo || null
       );
     } catch (e: any) {
       console.error("❌ service.create failed:", e.message);
@@ -168,21 +169,22 @@ export const serviceController = {
 
   async update(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    const { name, description, price, duration, type, discount, discountType, includedServices, professionalIds, productsConsumed, commissionValue, commissionType, taxRate } = req.body;
+    const { name, description, price, duration, type, discount, discountType, includedServices, professionalIds, productsConsumed, commissionValue, commissionType, taxRate, photo } = req.body;
     try {
       await (prisma as any).$executeRawUnsafe(
-        `UPDATE Service SET 
-          name = ?, 
-          description = ?, 
-          price = ?, 
-          duration = ?, 
-          type = ?, 
-          discount = ?, 
-          discountType = ?, 
+        `UPDATE Service SET
+          name = ?,
+          description = ?,
+          price = ?,
+          duration = ?,
+          type = ?,
+          discount = ?,
+          discountType = ?,
           professionalIds = ?,
           commissionValue = ?,
           commissionType = ?,
-          taxRate = ?
+          taxRate = ?,
+          photo = ?
         WHERE id = ? AND tenantId = ?`,
         name,
         description || null,
@@ -195,6 +197,7 @@ export const serviceController = {
         parseFloat(commissionValue) || 0,
         commissionType || "percentage",
         parseFloat(taxRate) || 0,
+        photo !== undefined ? (photo || null) : null,
         req.params.id,
         tenantId
       );

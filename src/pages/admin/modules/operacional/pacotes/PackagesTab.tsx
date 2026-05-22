@@ -199,11 +199,18 @@ function PackageCard({ item, delay, onEdit, onDelete }: {
       {/* Glow decorativo */}
       <div className="absolute top-0 right-0 w-20 h-20 rounded-full bg-violet-500/5 -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700" />
 
-      {/* Header: ícone + preço */}
-      <div className="flex items-start justify-between mb-4 relative z-10">
-        <div className="w-12 h-12 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center group-hover:scale-110 group-hover:bg-violet-100 transition-all duration-300 shrink-0">
-          <Package size={22} className="text-violet-500" strokeWidth={1.5} />
+      {/* Foto ou header vazio */}
+      {item.photo && (
+        <div className="mb-4 relative z-10">
+          <div className="w-full h-28 rounded-2xl overflow-hidden border border-zinc-100 group-hover:border-violet-100 transition-all duration-300">
+            <img src={item.photo} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          </div>
         </div>
+      )}
+
+      {/* Header: preço (ícone removido) */}
+      <div className="flex items-start justify-between mb-4 relative z-10">
+        <div />
         <div className="text-right">
           <p className="text-lg font-black text-zinc-900 leading-none">{fmt(finalPrice)}</p>
           {hasDiscount && <p className="text-[10px] text-zinc-400 line-through mt-0.5">{fmt(Number(item.price))}</p>}
@@ -301,7 +308,7 @@ export function PackagesTab({
     setEditingService(null);
     setNewService({
       name: "", description: "", price: "", duration: "", type: "package",
-      discount: "0", discountType: "value", includedServices: [],
+      discount: "0", discountType: "value", photo: null, includedServices: [],
       professionalIds: [], productsConsumed: [],
       commissionValue: 0, commissionType: "percentage", taxRate: 0,
     });
@@ -315,6 +322,7 @@ export function PackagesTab({
       price: item.price.toString(), duration: item.duration.toString(),
       type: item.type, discount: (item.discount || 0).toString(),
       discountType: item.discountType || "value",
+      photo: item.photo || null,
       includedServices: item.packageServices?.map((ps: any) => ({
         id: ps.serviceId, name: ps.service?.name || ps.serviceName || "", quantity: ps.quantity,
         price: Number(ps.service?.price ?? ps.servicePrice ?? 0),
@@ -344,9 +352,15 @@ export function PackagesTab({
       header: "Pacote",
       render: item => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center shrink-0">
-            <Package size={16} className="text-violet-500" />
-          </div>
+          {item.photo ? (
+            <div className="w-10 h-10 rounded-xl overflow-hidden border border-zinc-100 shrink-0">
+              <img src={item.photo} alt={item.name} className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center shrink-0">
+              <Package size={16} className="text-violet-300" />
+            </div>
+          )}
           <div className="min-w-0">
             <p className="text-sm font-black text-zinc-900 truncate">{item.name}</p>
             {item.packageServices?.length > 0 && (

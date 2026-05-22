@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   Plus, Check, TrendingUp, Trash2, Edit2, Search, BookOpen,
-  Scissors, Package, ChevronDown, ChevronUp, X,
+  Scissors, Package, ChevronDown, ChevronUp, X, Camera, ImageOff,
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { Button } from "@/src/components/ui/Button";
@@ -77,6 +77,19 @@ export function ServiceModal({
   }
 
   const isNew = !editingService;
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setNewService((prev: any) => ({ ...prev, photo: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+
   const finalPrice = (() => {
     const p = parseFloat(newService.price) || 0;
     const d = parseFloat(newService.discount) || 0;
@@ -315,6 +328,40 @@ export function ServiceModal({
                   value={newService.description}
                   onChange={e => setNewService({ ...newService, description: e.target.value })}
                 />
+
+                {/* Foto do serviço */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Foto (opcional)</label>
+                  <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+                  {newService.photo ? (
+                    <div className="relative group w-full h-32 rounded-xl overflow-hidden border border-zinc-200">
+                      <img src={newService.photo} alt="preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setNewService((prev: any) => ({ ...prev, photo: null }))}
+                        className="absolute top-2 right-2 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center shadow transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        <X size={13} strokeWidth={3} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => photoInputRef.current?.click()}
+                        className="absolute bottom-2 right-2 flex items-center gap-1.5 text-[10px] font-black bg-black/60 hover:bg-black/80 text-white px-2.5 py-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        <Camera size={11} /> Trocar
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => photoInputRef.current?.click()}
+                      className="w-full h-20 flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-300 hover:border-amber-400 hover:bg-amber-50/40 transition-all text-zinc-400 hover:text-amber-600"
+                    >
+                      <Camera size={18} />
+                      <span className="text-[10px] font-bold">Adicionar foto</span>
+                    </button>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
@@ -758,6 +805,40 @@ export function ServiceModal({
                 R$ {finalPrice.toFixed(2)}
               </p>
             </div>
+          </div>
+
+          {/* Foto do pacote */}
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Foto (opcional)</label>
+            <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+            {newService.photo ? (
+              <div className="relative group w-full h-28 rounded-xl overflow-hidden border border-zinc-200">
+                <img src={newService.photo} alt="preview" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setNewService((prev: any) => ({ ...prev, photo: null }))}
+                  className="absolute top-2 right-2 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center shadow transition-all opacity-0 group-hover:opacity-100"
+                >
+                  <X size={13} strokeWidth={3} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="absolute bottom-2 right-2 flex items-center gap-1.5 text-[10px] font-black bg-black/60 hover:bg-black/80 text-white px-2.5 py-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                >
+                  <Camera size={11} /> Trocar
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="w-full h-16 flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-zinc-300 hover:border-violet-400 hover:bg-violet-50/40 transition-all text-zinc-400 hover:text-violet-600"
+              >
+                <Camera size={16} />
+                <span className="text-[10px] font-bold">Adicionar foto</span>
+              </button>
+            )}
           </div>
 
           {/* Profissionais */}

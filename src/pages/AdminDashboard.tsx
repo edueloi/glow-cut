@@ -1116,6 +1116,7 @@ export default function AdminDashboard() {
     type: "service" as "service" | "package",
     discount: "0",
     discountType: "value" as "value" | "percentage",
+    photo: null as string | null,
     includedServices: [] as { id: string, name: string, quantity: number, price?: number, type?: string, sessions?: number }[],
     professionalIds: [] as string[],
     productsConsumed: [] as { id: string, name: string, quantity: number, costPrice?: number, stock?: number }[],
@@ -1263,7 +1264,7 @@ export default function AdminDashboard() {
     }
     setIsServiceModalOpen(false);
     setEditingService(null);
-    setNewService({ name: "", description: "", price: "", duration: "", type: "service", discount: "0", discountType: "value", includedServices: [], professionalIds: [], productsConsumed: [], commissionValue: 0, commissionType: "percentage", taxRate: 0 });
+    setNewService({ name: "", description: "", price: "", duration: "", type: "service", discount: "0", discountType: "value", photo: null, includedServices: [], professionalIds: [], productsConsumed: [], commissionValue: 0, commissionType: "percentage", taxRate: 0 });
     apiFetch("/api/services").then(res => res.json()).then(d => setServices(Array.isArray(d) ? d : []));
   };
 

@@ -145,7 +145,9 @@ function RankingServicosView() {
                       idx === 1 ? "bg-zinc-100 text-zinc-600" :
                       idx === 2 ? "bg-orange-100 text-orange-600" : "bg-zinc-50 text-zinc-400"
                     )}>{idx + 1}</div>
-                    <div className="w-8 h-8 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-base">{ICON_MAP[item.category || ""] || "✂️"}</div>
+                    <div className="w-8 h-8 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center shrink-0">
+                      <Scissors size={13} className="text-zinc-300" />
+                    </div>
                     <div>
                       <p className="text-sm font-black text-zinc-900 truncate">{item.serviceName}</p>
                       {item.category && <p className="text-[10px] text-zinc-400 font-medium">{item.category}</p>}
@@ -160,7 +162,9 @@ function RankingServicosView() {
                       "w-7 h-7 rounded-xl flex items-center justify-center text-[10px] font-black shrink-0",
                       idx === 0 ? "bg-amber-100 text-amber-700" : idx === 1 ? "bg-zinc-100 text-zinc-600" : idx === 2 ? "bg-orange-100 text-orange-600" : "bg-zinc-50 text-zinc-400"
                     )}>{idx + 1}</div>
-                    <div className="w-8 h-8 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-base shrink-0">{ICON_MAP[item.category || ""] || "✂️"}</div>
+                    <div className="w-8 h-8 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center shrink-0">
+                      <Scissors size={13} className="text-zinc-300" />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-black text-zinc-900 truncate">{item.serviceName}</p>
                       {item.category && <p className="text-[10px] text-zinc-400 font-medium">{item.category}</p>}
@@ -213,11 +217,13 @@ function ServiceCard({ item, delay, onEdit, onDelete }: {
         </div>
       )}
 
-      <div className="mb-4">
-        <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-2xl group-hover:scale-110 group-hover:bg-amber-50 group-hover:border-amber-100 transition-all duration-300">
-          {ICON_MAP[item.category] || "✂️"}
+      {item.photo && (
+        <div className="mb-4">
+          <div className="w-full h-28 rounded-2xl overflow-hidden border border-zinc-100 group-hover:border-amber-100 transition-all duration-300">
+            <img src={item.photo} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex-1 mb-4">
         <h3 className="text-sm font-black text-zinc-900 group-hover:text-amber-600 transition-colors leading-tight mb-1">
@@ -305,7 +311,7 @@ export function ServicesTab({
     setEditingService(null);
     setNewService({
       name: "", description: "", price: "", duration: "", type: "service",
-      discount: "0", discountType: "value", includedServices: [],
+      discount: "0", discountType: "value", photo: null, includedServices: [],
       professionalIds: [], productsConsumed: [],
       commissionValue: 0, commissionType: "percentage", taxRate: 0,
     });
@@ -319,6 +325,7 @@ export function ServicesTab({
       price: item.price.toString(), duration: item.duration.toString(),
       type: item.type, discount: (item.discount || 0).toString(),
       discountType: item.discountType || "value",
+      photo: item.photo || null,
       includedServices: item.packageServices?.map((ps: any) => ({
         id: ps.serviceId, name: ps.service?.name || ps.serviceName || "", quantity: ps.quantity,
         price: Number(ps.service?.price ?? ps.servicePrice ?? 0),
@@ -348,9 +355,15 @@ export function ServicesTab({
       header: "Serviço",
       render: item => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-lg shrink-0">
-            {ICON_MAP[item.category] || "✂️"}
-          </div>
+          {item.photo ? (
+            <div className="w-10 h-10 rounded-xl overflow-hidden border border-zinc-100 shrink-0">
+              <img src={item.photo} alt={item.name} className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center shrink-0">
+              <Scissors size={15} className="text-zinc-300" />
+            </div>
+          )}
           <div className="min-w-0">
             <p className="text-sm font-black text-zinc-900 truncate">{item.name}</p>
             {item.category && <p className="text-[10px] text-zinc-400 truncate">{item.category}</p>}
