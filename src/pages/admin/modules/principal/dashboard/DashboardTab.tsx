@@ -48,6 +48,7 @@ export function DashboardTab({
 }: DashboardTabProps) {
   const { user } = useAuth();
   const [showFinancials, setShowFinancials] = useState(true);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [statPeriod, setStatPeriod] = useState<StatPeriod>("today");
   const [profReport, setProfReport] = useState<any[]>([]);
   const [profitability, setProfitability] = useState<any>(null);
@@ -67,6 +68,23 @@ export function DashboardTab({
   })();
 
   const firstName = user?.name?.split(" ")[0] || "Admin";
+
+  // Load persisted preferences
+  useEffect(() => {
+    apiFetch("/api/preferences")
+      .then(r => r.ok ? r.json() : {})
+      .then((prefs: any) => {
+        if (typeof prefs.showFinancials === "boolean") setShowFinancials(prefs.showFinancials);
+        setPrefsLoaded(true);
+      })
+      .catch(() => setPrefsLoaded(true));
+  }, []);
+
+  // Save showFinancials preference when it changes (skip on first render before prefs load)
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    apiFetch("/api/preferences", { method: "PATCH", body: JSON.stringify({ showFinancials }) }).catch(() => {});
+  }, [showFinancials, prefsLoaded]);
 
   useEffect(() => {
     const from = startOfMonth(new Date());
@@ -100,7 +118,8 @@ export function DashboardTab({
     if (!c.birthDate) return false;
     const parts = parseBirthDateParts(c.birthDate);
     if (!parts) return false;
-    return parts.month === currentMonthNum;
+    // Only show clients whose birthday is in the current month AND hasn't passed yet (or is today)
+    return parts.month === currentMonthNum && parts.day >= todayDay;
   }).sort((a, b) => {
     const left = parseBirthDateParts(a.birthDate);
     const right = parseBirthDateParts(b.birthDate);
@@ -210,9 +229,9 @@ export function DashboardTab({
         <div className="absolute -top-10 -right-10 w-80 h-80 bg-amber-500/25 blur-[120px] rounded-full pointer-events-none" />
         <div className="absolute bottom-0 left-1/4 w-56 h-56 bg-violet-600/15 blur-[80px] rounded-full pointer-events-none" />
 
-        {/* ── MOBILE (< md) — só saudação, limpo ── */}
-        <div className="md:hidden px-5 pt-5 pb-6 relative z-10">
-          <div className="flex items-center justify-between mb-5">
+        {/* ── MOBILE (< md) — saudação + mini stats ── */}
+        <div className="md:hidden px-5 pt-5 pb-5 relative z-10">
+          <div className="flex items-center justify-between mb-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 capitalize">
               {format(new Date(), "EEE, d 'de' MMM", { locale: ptBR })}
             </p>
@@ -229,8 +248,31 @@ export function DashboardTab({
           </p>
           <p className="text-3xl font-black text-amber-400 tracking-tight leading-tight mt-0.5">{firstName}!</p>
 
+          {/* Mini stats no mobile */}
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            <div className="bg-white/8 rounded-2xl p-3 border border-white/10">
+              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500 mb-1">Faturamento</p>
+              <p className={cn("text-sm font-black text-white leading-none", !showFinancials && "blur-sm select-none")}>
+                {showFinancials ? stats.revenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••"}
+              </p>
+              <p className="text-[8px] text-zinc-600 font-bold mt-1">{stats.paidCount} cmd</p>
+            </div>
+            <div className="bg-white/8 rounded-2xl p-3 border border-white/10">
+              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500 mb-1">Agenda</p>
+              <p className="text-sm font-black text-white leading-none">{stats.apptCount}</p>
+              <p className="text-[8px] text-zinc-600 font-bold mt-1">hoje</p>
+            </div>
+            <div className="bg-white/8 rounded-2xl p-3 border border-white/10">
+              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500 mb-1">Lucro</p>
+              <p className={cn("text-sm font-black leading-none", !showFinancials ? "text-white blur-sm select-none" : netProfit === null ? "text-zinc-500" : isProfit ? "text-emerald-400" : "text-red-400")}>
+                {!showFinancials ? "••••" : netProfit === null ? "—" : netProfit.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              </p>
+              <p className="text-[8px] text-zinc-600 font-bold mt-1">líquido</p>
+            </div>
+          </div>
+
           {(birthdayToday.length > 0 || pendingConfirmations.length > 0) && (
-            <div className="flex flex-wrap gap-2 mt-4">
+            <div className="flex flex-wrap gap-2 mt-3">
               {birthdayToday.length > 0 && (
                 <div className="flex items-center gap-1.5 bg-pink-500/20 border border-pink-500/30 text-pink-300 text-[9px] font-black px-2.5 py-1 rounded-full">
                   <Cake size={10} /> {birthdayToday[0].name.split(" ")[0]} faz anos hoje!
@@ -328,10 +370,10 @@ export function DashboardTab({
             <button
               key={qa.action}
               onClick={() => handleQuickAction(qa.action)}
-              className="flex flex-col items-center gap-2.5 p-3 sm:p-4 lg:p-5 rounded-2xl bg-white border border-zinc-100 hover:border-zinc-200 hover:shadow-md transition-all text-center active:scale-95 group"
+              className="flex flex-col items-center gap-2 sm:gap-2.5 py-4 px-2 sm:p-4 lg:p-5 rounded-2xl bg-white border border-zinc-100 hover:border-zinc-200 hover:shadow-md transition-all text-center active:scale-95 group"
             >
-              <div className={cn("w-11 h-11 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-xl lg:rounded-2xl flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform", qa.iconBg, qa.shadow)}>
-                <qa.icon size={20} />
+              <div className={cn("w-12 h-12 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-2xl flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform", qa.iconBg, qa.shadow)}>
+                <qa.icon size={22} />
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] sm:text-[11px] lg:text-xs font-black text-zinc-800 leading-tight">{qa.label}</p>
@@ -554,7 +596,7 @@ export function DashboardTab({
       )}
 
       {/* ── BOTTOM ROW ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
 
         {/* Próximos Agendamentos */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-zinc-200">
@@ -628,7 +670,7 @@ export function DashboardTab({
 
         {/* Aniversariantes do Mês */}
         <div className={cn(
-          "rounded-2xl shadow-sm border p-4 sm:p-5",
+          "sm:col-span-2 xl:col-span-1 rounded-2xl shadow-sm border p-4 sm:p-5",
           birthdayClients.length > 0 ? "bg-gradient-to-br from-pink-50 to-rose-50 border-pink-100" : "bg-white border-zinc-200"
         )}>
           <div className="flex items-center justify-between mb-4">
@@ -653,15 +695,15 @@ export function DashboardTab({
               <p className="text-[9px] text-zinc-400 mt-1">Cadastre datas de nascimento nos clientes</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {birthdayClients.slice(0, 5).map((c) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2">
+              {birthdayClients.slice(0, 6).map((c) => {
                 const birthParts = parseBirthDateParts(c.birthDate);
                 const day = birthParts?.day ? String(birthParts.day).padStart(2, "0") : "--";
                 const age = calculateAge(c.birthDate);
                 const isToday = birthParts?.day === todayDay;
                 return (
-                  <div key={c.id} className={cn("flex items-center gap-2.5 p-2 rounded-xl transition-all", isToday ? "bg-pink-100 border border-pink-200" : "bg-white/60")}>
-                    <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0", isToday ? "bg-pink-500 text-white shadow-sm" : "bg-pink-50 border border-pink-100 text-pink-600")}>
+                  <div key={c.id} className={cn("flex items-center gap-2.5 p-2.5 rounded-xl transition-all", isToday ? "bg-pink-100 border border-pink-200" : "bg-white/60")}>
+                    <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0", isToday ? "bg-pink-500 text-white shadow-sm" : "bg-pink-50 border border-pink-100 text-pink-600")}>
                       {c.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -674,9 +716,9 @@ export function DashboardTab({
                   </div>
                 );
               })}
-              {birthdayClients.length > 5 && (
-                <button onClick={() => handleTabChange("clients")} className="w-full text-center text-[10px] font-bold text-pink-500 hover:text-pink-700 pt-1 transition-colors">
-                  +{birthdayClients.length - 5} mais →
+              {birthdayClients.length > 6 && (
+                <button onClick={() => handleTabChange("clients")} className="sm:col-span-2 xl:col-span-1 w-full text-center text-[10px] font-bold text-pink-500 hover:text-pink-700 pt-1 transition-colors">
+                  +{birthdayClients.length - 6} mais →
                 </button>
               )}
             </div>
