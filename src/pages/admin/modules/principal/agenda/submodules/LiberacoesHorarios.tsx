@@ -148,7 +148,7 @@ export function LiberacoesHorarios({
   // ── Fechamentos (Feriados) ────────────────────────────────────────────────
   const [closedDays, setClosedDays] = useState<ClosedDay[]>([]);
   const [loadingClosed, setLoadingClosed] = useState(false);
-  const [newClosed, setNewClosed] = useState({ date: format(new Date(), "yyyy-MM-dd"), name: "" });
+  const [newClosed, setNewClosed] = useState({ date: format(addDays(new Date(), 1), "yyyy-MM-dd"), name: "" });
   const [savingClosed, setSavingClosed] = useState(false);
 
   const fetchClosedDays = async () => {
@@ -177,7 +177,7 @@ export function LiberacoesHorarios({
       if (res.ok) {
         toast.success("Dia fechado com sucesso.");
         fetchClosedDays();
-        setNewClosed({ date: format(new Date(), "yyyy-MM-dd"), name: "" });
+        setNewClosed({ date: format(addDays(new Date(), 1), "yyyy-MM-dd"), name: "" });
       }
     } finally {
       setSavingClosed(false);

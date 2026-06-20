@@ -434,11 +434,19 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.08 }}
-                  className="group bg-[#fafafa] rounded-2xl md:rounded-[2rem] p-5 md:p-7 hover:bg-white hover:shadow-xl hover:shadow-zinc-950/5 transition-all duration-400 border border-transparent hover:border-zinc-100"
+                  className={`group rounded-2xl md:rounded-[2rem] hover:shadow-xl hover:shadow-zinc-950/5 transition-all duration-400 border border-transparent hover:border-zinc-100 overflow-hidden ${service.photo ? "bg-white" : "bg-[#fafafa] p-5 md:p-7 hover:bg-white"}`}
                 >
-                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-5" style={{ backgroundColor: `${themeColor}15`, color: themeColor }}>
-                    <Scissors size={18} />
-                  </div>
+                  {service.photo && (
+                    <div className="w-full h-40 md:h-48 overflow-hidden">
+                      <img src={service.photo} alt={service.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    </div>
+                  )}
+                  <div className={service.photo ? "p-5 md:p-7" : ""}>
+                  {!service.photo && (
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-5" style={{ backgroundColor: `${themeColor}15`, color: themeColor }}>
+                      <Scissors size={18} />
+                    </div>
+                  )}
                   <h3 className="text-base md:text-xl font-black text-zinc-950 mb-2">{service.name}</h3>
                   {service.description && (
                     <p className="text-xs md:text-sm text-zinc-500 leading-relaxed mb-5 line-clamp-2">{service.description}</p>
@@ -451,6 +459,7 @@ function TemplateClassic({ tenant, professionals, services, products, galleryIma
                     <Link to={bookingUrl} className="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center bg-white border border-zinc-200 text-zinc-400 hover:text-white transition-all duration-300 hover:bg-zinc-900">
                       <ArrowRight size={16} />
                     </Link>
+                  </div>
                   </div>
                 </motion.div>
               ))}

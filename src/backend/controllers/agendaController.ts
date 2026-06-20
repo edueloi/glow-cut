@@ -1212,7 +1212,7 @@ export const agendaController = {
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
     const { date, name } = req.body;
     try {
-      const day = await (prisma as any).closedDay.create({ data: { id: randomUUID(), date: new Date(date), description: name || null, tenantId } });
+      const day = await (prisma as any).closedDay.create({ data: { id: randomUUID(), date: toDateOnly(date), description: name || null, tenantId } });
       res.json({ id: day.id, date: format(day.date, "yyyy-MM-dd"), name: day.description || "" });
     } catch (e: any) {
       res.status(400).json({ error: e.message });

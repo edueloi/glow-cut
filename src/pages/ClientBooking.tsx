@@ -803,8 +803,8 @@ export default function ClientBooking() {
                       <button key={s.id}
                         onClick={() => { setSelectedService(s); setStep("date"); fetchAvailability(selectedDate, s.id, selectedProfessional.id); }}
                         className="w-full flex items-center gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
-                        <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: customColor + "15" }}>
-                          <Scissors size={16} style={{ color: customColor }} />
+                        <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 flex items-center justify-center" style={{ backgroundColor: s.photo ? undefined : customColor + "15" }}>
+                          {s.photo ? <img src={s.photo} alt={s.name} className="w-full h-full object-cover" /> : <Scissors size={16} style={{ color: customColor }} />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-black text-zinc-900 truncate">{s.name}</p>
@@ -841,8 +841,8 @@ export default function ClientBooking() {
                         <button key={s.id}
                           onClick={() => handleServiceSelected(s)}
                           className="w-full flex items-center gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
-                          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: customColor + "15" }}>
-                            <Scissors size={16} style={{ color: customColor }} />
+                          <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 flex items-center justify-center" style={{ backgroundColor: s.photo ? undefined : customColor + "15" }}>
+                            {s.photo ? <img src={s.photo} alt={s.name} className="w-full h-full object-cover" /> : <Scissors size={16} style={{ color: customColor }} />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-black text-zinc-900 truncate">{s.name}</p>
@@ -994,7 +994,6 @@ export default function ClientBooking() {
                           let dayStatus: "closed" | "full" | "busy" | "available" = "available";
                           if (isBlocked) dayStatus = "closed";
                           else if (calendarStatus[dateString]) dayStatus = calendarStatus[dateString] as any;
-                          else if (dayOfWeek === 0) dayStatus = "closed";
                           
                           const maxAdvanceDate = addDays(today, publicAgendaSettings.maxAdvanceDays);
                           const isBeyondMaxAdvance = isBefore(maxAdvanceDate, day);
@@ -1045,7 +1044,7 @@ export default function ClientBooking() {
                       )) : (
                         <div className="col-span-4 py-6 text-center border-2 border-dashed border-zinc-100 rounded-xl bg-zinc-50">
                           <Clock size={20} className="text-zinc-300 mx-auto mb-1" />
-                          <p className="text-xs font-bold text-zinc-400">{selectedDate.getDay() === 0 ? "Fechado aos domingos" : !isLoading ? "Agenda cheia" : "Carregando..."}</p>
+                          <p className="text-xs font-bold text-zinc-400">{!isLoading ? "Agenda cheia" : "Carregando..."}</p>
                         </div>
                       )}
                     </div>
