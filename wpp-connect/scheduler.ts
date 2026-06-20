@@ -29,7 +29,7 @@ const ROOT = path.resolve(__dirname, "..");
 process.chdir(ROOT);
 
 // Import baileys-manager e wppController do app principal
-import { sendMessage, getSessionInfo, restoreAllSessions } from "../src/backend/wpp/baileys-manager.js";
+import { sendMessage, getSessionInfo } from "../src/backend/wpp/baileys-manager.js";
 
 // Envia usando bot do parceiro; fallback para bot do sistema
 async function sendWppToPhone(tenantId: string, phone: string, text: string): Promise<void> {
@@ -451,12 +451,26 @@ async function main() {
     console.warn("[WPP Scheduler] WppMessageSent table:", e?.message);
   }
 
-  // Restaura sessões Baileys que tinham creds salvas em disco
+  // Restaura apenas sessões dos estabelecimentos (parceiros).
+  // A sessão "system" (bot central) é gerenciada exclusivamente pelo processo agendelle.
+  // Restaurar "system" aqui causaria conflito de socket e quebraria o chatbot interativo.
   try {
-    await restoreAllSessions();
-    console.log("[WPP Scheduler] Sessões Baileys restauradas.");
+    const sessionsDir = path.resolve(ROOT, "wpp-sessions");
+    const { existsSync, readdirSync, statSync } = await import("fs");
+    if (existsSync(sessionsDir)) {
+      const dirs = readdirSync(sessionsDir).filter(d => {
+        if (d === "system") return false; // nunca restaurar bot do sistema aqui
+        const full = path.join(sessionsDir, d);
+        return statSync(full).isDirectory() && existsSync(path.join(full, "creds.json"));
+      });
+      const { initSession } = await import("../src/backend/wpp/baileys-manager.js");
+      console.log(`[WPP Scheduler] Restaurando ${dirs.length} sessão(ões) de parceiros...`);
+      for (const tid of dirs) {
+        try { await initSession(tid); } catch (e) { console.warn(`[WPP Scheduler] Erro sessão ${tid}:`, e); }
+      }
+    }
   } catch (e) {
-    console.warn("[WPP Scheduler] restoreAllSessions error:", e);
+    console.warn("[WPP Scheduler] restoreSessions error:", e);
   }
 
   // Executa imediatamente e depois a cada 60 segundos

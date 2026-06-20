@@ -1306,7 +1306,8 @@ async function doExit(tenantId: string, sock: any, clientKey: string, by: "clien
 
 export async function initSession(tenantId: string): Promise<void> {
   const existing = sessions.get(tenantId);
-  if (existing && existing.status === "connected") return;
+  // Verifica se o socket está realmente vivo antes de retornar (evita zombie sessions)
+  if (existing && existing.status === "connected" && existing.sock?.ws?.readyState === 1) return;
   if (existing?.sock) { try { existing.sock.end(); } catch {} sessions.delete(tenantId); }
 
   let makeWASocket: any, useMultiFileAuthState: any, DisconnectReason: any;
@@ -1474,3 +1475,13 @@ export async function restoreAllSessions(): Promise<void> {
   console.log(`[Baileys] Restaurando ${dirs.length} sessão(ões)...`);
   for (const tid of dirs) { try { await initSession(tid); } catch (e) { console.warn(`[Baileys] Erro ${tid}:`, e); } }
 }
+
+// Heartbeat: detecta sessões zombie (status=connected mas socket morto) e reconecta
+setInterval(() => {
+  for (const [tenantId, session] of sessions.entries()) {
+    if (session.status === "connected" && session.sock?.ws?.readyState !== 1) {
+      console.warn(`[Bot][Heartbeat] Sessão zombie detectada para ${tenantId}, reconectando...`);
+      initSession(tenantId).catch(e => console.error(`[Bot][Heartbeat] Erro ao reconectar ${tenantId}:`, e));
+    }
+  }
+}, 2 * 60 * 1000);
