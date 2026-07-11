@@ -45,6 +45,7 @@ interface WppBotConfig {
   sendBirthday: boolean;
   sendCobranca: boolean;
   sendWelcome: boolean;
+  menuEnabled: boolean;
 }
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
@@ -60,6 +61,7 @@ const AVAILABLE_VARS = [
   { key: "{{telefone_estabelecimento}}", desc: "Telefone/WhatsApp do estabelecimento" },
   { key: "{{endereco_estabelecimento}}", desc: "Endereço do estabelecimento" },
   { key: "{{link_agendamento}}", desc: "Link da agenda online do estabelecimento" },
+  { key: "{{horario_funcionamento}}", desc: "Horário de funcionamento do estabelecimento" },
   { key: "{{valor_servico}}", desc: "Valor do serviço (ex: R$ 50,00)" },
   { key: "{{data_nascimento_cliente}}", desc: "Data de aniversário do cliente" },
   { key: "{{observacoes}}", desc: "Observações do agendamento" },
@@ -71,6 +73,7 @@ const TEMPLATE_LABELS: Record<string, string> = {
   birthday: "Parabéns de Aniversário",
   cobranca: "Cobrança / Pagamento Pendente",
   welcome: "Boas-vindas (Novo Cliente)",
+  auto_reply: "Resposta Automática (Primeira Mensagem)",
 };
 
 const TEMPLATE_ICONS: Record<string, React.ReactNode> = {
@@ -79,6 +82,7 @@ const TEMPLATE_ICONS: Record<string, React.ReactNode> = {
   birthday: <span className="text-sm">🎂</span>,
   cobranca: <AlertCircle size={15} className="text-orange-500" />,
   welcome: <MessageCircle size={15} className="text-purple-500" />,
+  auto_reply: <MessageCircle size={15} className="text-amber-500" />,
 };
 
 // ─── Componente principal ────────────────────────────────────────────────────
@@ -104,6 +108,7 @@ export function WppTab() {
     sendBirthday: true,
     sendCobranca: false,
     sendWelcome: true,
+    menuEnabled: false,
   });
   const [botSaving, setBotSaving] = useState(false);
 
@@ -464,6 +469,7 @@ export function WppTab() {
               { key: "sendReminder24h", label: "Lembrete 24h Antes", desc: "Lembrete automático no dia anterior ao atendimento" },
               { key: "sendBirthday", label: "Parabéns de Aniversário", desc: "Mensagem no aniversário do cliente" },
               { key: "sendWelcome", label: "Boas-vindas (Novo Cliente)", desc: "Enviado ao cadastrar um novo cliente" },
+              { key: "menuEnabled", label: "Resposta Automática", desc: "Ao receber uma mensagem, responde com nome do salão, link de agendamento e horários" },
             ] as const).map(({ key, label, desc }) => (
               <div key={key} className="flex items-center justify-between py-3.5 gap-4">
                 <div className="min-w-0">

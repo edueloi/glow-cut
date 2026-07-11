@@ -349,6 +349,70 @@ function saudacao(): string {
   return "Boa noite";
 }
 
+// ── Resposta automática (bot de parceiro) ─────────────────────────────────────
+
+const AUTO_REPLY_DEFAULT_TEMPLATE =
+  "{{saudacao}}! 👋\n\nVocê está falando com *{{nome_estabelecimento}}*.\n\nSe quiser fazer um agendamento, é só acessar o link abaixo e escolher o melhor dia e horário para você:\n🔗 {{link_agendamento}}\n\n🕐 *Nosso horário de funcionamento:*\n{{horario_funcionamento}}\n\nQualquer dúvida, é só chamar por aqui!";
+
+const DAY_NAMES = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+function applyAutoReplyVars(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? "");
+}
+
+async function getHorarioFuncionamentoText(): Promise<string> {
+  try {
+    const rows: any[] = await (prisma as any).workingHours.findMany({
+      where: { professionalId: null },
+      orderBy: { dayOfWeek: "asc" },
+    });
+    if (!rows.length) return "Consulte nossos horários pelo link de agendamento.";
+    return rows
+      .map((r: any) => r.isOpen ? `${DAY_NAMES[r.dayOfWeek]}: ${r.startTime} às ${r.endTime}` : `${DAY_NAMES[r.dayOfWeek]}: Fechado`)
+      .join("\n");
+  } catch {
+    return "Consulte nossos horários pelo link de agendamento.";
+  }
+}
+
+// Cooldown por tenant+cliente para não responder de novo em pouco tempo
+const autoReplyLastSent = new Map<string, number>();
+const AUTO_REPLY_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6h
+
+/** Monta e envia a resposta automática (nome do salão + link + horários) para o bot de um parceiro */
+async function maybeSendAutoReply(tenantId: string, sock: any, remoteJid: string, clientKey: string): Promise<boolean> {
+  const cooldownKey = `${tenantId}:${clientKey}`;
+  const lastSent = autoReplyLastSent.get(cooldownKey);
+  if (lastSent && Date.now() - lastSent < AUTO_REPLY_COOLDOWN_MS) return false;
+
+  try {
+    const config = await (prisma as any).wppBotConfig.findUnique({ where: { tenantId } });
+    if (!config?.botEnabled || !config?.menuEnabled) return false;
+
+    const tenant = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true, slug: true } });
+    if (!tenant) return false;
+
+    const tpl = await (prisma as any).wppMessageTemplate.findUnique({
+      where: { tenantId_type: { tenantId, type: "auto_reply" } },
+    });
+    const body = (tpl?.isActive && tpl?.body) ? tpl.body : AUTO_REPLY_DEFAULT_TEMPLATE;
+
+    const vars: Record<string, string> = {
+      saudacao: saudacao(),
+      nome_estabelecimento: tenant.name || "",
+      link_agendamento: tenant.slug ? `https://agendelle.com.br/${tenant.slug}` : "https://agendelle.com.br",
+      horario_funcionamento: await getHorarioFuncionamentoText(),
+    };
+
+    await send(sock, remoteJid, applyAutoReplyVars(body, vars));
+    autoReplyLastSent.set(cooldownKey, Date.now());
+    return true;
+  } catch (e) {
+    console.warn(`[WPP][${tenantId}] maybeSendAutoReply error:`, e);
+    return false;
+  }
+}
+
 async function qrToDataUrl(q: string): Promise<string | null> {
   try { const QR = await import("qrcode"); return await QR.default.toDataURL(q, { width: 300, margin: 2 }); }
   catch { return null; }
@@ -1374,7 +1438,12 @@ export async function initSession(tenantId: string): Promise<void> {
       const senderJids = enrichJidsFromCache(getMessageSenderJids(msg, remoteJid));
       const clientKey = pickBestClientKey(senderJids, remoteJid);
       const pushName: string = msg.pushName || clientKey;
-      if (tenantId !== "system") continue; // Bot do usuário: apenas envia automáticos, não processa mensagens recebidas
+      if (tenantId !== "system") {
+        // Bot de parceiro: não processa fluxo de fila/atendimento, só a resposta automática (se ativada)
+        try { await maybeSendAutoReply(tenantId, sock, remoteJid, clientKey); }
+        catch (e) { console.warn(`[WPP][${tenantId}] Erro auto-reply:`, e); }
+        continue;
+      }
       console.log(`[Bot] ${clientKey} (${pushName}) jids=[${senderJids.join(",")}]: ${text}`);
       try {
         const handled = await handleAttendant(tenantId, sock, senderJids, remoteJid, pushName, text);

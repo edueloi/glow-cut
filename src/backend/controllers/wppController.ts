@@ -26,6 +26,8 @@ export const DEFAULT_TEMPLATES = [
   { type: "prof_new_booking",    name: "Novo Agendamento Online (Profissional)", body: "{{saudacao}}, *{{profissional}}*! 🚀\n\nVocê acaba de receber um *novo agendamento online*!\n\n👤 *Cliente:* {{nome_cliente}}\n✂️ *Serviço:* {{servico}} {{tipo_servico}}\n💰 *Valor:* {{valor_agendamento}}\n📅 *Data:* {{data_agendamento}}\n⏰ *Horário:* {{hora_agendamento}}{{recorrencia}}\n\n✅ *Confirme o agendamento no painel do sistema para que o cliente receba a notificação de confirmação.*\n\n🔗 Acesse: {{link_painel}}\n\nBora pra cima! 💪" },
   { type: "prof_reminder_24h",   name: "Lembrete 24h Antes (Profissional)",     body: "{{saudacao}}, *{{profissional}}*! 📅\n\nLembrete de agendamento para **amanhã**:\n\n👤 *Cliente:* {{nome_cliente}}\n✂️ *Serviço:* {{servico}}\n⏰ *Horário:* {{hora_agendamento}}\n\nBom descanso e bom trabalho amanhã!" },
   { type: "prof_reminder_60min", name: "Lembrete 60min Antes (Profissional)",   body: "{{saudacao}}, *{{profissional}}*! ⏰\n\nAtenção: Seu próximo cliente chega em **1 hora**.\n\n👤 *Cliente:* {{nome_cliente}}\n✂️ *Serviço:* {{servico}}\n⏰ *Horário:* {{hora_agendamento}}\n\nPrepare-se!" },
+  // Resposta automática
+  { type: "auto_reply", name: "Resposta Automática (Primeira Mensagem)", body: "{{saudacao}}! 👋\n\nVocê está falando com *{{nome_estabelecimento}}*.\n\nSe quiser fazer um agendamento, é só acessar o link abaixo e escolher o melhor dia e horário para você:\n🔗 {{link_agendamento}}\n\n🕐 *Nosso horário de funcionamento:*\n{{horario_funcionamento}}\n\nQualquer dúvida, é só chamar por aqui!" },
 ];
 
 // ── Helpers internos ──────────────────────────────────────────────────────────
@@ -152,6 +154,7 @@ export async function getTemplateBody(tenantId: string, type: string): Promise<s
     return defaultTpl?.body || null;
   }
 }
+
 
 export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Promise<void> {
   const appt = Array.isArray(appts) ? appts[0] : appts;
