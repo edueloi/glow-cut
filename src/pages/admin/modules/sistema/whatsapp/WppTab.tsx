@@ -112,6 +112,9 @@ export function WppTab() {
   const [testLoading, setTestLoading] = useState(false);
   const [showTestModal, setShowTestModal] = useState(false);
 
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [disconnectLoading, setDisconnectLoading] = useState(false);
+
   // ── Polling QR ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -204,12 +207,14 @@ export function WppTab() {
   }
 
   async function handleDisconnect() {
-    if (!confirm("Deseja desconectar o WhatsApp?")) return;
+    setDisconnectLoading(true);
     try {
       await apiFetch("/api/wpp/disconnect", { method: "POST" });
       setInstance(prev => prev ? { ...prev, status: "disconnected", isActive: false, qrCode: undefined } : prev);
       toast.success("WhatsApp desconectado.");
+      setShowDisconnectModal(false);
     } catch { toast.error("Erro ao desconectar."); }
+    setDisconnectLoading(false);
   }
 
   async function handleSaveTemplate() {
@@ -348,7 +353,7 @@ export function WppTab() {
             action={
               isConnected ? (
                 <button
-                  onClick={handleDisconnect}
+                  onClick={() => setShowDisconnectModal(true)}
                   className="text-[11px] font-black text-rose-500 uppercase tracking-widest hover:underline"
                 >
                   Desconectar
@@ -531,6 +536,34 @@ export function WppTab() {
           </PanelCard>
         )}
       </div>
+
+      {/* Modal: Confirmar Desconexão */}
+      <Modal
+        isOpen={showDisconnectModal}
+        onClose={() => setShowDisconnectModal(false)}
+        title="Desconectar WhatsApp"
+        size="sm"
+        mobileStyle="bottom-sheet"
+        footer={
+          <ModalFooter>
+            <Button variant="outline" size="sm" onClick={() => setShowDisconnectModal(false)}>
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              loading={disconnectLoading}
+              onClick={handleDisconnect}
+              className="bg-rose-500 hover:bg-rose-600 text-white"
+            >
+              Desconectar
+            </Button>
+          </ModalFooter>
+        }
+      >
+        <p className="text-sm text-zinc-500 leading-relaxed">
+          Tem certeza que deseja desconectar o WhatsApp? Suas automações e lembretes deixarão de ser enviados pelo seu número até que você conecte novamente.
+        </p>
+      </Modal>
 
       {/* Modal: Editar Template */}
       <Modal
