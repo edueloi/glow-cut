@@ -1405,7 +1405,9 @@ export async function initSession(tenantId: string): Promise<void> {
       console.log(`[Baileys][${tenantId}] Conectado como ${session.phone}`);
     }
     if (connection === "close") {
-      const loggedOut = (lastDisconnect?.error as any)?.output?.statusCode === DisconnectReason.loggedOut;
+      const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
+      const loggedOut = statusCode === DisconnectReason.loggedOut;
+      console.warn(`[Baileys][${tenantId}] connection close: statusCode=${statusCode} message=${(lastDisconnect?.error as any)?.message}`);
       session.status = "disconnected"; session.qrDataUrl = null; session.phone = null;
       await updateDb(tenantId, "disconnected", null, null); broadcast(tenantId);
       if (loggedOut) { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} sessions.delete(tenantId); }
