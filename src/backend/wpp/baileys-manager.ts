@@ -194,6 +194,33 @@ setInterval(() => cleanInactive(), 5 * 60 * 1000);
 const sessions = new Map<string, ActiveSession>();
 const SESSIONS_DIR = path.join(process.cwd(), "wpp-sessions");
 
+// ── Circuit breaker de reconexão ──────────────────────────────────────────────
+// Evita loop de reconexão acelerada quando uma sessão fica presa em erro (ex.: statusCode
+// não identificado pelo Baileys). Backoff exponencial com teto, resetado ao conectar com sucesso.
+interface ReconnectState { failures: number; timer: NodeJS.Timeout | null }
+const reconnectState = new Map<string, ReconnectState>();
+const RECONNECT_BASE_MS = 5_000;
+const RECONNECT_MAX_MS = 5 * 60_000;
+const RECONNECT_MAX_FAILURES_LOG = 5;
+
+function scheduleReconnect(tenantId: string) {
+  const st = reconnectState.get(tenantId) ?? { failures: 0, timer: null };
+  if (st.timer) clearTimeout(st.timer);
+  st.failures += 1;
+  const delay = Math.min(RECONNECT_BASE_MS * 2 ** (st.failures - 1), RECONNECT_MAX_MS);
+  if (st.failures >= RECONNECT_MAX_FAILURES_LOG) {
+    console.warn(`[Baileys][${tenantId}] ${st.failures} falhas de conexão consecutivas. Próxima tentativa em ${Math.round(delay / 1000)}s.`);
+  }
+  st.timer = setTimeout(() => initSession(tenantId), delay);
+  reconnectState.set(tenantId, st);
+}
+
+function resetReconnectState(tenantId: string) {
+  const st = reconnectState.get(tenantId);
+  if (st?.timer) clearTimeout(st.timer);
+  reconnectState.delete(tenantId);
+}
+
 // ── Helpers JID ───────────────────────────────────────────────────────────────
 
 function jidToPhone(jid: string): string {
@@ -1372,6 +1399,9 @@ export async function initSession(tenantId: string): Promise<void> {
   const existing = sessions.get(tenantId);
   // Verifica se o socket está realmente vivo antes de retornar (evita zombie sessions)
   if (existing && existing.status === "connected" && existing.sock?.ws?.readyState === 1) return;
+  // Cancela qualquer reconexão automática pendente para não correr concorrente com esta chamada
+  const pendingReconnect = reconnectState.get(tenantId);
+  if (pendingReconnect?.timer) clearTimeout(pendingReconnect.timer);
   if (existing?.sock) { try { existing.sock.end(); } catch {} sessions.delete(tenantId); }
 
   let makeWASocket: any, useMultiFileAuthState: any, DisconnectReason: any;
@@ -1400,18 +1430,20 @@ export async function initSession(tenantId: string): Promise<void> {
     const { connection, lastDisconnect, qr } = update;
     if (qr) { session.qrRaw = qr; session.status = "qr_pending"; session.qrDataUrl = await qrToDataUrl(qr); await updateDb(tenantId, "qr_pending", null, session.qrDataUrl); broadcast(tenantId); }
     if (connection === "open") {
+      resetReconnectState(tenantId);
       session.status = "connected"; session.phone = jidToPhone(sock.user?.id || ""); session.qrDataUrl = null; session.qrRaw = null;
       await updateDb(tenantId, "connected", session.phone, null); broadcast(tenantId);
       console.log(`[Baileys][${tenantId}] Conectado como ${session.phone}`);
     }
     if (connection === "close") {
-      const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
+      const err = lastDisconnect?.error as any;
+      const statusCode = err?.output?.statusCode ?? err?.data?.attrs?.code ?? err?.data?.statusCode;
       const loggedOut = statusCode === DisconnectReason.loggedOut;
-      console.warn(`[Baileys][${tenantId}] connection close: statusCode=${statusCode} message=${(lastDisconnect?.error as any)?.message}`);
+      console.warn(`[Baileys][${tenantId}] connection close: statusCode=${statusCode} message=${err?.message} raw=${err ? JSON.stringify({ name: err.name, isBoom: err.isBoom }) : "none"}`);
       session.status = "disconnected"; session.qrDataUrl = null; session.phone = null;
       await updateDb(tenantId, "disconnected", null, null); broadcast(tenantId);
-      if (loggedOut) { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} sessions.delete(tenantId); }
-      else setTimeout(() => initSession(tenantId), 5000);
+      if (loggedOut) { resetReconnectState(tenantId); try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} sessions.delete(tenantId); }
+      else scheduleReconnect(tenantId);
     }
   });
 
