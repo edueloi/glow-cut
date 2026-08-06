@@ -53,6 +53,7 @@ interface AdminDashboardShellProps {
   onLogout: () => void;
   onSubModuleChange: (key: string) => void;
   pendingConfirmationsCount?: number;
+  pendingSubscriptionsCount?: number;
   pendingAppointments?: any[];
   professionals?: any[];
   onConfirmAppointment?: (id: string) => void;
@@ -79,6 +80,7 @@ export function AdminDashboardShell({
   onLogout,
   onSubModuleChange,
   pendingConfirmationsCount = 0,
+  pendingSubscriptionsCount = 0,
   pendingAppointments = [],
   professionals = [],
   onConfirmAppointment,
@@ -221,6 +223,7 @@ export function AdminDashboardShell({
                     }}
                     permitted={permitted}
                     id={`nav-${item.tab}`}
+                    badgeCount={item.tab === "planos" ? pendingSubscriptionsCount : 0}
                   />
                 );
               })}

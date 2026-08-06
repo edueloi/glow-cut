@@ -174,6 +174,30 @@ export default function AdminDashboard() {
     }
   };
 
+  // Assinaturas pendentes de confirmação de pagamento (polling para refletir novas solicitações do portal)
+  const [pendingSubscriptionsCount, setPendingSubscriptionsCount] = useState(0);
+  const prevPendingSubsRef = useRef(0);
+  useEffect(() => {
+    let cancelled = false;
+    const checkPending = () => {
+      apiFetch("/api/memberships/stats")
+        .then(res => res.json())
+        .then(d => {
+          if (cancelled) return;
+          const pending = Number(d?.totals?.pending ?? 0);
+          if (pending > prevPendingSubsRef.current) {
+            toast.warning(`Nova assinatura pendente de pagamento (${pending} no total).`);
+          }
+          prevPendingSubsRef.current = pending;
+          setPendingSubscriptionsCount(pending);
+        })
+        .catch(() => {});
+    };
+    checkPending();
+    const interval = setInterval(checkPending, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
   // Sub-aba de profissionais
   const [profSubTab, setProfSubTab] = useState<"lista" | "permissoes">(() => {
     return location.pathname.includes('permissoes') ? 'permissoes' : 'lista';
@@ -460,10 +484,13 @@ export default function AdminDashboard() {
     if (todayAppts.length > 0) {
       result.push({ id: "appt-today", type: "success", title: "Agendamentos hoje", message: `${todayAppts.length} agendamento${todayAppts.length > 1 ? "s" : ""} para hoje.` });
     }
+    if (pendingSubscriptionsCount > 0) {
+      result.push({ id: "sub-pending", type: "warning", title: "Assinaturas pendentes", message: `${pendingSubscriptionsCount} assinatura${pendingSubscriptionsCount > 1 ? "s" : ""} aguardando confirmação de pagamento.` });
+    }
     outOfStock.forEach(p => result.push({ id: `stock-zero-${p.id}`, type: "error", title: "Estoque zerado", message: `"${p.name}" está sem estoque.` }));
     lowStock.forEach(p => result.push({ id: `stock-low-${p.id}`, type: "warning", title: "Estoque baixo", message: `"${p.name}" está quase acabando (${p.stock} ${p.unit || "un"}).` }));
     return result;
-  }, [appointments, products]);
+  }, [appointments, products, pendingSubscriptionsCount]);
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
@@ -1533,6 +1560,7 @@ export default function AdminDashboard() {
         onLogout={logout}
         onSubModuleChange={handleSubModuleChange}
         pendingConfirmationsCount={pendingConfirmationsCount}
+        pendingSubscriptionsCount={pendingSubscriptionsCount}
         pendingAppointments={pendingAppointments}
         professionals={professionals}
         onConfirmAppointment={async (id: string) => {

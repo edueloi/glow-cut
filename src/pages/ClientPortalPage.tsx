@@ -489,14 +489,14 @@ function PortalDashboard({ slug, tenantInfo, onLogout }: { slug: string; tenantI
   const plans: any[] = tenantInfo?.plans || [];
   const color = tenant?.themeColor || "#f59e0b";
 
-  const loadProfile = useCallback(async () => {
-    setLoading(true);
+  const loadProfile = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const r = await portalFetch(slug, "/me");
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       setProfile(d);
-    } catch { onLogout(); } finally { setLoading(false); }
+    } catch { if (!silent) onLogout(); } finally { if (!silent) setLoading(false); }
   }, [slug]);
 
   const loadTab = useCallback(async (t: string) => {
@@ -518,6 +518,14 @@ function PortalDashboard({ slug, tenantInfo, onLogout }: { slug: string; tenantI
     if (tab === "agenda") loadTab("agenda");
     if (tab === "pagamentos") loadTab("pagamentos");
   }, [tab, loadTab]);
+
+  // Enquanto houver assinatura pendente, verifica periodicamente se o salão já confirmou o pagamento
+  const hasPendingSub = (profile?.subscriptions || []).some((s: any) => s.status === "pending");
+  useEffect(() => {
+    if (!hasPendingSub) return;
+    const interval = setInterval(() => { loadProfile(true); }, 8000);
+    return () => clearInterval(interval);
+  }, [hasPendingSub, loadProfile]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-zinc-50"><Spinner color={color} /></div>;
   if (!profile) return null;

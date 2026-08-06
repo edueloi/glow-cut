@@ -17,6 +17,8 @@ interface NavItemProps {
   /** Se false, o item aparece desabilitado com cadeado */
   permitted?: boolean;
   id?: string;
+  /** Contador exibido como bolinha no item (ex: pendências) */
+  badgeCount?: number;
 }
 
 export function NavItem({
@@ -30,6 +32,7 @@ export function NavItem({
   onSubItemClick,
   permitted = true,
   id,
+  badgeCount = 0,
 }: NavItemProps) {
   const [expanded, setExpanded] = useState(active && !!subItems?.length);
 
@@ -71,10 +74,23 @@ export function NavItem({
             : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200"
         )}
       >
-        <span className={cn("shrink-0 transition-colors", active ? "text-white" : "text-zinc-400 group-hover:text-zinc-700")}>
+        <span className={cn("relative shrink-0 transition-colors", active ? "text-white" : "text-zinc-400 group-hover:text-zinc-700")}>
           <Icon size={18} />
+          {badgeCount > 0 && collapsed && (
+            <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white ring-2 ring-white">
+              {badgeCount > 9 ? "9+" : badgeCount}
+            </span>
+          )}
         </span>
         {!collapsed && <span className="text-xs font-bold truncate flex-1">{label}</span>}
+        {!collapsed && badgeCount > 0 && (
+          <span className={cn(
+            "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-black min-w-[18px] text-center",
+            active ? "bg-white text-amber-600" : "bg-red-500 text-white"
+          )}>
+            {badgeCount > 99 ? "99+" : badgeCount}
+          </span>
+        )}
         {!collapsed && hasSubItems && (
           <motion.span
             animate={{ rotate: expanded ? 180 : 0 }}
