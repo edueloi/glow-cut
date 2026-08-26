@@ -93,7 +93,7 @@ authRouter.post("/login", async (req: Request, res: Response) => {
       try {
         const plan = admin.tenant.plan;
         if (plan?.stripePriceId) {
-          const appUrl = process.env.APP_URL || "https://agendelle.com.br";
+          const appUrl = process.env.APP_URL || "https://app.agendelle.com.br";
           const session = await stripe.checkout.sessions.create({
             mode: "subscription",
             line_items: [{ price: plan.stripePriceId, quantity: 1 }],
@@ -326,7 +326,7 @@ authRouter.post("/register-tenant", async (req, res) => {
     let checkoutUrl: string | null = null;
     try {
       if (plan.stripePriceId) {
-        const appUrl = process.env.APP_URL || "https://agendelle.com.br";
+        const appUrl = process.env.APP_URL || "https://app.agendelle.com.br";
         const sessionParams: any = {
           mode: "subscription",
           line_items: [{ price: plan.stripePriceId, quantity: 1 }],
@@ -740,7 +740,7 @@ authRouter.post("/create-checkout", async (req: Request, res: Response) => {
       }
     }
 
-    const appUrl = process.env.APP_URL || "https://agendelle.com.br";
+    const appUrl = process.env.APP_URL || "https://app.agendelle.com.br";
 
     const sessionParams: any = {
       mode: "subscription",

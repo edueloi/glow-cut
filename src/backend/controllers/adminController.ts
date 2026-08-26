@@ -513,7 +513,7 @@ export const adminController = {
 
       const Stripe = require("stripe");
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2026-04-22.dahlia" });
-      const appUrl = process.env.APP_URL || "https://agendelle.com.br";
+      const appUrl = process.env.APP_URL || "https://app.agendelle.com.br";
 
       const session = await stripe.billingPortal.sessions.create({
         customer: tenant.stripeCustomerId,

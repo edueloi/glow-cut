@@ -49,7 +49,18 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+const CORS_ALLOWLIST = [
+  "https://agendelle.com.br",
+  "https://www.agendelle.com.br",
+  "https://app.agendelle.com.br",
+  "http://localhost:5173",
+];
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || CORS_ALLOWLIST.includes(origin)) return callback(null, true);
+    callback(new Error("Not allowed by CORS"));
+  },
+}));
 
 // Webhook do Stripe — DEVE vir antes do express.json() (precisa do body raw)
 app.use("/api", stripeWebhookRouter);
@@ -662,13 +673,19 @@ function renderPostTeasers(posts: any[]): string {
 // ─────────────────────────────────────────────────────────────
 //  START SERVER
 // ─────────────────────────────────────────────────────────────
+// app.agendelle.com.br é o sistema logado — sitemap/robots/SEO só fazem sentido no domínio público.
+function isAppRequest(req: { hostname?: string }): boolean {
+  return req.hostname === "app.agendelle.com.br";
+}
+
 async function startServer() {
   if (process.env.NODE_ENV === "production") {
     console.log(" [Server] Iniciando em MODO PRODUÇÃO com SEO Ativo");
     const distPath = path.join(process.cwd(), "dist");
 
     // ── SEO: Sitemap.xml ──────────────────────────────────────────────────
-    app.get("/sitemap.xml", async (req, res) => {
+    app.get("/sitemap.xml", async (req, res, next) => {
+      if (isAppRequest(req)) return next();
       try {
         const posts = await (prisma as any).blogPost.findMany({ where: { status: "published" }, select: { slug: true, updatedAt: true } });
         const tenants = await (prisma as any).tenant.findMany({ where: { isActive: true }, select: { slug: true } });
@@ -691,12 +708,14 @@ async function startServer() {
     });
 
     // ── SEO: Robots.txt ───────────────────────────────────────────────────
-    app.get("/robots.txt", (req, res) => {
+    app.get("/robots.txt", (req, res, next) => {
+      if (isAppRequest(req)) return next();
       res.type("text/plain");
       res.send("User-agent: *\nAllow: /\nUser-agent: facebookexternalhit\nAllow: /\nUser-agent: Facebot\nAllow: /\n\nSitemap: https://agendelle.com.br/sitemap.xml");
     });
 
-    app.get("/agendar/:slug/manifest.json", async (req, res) => {
+    app.get("/agendar/:slug/manifest.json", async (req, res, next) => {
+      if (isAppRequest(req)) return next();
       const { slug } = req.params;
       try {
         const tenant = await (prisma as any).tenant.findFirst({ where: { slug, isActive: true } });
@@ -713,6 +732,7 @@ async function startServer() {
     // ── INTERCEPTADOR DE PÁGINAS (SEO) ────────────────────────────────────
     // Esta rota deve vir ANTES do express.static para não entregar o index.html puro
     app.get(["/", "/blog", "/blog/", "/blog/*", "/p/*", "/agendar", "/agendar/", "/agendar/*"], async (req, res, next) => {
+      if (isAppRequest(req)) return next();
       try {
         const url = req.path;
         const indexPath = path.join(distPath, "index.html");
@@ -1130,102 +1150,6 @@ async function startServer() {
         console.error("[SEO] Erro ao montar SEO:", err);
         next(err);
       }
-    });
-
-    // SEO route inserted above keeps this legacy handler as fallback.
-    app.get(["/", "/blog*", "/p/*", "/agendar*"], async (req, res, next) => {
-      const url = req.path;
-      const indexPath = path.join(distPath, "index.html");
-      
-      if (!fs.existsSync(indexPath)) return next();
-
-      console.log(`[SEO] Processando meta-tags para: ${url}`);
-      let html = fs.readFileSync(indexPath, "utf-8");
-
-      let title = "Agendelle | A sua Agenda Inteligente para Salões e Barbearias";
-      let description = "Agendelle é a agenda inteligente que une organização com elegância. O sistema perfeito de agendamento online para salões, barbearias e negócios de beleza.";
-      let keywords = "agenda inteligente, agendamento online, sistema para salão de beleza, barbearia, gestão de estética, agendelle";
-      let ogImage = `${SITE_URL}/og-default.jpg`;
-      const canonical = `https://agendelle.com.br${url}`;
-
-      // ── SEO Dinâmico para Posts do Blog ───────────────────────────────────
-      const blogMatch = url.match(/^\/blog\/([^/]+)\/?$/);
-      const agendarMatch = url.match(/^\/agendar\/([^/]+)\/?$/);
-      const profMatch = url.match(/^\/p\/([^/]+)\/?$/);
-
-      if (blogMatch) {
-        const slug = blogMatch[1];
-        try {
-          const post = await (prisma as any).blogPost.findUnique({ 
-            where: { slug, status: "published" },
-            select: { title: true, excerpt: true, coverImage: true, seoTitle: true, seoDescription: true, seoKeywords: true }
-          });
-          if (post) {
-            title = post.seoTitle || post.title + " | Blog Agendelle";
-            description = (post.seoDescription || post.excerpt || "Leia mais no blog da Agendelle.").replace(/"/g, '&quot;');
-            if (post.coverImage) ogImage = post.coverImage.startsWith("http") ? post.coverImage : `https://agendelle.com.br${post.coverImage}`;
-            if (post.seoKeywords) keywords = post.seoKeywords;
-          }
-        } catch (err) { console.error("[SEO] Erro ao buscar post:", err); }
-      } 
-      else if (agendarMatch || profMatch) {
-        const slug = (agendarMatch || profMatch)![1];
-        try {
-          const tenant = await (prisma as any).tenant.findFirst({ where: { slug, isActive: true } });
-          if (tenant) {
-            title = `${tenant.name} | Agendamento Online`;
-            description = `Agende seu horário em ${tenant.name}. Profissionalismo e facilidade para você.`;
-            if (tenant.logoUrl) ogImage = tenant.logoUrl.startsWith("http") ? tenant.logoUrl : `https://agendelle.com.br${tenant.logoUrl}`;
-            keywords = `agendamento, ${tenant.name}, salão, barbearia, agendelle`;
-          }
-        } catch (err) { console.error("[SEO] Erro ao buscar parceiro:", err); }
-      }
-      else if (url === "/blog" || url === "/blog/") {
-        title = "Blog Agendelle | Dicas e Tendências para Beleza";
-        description = "Acompanhe as melhores dicas de gestão, tendências e tecnologia para o seu salão ou barbearia no blog oficial da Agendelle.";
-        keywords = "blog beleza, gestão salão, dicas barbearia, agendelle blog";
-      }
-
-      const seoTags = `
-    <title>${title}</title>
-    <meta name="description" content="${description}">
-    <meta name="keywords" content="${keywords}">
-    <meta name="google-site-verification" content="4WE47kn3xYj8tvKqcZi4f4rnxN7nnlPF9CPrhd-tCdE" />
-    <link rel="canonical" href="${canonical}" />
-    <link rel="icon" type="image/png" href="https://agendelle.com.br/favicon.png" />
-    <link rel="apple-touch-icon" href="https://agendelle.com.br/favicon.png" />
-    <meta property="og:type" content="article">
-    <meta property="og:url" content="${canonical}">
-    <meta property="og:title" content="${title}">
-    <meta property="og:description" content="${description}">
-    <meta property="og:image" content="${ogImage}">
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:title" content="${title}">
-    <meta property="twitter:description" content="${description}">
-    <meta property="twitter:image" content="${ogImage}">
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Agendelle",
-      "url": "https://agendelle.com.br",
-      "logo": "https://agendelle.com.br/favicon.png",
-      "description": "${description}"
-    }
-    </script>
-      `;
-
-      html = html
-        .replace(/<title>[\s\S]*?<\/title>/i, "")
-        .replace(/<meta\s+name=["']description["'][^>]*>/gi, "")
-        .replace(/<meta\s+name=["']robots["'][^>]*>/gi, "")
-        .replace(/<meta\s+property=["']og:[^"']*["'][^>]*>/gi, "")
-        .replace(/<meta\s+name=["']twitter:[^"']*["'][^>]*>/gi, "")
-        .replace(/<meta\s+property=["']twitter:[^"']*["'][^>]*>/gi, "")
-        .replace(/<link\s+rel=["']canonical["'][^>]*>/gi, "")
-        .replace(/<script\s+type=["']application\/ld\+json["']>[\s\S]*?<\/script>/gi, "")
-        .replace("</head>", `${seoTags}</head>`);
-      res.send(html);
     });
 
     // Servir arquivos estáticos (JS, CSS, Imagens) DEPOIS do interceptador de SEO

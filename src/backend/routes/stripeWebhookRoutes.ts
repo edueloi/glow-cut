@@ -167,7 +167,7 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 
   // Gera novo link de checkout para o mesmo plano
   const planId = session.metadata?.planId;
-  let checkoutUrl = process.env.APP_URL || "https://agendelle.com.br";
+  let checkoutUrl = process.env.APP_URL || "https://app.agendelle.com.br";
 
   if (planId) {
     try {

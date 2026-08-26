@@ -3,6 +3,7 @@ import { Globe, Copy, ExternalLink, Image as ImageIcon, Link as LinkIcon, X, Map
 import { Button, PanelCard, Input, Textarea, Badge, SectionTitle, FormRow, Divider, PageWrapper } from "@/src/components/ui";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
+import { PUBLIC_HOST } from "@/src/lib/domains";
 import { useToast } from "@/src/components/ui";
 
 interface MinhaAgendaTabProps {
@@ -366,19 +367,18 @@ export function MinhaAgendaTab({
   };
   const activeSlug = localSlug || "seu-estudio";
   
-  // URL dinâmica baseada no ambiente atual (localhost ou produção)
-  const currentHost = typeof window !== 'undefined' ? window.location.host : 'glow-cut.com.br';
+  // Link de agendamento sempre aponta pro domínio público, mesmo quando o dashboard
+  // (que roda em app.agendelle.com.br) é quem está gerando o link.
+  const currentHost = PUBLIC_HOST;
   const link = `${currentHost}/agendar/${activeSlug}`;
 
   const handleCopyLink = () => {
-    const protocol = window.location.protocol;
-    navigator.clipboard.writeText(`${protocol}//${link}`);
+    navigator.clipboard.writeText(`https://${link}`);
     show("Link copiado para a área de transferência!", "success");
   };
 
   const handleOpenLink = () => {
-    const protocol = window.location.protocol;
-    window.open(`${protocol}//${link}`, '_blank');
+    window.open(`https://${link}`, '_blank');
   };
 
   return (

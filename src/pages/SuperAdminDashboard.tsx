@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/src/App";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
+import { PUBLIC_SITE_URL } from "@/src/lib/domains";
 import {
   Badge,
   StatCard,
@@ -1724,7 +1725,7 @@ function SalesTab({ user, plans }: { user: any, plans: any[] }) {
 
   if (loading || !stats) return <div className="p-8 text-center text-sm text-zinc-400">Carregando...</div>;
 
-  const salesLink = user ? `${window.location.origin}/assinar?ref=${user.id}` : "";
+  const salesLink = user ? `${PUBLIC_SITE_URL}/assinar?ref=${user.id}` : "";
 
   return (
     <div className="space-y-6">
@@ -6248,7 +6249,7 @@ function FreeTrialInvitesTab({ plans = [], userId = "" }: { plans?: any[]; userI
     }
   }, [plans]);
 
-  const appUrl = typeof window !== "undefined" ? window.location.origin : "https://agendelle.com.br";
+  const appUrl = PUBLIC_SITE_URL;
 
   const load = useCallback(async () => {
     setLoadingList(true);

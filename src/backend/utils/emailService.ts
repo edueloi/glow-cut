@@ -22,7 +22,8 @@ transporter.sendMail = async (opts: any) => {
 
 const FROM = '"Agendelle" <contato@agendelle.com.br>';
 const ADMIN_EMAIL = "contato@agendelle.com.br";
-const APP_URL = process.env.APP_URL || "https://agendelle.com.br";
+const APP_URL = process.env.APP_URL || "https://app.agendelle.com.br";
+const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL || "https://agendelle.com.br";
 
 // ─── Template base HTML ──────────────────────────────────────────────────────
 function emailWrapper(content: string): string {
@@ -55,7 +56,7 @@ function emailWrapper(content: string): string {
                 <td style="text-align:center;">
                   <p style="margin:0 0 8px;color:#999;font-size:11px;">© ${new Date().getFullYear()} Agendelle — Todos os direitos reservados</p>
                   <p style="margin:0;color:#bbb;font-size:10px;">
-                    <a href="${APP_URL}" style="color:#c9a96e;text-decoration:none;">agendelle.com.br</a>
+                    <a href="${PUBLIC_SITE_URL}" style="color:#c9a96e;text-decoration:none;">agendelle.com.br</a>
                   </p>
                 </td>
               </tr>
@@ -222,7 +223,7 @@ export async function sendWelcomeEmail(opts: {
   tenantSlug: string;
 }) {
   const loginUrl = `${APP_URL}/login`;
-  const agendaUrl = `${APP_URL}/${opts.tenantSlug}`;
+  const agendaUrl = `${PUBLIC_SITE_URL}/${opts.tenantSlug}`;
 
   const content = `
     <h1 style="color:#1a1a1a;font-size:24px;font-weight:800;margin:0 0 8px;">Tudo pronto, ${opts.toName}! 🎊</h1>

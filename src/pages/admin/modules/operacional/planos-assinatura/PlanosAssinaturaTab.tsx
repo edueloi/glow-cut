@@ -13,6 +13,7 @@ import {
 } from "@/src/components/ui";
 import type { Column } from "@/src/components/ui/GridTable";
 import { apiFetch } from "@/src/lib/api";
+import { PUBLIC_SITE_URL } from "@/src/lib/domains";
 import { useAuth } from "@/src/App";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -687,7 +688,7 @@ function PlanCard({
 export default function PlanosAssinaturaTab() {
   const { user } = useAuth();
   const toast = useToast();
-  const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const appUrl = PUBLIC_SITE_URL;
 
   const [view, setView] = useState<"plans" | "subscriptions">("plans");
   const [plans, setPlans] = useState<MembershipPlan[]>([]);

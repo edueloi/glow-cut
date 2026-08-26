@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 import { PermissionsProvider } from "@/src/contexts/PermissionsContext";
 import { type PermissionSet } from "@/src/lib/permissions";
 import { saveToken, getToken, removeToken, isTokenExpired } from "@/src/lib/api";
+import { PUBLIC_SITE_URL, APP_SITE_URL, isAppHost } from "@/src/lib/domains";
 import ClientBooking from "./pages/ClientBooking";
 import PATQueue from "./pages/PATQueue";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -549,19 +550,45 @@ function AdminWithPermissions() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Redireciona pro outro domínio quando a rota atual não pertence a este host
+// (agendelle.com.br = site público / app.agendelle.com.br = sistema logado)
+// ─────────────────────────────────────────────────────────────────────────────
+function RedirectToHost({ baseUrl }: { baseUrl: string }) {
+  useEffect(() => {
+    window.location.href = `${baseUrl}${window.location.pathname}${window.location.search}`;
+  }, [baseUrl]);
+  return <LoadingScreen />;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Redireciona "/" para o painel correto conforme tipo de usuário
 // ─────────────────────────────────────────────────────────────────────────────
 function HomeRedirect() {
   const { user, loading } = useAuth();
-  if (loading) return <LoadingScreen />;
-  if (!user) return <LandingPage />;
-  if (user.type === "superadmin") return <Navigate to="/super-admin" replace />;
-  if (user.type === "professional") return <Navigate to="/pro" replace />;
-  
-  // Para admins, verifica onboarding
-  if ((user.onboardingStep || 0) < 3) return <Navigate to="/onboarding" replace />;
+  const onAppHost = isAppHost();
 
-  return <Navigate to="/admin" replace />;
+  const dashboardPath = user
+    ? user.type === "superadmin" ? "/super-admin" :
+      user.type === "professional" ? "/pro" :
+      (user.onboardingStep || 0) < 3 ? "/onboarding" : "/admin"
+    : null;
+
+  // Logado, mas no domínio público: manda pro dashboard no domínio do sistema.
+  const crossHostTarget = !onAppHost && dashboardPath ? `${APP_SITE_URL}${dashboardPath}` : null;
+  useEffect(() => {
+    if (crossHostTarget) window.location.href = crossHostTarget;
+  }, [crossHostTarget]);
+
+  if (loading) return <LoadingScreen />;
+
+  if (!user) {
+    // Sem login: no domínio do sistema manda pra tela de login; no domínio público mostra a landing.
+    if (onAppHost) return <Navigate to="/login" replace />;
+    return <LandingPage />;
+  }
+
+  if (onAppHost) return <Navigate to={dashboardPath!} replace />;
+  return <LoadingScreen />;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -582,67 +609,83 @@ function SuperAdminWrapper() {
 // App
 // ─────────────────────────────────────────────────────────────────────────────
 function App() {
+  // agendelle.com.br = site público (landing, blog, agendamento) / app.agendelle.com.br = sistema logado.
+  // Rota do host errado faz redirect de página inteira pro domínio certo (mantendo o path).
+  const onAppHost = isAppHost();
+  const toApp = <RedirectToHost baseUrl={APP_SITE_URL} />;
+  const toPublic = <RedirectToHost baseUrl={PUBLIC_SITE_URL} />;
+
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={onAppHost ? <LoginPage /> : toApp} />
           <Route path="/pro/login" element={<Navigate to="/login" replace />} />
 
-          <Route path="/onboarding" element={<RequireAdmin><OnboardingPage /></RequireAdmin>} />
+          <Route path="/onboarding" element={onAppHost ? <RequireAdmin><OnboardingPage /></RequireAdmin> : toApp} />
 
           <Route
             path="/pro"
             element={
-              <RequireProfessional>
-                <ProfessionalDashboard />
-              </RequireProfessional>
+              onAppHost ? (
+                <RequireProfessional>
+                  <ProfessionalDashboard />
+                </RequireProfessional>
+              ) : toApp
             }
           />
 
           <Route
             path="/admin"
             element={
-              <RequireAdmin>
-                <AdminWithPermissions />
-              </RequireAdmin>
+              onAppHost ? (
+                <RequireAdmin>
+                  <AdminWithPermissions />
+                </RequireAdmin>
+              ) : toApp
             }
           />
           <Route
             path="/admin/*"
             element={
-              <RequireAdmin>
-                <AdminWithPermissions />
-              </RequireAdmin>
+              onAppHost ? (
+                <RequireAdmin>
+                  <AdminWithPermissions />
+                </RequireAdmin>
+              ) : toApp
             }
           />
 
           <Route
             path="/super-admin/*"
             element={
-              <RequireSuperAdmin>
-                <SuperAdminWrapper />
-              </RequireSuperAdmin>
+              onAppHost ? (
+                <RequireSuperAdmin>
+                  <SuperAdminWrapper />
+                </RequireSuperAdmin>
+              ) : toApp
             }
           />
 
-          <Route path="/" element={<HomeRedirect />} />
-          <Route path="/blog" element={<BlogPage />} />
-          <Route path="/blog/:slug" element={<BlogPostPage />} />
-          <Route path="/pat/:professionalId" element={<PATQueue />} />
-          <Route path="/pat/general/:slug" element={<PATQueue />} />
-          <Route path="/:slug" element={<ProfessionalSite />} />
-          <Route path="/:slug/privacidade" element={<SiteLegalPage type="privacy" />} />
-          <Route path="/:slug/termos" element={<SiteLegalPage type="terms" />} />
-          <Route path="/:slug/agendar" element={<ClientBooking />} />
-          <Route path="/agendar/:slug" element={<ClientBooking />} />
-          <Route path="/portal/:slug" element={<ClientPortalPage />} />
-          <Route path="/assinar" element={<RegistrationPage />} />
-          <Route path="/comecar" element={<FreeTrialPage />} />
+          {/* /setup-account e /reset-password ficam nos dois hosts (links de e-mail com token) */}
           <Route path="/setup-account" element={<SetupAccountPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/termos" element={<PlatformLegalPage type="terms" />} />
-          <Route path="/privacidade" element={<PlatformLegalPage type="privacy" />} />
+
+          <Route path="/" element={<HomeRedirect />} />
+          <Route path="/blog" element={onAppHost ? toPublic : <BlogPage />} />
+          <Route path="/blog/:slug" element={onAppHost ? toPublic : <BlogPostPage />} />
+          <Route path="/pat/:professionalId" element={onAppHost ? toPublic : <PATQueue />} />
+          <Route path="/pat/general/:slug" element={onAppHost ? toPublic : <PATQueue />} />
+          <Route path="/:slug" element={onAppHost ? toPublic : <ProfessionalSite />} />
+          <Route path="/:slug/privacidade" element={onAppHost ? toPublic : <SiteLegalPage type="privacy" />} />
+          <Route path="/:slug/termos" element={onAppHost ? toPublic : <SiteLegalPage type="terms" />} />
+          <Route path="/:slug/agendar" element={onAppHost ? toPublic : <ClientBooking />} />
+          <Route path="/agendar/:slug" element={onAppHost ? toPublic : <ClientBooking />} />
+          <Route path="/portal/:slug" element={onAppHost ? toPublic : <ClientPortalPage />} />
+          <Route path="/assinar" element={onAppHost ? toPublic : <RegistrationPage />} />
+          <Route path="/comecar" element={onAppHost ? toPublic : <FreeTrialPage />} />
+          <Route path="/termos" element={onAppHost ? toPublic : <PlatformLegalPage type="terms" />} />
+          <Route path="/privacidade" element={onAppHost ? toPublic : <PlatformLegalPage type="privacy" />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

@@ -6,6 +6,7 @@ import {
 import { motion } from "motion/react";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
+import { PUBLIC_SITE_URL } from "@/src/lib/domains";
 import { Button } from "@/src/components/ui/Button";
 import { Badge } from "@/src/components/ui/Badge";
 import { Switch } from "@/src/components/ui/Switch";
@@ -319,14 +320,14 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
                     Acesse a fila de espera em um tablet ou celular:
                   </p>
                   <code className="block text-[11px] font-black text-zinc-700 bg-white border border-zinc-200 rounded-lg px-2.5 py-1.5 truncate">
-                    {window.location.origin}/pat/{selectedProf}
+                    {PUBLIC_SITE_URL}/pat/{selectedProf}
                   </code>
                 </div>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    const url = `${window.location.origin}/pat/${selectedProf}`;
+                    const url = `${PUBLIC_SITE_URL}/pat/${selectedProf}`;
                     window.open(url, "_blank", "noopener,noreferrer");
                   }}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-bold text-xs transition-all"
@@ -335,7 +336,7 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
                 </button>
                 <button
                   onClick={() => {
-                    const url = `${window.location.origin}/pat/${selectedProf}`;
+                    const url = `${PUBLIC_SITE_URL}/pat/${selectedProf}`;
                     navigator.clipboard.writeText(url).then(() => toast.success("Link copiado!"));
                   }}
                   className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-bold text-xs transition-all"
@@ -345,7 +346,7 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
                 {typeof navigator.share !== "undefined" && (
                   <button
                     onClick={() => {
-                      const url = `${window.location.origin}/pat/${selectedProf}`;
+                      const url = `${PUBLIC_SITE_URL}/pat/${selectedProf}`;
                       navigator.share({ title: "Fila de espera", url }).catch(() => {});
                     }}
                     className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl font-bold text-xs transition-all"

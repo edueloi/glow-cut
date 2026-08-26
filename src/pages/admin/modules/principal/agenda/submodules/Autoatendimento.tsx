@@ -9,6 +9,7 @@ import { Button } from "@/src/components/ui/Button";
 import { Switch } from "@/src/components/ui/Switch";
 import { useToast } from "@/src/components/ui/Toast";
 import { useAuth } from "@/src/App";
+import { PUBLIC_SITE_URL } from "@/src/lib/domains";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Autoatendimento — Portal de agendamento self-service para clientes
@@ -64,7 +65,7 @@ export function Autoatendimento({ professionals, services, onRefresh, onGoToMinh
   const { user } = useAuth();
   const tenantSlug = user?.tenantSlug || "";
   const portalUrl = tenantSlug ? `/agendar/${tenantSlug}` : null;
-  const portalFullUrl = tenantSlug ? `${window.location.origin}/agendar/${tenantSlug}` : null;
+  const portalFullUrl = tenantSlug ? `${PUBLIC_SITE_URL}/agendar/${tenantSlug}` : null;
 
   const [settings, setSettings] = useState<SelfServiceSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);

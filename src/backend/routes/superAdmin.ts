@@ -2178,7 +2178,7 @@ superAdminRouter.post("/free-trial-invites", async (req, res) => {
         expiresAt,
       },
     });
-    const appUrl = process.env.APP_URL || "https://agendelle.com.br";
+    const appUrl = process.env.APP_URL || "https://app.agendelle.com.br";
     res.json({ ...invite, url: `${appUrl}/comecar?token=${token}` });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

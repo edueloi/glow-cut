@@ -462,7 +462,7 @@ membershipRouter.post("/portal-invite", async (req: Request, res: Response) => {
       select: { slug: true, name: true }
     });
 
-    const appUrl = process.env.APP_URL || "https://agendelle.com.br";
+    const appUrl = process.env.APP_URL || "https://app.agendelle.com.br";
     const portalUrl = `${appUrl}/portal/${tenant?.slug}`;
 
     res.json({ portalUrl, tenantName: tenant?.name, clientEmail: client.email, clientName: client.name });
