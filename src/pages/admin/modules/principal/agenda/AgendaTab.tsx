@@ -809,7 +809,31 @@ function MinhaAgendaView({
                   const gridStartSlot = gridStartMin / 30;
                   const gridEndSlot = 44; // 22:00
                   const slotCount = gridEndSlot - gridStartSlot;
-                  return Array.from({ length: slotCount }).map((_, i) => {
+
+                  // Altura real (px) de cada slot de 30min — hora cheia é mais alta que a meia-hora.
+                  // Os cartões de agendamento usam essa mesma escala pra se posicionar com precisão
+                  // (em vez de nascer dentro da linha de cada slot, que corta cartões de duração > 30min
+                  // quando eles "vazam" pra dentro da linha seguinte).
+                  const ROW_FULL_PX = 44;
+                  const ROW_HALF_PX = 28;
+                  const slotTops: number[] = [];
+                  let acc = 0;
+                  for (let s = 0; s < slotCount; s++) {
+                    slotTops.push(acc);
+                    acc += (gridStartSlot + s) * 30 % 60 === 0 ? ROW_FULL_PX : ROW_HALF_PX;
+                  }
+                  const gridHeight = acc;
+                  const minutesToPixels = (min: number) => {
+                    const idx = Math.min(slotCount - 1, Math.max(0, Math.floor((min - gridStartMin) / 30)));
+                    const slotStartMin = gridStartMin + idx * 30;
+                    const slotHeight = slotStartMin % 60 === 0 ? ROW_FULL_PX : ROW_HALF_PX;
+                    const frac = Math.min(1, Math.max(0, (min - slotStartMin) / 30));
+                    return slotTops[idx] + frac * slotHeight;
+                  };
+
+                  return (
+                  <div className="relative">
+                  {Array.from({ length: slotCount }).map((_, i) => {
                   const totalMinutes = (gridStartSlot + i) * 30;
                   const hour = Math.floor(totalMinutes / 60);
                   const min = totalMinutes % 60;
@@ -833,13 +857,12 @@ function MinhaAgendaView({
                       {weekDays.map((day, j) => {
                         const slotStart = totalMinutes;
                         const slotEnd = slotStart + 30;
-                        const dayApps = appointments.filter((a) => {
+                        const hasApps = weekApps.some((a) => {
                           if (!isSameDay(new Date(a.date), day)) return false;
                           const [h, m] = a.startTime.split(":").map(Number);
                           const appMin = h * 60 + m;
                           return appMin >= slotStart && appMin < slotEnd;
                         });
-                        const hasApps = dayApps.length > 0;
                         const { blocked: isBlockedWeekDay } = getDayBlockInfo(day, agendaClosedDays, agendaSpecialDays, blockNationalHolidays);
                         return (
                           <div
@@ -885,87 +908,115 @@ function MinhaAgendaView({
                                 </div>
                               </div>
                             )}
-
-                            {/* Appointment cards — multiple per slot */}
-                            {hasApps && (
-                              <div className="absolute inset-x-0 top-0 z-10 flex overflow-hidden" style={{ height: `${Math.max(...dayApps.map(a => Math.max((a.duration / 60) * 73, 36)))}px` }}>
-                                {dayApps.map((app) => {
-                                  return (
-                                  <div
-                                    key={app.id}
-                                    className="relative flex-1 p-0.5 h-full min-w-0 overflow-hidden"
-                                  >
-                                    <motion.div
-                                      initial={{ opacity: 0, scale: 0.95 }}
-                                      animate={{ opacity: 1, scale: 1 }}
-                                      onMouseEnter={() => setHoveredAppointment(app.id)}
-                                      onMouseLeave={() => setHoveredAppointment(null)}
-                                      onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(app); }}
-                                      className={cn(
-                                        "flex h-full w-full cursor-pointer flex-col justify-between rounded-lg border p-1.5 shadow-sm transition-all hover:-translate-y-px hover:shadow-md sm:p-2",
-                                        appBg(app.type, app.status)
-                                      )}
-                                    >
-                                      <div className="flex flex-col gap-0 min-w-0 flex-1">
-                                        <p className={cn("truncate text-[10px] font-black leading-tight", appText(app.type, app.status))}>
-                                          {app.type === "bloqueio"
-                                            ? "🚫 Bloq."
-                                            : app.type === "pessoal"
-                                            ? "👤 Pessoal"
-                                            : app.client?.name}
-                                        </p>
-                                        {app.type === "atendimento" && app.service && app.duration >= 45 && (
-                                          <p className="text-[8px] font-bold text-amber-600/80 leading-none mt-0.5 truncate">
-                                            {app.service.name}
-                                          </p>
-                                        )}
-                                      </div>
-                                      <div className="mt-1 flex flex-wrap items-center justify-between gap-1 border-t border-black/5 pt-1">
-                                        <span className={cn("text-[8px] font-bold whitespace-nowrap", appTimeText(app.type))}>
-                                          {app.startTime}
-                                        </span>
-                                        {app.totalSessions > 1 && (
-                                          <span className="text-[7px] font-black text-amber-700 bg-amber-100/80 px-0.5 rounded-sm">
-                                            {app.sessionNumber}/{app.totalSessions}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </motion.div>
-
-                                    {/* Tooltip */}
-                                    {hoveredAppointment === app.id && (
-                                      <div className="absolute bottom-full left-0 mb-1 z-50 pointer-events-none">
-                                        <div className="bg-zinc-900 text-white text-[10px] font-bold rounded-xl p-2.5 shadow-2xl min-w-[150px] space-y-0.5">
-                                          <p className="text-amber-400 uppercase tracking-widest text-[9px]">
-                                            {format(new Date(app.date), "EEE, d MMM", { locale: ptBR })}
-                                          </p>
-                                          <p className="text-white">{app.startTime} → {app.endTime}</p>
-                                          {app.type === "atendimento" ? (
-                                            <>
-                                              <p className="text-zinc-300">{app.client?.name}</p>
-                                              {app.service && (
-                                                <p className="text-zinc-400 text-[9px]">{app.service.name}</p>
-                                              )}
-                                            </>
-                                          ) : (
-                                            <p className="text-zinc-300">
-                                              {app.type === "bloqueio" ? "Horário bloqueado" : "Compromisso pessoal"}
-                                            </p>
-                                          )}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                    );
-                                  })}
-                              </div>
-                            )}
                           </div>
                         );
                       })}
                     </div>
                   );
-                });
+                  })}
+
+                  {/* Cartões de agendamento — uma camada só por cima da grade, posicionada por
+                      pixel real (topo/altura), pra nunca ficar cortada pela linha de hora seguinte. */}
+                  <div
+                    className="pointer-events-none absolute inset-0 z-10"
+                    style={{ display: "grid", gridTemplateColumns: `44px repeat(${weekColCount}, 1fr)`, height: gridHeight }}
+                  >
+                    <div />
+                    {weekDays.map((day, j) => {
+                      const dayApps = weekApps.filter((a) => isSameDay(new Date(a.date), day));
+                      const groups = new Map<number, typeof dayApps>();
+                      dayApps.forEach((app) => {
+                        const [h, m] = app.startTime.split(":").map(Number);
+                        const bucket = Math.floor((h * 60 + m - gridStartMin) / 30);
+                        if (!groups.has(bucket)) groups.set(bucket, []);
+                        groups.get(bucket)!.push(app);
+                      });
+                      return (
+                        <div key={j} className="relative">
+                          {Array.from(groups.values()).flatMap((group) =>
+                            group.map((app, idx) => {
+                              const [h, m] = app.startTime.split(":").map(Number);
+                              const startMin = h * 60 + m;
+                              const endMin = startMin + (Number(app.duration) || 30);
+                              const top = minutesToPixels(startMin);
+                              const height = Math.max(minutesToPixels(endMin) - top - 2, 22);
+                              const widthPct = 100 / group.length;
+                              return (
+                                <div
+                                  key={app.id}
+                                  className="absolute overflow-hidden p-0.5 pointer-events-auto"
+                                  style={{ top, height, left: `${idx * widthPct}%`, width: `${widthPct}%` }}
+                                >
+                                  <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    onMouseEnter={() => setHoveredAppointment(app.id)}
+                                    onMouseLeave={() => setHoveredAppointment(null)}
+                                    onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(app); }}
+                                    className={cn(
+                                      "flex h-full w-full cursor-pointer flex-col justify-between rounded-lg border p-1.5 shadow-sm transition-all hover:-translate-y-px hover:shadow-md sm:p-2",
+                                      appBg(app.type, app.status)
+                                    )}
+                                  >
+                                    <div className="flex flex-col gap-0 min-w-0 flex-1">
+                                      <p className={cn("truncate text-[10px] font-black leading-tight", appText(app.type, app.status))}>
+                                        {app.type === "bloqueio"
+                                          ? "🚫 Bloq."
+                                          : app.type === "pessoal"
+                                          ? "👤 Pessoal"
+                                          : app.client?.name}
+                                      </p>
+                                      {app.type === "atendimento" && app.service && app.duration >= 45 && (
+                                        <p className="text-[8px] font-bold text-amber-600/80 leading-none mt-0.5 truncate">
+                                          {app.service.name}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="mt-1 flex flex-wrap items-center justify-between gap-1 border-t border-black/5 pt-1">
+                                      <span className={cn("text-[8px] font-bold whitespace-nowrap", appTimeText(app.type))}>
+                                        {app.startTime}
+                                      </span>
+                                      {app.totalSessions > 1 && (
+                                        <span className="text-[7px] font-black text-amber-700 bg-amber-100/80 px-0.5 rounded-sm">
+                                          {app.sessionNumber}/{app.totalSessions}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </motion.div>
+
+                                  {/* Tooltip */}
+                                  {hoveredAppointment === app.id && (
+                                    <div className="absolute bottom-full left-0 mb-1 z-50 pointer-events-none">
+                                      <div className="bg-zinc-900 text-white text-[10px] font-bold rounded-xl p-2.5 shadow-2xl min-w-[150px] space-y-0.5">
+                                        <p className="text-amber-400 uppercase tracking-widest text-[9px]">
+                                          {format(new Date(app.date), "EEE, d MMM", { locale: ptBR })}
+                                        </p>
+                                        <p className="text-white">{app.startTime} → {app.endTime}</p>
+                                        {app.type === "atendimento" ? (
+                                          <>
+                                            <p className="text-zinc-300">{app.client?.name}</p>
+                                            {app.service && (
+                                              <p className="text-zinc-400 text-[9px]">{app.service.name}</p>
+                                            )}
+                                          </>
+                                        ) : (
+                                          <p className="text-zinc-300">
+                                            {app.type === "bloqueio" ? "Horário bloqueado" : "Compromisso pessoal"}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  </div>
+                  );
                 })()}
               </div>
             </div>
