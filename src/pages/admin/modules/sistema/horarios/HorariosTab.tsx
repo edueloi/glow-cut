@@ -137,9 +137,9 @@ export function HorariosTab({
   const hasUnsavedChanges = JSON.stringify(localWorkingHours) !== JSON.stringify(workingHours);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="w-full min-w-0 space-y-4 p-3 animate-in fade-in duration-500 sm:p-5 lg:space-y-6 lg:p-6">
       {/* Seletor de Profissional */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-[32px] border border-zinc-200 shadow-sm relative overflow-hidden">
+      <div className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6 lg:rounded-3xl">
         <div className="absolute top-0 right-0 p-4 opacity-5">
            <User size={80} />
         </div>
@@ -151,13 +151,13 @@ export function HorariosTab({
         </div>
         
         {professionals.length > 1 && (
-          <div className="flex gap-2 bg-zinc-100 p-1 rounded-2xl relative z-10 scale-90 sm:scale-100 origin-right">
+          <div className="relative z-10 -mx-1 flex max-w-full gap-1 overflow-x-auto rounded-xl bg-zinc-100 p-1 sm:mx-0 sm:rounded-2xl">
             {professionals.map((p: any) => (
               <button
                 key={p.id}
                 onClick={() => setSelectedProfId(p.id)}
                 className={cn(
-                  "px-4 py-2 rounded-xl text-xs font-black transition-all",
+                  "min-h-10 shrink-0 rounded-lg px-4 py-2 text-xs font-black transition-all sm:rounded-xl",
                   selectedProfId === p.id 
                     ? "bg-white text-zinc-900 shadow-sm" 
                     : "text-zinc-500 hover:text-zinc-800"
@@ -177,8 +177,11 @@ export function HorariosTab({
           icon={Clock}
           iconWrapClassName="bg-amber-50 border-amber-100"
           iconClassName="text-amber-600"
+          className="rounded-2xl lg:rounded-3xl"
+          headerClassName="gap-3 px-4 py-4 sm:px-6 sm:py-5"
+          contentClassName="p-3 sm:p-4 lg:p-5"
           action={
-            <div className="flex items-center gap-3">
+            <div className="flex w-full items-center gap-2 lg:w-auto lg:justify-end">
               {saveStatus === "success" && (
                 <Badge color="success" className="animate-in zoom-in h-8 px-3 rounded-lg font-black tracking-widest text-[10px]">
                   <CheckCircle2 size={12} className="mr-1.5" /> Salvo
@@ -188,7 +191,7 @@ export function HorariosTab({
                 <Button
                   onClick={handleSaveHours}
                   disabled={isSavingHours}
-                  className="bg-zinc-950 hover:bg-black text-white px-6 h-10 rounded-xl font-black shadow-lg"
+                  className="h-10 flex-1 rounded-xl bg-zinc-950 px-5 font-black text-white shadow-lg hover:bg-black sm:flex-none"
                   iconLeft={isSavingHours ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 >
                   {isSavingHours ? "Salvando..." : "Salvar Grade"}
@@ -203,42 +206,48 @@ export function HorariosTab({
                <p className="text-sm font-bold animate-pulse">Carregando horários...</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
                {scheduleRows.map((row) => (
                  <div 
                    key={row.id}
                    className={cn(
-                     "group relative flex flex-col lg:flex-row lg:items-center gap-4 p-5 sm:p-6 rounded-[24px] border transition-all",
+                     "group relative grid min-w-0 gap-4 rounded-2xl border p-4 transition-all sm:p-5 xl:grid-cols-[180px_minmax(0,1fr)_auto] xl:items-center xl:gap-5",
                      row.isOpen 
-                       ? "bg-white border-zinc-200 hover:border-amber-200" 
-                       : "bg-zinc-50/50 border-zinc-100 opacity-60"
+                       ? "border-zinc-200 bg-white hover:border-amber-200 hover:shadow-sm"
+                       : "border-zinc-200/70 bg-zinc-50/70"
                    )}
                  >
                    {/* Dia da Semana */}
-                   <div className="flex items-center gap-4 min-w-[160px]">
+                   <div className="flex min-w-0 items-center gap-3 pr-16 sm:gap-4 xl:pr-0">
                       <div className={cn(
-                        "w-12 h-12 rounded-2xl flex items-center justify-center text-xs font-black border transition-all",
+                        "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-[11px] font-black transition-all sm:h-12 sm:w-12 sm:rounded-2xl sm:text-xs",
                         row.isOpen ? "bg-amber-50 border-amber-100 text-amber-600" : "bg-white border-zinc-200 text-zinc-400"
                       )}>
                         {DAY_SHORT[row.dayOfWeek]}
                       </div>
-                      <div>
-                        <h4 className="font-black text-zinc-900 leading-none">{DAY_NAMES[row.dayOfWeek]}</h4>
-                        <p className={cn("text-[10px] font-bold mt-1.5 uppercase tracking-widest", row.isOpen ? "text-emerald-500" : "text-zinc-400")}>
+                      <div className="min-w-0">
+                        <h4 className="truncate font-black leading-none text-zinc-900">{DAY_NAMES[row.dayOfWeek]}</h4>
+                        <p className={cn("mt-1.5 truncate text-[9px] font-bold uppercase tracking-wider sm:text-[10px]", row.isOpen ? "text-emerald-600" : "text-zinc-400")}>
                           {row.isOpen ? "Aberto para Agenda" : "Loja Fechada"}
                         </p>
                       </div>
                    </div>
 
                    {/* Horários */}
-                   <div className={cn("flex-1 grid grid-cols-2 lg:grid-cols-4 gap-4 transition-all", !row.isOpen && "pointer-events-none")}>
+                   <fieldset
+                     disabled={!row.isOpen}
+                     className={cn(
+                       "grid min-w-0 grid-cols-1 gap-3 transition-all min-[430px]:grid-cols-2 md:gap-4 xl:grid-cols-4",
+                       !row.isOpen && "hidden xl:grid"
+                     )}
+                   >
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">Abertura</label>
                         <input 
                           type="time" 
                           value={row.startTime} 
                           onChange={(e) => handleTimeChange(row.id, "startTime", e.target.value)}
-                          className="ds-input h-10 px-3 bg-zinc-50 border-zinc-100 focus:bg-white"
+                          className="ds-input h-11 min-w-0 bg-zinc-50 px-3 tabular-nums focus:bg-white"
                         />
                       </div>
                       
@@ -248,7 +257,7 @@ export function HorariosTab({
                           type="time" 
                           value={row.breakStart || ""} 
                           onChange={(e) => handleTimeChange(row.id, "breakStart", e.target.value)}
-                          className="ds-input h-10 px-3 bg-zinc-50 border-zinc-100 focus:bg-white"
+                          className="ds-input h-11 min-w-0 bg-zinc-50 px-3 tabular-nums focus:bg-white"
                         />
                       </div>
 
@@ -258,7 +267,7 @@ export function HorariosTab({
                           type="time" 
                           value={row.breakEnd || ""} 
                           onChange={(e) => handleTimeChange(row.id, "breakEnd", e.target.value)}
-                          className="ds-input h-10 px-3 bg-zinc-50 border-zinc-100 focus:bg-white"
+                          className="ds-input h-11 min-w-0 bg-zinc-50 px-3 tabular-nums focus:bg-white"
                         />
                       </div>
 
@@ -268,14 +277,14 @@ export function HorariosTab({
                           type="time" 
                           value={row.endTime} 
                           onChange={(e) => handleTimeChange(row.id, "endTime", e.target.value)}
-                          className="ds-input h-10 px-3 bg-zinc-50 border-zinc-100 focus:bg-white"
+                          className="ds-input h-11 min-w-0 bg-zinc-50 px-3 tabular-nums focus:bg-white"
                         />
                       </div>
-                   </div>
+                   </fieldset>
 
                    {/* Switch */}
-                   <div className="lg:pl-6 lg:border-l lg:border-zinc-100 flex items-center justify-between lg:justify-end gap-3 mt-2 lg:mt-0">
-                      <span className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter lg:hidden">Status do Dia</span>
+                   <div className="absolute right-4 top-5 flex items-center sm:right-5 sm:top-6 xl:static xl:justify-end xl:border-l xl:border-zinc-100 xl:pl-5">
+                      <span className="sr-only">{row.isOpen ? `Fechar ${DAY_NAMES[row.dayOfWeek]}` : `Abrir ${DAY_NAMES[row.dayOfWeek]}`}</span>
                       <Switch checked={row.isOpen} onCheckedChange={() => handleToggleDay(row.id)} />
                    </div>
                  </div>
@@ -285,7 +294,7 @@ export function HorariosTab({
         </PanelCard>
 
         {/* Info Box */}
-        <div className="bg-amber-50 border border-amber-200 rounded-[24px] p-6 flex gap-4">
+        <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:gap-4 sm:p-5 lg:p-6">
            <Info className="text-amber-600 shrink-0" size={20} />
            <div className="space-y-1">
               <p className="text-sm font-black text-amber-900">Sobre a Grade de Horários</p>

@@ -246,25 +246,25 @@ export function LiberacoesHorarios({
   }, []);
 
   return (
-    <div className="space-y-6 pb-20 sm:pb-6 animate-in fade-in duration-700">
+    <div className="w-full min-w-0 space-y-4 p-3 pb-24 animate-in fade-in duration-700 sm:p-5 sm:pb-6 lg:space-y-6 lg:p-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 p-5 sm:p-6 bg-white rounded-[32px] border border-zinc-200 shadow-sm">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 lg:rounded-3xl">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 border border-rose-100 shadow-sm">
             <CalendarOff size={20} className="text-rose-500" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-black tracking-tight text-zinc-900">Bloqueios e Fechamentos</h1>
             <p className="text-xs text-zinc-400 mt-0.5">Gerencie ausências, feriados e horários excepcionais.</p>
           </div>
         </div>
-        <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-2xl overflow-x-auto">
+        <div className="-mx-1 flex items-center gap-1 overflow-x-auto rounded-xl bg-zinc-100 p-1 sm:mx-0 sm:rounded-2xl">
           {(["bloqueios", "fechamentos", "releases"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "flex-1 whitespace-nowrap px-3 py-2 rounded-xl text-[11px] font-black transition-all uppercase tracking-wide min-w-0",
+                "min-h-10 shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-wide transition-all sm:flex-1 sm:rounded-xl sm:text-[11px]",
                 activeTab === tab ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500 hover:text-zinc-800"
               )}
             >
@@ -275,8 +275,8 @@ export function LiberacoesHorarios({
       </div>
 
       {/* Info Alert */}
-      <div className="flex items-start gap-4 p-5 rounded-[24px] bg-amber-50 border border-amber-200/60 shadow-sm">
-        <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+      <div className="flex items-start gap-3 rounded-2xl border border-amber-200/60 bg-amber-50 p-4 shadow-sm sm:gap-4 sm:p-5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 sm:h-10 sm:w-10">
           <Info size={18} className="text-amber-600" />
         </div>
         <div className="space-y-1">
@@ -299,8 +299,8 @@ export function LiberacoesHorarios({
         >
           {/* ────── TAB: BLOQUEIOS ────── */}
           {activeTab === "bloqueios" && (
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr,360px] gap-6">
-              <div className="space-y-6">
+            <div className="grid min-w-0 grid-cols-1 gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="min-w-0 space-y-5 lg:space-y-6">
                 <Calendar 
                   mode="select"
                   selectedDate={newBlock.date}
@@ -317,7 +317,7 @@ export function LiberacoesHorarios({
                     </Button>
                   </div>
                   {bloqueios.length === 0 ? (
-                    <div className="py-20 border-2 border-dashed border-zinc-200 rounded-[32px] text-center bg-white/50">
+                    <div className="rounded-2xl border-2 border-dashed border-zinc-200 bg-white/50 px-4 py-12 text-center sm:py-20 lg:rounded-3xl">
                       <Lock size={32} className="text-zinc-200 mx-auto mb-3" />
                       <p className="text-sm font-black text-zinc-400">Nenhum bloqueio para os próximos dias.</p>
                     </div>
@@ -326,7 +326,7 @@ export function LiberacoesHorarios({
                       {bloqueios.map((b) => {
                         const seriesCount = b.repeatGroupId ? bloqueios.filter((x) => x.repeatGroupId === b.repeatGroupId).length : 1;
                         return (
-                        <div key={b.id} className="flex items-center gap-4 bg-white border border-zinc-200 rounded-[24px] p-5 shadow-sm hover:shadow-md transition-all group">
+                        <div key={b.id} className="group flex min-w-0 flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition-all hover:shadow-md sm:flex-nowrap sm:gap-4 sm:p-5">
                           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-50 border border-zinc-100 group-hover:bg-red-50 group-hover:border-red-100 transition-colors">
                             <Clock size={20} className="text-zinc-400 group-hover:text-red-500" />
                           </div>
@@ -355,7 +355,7 @@ export function LiberacoesHorarios({
                               Excluir série
                             </button>
                           )}
-                          <button onClick={() => onDeleteAppointment(b.id)} className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-300 hover:bg-red-50 hover:text-red-500 transition-all">
+                          <button onClick={() => onDeleteAppointment(b.id)} aria-label="Excluir bloqueio" className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-300 transition-all hover:bg-red-50 hover:text-red-500">
                             <Trash2 size={16} />
                           </button>
                         </div>
@@ -366,8 +366,8 @@ export function LiberacoesHorarios({
                 </div>
               </div>
 
-              <div className="bg-white border border-zinc-200 rounded-[32px] p-6 shadow-xl h-fit lg:sticky lg:top-24">
-                <h3 className="text-lg font-black text-zinc-900 mb-6 flex items-center gap-2">
+              <div className="h-fit rounded-2xl border border-zinc-200 bg-white p-4 shadow-lg sm:p-6 xl:sticky xl:top-24 xl:rounded-3xl">
+                <h3 className="mb-5 flex items-center gap-2 text-lg font-black text-zinc-900 sm:mb-6">
                    <Lock size={18} className="text-zinc-400" /> Novo Bloqueio
                 </h3>
                 <div className="space-y-5">
@@ -416,7 +416,7 @@ export function LiberacoesHorarios({
 
                   <div className="space-y-1.5">
                     <label className="ds-label">Repetição</label>
-                    <div className="flex gap-2">
+                    <div className="grid grid-cols-1 gap-2 min-[430px]:grid-cols-3">
                       {([
                         { v: "none", label: "Sem repetição" },
                         { v: "weekly", label: "Semanal" },
@@ -481,8 +481,8 @@ export function LiberacoesHorarios({
 
           {/* ────── TAB: FECHAMENTOS (FERIADOS) ────── */}
           {activeTab === "fechamentos" && (
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr,360px] gap-6">
-              <div className="space-y-6">
+            <div className="grid min-w-0 grid-cols-1 gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="min-w-0 space-y-5 lg:space-y-6">
                 <Calendar 
                   mode="select"
                   selectedDate={newClosed.date}
@@ -496,14 +496,14 @@ export function LiberacoesHorarios({
                   {loadingClosed ? (
                     <div className="py-20 flex justify-center"><Loader2 className="animate-spin text-zinc-300" /></div>
                   ) : closedDays.length === 0 ? (
-                    <div className="py-20 border-2 border-dashed border-zinc-200 rounded-[32px] text-center bg-white/50">
+                    <div className="rounded-2xl border-2 border-dashed border-zinc-200 bg-white/50 px-4 py-12 text-center sm:py-20 lg:rounded-3xl">
                       <CalendarOff size={32} className="text-zinc-200 mx-auto mb-3" />
                       <p className="text-sm font-black text-zinc-400">Nenhum feriado ou fechamento cadastrado.</p>
                     </div>
                   ) : (
                     <div className="grid gap-3">
                       {closedDays.map((d) => (
-                        <div key={d.id} className="flex items-center gap-4 bg-white border border-zinc-200 rounded-[24px] p-5 shadow-sm group">
+                        <div key={d.id} className="group flex min-w-0 items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:gap-4 sm:p-5">
                           <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border border-rose-100 bg-rose-50 group-hover:bg-rose-100 transition-colors">
                             <span className="text-[9px] font-black uppercase text-rose-400 leading-none mb-1">
                               {format(new Date(d.date), "MMM", { locale: ptBR })}
@@ -518,7 +518,7 @@ export function LiberacoesHorarios({
                               {format(new Date(d.date), "EEEE", { locale: ptBR })} · {format(new Date(d.date), "yyyy")}
                             </p>
                           </div>
-                          <button onClick={() => handleDeleteClosedDay(d.id)} className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-300 hover:bg-red-50 hover:text-red-500 transition-all">
+                          <button onClick={() => handleDeleteClosedDay(d.id)} aria-label="Excluir fechamento" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-300 transition-all hover:bg-red-50 hover:text-red-500">
                             <Trash2 size={16} />
                           </button>
                         </div>
@@ -528,8 +528,8 @@ export function LiberacoesHorarios({
                 </div>
               </div>
 
-              <div className="bg-white border border-zinc-200 rounded-[32px] p-6 shadow-xl h-fit lg:sticky lg:top-24">
-                <h3 className="text-lg font-black text-zinc-900 mb-6 flex items-center gap-2">
+              <div className="h-fit rounded-2xl border border-zinc-200 bg-white p-4 shadow-lg sm:p-6 xl:sticky xl:top-24 xl:rounded-3xl">
+                <h3 className="mb-5 flex items-center gap-2 text-lg font-black text-zinc-900 sm:mb-6">
                    <CalendarOff size={18} className="text-rose-500" /> Novo Fechamento
                 </h3>
                 <div className="space-y-5">
@@ -553,8 +553,8 @@ export function LiberacoesHorarios({
 
           {/* ────── TAB: RELEASES ────── */}
           {activeTab === "releases" && (
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr,360px] gap-6">
-              <div className="space-y-6">
+            <div className="grid min-w-0 grid-cols-1 gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="min-w-0 space-y-5 lg:space-y-6">
                 <Calendar 
                   mode="select"
                   selectedDate={newRelease.date}
@@ -568,14 +568,14 @@ export function LiberacoesHorarios({
                   {loadingReleases ? (
                     <div className="py-20 flex justify-center"><Loader2 className="animate-spin text-zinc-300" /></div>
                   ) : releases.length === 0 ? (
-                    <div className="py-20 border-2 border-dashed border-zinc-200 rounded-[32px] text-center bg-white/50">
+                    <div className="rounded-2xl border-2 border-dashed border-zinc-200 bg-white/50 px-4 py-12 text-center sm:py-20 lg:rounded-3xl">
                       <Unlock size={32} className="text-zinc-200 mx-auto mb-3" />
                       <p className="text-sm font-black text-zinc-400">Nenhum horário extra liberado.</p>
                     </div>
                   ) : (
                     <div className="grid gap-3">
                       {releases.map((r) => (
-                        <div key={r.id} className="flex items-center gap-4 bg-white border border-zinc-200 rounded-[24px] p-5 shadow-sm group">
+                        <div key={r.id} className="group flex min-w-0 items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:gap-4 sm:p-5">
                           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 border border-emerald-100">
                              <Unlock size={20} className="text-emerald-500" />
                           </div>
@@ -585,7 +585,7 @@ export function LiberacoesHorarios({
                              </p>
                              <Badge color="default" className="bg-emerald-50 text-emerald-700 font-black h-6 px-2.5 mt-1">{r.startTime} – {r.endTime}</Badge>
                           </div>
-                          <button onClick={() => handleDeleteRelease(r.id)} className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-300 hover:bg-emerald-50 hover:text-emerald-500 transition-all">
+                          <button onClick={() => handleDeleteRelease(r.id)} aria-label="Excluir liberação" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-300 transition-all hover:bg-emerald-50 hover:text-emerald-500">
                             <Trash2 size={16} />
                           </button>
                         </div>
@@ -595,8 +595,8 @@ export function LiberacoesHorarios({
                 </div>
               </div>
 
-              <div className="bg-white border border-zinc-200 rounded-[32px] p-6 shadow-xl h-fit lg:sticky lg:top-24">
-                <h3 className="text-lg font-black text-zinc-900 mb-6 flex items-center gap-2">
+              <div className="h-fit rounded-2xl border border-zinc-200 bg-white p-4 shadow-lg sm:p-6 xl:sticky xl:top-24 xl:rounded-3xl">
+                <h3 className="mb-5 flex items-center gap-2 text-lg font-black text-zinc-900 sm:mb-6">
                    <Unlock size={18} className="text-emerald-500" /> Nova Liberação Extra
                 </h3>
                 <div className="space-y-5">

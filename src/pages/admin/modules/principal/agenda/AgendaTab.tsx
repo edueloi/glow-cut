@@ -101,21 +101,26 @@ function appTimeText(type: string, status?: string) {
 
 /* ─── Appointment pill (shared) ───────────────────── */
 function AppPill({ app, hovered, setHovered, onClick }: { app: any; hovered: boolean; setHovered: (v: string | null) => void; onClick?: () => void }) {
+  const title = app.type === "bloqueio" ? "Bloqueado" : app.type === "pessoal" ? "Pessoal" : app.client?.name;
+
   return (
     <div
       onMouseEnter={() => setHovered(app.id)}
       onMouseLeave={() => setHovered(null)}
       onClick={(e) => { e.stopPropagation(); onClick?.(); }}
       className={cn(
-        "relative text-[9px] px-1.5 py-1 rounded-lg border truncate font-semibold flex items-center gap-1 cursor-pointer transition-all hover:shadow-sm",
+        "relative min-w-0 cursor-pointer rounded-lg border py-1.5 pl-2.5 pr-1.5 text-[9px] font-semibold transition-all hover:-translate-y-px hover:shadow-sm",
         appBg(app.type, app.status)
       )}
     >
-      <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", appColor(app.type, app.status))} />
-      <span className={cn("truncate", appText(app.type, app.status))}>
-        {app.startTime}{" "}
-        {app.type === "bloqueio" ? "Bloq." : app.type === "pessoal" ? "Pessoal" : app.client?.name}
-      </span>
+      <div className={cn("absolute inset-y-1.5 left-1 w-1 rounded-full", appColor(app.type, app.status))} />
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span className={cn("shrink-0 font-black tabular-nums", appTimeText(app.type, app.status))}>{app.startTime}</span>
+        <span className={cn("truncate font-black", appText(app.type, app.status))}>{title}</span>
+      </div>
+      {app.type === "atendimento" && app.service?.name && (
+        <p className="mt-0.5 truncate pl-0.5 text-[8px] font-medium text-zinc-500">{app.service.name}</p>
+      )}
       {hovered && (
         <div className="absolute bottom-full left-0 mb-1 z-50 pointer-events-none">
           <div className="bg-zinc-900 text-white text-[10px] font-bold rounded-xl p-2.5 shadow-2xl min-w-[150px] space-y-0.5">
@@ -341,9 +346,9 @@ function MinhaAgendaView({
   }
 
   return (
-    <div className="flex flex-col h-full gap-3 sm:gap-4 overflow-hidden">
+    <div className="flex h-full min-w-0 flex-col gap-3 overflow-hidden sm:gap-4">
       {/* ── Top controls ── */}
-      <div className="flex flex-col md:flex-row md:items-center md:gap-2 gap-2">
+      <div className="flex flex-col gap-2 rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm md:flex-row md:items-center md:gap-2 sm:p-4 lg:rounded-3xl">
         {/* View switcher */}
         <div className="flex items-center gap-0.5 bg-zinc-100 p-1 rounded-xl w-full md:w-auto">
           {(["day", "week", "month"] as const).map((v) => (
@@ -423,9 +428,9 @@ function MinhaAgendaView({
       </div>
 
       {/* ── Calendar card ── */}
-      <div className="flex-1 bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm flex flex-col min-h-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm lg:rounded-3xl">
         {/* Sub-header: legend + filter */}
-        <div className="px-3 sm:px-5 py-2.5 border-b border-zinc-100 flex items-center justify-between gap-2 shrink-0">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-100 bg-zinc-50/40 px-3 py-3 sm:px-5">
           {/* Legend — hide labels on xs, show on sm+ */}
           <div className="flex items-center gap-2 sm:gap-4 overflow-hidden">
             {LEGEND.map(({ color, label }) => (
@@ -581,11 +586,11 @@ function MinhaAgendaView({
                               onMouseLeave={() => setHoveredAppointment(null)}
                               onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(app); }}
                               className={cn(
-                                "relative flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl border transition-all cursor-pointer hover:shadow-md",
+                                "relative flex cursor-pointer items-center gap-2 rounded-xl border p-3 shadow-sm transition-all hover:-translate-y-px hover:shadow-md sm:gap-3 sm:p-3.5",
                                 appBg(app.type, app.status)
                               )}
                             >
-                              <div className={cn("w-1 self-stretch rounded-full shrink-0", appColor(app.type, app.status))} />
+                              <div className={cn("w-1.5 self-stretch rounded-full shrink-0", appColor(app.type, app.status))} />
                               <div className="flex-1 min-w-0">
                                 <p className={cn("text-[11px] sm:text-xs font-black truncate", appText(app.type, app.status))}>
                                 {app.type === "bloqueio"
@@ -633,7 +638,7 @@ function MinhaAgendaView({
               {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
                 <div
                   key={day}
-                  className="py-2 text-[8px] sm:text-[10px] font-black text-zinc-400 text-center border-b border-r border-zinc-100 uppercase tracking-widest bg-zinc-50 last:border-r-0"
+                  className="border-b border-r border-zinc-100 bg-zinc-50 py-2.5 text-center text-[8px] font-black uppercase tracking-widest text-zinc-400 last:border-r-0 sm:text-[10px]"
                 >
                   {day}
                 </div>
@@ -647,7 +652,7 @@ function MinhaAgendaView({
                 {Array.from({ length: startOfMonth(currentMonth).getDay() }).map((_, i) => (
                   <div
                     key={`pad-${i}`}
-                    className="border-b border-r border-zinc-100 bg-zinc-50/30 min-h-[60px] sm:min-h-[90px] lg:min-h-[110px]"
+                    className="min-h-[72px] border-b border-r border-zinc-100 bg-zinc-50/40 sm:min-h-[105px] xl:min-h-[125px]"
                   />
                 ))}
 
@@ -666,18 +671,18 @@ function MinhaAgendaView({
                       }}
                       title={holiday?.name}
                       className={cn(
-                        "min-h-[60px] sm:min-h-[90px] lg:min-h-[110px] border-b border-r border-zinc-100 transition-colors relative group p-1 sm:p-2",
+                        "group relative min-h-[72px] border-b border-r border-zinc-100 p-1.5 transition-colors sm:min-h-[105px] sm:p-2 xl:min-h-[125px]",
                         !isSameMonth(day, currentMonth) && "opacity-30",
                         isBlocked ? "bg-red-50/60 cursor-not-allowed" : "hover:bg-zinc-50 cursor-pointer",
                         isCurrentDay && !isBlocked && "bg-amber-50/40"
                       )}
                     >
                       {/* Day number */}
-                      <div className="flex items-start justify-between mb-1">
+                      <div className="mb-1.5 flex items-start justify-between sm:mb-2">
                         <div
                           className={cn(
-                            "w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-black",
-                            isCurrentDay && !isBlocked ? "bg-amber-500 text-white" : isBlocked ? "bg-red-200 text-red-700" : "text-zinc-500"
+                            "flex h-6 w-6 items-center justify-center rounded-lg text-[9px] font-black sm:h-7 sm:w-7 sm:text-[10px]",
+                            isCurrentDay && !isBlocked ? "bg-amber-500 text-white shadow-sm" : isBlocked ? "bg-red-200 text-red-700" : "bg-zinc-50 text-zinc-600"
                           )}
                         >
                           {format(day, "d")}
@@ -695,7 +700,7 @@ function MinhaAgendaView({
                       {/* Events — desktop: text pills, mobile: dots */}
                       {!isBlocked && (
                         <>
-                          <div className="space-y-0.5 hidden sm:block">
+                          <div className="hidden space-y-1 sm:block">
                             {dayApps.slice(0, 2).map((app) => (
                               <AppPill
                                 key={app.id}
@@ -706,8 +711,8 @@ function MinhaAgendaView({
                               />
                             ))}
                             {dayApps.length > 2 && (
-                              <div className="text-[8px] text-zinc-400 font-bold text-center uppercase tracking-tighter">
-                                +{dayApps.length - 2}
+                              <div className="rounded-md bg-zinc-100 py-0.5 text-center text-[8px] font-black uppercase tracking-tight text-zinc-500">
+                                +{dayApps.length - 2} agendamento{dayApps.length - 2 > 1 ? "s" : ""}
                               </div>
                             )}
                           </div>
@@ -768,7 +773,7 @@ function MinhaAgendaView({
                         onClick={() => { if (!isBlockedDay) { setCurrentMonth(day); setView("day"); } }}
                         title={isBlockedDay ? (blockReason ?? undefined) : (hol?.name ?? undefined)}
                         className={cn(
-                          "py-2 px-1 text-center border-r border-zinc-100 last:border-r-0 relative transition-colors",
+                          "relative border-r border-zinc-100 px-1 py-3 text-center transition-colors last:border-r-0",
                           isBlockedDay ? "bg-red-50/60 cursor-not-allowed" : "cursor-pointer hover:bg-zinc-50",
                           !isBlockedDay && isToday(day) && "bg-amber-50/50"
                         )}
@@ -897,12 +902,12 @@ function MinhaAgendaView({
                                       onMouseLeave={() => setHoveredAppointment(null)}
                                       onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(app); }}
                                       className={cn(
-                                        "rounded-sm p-1 sm:p-1.5 flex flex-col justify-between cursor-pointer transition-all border hover:shadow-md w-full h-full",
+                                        "flex h-full w-full cursor-pointer flex-col justify-between rounded-lg border p-1.5 shadow-sm transition-all hover:-translate-y-px hover:shadow-md sm:p-2",
                                         appBg(app.type, app.status)
                                       )}
                                     >
                                       <div className="flex flex-col gap-0 min-w-0 flex-1">
-                                        <p className={cn("text-[10px] font-black leading-tight truncate", appText(app.type, app.status))}>
+                                        <p className={cn("truncate text-[10px] font-black leading-tight", appText(app.type, app.status))}>
                                           {app.type === "bloqueio"
                                             ? "🚫 Bloq."
                                             : app.type === "pessoal"
@@ -915,7 +920,7 @@ function MinhaAgendaView({
                                           </p>
                                         )}
                                       </div>
-                                      <div className="mt-1 pt-0.5 border-t border-black/5 flex items-center justify-between gap-1 flex-wrap">
+                                      <div className="mt-1 flex flex-wrap items-center justify-between gap-1 border-t border-black/5 pt-1">
                                         <span className={cn("text-[8px] font-bold whitespace-nowrap", appTimeText(app.type))}>
                                           {app.startTime}
                                         </span>
