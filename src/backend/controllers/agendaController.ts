@@ -666,22 +666,29 @@ export const agendaController = {
       const groupId = count > 1 ? randomUUID() : null;
       const results = [];
       const skipDatesList = Array.isArray(skipDates) ? skipDates : [];
-      
+      const conflictSkipped: { date: string; reason: string }[] = [];
+
       let createdCount = 0;
       for (let i = 0; i < count; i++) {
         const apptDate = addDays(baseDate, i * interval);
         const apptDateStr = format(apptDate, "yyyy-MM-dd");
-        
+
         if (skipDatesList.includes(apptDateStr)) {
-          continue; 
+          continue;
+        }
+
+        const resolvedEndTime = resolveEndTime(apptDate, startTime, endTime, effectiveDuration);
+
+        // Um conflito num dia isolado (ex: bloqueio de semana inteira onde 1 dia já tem
+        // agendamento) não deve abortar o restante do lote — pula esse dia e segue.
+        try {
+          await ensureSlotAvailable(tenantId, professionalId, apptDate, startTime, resolvedEndTime);
+        } catch (slotError: any) {
+          conflictSkipped.push({ date: apptDateStr, reason: slotError.message || "Horário indisponível." });
+          continue;
         }
 
         createdCount++;
-        const resolvedEndTime = resolveEndTime(apptDate, startTime, endTime, effectiveDuration);
-
-        await ensureSlotAvailable(tenantId, professionalId, apptDate, startTime, resolvedEndTime);
-
-        const finalTotalSessions = count - skipDatesList.length;
         const appt = await (prisma as any).appointment.create({
           data: {
             id: randomUUID(),
@@ -707,6 +714,22 @@ export const agendaController = {
         }
       }
 
+      // Se algum dia foi pulado por conflito, o total de sessões gravado em cada linha
+      // (calculado antes do loop) fica desatualizado — corrige pro total real criado.
+      if (groupId && conflictSkipped.length > 0 && results.length > 0) {
+        await (prisma as any).appointment.updateMany({
+          where: { repeatGroupId: groupId, tenantId },
+          data: { totalSessions: results.length },
+        });
+      }
+
+      if (results.length === 0) {
+        return res.status(400).json({
+          error: "Nenhum horário pôde ser criado — todos os dias selecionados já têm conflito.",
+          skipped: conflictSkipped,
+        });
+      }
+
       // Notifica profissional e cliente (se confirmado)
       if (tenantId && results.length > 0) {
         fireWppProfNewBooking(tenantId, results).catch(e => console.error("Erro wpp prof:", e));
@@ -715,7 +738,7 @@ export const agendaController = {
         }
       }
 
-      res.json(results[0]);
+      res.json({ ...results[0], skipped: conflictSkipped });
     } catch (e: any) {
       res.status(400).json({ error: e.message || "Erro." });
     }

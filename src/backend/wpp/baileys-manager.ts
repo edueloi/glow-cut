@@ -1569,9 +1569,15 @@ export async function sendMessage(tenantId: string, phone: string, text: string)
 
 export function getQrCode(tenantId: string): string | null { return sessions.get(tenantId)?.qrDataUrl ?? null; }
 
+// Restaura apenas a sessão "system" (bot central) no boot do processo principal.
+// As sessões dos estabelecimentos (parceiros) são restauradas exclusivamente pelo
+// processo isolado agendelle-wpp (wpp-connect/scheduler.ts) — restaurar as duas aqui
+// abriria um socket Baileys duplicado por tenant (mesmas credenciais em dois processos
+// simultâneos), o que gera desconexões constantes e risco de banimento do número.
 export async function restoreAllSessions(): Promise<void> {
   if (!fs.existsSync(SESSIONS_DIR)) return;
   const dirs = fs.readdirSync(SESSIONS_DIR).filter(d => {
+    if (d !== "system") return false;
     const full = path.join(SESSIONS_DIR, d);
     return fs.statSync(full).isDirectory() && fs.existsSync(path.join(full, "creds.json"));
   });

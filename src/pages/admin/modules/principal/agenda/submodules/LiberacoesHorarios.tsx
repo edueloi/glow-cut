@@ -14,11 +14,17 @@ import { Badge, Button, DatePicker, useToast, Input, Calendar } from "@/src/comp
 // Bloqueios e Fechamentos da Agenda
 // ─────────────────────────────────────────────────────────────────────────────
 
+interface BlockRecurrence {
+  type: "none" | "weekly" | "custom";
+  count: number;
+  interval: number;
+}
+
 interface LiberacoesHorariosProps {
   appointments: any[];
   professionals: any[];
   workingHours: any[];
-  onNewBlockAppointment: (data: { date: Date; startTime: string; endTime: string; professionalId: string }) => void;
+  onNewBlockAppointment: (data: { date: Date; startTime: string; endTime: string; professionalId: string; notes?: string; recurrence?: BlockRecurrence }) => void;
   onDeleteAppointment: (id: string) => void;
   onRefresh: () => void;
 }
@@ -67,27 +73,71 @@ export function LiberacoesHorarios({
     endTime: "13:00",
     professionalId: professionals[0]?.id ?? "",
     notes: "",
+    allDay: false,
+    recurrence: { type: "none", count: 1, interval: 1 } as BlockRecurrence,
   });
   const [savingBlock, setSavingBlock] = useState(false);
 
+  const handleBlockWholeWeek = () => {
+    setNewBlock((p) => ({ ...p, recurrence: { type: "custom", count: 7, interval: 1 } }));
+  };
+
   const handleCreateBlock = async () => {
-    if (!newBlock.date || !newBlock.startTime || !newBlock.endTime) {
+    if (!newBlock.date || (!newBlock.allDay && (!newBlock.startTime || !newBlock.endTime))) {
       toast.warning("Preencha data, hora início e hora fim.");
       return;
     }
     setSavingBlock(true);
     try {
       const [y, m, d] = newBlock.date.split("-").map(Number);
-      onNewBlockAppointment({
+      const startTime = newBlock.allDay ? HOURS_LIST[0] : newBlock.startTime;
+      const endTime = newBlock.allDay ? HOURS_LIST[HOURS_LIST.length - 1] : newBlock.endTime;
+      const recurrence = newBlock.recurrence.type === "none" ? undefined : newBlock.recurrence;
+      const payload = {
         date: new Date(y, m - 1, d),
-        startTime: newBlock.startTime,
-        endTime: newBlock.endTime,
-        professionalId: newBlock.professionalId,
-      });
+        startTime,
+        endTime,
+        notes: newBlock.notes || undefined,
+        recurrence,
+      };
+
+      if (newBlock.professionalId === "all") {
+        const activeProfs = professionals.filter((p) => p.isActive !== false);
+        for (const prof of activeProfs) {
+          await onNewBlockAppointment({ ...payload, professionalId: prof.id });
+        }
+      } else {
+        await onNewBlockAppointment({ ...payload, professionalId: newBlock.professionalId });
+      }
+
       toast.success("Bloqueio criado com sucesso.");
-      setNewBlock((prev) => ({ ...prev, notes: "" }));
+      setNewBlock((prev) => ({ ...prev, notes: "", recurrence: { type: "none", count: 1, interval: 1 } }));
     } finally {
       setSavingBlock(false);
+    }
+  };
+
+  const [deletingSeriesId, setDeletingSeriesId] = useState<string | null>(null);
+  const handleDeleteSeries = async (groupId: string) => {
+    setDeletingSeriesId(groupId);
+    try {
+      const res = await apiFetch(`/api/appointments/group/${groupId}`);
+      if (!res.ok) {
+        toast.error("Erro ao buscar a série do bloqueio.");
+        return;
+      }
+      const group = await res.json();
+      const ids = Array.isArray(group) ? group.map((a: any) => a.id) : [];
+      if (ids.length === 0) return;
+      await apiFetch("/api/appointments/batch", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      toast.success("Série de bloqueios removida.");
+      onRefresh();
+    } finally {
+      setDeletingSeriesId(null);
     }
   };
 
@@ -273,7 +323,9 @@ export function LiberacoesHorarios({
                     </div>
                   ) : (
                     <div className="grid gap-3">
-                      {bloqueios.map((b) => (
+                      {bloqueios.map((b) => {
+                        const seriesCount = b.repeatGroupId ? bloqueios.filter((x) => x.repeatGroupId === b.repeatGroupId).length : 1;
+                        return (
                         <div key={b.id} className="flex items-center gap-4 bg-white border border-zinc-200 rounded-[24px] p-5 shadow-sm hover:shadow-md transition-all group">
                           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-50 border border-zinc-100 group-hover:bg-red-50 group-hover:border-red-100 transition-colors">
                             <Clock size={20} className="text-zinc-400 group-hover:text-red-500" />
@@ -282,20 +334,33 @@ export function LiberacoesHorarios({
                             <p className="text-sm font-black text-zinc-900">
                               {format(new Date(b.date), "dd 'de' MMMM", { locale: ptBR })} ({format(new Date(b.date), "EEEE", { locale: ptBR })})
                             </p>
-                            <div className="flex items-center gap-3 mt-1.5">
+                            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                                <Badge color="default" className="bg-zinc-100 text-zinc-600 font-black h-6 px-2.5">{b.startTime} – {b.endTime}</Badge>
                                {b.professional?.name && (
                                  <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1">
                                     <User size={10} /> {b.professional.name}
                                  </span>
                                )}
+                               {b.repeatGroupId && seriesCount > 1 && (
+                                 <Badge color="default" className="bg-red-50 text-red-600 font-black h-6 px-2.5">Série · {seriesCount}x</Badge>
+                               )}
                             </div>
                           </div>
+                          {b.repeatGroupId && seriesCount > 1 && (
+                            <button
+                              onClick={() => handleDeleteSeries(b.repeatGroupId)}
+                              disabled={deletingSeriesId === b.repeatGroupId}
+                              className="text-[10px] font-black uppercase tracking-wide text-zinc-400 hover:text-red-500 transition-all px-2 whitespace-nowrap"
+                            >
+                              Excluir série
+                            </button>
+                          )}
                           <button onClick={() => onDeleteAppointment(b.id)} className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-300 hover:bg-red-50 hover:text-red-500 transition-all">
                             <Trash2 size={16} />
                           </button>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -306,31 +371,103 @@ export function LiberacoesHorarios({
                    <Lock size={18} className="text-zinc-400" /> Novo Bloqueio
                 </h3>
                 <div className="space-y-5">
-                  <DatePicker label="Qual dia?" value={newBlock.date} onChange={(v) => setNewBlock((p) => ({ ...p, date: v ?? p.date }))} />
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="ds-label">Início</label>
-                      <select value={newBlock.startTime} onChange={(e) => setNewBlock((p) => ({ ...p, startTime: e.target.value }))} className="ds-input font-bold rounded-2xl h-11">
-                        {HOURS_LIST.map((h) => <option key={h} value={h}>{h}</option>)}
-                      </select>
+                  <DatePicker label="Qual dia? (início do bloqueio)" value={newBlock.date} onChange={(v) => setNewBlock((p) => ({ ...p, date: v ?? p.date }))} />
+
+                  <button
+                    type="button"
+                    onClick={() => setNewBlock((p) => ({ ...p, allDay: !p.allDay }))}
+                    className={cn(
+                      "w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold transition-all border",
+                      newBlock.allDay ? "bg-red-50 text-red-700 border-red-200" : "bg-zinc-50 text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                    )}
+                  >
+                    <span>Bloquear o dia inteiro</span>
+                    <div className={cn("w-9 h-5 rounded-full transition-all relative shrink-0", newBlock.allDay ? "bg-red-500" : "bg-zinc-200")}>
+                      <div className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all", newBlock.allDay ? "left-4" : "left-0.5")} />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="ds-label">Término</label>
-                      <select value={newBlock.endTime} onChange={(e) => setNewBlock((p) => ({ ...p, endTime: e.target.value }))} className="ds-input font-bold rounded-2xl h-11">
-                        {HOURS_LIST.map((h) => <option key={h} value={h}>{h}</option>)}
-                      </select>
+                  </button>
+
+                  {!newBlock.allDay && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="ds-label">Início</label>
+                        <select value={newBlock.startTime} onChange={(e) => setNewBlock((p) => ({ ...p, startTime: e.target.value }))} className="ds-input font-bold rounded-2xl h-11">
+                          {HOURS_LIST.map((h) => <option key={h} value={h}>{h}</option>)}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="ds-label">Término</label>
+                        <select value={newBlock.endTime} onChange={(e) => setNewBlock((p) => ({ ...p, endTime: e.target.value }))} className="ds-input font-bold rounded-2xl h-11">
+                          {HOURS_LIST.map((h) => <option key={h} value={h}>{h}</option>)}
+                        </select>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {professionals.length > 0 && (
                     <div className="space-y-1.5">
                       <label className="ds-label">Em qual profissional?</label>
                       <select value={newBlock.professionalId} onChange={(e) => setNewBlock((p) => ({ ...p, professionalId: e.target.value }))} className="ds-input font-bold rounded-2xl h-11">
+                        <option value="all">Todos os profissionais (fecha o estúdio)</option>
                         {professionals.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
                     </div>
                   )}
+
+                  <div className="space-y-1.5">
+                    <label className="ds-label">Repetição</label>
+                    <div className="flex gap-2">
+                      {([
+                        { v: "none", label: "Sem repetição" },
+                        { v: "weekly", label: "Semanal" },
+                        { v: "custom", label: "Personalizada" },
+                      ] as const).map((opt) => (
+                        <button
+                          key={opt.v}
+                          type="button"
+                          onClick={() => setNewBlock((p) => ({ ...p, recurrence: { ...p.recurrence, type: opt.v } }))}
+                          className={cn(
+                            "flex-1 py-2 rounded-xl text-[10px] font-bold transition-all border",
+                            newBlock.recurrence.type === opt.v
+                              ? "bg-red-500 text-white border-red-500"
+                              : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {newBlock.recurrence.type !== "none" && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input
+                        label="Nº de dias/sessões"
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={newBlock.recurrence.count}
+                        onChange={(e: any) => setNewBlock((p) => ({ ...p, recurrence: { ...p.recurrence, count: parseInt(e.target.value) || 1 } }))}
+                      />
+                      {newBlock.recurrence.type === "custom" && (
+                        <Input
+                          label="Intervalo (dias)"
+                          type="number"
+                          min="1"
+                          value={newBlock.recurrence.interval}
+                          onChange={(e: any) => setNewBlock((p) => ({ ...p, recurrence: { ...p.recurrence, interval: parseInt(e.target.value) || 1 } }))}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleBlockWholeWeek}
+                    className="w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 border-dashed border-zinc-200 text-zinc-400 hover:border-red-300 hover:bg-red-50/40 hover:text-red-500 transition-all"
+                  >
+                    Bloquear semana inteira (7 dias seguidos)
+                  </button>
 
                   <Input label="Observações" placeholder="Motivo do bloqueio..." value={newBlock.notes} onChange={(e: any) => setNewBlock((p) => ({ ...p, notes: e.target.value }))} />
 

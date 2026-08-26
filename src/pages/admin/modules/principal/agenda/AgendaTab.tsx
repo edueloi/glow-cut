@@ -50,7 +50,7 @@ interface AgendaTabProps {
   // Submodule data
   clients?: any[];
   services?: any[];
-  onNewBlockAppointment?: (data: { date: Date; startTime: string; endTime: string; professionalId: string }) => void;
+  onNewBlockAppointment?: (data: { date: Date; startTime: string; endTime: string; professionalId: string; notes?: string; recurrence?: { type: "none" | "weekly" | "custom"; count: number; interval: number } }) => void | Promise<void>;
   onDeleteAppointment?: (id: string) => void;
   onUpdateStatus?: (id: string, status: string) => void;
   onRefresh?: () => void;
@@ -221,7 +221,7 @@ export function AgendaTab(props: AgendaTabProps) {
               professionals={props.professionals}
               workingHours={props.workingHours ?? []}
               onNewBlockAppointment={(data) => {
-                props.onNewBlockAppointment?.(data);
+                return props.onNewBlockAppointment?.(data);
               }}
               onDeleteAppointment={(id) => props.onDeleteAppointment?.(id)}
               onRefresh={props.onRefresh ?? (() => {})}
