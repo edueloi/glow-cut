@@ -74,6 +74,7 @@ import {
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
+import { getSocket } from "@/src/lib/socket";
 import { Button, IconButton } from "@/src/components/ui/Button";
 import { Modal, ModalFooter } from "@/src/components/ui/Modal";
 import { Input, Textarea, Select } from "@/src/components/ui/Input";
@@ -194,8 +195,15 @@ export default function AdminDashboard() {
         .catch(() => {});
     };
     checkPending();
-    const interval = setInterval(checkPending, 30000);
-    return () => { cancelled = true; clearInterval(interval); };
+    // Rede de segurança caso o socket caia — o evento em tempo real já cobre o caso comum.
+    const interval = setInterval(checkPending, 120000);
+    const socket = getSocket();
+    socket.on("subscription:pending_changed", checkPending);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      socket.off("subscription:pending_changed", checkPending);
+    };
   }, []);
 
   // Sub-aba de profissionais
@@ -712,6 +720,21 @@ export default function AdminDashboard() {
     fetchAppointments();
     fetchPendingAppointments();
   }, [fetchAppointments, fetchPendingAppointments]);
+
+  // Agenda em tempo real: outro usuário criou/editou/cancelou um agendamento ou bloqueio.
+  useEffect(() => {
+    const socket = getSocket();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const onAgendaChanged = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(refreshDashboardData, 300);
+    };
+    socket.on("agenda:changed", onAgendaChanged);
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      socket.off("agenda:changed", onAgendaChanged);
+    };
+  }, [refreshDashboardData]);
 
   // Recarrega agendamentos quando mês, profissional ou aba muda
   useEffect(() => {

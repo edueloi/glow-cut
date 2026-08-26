@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
 import jwt from "jsonwebtoken";
+import { emitToTenant } from "../realtime";
 
 export const clientPortalRouter = Router();
 
@@ -294,6 +295,7 @@ clientPortalRouter.post("/:slug/subscribe", requirePortalAuth, async (req: Reque
       subId, auth.tenantId, auth.clientId, membershipPlanId, now, periodEnd, periodEnd
     );
 
+    emitToTenant(auth.tenantId, "subscription:pending_changed");
     res.status(201).json({ success: true, subscriptionId: subId, status: "pending", message: "Assinatura criada! Aguardando confirmação de pagamento pelo estabelecimento." });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -355,6 +357,7 @@ clientPortalRouter.post("/:slug/book", requirePortalAuth, async (req: Request, r
       professionalId || null, date, startTime, endTime, notes || null
     );
 
+    emitToTenant(auth.tenantId, "agenda:changed");
     res.status(201).json({ success: true, appointmentId: apptId });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

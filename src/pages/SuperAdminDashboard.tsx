@@ -4,6 +4,7 @@ import { useAuth } from "@/src/App";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
 import { PUBLIC_SITE_URL } from "@/src/lib/domains";
+import { getSocket } from "@/src/lib/socket";
 import {
   Badge,
   StatCard,
@@ -4129,15 +4130,29 @@ function BotCentralTab() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Intervalo de atualização da fila a cada 15s
+  // Tempo real: fila/conversas do Bot Central mudaram (nova conversa, mensagem, fechamento).
   useEffect(() => {
-    const t = setInterval(() => {
-      if (subView === "queue" || subView === "dashboard") {
-        apiFetch("/api/super-admin/bot/conversations").then(r => r.json()).then(d => { if (Array.isArray(d)) setConversations(d); }).catch(() => {});
-        apiFetch("/api/super-admin/bot/stats").then(r => r.json()).then(d => setBotStats(d)).catch(() => {});
-      }
-    }, 15000);
-    return () => clearInterval(t);
+    const refreshQueue = () => {
+      if (subView !== "queue" && subView !== "dashboard") return;
+      apiFetch("/api/super-admin/bot/conversations").then(r => r.json()).then(d => { if (Array.isArray(d)) setConversations(d); }).catch(() => {});
+      apiFetch("/api/super-admin/bot/stats").then(r => r.json()).then(d => setBotStats(d)).catch(() => {});
+    };
+    const socket = getSocket();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const onChanged = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(refreshQueue, 300);
+    };
+    socket.on("bot:conversation_changed", onChanged);
+    socket.on("bot:message_added", onChanged);
+    // Rede de segurança caso o socket caia.
+    const fallback = setInterval(refreshQueue, 120000);
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      socket.off("bot:conversation_changed", onChanged);
+      socket.off("bot:message_added", onChanged);
+      clearInterval(fallback);
+    };
   }, [subView]);
 
   const openNewSector = () => {

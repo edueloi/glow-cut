@@ -7,6 +7,7 @@ import { PermissionsProvider } from "@/src/contexts/PermissionsContext";
 import { type PermissionSet } from "@/src/lib/permissions";
 import { saveToken, getToken, removeToken, isTokenExpired } from "@/src/lib/api";
 import { PUBLIC_SITE_URL, APP_SITE_URL, isAppHost } from "@/src/lib/domains";
+import { disconnectSocket } from "@/src/lib/socket";
 import ClientBooking from "./pages/ClientBooking";
 import PATQueue from "./pages/PATQueue";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -136,6 +137,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     removeToken();
     setUser(null);
+    disconnectSocket();
     // Limpar apenas a chave de "lembrar usuário" do localStorage (não sensível)
     // Não armazenamos mais dados de sessão no localStorage
   }, []);

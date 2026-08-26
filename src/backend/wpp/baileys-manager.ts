@@ -13,6 +13,7 @@
 
 import path from "path";
 import fs from "fs";
+import { emitToSuperAdmins } from "../realtime";
 import { prisma } from "../prisma";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -643,15 +644,18 @@ async function createConv(tenantId: string, sectorId: string, clientPhone: strin
     data: { tenantId, sectorId, clientPhone, clientName: name, status: "waiting", firstMessage: subject },
   });
   await saveMsg(conv.id, "bot", undefined, `Conversa iniciada. Cliente: ${name}, Assunto: ${subject}`);
+  emitToSuperAdmins("bot:conversation_changed", { conversationId: conv.id });
   return conv.id;
 }
 
 async function closeConv(id: string, by: string) {
   await (prisma as any).wppConversation.update({ where: { id }, data: { status: "closed", closedBy: by, closedAt: new Date() } }).catch(() => {});
+  emitToSuperAdmins("bot:conversation_changed", { conversationId: id });
 }
 
 async function saveMsg(convId: string, role: string, phone: string | undefined, body: string) {
   await (prisma as any).wppConversationMessage.create({ data: { conversationId: convId, fromRole: role, fromPhone: phone || null, body } }).catch(() => {});
+  emitToSuperAdmins("bot:message_added", { conversationId: convId });
 }
 
 // ── Envio fila anti-spam ──────────────────────────────────────────────────────
@@ -1251,6 +1255,7 @@ async function handleAttendant(
         attendantPhone: jidToPhone(replyJid),
       },
     }).catch(() => {});
+    emitToSuperAdmins("bot:conversation_changed", { conversationId: state.conversationId });
 
     if (state.conversationId) {
       await saveMsg(state.conversationId, "bot", undefined, `${displayName} aceitou.`);

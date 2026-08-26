@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { format, addDays, isSameDay, startOfDay, startOfMonth, endOfMonth, endOfWeek, startOfWeek, isSameMonth, isBefore, addMonths, subMonths, addMinutes, parse } from "date-fns";
 import { getTenantId, asBool, asNumber, toDateOnly, getDayRange, formatDateOnly, getSaudacao, applyTemplateVars, samePhone, normalizePhone } from "../utils/helpers";
 import { fireWppProfNewBooking, fireWppConfirmation as fireWppConfirmationCentral } from "./wppController";
+import { emitToTenant } from "../realtime";
 
 const DEFAULT_AGENDA_SETTINGS = {
   onlineBookingEnabled: true,
@@ -738,6 +739,7 @@ export const agendaController = {
         }
       }
 
+      emitToTenant(tenantId, "agenda:changed");
       res.json({ ...results[0], skipped: conflictSkipped });
     } catch (e: any) {
       res.status(400).json({ error: e.message || "Erro." });
@@ -785,6 +787,7 @@ export const agendaController = {
       if (status === "confirmed" && oldAppt?.status !== "confirmed" && appt?.client?.phone && appt.tenantId) {
         fireWppConfirmation(appt.tenantId, appt).catch(() => {});
       }
+      if (tenantId) emitToTenant(tenantId, "agenda:changed");
       res.json(appt);
     } catch (e: any) {
       res.status(400).json({ error: e.message || "Erro." });
@@ -848,6 +851,7 @@ export const agendaController = {
         fireWppConfirmation(appt.tenantId, appt).catch(() => {});
       }
 
+      if (tenantId) emitToTenant(tenantId, "agenda:changed");
       res.json(appt);
     } catch (e: any) {
       res.status(400).json({ error: e.message || "Erro." });
@@ -862,6 +866,7 @@ export const agendaController = {
         await handleAppointmentStockReservation(oldAppt.serviceId, "release");
       }
       await (prisma as any).appointment.deleteMany({ where: { id: req.params.id, tenantId: tenantId || undefined } });
+      if (tenantId) emitToTenant(tenantId, "agenda:changed");
       res.json({ success: true });
     } catch (e: any) {
       res.status(400).json({ error: e.message || "Erro." });
@@ -890,6 +895,7 @@ export const agendaController = {
     if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "ids obrigatâ”œâ”‚rio." });
     try {
       await (prisma as any).appointment.deleteMany({ where: { id: { in: ids }, tenantId } });
+      emitToTenant(tenantId, "agenda:changed");
       res.json({ success: true, deleted: ids.length });
     } catch (e: any) {
       res.status(400).json({ error: e.message });

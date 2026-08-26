@@ -1,10 +1,12 @@
 import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
+import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 import cors from "cors";
 import { prisma } from "./src/backend/prisma";
+import { initRealtime } from "./src/backend/realtime";
 
 import fs from "fs";
 import { randomUUID } from "crypto";
@@ -1169,6 +1171,8 @@ async function startServer() {
     app.use(vite.middlewares);
   }
 
-  app.listen(PORT, () => console.log(`🚀 Servidor modular rodando em http://localhost:${PORT}`));
+  const httpServer = http.createServer(app);
+  initRealtime(httpServer, CORS_ALLOWLIST);
+  httpServer.listen(PORT, () => console.log(`🚀 Servidor modular rodando em http://localhost:${PORT}`));
 }
 startServer();

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
 import { getTenantId, samePhone } from "../utils/helpers";
+import { emitToTenant } from "../realtime";
 
 function toNullableString(value: unknown): string | null {
   const text = typeof value === "string" ? value.trim() : String(value ?? "").trim();
@@ -216,6 +217,7 @@ export const clientController = {
       if (appointmentIds.length > 0) {
         await (prisma as any).wppMessageSent.deleteMany({ where: { appointmentId: { in: appointmentIds } } }).catch(() => {});
         await (prisma as any).appointment.deleteMany({ where: { id: { in: appointmentIds } } });
+        emitToTenant(tenantId, "agenda:changed");
       }
       if (comandaIds.length > 0) {
         // Excluir itens das comandas antes das comandas

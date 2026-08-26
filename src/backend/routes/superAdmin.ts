@@ -8,6 +8,7 @@ import {
   getSessionInfo,
 } from "../wpp/baileys-manager";
 import { requireSuperPermission } from "../middleware/auth";
+import { emitToSuperAdmins } from "../realtime";
 
 export const superAdminRouter = Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2023-10-16" as any });
@@ -1472,6 +1473,7 @@ superAdminRouter.patch("/bot/conversations/:id/close", async (req, res) => {
       where: { id: req.params.id },
       data: { status: "closed", closedBy: "system", closedAt: new Date() },
     });
+    emitToSuperAdmins("bot:conversation_changed", { conversationId: conv.id });
     res.json({ success: true, conversationId: conv.id });
   } catch (e: any) {
     res.status(400).json({ error: e.message });
