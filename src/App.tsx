@@ -7,7 +7,7 @@ import { PermissionsProvider } from "@/src/contexts/PermissionsContext";
 import { type PermissionSet } from "@/src/lib/permissions";
 import { saveToken, getToken, removeToken, isTokenExpired } from "@/src/lib/api";
 import { PUBLIC_SITE_URL, APP_SITE_URL, isAppHost } from "@/src/lib/domains";
-import { disconnectSocket } from "@/src/lib/socket";
+import { getSocket, disconnectSocket } from "@/src/lib/socket";
 import ClientBooking from "./pages/ClientBooking";
 import PATQueue from "./pages/PATQueue";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -113,6 +113,12 @@ function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => { loadUser(); }, [loadUser]);
+
+  // Conecta o socket assim que houver um usuário logado (admin, profissional ou super-admin).
+  // Isso também garante o auto-reload quando uma nova versão sobe (ver src/lib/socket.ts).
+  useEffect(() => {
+    if (user) getSocket();
+  }, [user]);
 
   const login = async (identifier: string, password: string): Promise<{ error?: string; user?: AuthUser; paymentPending?: boolean; checkoutUrl?: string }> => {
     try {
