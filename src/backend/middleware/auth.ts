@@ -48,12 +48,18 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
   (req as any).auth = payload;
 
-  // Para admin/profissional, verifica em tempo real se o tenant está bloqueado
+  // Para admin/profissional, verifica em tempo real se o tenant está bloqueado ou com o teste
+  // grátis vencido. O corte por `expiresAt` só vale pra quem nunca converteu pra um plano pago de
+  // verdade (sem stripeCustomerId) — tenant com assinatura Stripe ativa é controlado por
+  // isActive/blockedAt, que os webhooks (stripeWebhookRoutes.ts) já mantêm atualizados.
   if (payload.tenantId && (payload.type === "admin" || payload.type === "professional")) {
-    (prisma as any).tenant.findUnique({ where: { id: payload.tenantId }, select: { isActive: true, blockedAt: true } })
+    (prisma as any).tenant.findUnique({ where: { id: payload.tenantId }, select: { isActive: true, blockedAt: true, expiresAt: true, stripeCustomerId: true } })
       .then((tenant: any) => {
         if (tenant && tenant.blockedAt && !tenant.isActive) {
           return res.status(403).json({ error: "Conta bloqueada. Entre em contato com o suporte.", blocked: true });
+        }
+        if (tenant && !tenant.stripeCustomerId && tenant.expiresAt && new Date(tenant.expiresAt) < new Date()) {
+          return res.status(403).json({ error: "Seu período de teste grátis expirou. Assine um plano para continuar.", trialExpired: true });
         }
         next();
       })

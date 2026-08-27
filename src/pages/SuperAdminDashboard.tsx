@@ -3080,7 +3080,7 @@ function StaffTab({ username, userPermissions }: { username: string; userPermiss
     };
     reader.readAsDataURL(file);
   };
-  const isMaster = ["admin", "flavio_sikorsky"].includes(username.toLowerCase()) || (userPermissions === null) || (userPermissions?.staff?.ver);
+  const isMaster = username.toLowerCase() === "admin" || (userPermissions === null) || (userPermissions?.staff?.ver);
 
   const load = useCallback(async () => {
     try {

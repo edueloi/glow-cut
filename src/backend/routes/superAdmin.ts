@@ -25,7 +25,7 @@ superAdminRouter.get("/platform-contacts", async (req, res) => {
   }
 });
 
-superAdminRouter.post("/platform-contacts", async (req, res) => {
+superAdminRouter.post("/platform-contacts", requireSuperPermission("settings"), async (req, res) => {
   const { name, phone, type, isPrimary, isActive } = req.body;
   if (!name || !phone) return res.status(400).json({ error: "Nome e telefone são obrigatórios" });
   try {
@@ -53,7 +53,7 @@ superAdminRouter.post("/platform-contacts", async (req, res) => {
   }
 });
 
-superAdminRouter.put("/platform-contacts/:id", async (req, res) => {
+superAdminRouter.put("/platform-contacts/:id", requireSuperPermission("settings"), async (req, res) => {
   const { name, phone, type, isPrimary, isActive } = req.body;
   try {
     // Se for primário, remove primário de outros do mesmo tipo
@@ -81,7 +81,7 @@ superAdminRouter.put("/platform-contacts/:id", async (req, res) => {
   }
 });
 
-superAdminRouter.delete("/platform-contacts/:id", async (req, res) => {
+superAdminRouter.delete("/platform-contacts/:id", requireSuperPermission("settings"), async (req, res) => {
   try {
     await (prisma as any).platformContact.delete({ where: { id: req.params.id } });
     res.json({ ok: true });
@@ -204,7 +204,7 @@ superAdminRouter.get("/staff", async (req, res) => {
   }
 });
 
-superAdminRouter.post("/staff", async (req, res) => {
+superAdminRouter.post("/staff", requireSuperPermission("staff"), async (req, res) => {
   const { username, password, name, email, phone, birthday, role, bio, photo, permissions } = req.body;
   if (!username || !password) return res.status(400).json({ error: "Username e senha obrigatórios" });
   try {
@@ -233,7 +233,7 @@ superAdminRouter.post("/staff", async (req, res) => {
   }
 });
 
-superAdminRouter.put("/staff/:id", async (req, res) => {
+superAdminRouter.put("/staff/:id", requireSuperPermission("staff"), async (req, res) => {
   const { username, password, name, email, phone, birthday, role, bio, photo, permissions } = req.body;
   try {
     const data: any = { 
@@ -260,7 +260,7 @@ superAdminRouter.put("/staff/:id", async (req, res) => {
   }
 });
 
-superAdminRouter.delete("/staff/:id", async (req, res) => {
+superAdminRouter.delete("/staff/:id", requireSuperPermission("staff"), async (req, res) => {
   try {
     await (prisma as any).superAdmin.delete({ where: { id: req.params.id } });
     res.json({ ok: true });
@@ -339,7 +339,7 @@ superAdminRouter.get("/commissions", async (req, res) => {
 });
 
 // Atualiza configuração de comissão de um vendedor
-superAdminRouter.put("/commissions/:id", async (req, res) => {
+superAdminRouter.put("/commissions/:id", requireSuperPermission("commissions"), async (req, res) => {
   const { commissionType, commissionValue, commissionByPlan, trialDays } = req.body;
   try {
     const data: any = {};
@@ -463,7 +463,7 @@ const STRIPE_REQUIREMENT_LABELS: Record<string, string> = {
   "representative.last_name": "Sobrenome do representante",
 };
 
-superAdminRouter.post("/stripe-connect", async (req, res) => {
+superAdminRouter.post("/stripe-connect", requireSuperPermission("commissions"), async (req, res) => {
   const userId = (req as any).auth?.sub;
   try {
     if (!userId) return res.status(401).json({ error: "Usuário não identificado" });
@@ -586,7 +586,7 @@ superAdminRouter.post("/stripe-connect", async (req, res) => {
   }
 });
 
-superAdminRouter.delete("/stripe-connect", async (req, res) => {
+superAdminRouter.delete("/stripe-connect", requireSuperPermission("commissions"), async (req, res) => {
   try {
     const userId = (req as any).auth?.sub;
     if (!userId) return res.status(401).json({ error: "Usuário não identificado" });
@@ -699,7 +699,7 @@ superAdminRouter.get("/plans", async (req, res) => {
   }
 });
 
-superAdminRouter.post("/plans", async (req, res) => {
+superAdminRouter.post("/plans", requireSuperPermission("plans"), async (req, res) => {
   const {
     name, price, maxProfessionals, maxAdminUsers,
     canCreateAdminUsers, canDeleteAccount,
@@ -742,7 +742,7 @@ superAdminRouter.post("/plans", async (req, res) => {
   }
 });
 
-superAdminRouter.put("/plans/:id", async (req, res) => {
+superAdminRouter.put("/plans/:id", requireSuperPermission("plans"), async (req, res) => {
   const {
     name, price, maxProfessionals, maxAdminUsers,
     canCreateAdminUsers, canDeleteAccount,
@@ -788,7 +788,7 @@ superAdminRouter.put("/plans/:id", async (req, res) => {
 });
 
 
-superAdminRouter.delete("/plans/:id", async (req, res) => {
+superAdminRouter.delete("/plans/:id", requireSuperPermission("plans"), async (req, res) => {
   try {
     const tenantsCount = await (prisma as any).tenant.count({ where: { planId: req.params.id } });
     if (tenantsCount === 0) {
@@ -836,7 +836,7 @@ superAdminRouter.get("/tenants", async (req, res) => {
   }
 });
 
-superAdminRouter.post("/tenants", async (req, res) => {
+superAdminRouter.post("/tenants", requireSuperPermission("tenants"), async (req, res) => {
   const { name, slug, ownerName, ownerEmail, ownerPhone, planId, notes, adminPassword, expiresAt, salesPersonId } = req.body;
 
   if (!name || !slug || !ownerName || !ownerEmail || !planId || !adminPassword) {
@@ -901,7 +901,7 @@ superAdminRouter.post("/tenants", async (req, res) => {
   }
 });
 
-superAdminRouter.patch("/tenants/:id", async (req, res) => {
+superAdminRouter.patch("/tenants/:id", requireSuperPermission("tenants"), async (req, res) => {
   const { name, slug, ownerName, ownerEmail, ownerPhone, planId, notes, isActive, expiresAt, maxAdminUsersOverride } = req.body;
   try {
     const current = await (prisma as any).tenant.findUnique({ where: { id: req.params.id } });
@@ -934,7 +934,7 @@ superAdminRouter.patch("/tenants/:id", async (req, res) => {
   }
 });
 
-superAdminRouter.put("/tenants/:id", async (req, res) => {
+superAdminRouter.put("/tenants/:id", requireSuperPermission("tenants"), async (req, res) => {
   const { name, slug, ownerName, ownerEmail, ownerPhone, planId, notes, isActive, expiresAt, maxAdminUsersOverride } = req.body;
   try {
     const current = await (prisma as any).tenant.findUnique({ where: { id: req.params.id } });
@@ -967,7 +967,7 @@ superAdminRouter.put("/tenants/:id", async (req, res) => {
   }
 });
 
-superAdminRouter.delete("/tenants/:id", async (req, res) => {
+superAdminRouter.delete("/tenants/:id", requireSuperPermission("tenants"), async (req, res) => {
   const { id } = req.params;
   try {
     // Delete in dependency order to avoid FK violations
@@ -1084,7 +1084,7 @@ superAdminRouter.get("/admin-users", async (req, res) => {
   }
 });
 
-superAdminRouter.post("/admin-users", async (req, res) => {
+superAdminRouter.post("/admin-users", requireSuperPermission("users"), async (req, res) => {
   const { name, email, password, role, jobTitle, phone, tenantId, canCreateUsers, canDeleteAccount, permissions } = req.body;
   if (!name || !email || !password || !tenantId) return res.status(400).json({ error: "name, email, password e tenantId são obrigatórios." });
   const existing = await (prisma as any).adminUser.findFirst({ where: { email } });
@@ -1110,7 +1110,7 @@ superAdminRouter.post("/admin-users", async (req, res) => {
   }
 });
 
-superAdminRouter.put("/admin-users/:id", async (req, res) => {
+superAdminRouter.put("/admin-users/:id", requireSuperPermission("users"), async (req, res) => {
   const { name, email, password, role, jobTitle, phone, isActive, canCreateUsers, canDeleteAccount, permissions, photo } = req.body;
   try {
     const user = await (prisma as any).adminUser.update({
@@ -1135,7 +1135,7 @@ superAdminRouter.put("/admin-users/:id", async (req, res) => {
   }
 });
 
-superAdminRouter.delete("/admin-users/:id", async (req, res) => {
+superAdminRouter.delete("/admin-users/:id", requireSuperPermission("users"), async (req, res) => {
   try {
     await (prisma as any).adminUser.delete({ where: { id: req.params.id } });
     res.json({ success: true });
@@ -1188,7 +1188,7 @@ superAdminRouter.get("/wpp/instances", async (req, res) => {
 });
 
 // Atualiza wppOverride de um parceiro (null = herda do plano, true = forçar on, false = forçar off)
-superAdminRouter.patch("/wpp/tenant/:id", async (req, res) => {
+superAdminRouter.patch("/wpp/tenant/:id", requireSuperPermission("wpp"), async (req, res) => {
   const { wppOverride } = req.body;
   try {
     const tenant = await (prisma as any).tenant.update({
@@ -1202,7 +1202,7 @@ superAdminRouter.patch("/wpp/tenant/:id", async (req, res) => {
 });
 
 // Atualiza wppEnabled de um plano
-superAdminRouter.patch("/wpp/plan/:id", async (req, res) => {
+superAdminRouter.patch("/wpp/plan/:id", requireSuperPermission("wpp"), async (req, res) => {
   const { wppEnabled } = req.body;
   try {
     const plan = await (prisma as any).plan.update({
@@ -1230,7 +1230,7 @@ superAdminRouter.get("/wpp/system/status", async (_req, res) => {
 });
 
 // Conecta bot global
-superAdminRouter.post("/wpp/system/connect", async (_req, res) => {
+superAdminRouter.post("/wpp/system/connect", requireSuperPermission("wpp"), async (_req, res) => {
   try {
     // Garante registro no BD
     await (prisma as any).wppInstance.upsert({
@@ -1256,7 +1256,7 @@ superAdminRouter.get("/wpp/system/poll", async (_req, res) => {
 });
 
 // Desconecta bot global
-superAdminRouter.post("/wpp/system/disconnect", async (_req, res) => {
+superAdminRouter.post("/wpp/system/disconnect", requireSuperPermission("wpp"), async (_req, res) => {
   try {
     await disconnectSession("system");
     await (prisma as any).wppInstance.updateMany({ where: { tenantId: "system" }, data: { status: "disconnected", isActive: false, phone: null } });
@@ -1267,7 +1267,7 @@ superAdminRouter.post("/wpp/system/disconnect", async (_req, res) => {
 });
 
 // Cria instância para o parceiro (se não existir) e já inicia conexão
-superAdminRouter.post("/wpp/tenant/:tenantId/setup", async (req, res) => {
+superAdminRouter.post("/wpp/tenant/:tenantId/setup", requireSuperPermission("wpp"), async (req, res) => {
   const { tenantId } = req.params;
   try {
     const tenant = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { slug: true } });
@@ -1297,7 +1297,7 @@ superAdminRouter.post("/wpp/tenant/:tenantId/setup", async (req, res) => {
 });
 
 // Pegar QR / iniciar conexão de um parceiro pelo super-admin (via Baileys)
-superAdminRouter.post("/wpp/tenant/:tenantId/connect", async (req, res) => {
+superAdminRouter.post("/wpp/tenant/:tenantId/connect", requireSuperPermission("wpp"), async (req, res) => {
   const { tenantId } = req.params;
   try {
     const instance = await (prisma as any).wppInstance.findUnique({ where: { tenantId } });
@@ -1322,7 +1322,7 @@ superAdminRouter.get("/wpp/tenant/:tenantId/status", async (req, res) => {
 });
 
 // Desconectar instância de um parceiro (via Baileys)
-superAdminRouter.post("/wpp/tenant/:tenantId/disconnect", async (req, res) => {
+superAdminRouter.post("/wpp/tenant/:tenantId/disconnect", requireSuperPermission("wpp"), async (req, res) => {
   const { tenantId } = req.params;
   try {
     await disconnectSession(tenantId);
@@ -1373,7 +1373,7 @@ superAdminRouter.get("/bot/sectors", async (_req, res) => {
 });
 
 // Cria setor
-superAdminRouter.post("/bot/sectors", async (req, res) => {
+superAdminRouter.post("/bot/sectors", requireSuperPermission("wpp"), async (req, res) => {
   const { name, menuKey, description, attendants, sortOrder } = req.body;
   if (!name || !menuKey) return res.status(400).json({ error: "name e menuKey são obrigatórios." });
   try {
@@ -1395,7 +1395,7 @@ superAdminRouter.post("/bot/sectors", async (req, res) => {
 });
 
 // Atualiza setor
-superAdminRouter.patch("/bot/sectors/:id", async (req, res) => {
+superAdminRouter.patch("/bot/sectors/:id", requireSuperPermission("wpp"), async (req, res) => {
   const { name, menuKey, description, attendants, isActive, sortOrder } = req.body;
   try {
     const data: any = {};
@@ -1417,7 +1417,7 @@ superAdminRouter.patch("/bot/sectors/:id", async (req, res) => {
 });
 
 // Remove setor
-superAdminRouter.delete("/bot/sectors/:id", async (req, res) => {
+superAdminRouter.delete("/bot/sectors/:id", requireSuperPermission("wpp"), async (req, res) => {
   try {
     await (prisma as any).wppBotSector.delete({ where: { id: req.params.id } });
     res.json({ success: true });
@@ -1467,7 +1467,7 @@ superAdminRouter.get("/bot/conversations/:id", async (req, res) => {
 });
 
 // Encerra uma conversa manualmente (super-admin)
-superAdminRouter.patch("/bot/conversations/:id/close", async (req, res) => {
+superAdminRouter.patch("/bot/conversations/:id/close", requireSuperPermission("wpp"), async (req, res) => {
   try {
     const conv = await (prisma as any).wppConversation.update({
       where: { id: req.params.id },
@@ -1759,7 +1759,7 @@ superAdminRouter.get("/finance/entries", async (req, res) => {
 });
 
 // Criar lançamento financeiro
-superAdminRouter.post("/finance/entries", async (req, res) => {
+superAdminRouter.post("/finance/entries", requireSuperPermission("finance"), async (req, res) => {
   try {
     const { type, category, description, amount, date, recurrence, tenantId, planId, notes } = req.body;
     if (!category || !amount || !date) return res.status(400).json({ error: "Categoria, valor e data são obrigatórios" });
@@ -1779,7 +1779,7 @@ superAdminRouter.post("/finance/entries", async (req, res) => {
 });
 
 // Atualizar lançamento financeiro
-superAdminRouter.put("/finance/entries/:id", async (req, res) => {
+superAdminRouter.put("/finance/entries/:id", requireSuperPermission("finance"), async (req, res) => {
   try {
     const { type, category, description, amount, date, recurrence, tenantId, planId, notes } = req.body;
 
@@ -1796,7 +1796,7 @@ superAdminRouter.put("/finance/entries/:id", async (req, res) => {
 });
 
 // Deletar lançamento financeiro
-superAdminRouter.delete("/finance/entries/:id", async (req, res) => {
+superAdminRouter.delete("/finance/entries/:id", requireSuperPermission("finance"), async (req, res) => {
   try {
     await (prisma as any).$executeRawUnsafe(`DELETE FROM PlatformFinance WHERE id=?`, req.params.id);
     res.json({ ok: true });
@@ -1816,7 +1816,7 @@ superAdminRouter.get("/finance/allocations", async (req, res) => {
   }
 });
 
-superAdminRouter.post("/finance/allocations", async (req, res) => {
+superAdminRouter.post("/finance/allocations", requireSuperPermission("finance"), async (req, res) => {
   try {
     const { name, percentage, color } = req.body;
     if (!name || percentage == null) return res.status(400).json({ error: "Nome e porcentagem são obrigatórios" });
@@ -1830,7 +1830,7 @@ superAdminRouter.post("/finance/allocations", async (req, res) => {
   }
 });
 
-superAdminRouter.put("/finance/allocations/:id", async (req, res) => {
+superAdminRouter.put("/finance/allocations/:id", requireSuperPermission("finance"), async (req, res) => {
   try {
     const { name, percentage, color, isActive } = req.body;
     await (prisma as any).$executeRawUnsafe(`
@@ -1842,7 +1842,7 @@ superAdminRouter.put("/finance/allocations/:id", async (req, res) => {
   }
 });
 
-superAdminRouter.delete("/finance/allocations/:id", async (req, res) => {
+superAdminRouter.delete("/finance/allocations/:id", requireSuperPermission("finance"), async (req, res) => {
   try {
     await (prisma as any).$executeRawUnsafe(`DELETE FROM PlatformAllocation WHERE id=?`, req.params.id);
     res.json({ ok: true });
@@ -1878,7 +1878,7 @@ superAdminRouter.get("/qa/runs", async (_req, res) => {
 });
 
 // Criar novo run de teste
-superAdminRouter.post("/qa/runs", async (req, res) => {
+superAdminRouter.post("/qa/runs", requireSuperPermission("qa"), async (req, res) => {
   const { title, testerName, testerEmail, notes } = req.body;
   if (!testerName) return res.status(400).json({ error: "Nome do testador é obrigatório" });
   try {
@@ -1913,7 +1913,7 @@ superAdminRouter.get("/qa/runs/:id", async (req, res) => {
 });
 
 // Atualizar status do run
-superAdminRouter.patch("/qa/runs/:id", async (req, res) => {
+superAdminRouter.patch("/qa/runs/:id", requireSuperPermission("qa"), async (req, res) => {
   const { status, notes } = req.body;
   try {
     const run = await (prisma as any).qATestRun.update({
@@ -1930,7 +1930,7 @@ superAdminRouter.patch("/qa/runs/:id", async (req, res) => {
 });
 
 // Deletar run
-superAdminRouter.delete("/qa/runs/:id", async (req, res) => {
+superAdminRouter.delete("/qa/runs/:id", requireSuperPermission("qa"), async (req, res) => {
   try {
     await (prisma as any).qATestRun.delete({ where: { id: req.params.id } });
     res.json({ ok: true });
@@ -1940,7 +1940,7 @@ superAdminRouter.delete("/qa/runs/:id", async (req, res) => {
 });
 
 // Salvar/atualizar resultado de um teste individual (upsert)
-superAdminRouter.post("/qa/runs/:id/results", async (req, res) => {
+superAdminRouter.post("/qa/runs/:id/results", requireSuperPermission("qa"), async (req, res) => {
   const { testId, section, title, status, notes } = req.body;
   if (!testId) return res.status(400).json({ error: "testId é obrigatório" });
   try {
@@ -2011,7 +2011,7 @@ superAdminRouter.get("/leads", async (req, res) => {
   }
 });
 
-superAdminRouter.post("/leads", async (req, res) => {
+superAdminRouter.post("/leads", requireSuperPermission("sales"), async (req, res) => {
   try {
     const userId = (req as any).auth?.sub;
     if (!userId) return res.status(401).json({ error: "Não autorizado" });
@@ -2061,7 +2061,7 @@ superAdminRouter.post("/leads", async (req, res) => {
   }
 });
 
-superAdminRouter.delete("/leads/:id", async (req, res) => {
+superAdminRouter.delete("/leads/:id", requireSuperPermission("sales"), async (req, res) => {
   try {
     const userId = (req as any).auth?.sub;
     if (!userId) return res.status(401).json({ error: "Não autorizado" });
@@ -2088,7 +2088,7 @@ superAdminRouter.get("/favorites", async (req, res) => {
   }
 });
 
-superAdminRouter.post("/favorites", async (req, res) => {
+superAdminRouter.post("/favorites", requireSuperPermission("sales"), async (req, res) => {
   try {
     const userId = (req as any).auth?.sub;
     if (!userId) return res.status(401).json({ error: "Não autorizado" });
@@ -2121,7 +2121,7 @@ superAdminRouter.get("/sales-reps", async (req, res) => {
   }
 });
 
-superAdminRouter.put("/sales-reps/:id/cities", async (req, res) => {
+superAdminRouter.put("/sales-reps/:id/cities", requireSuperPermission("sales"), async (req, res) => {
   try {
     const { id } = req.params;
     const { responsableCities } = req.body;
@@ -2157,7 +2157,7 @@ superAdminRouter.get("/free-trial-invites", async (req, res) => {
 });
 
 // Criar novo convite
-superAdminRouter.post("/free-trial-invites", async (req, res) => {
+superAdminRouter.post("/free-trial-invites", requireSuperPermission("sales"), async (req, res) => {
   const { planId, trialDays, label, createdBy, linkExpiryDays } = req.body;
   if (!planId || !createdBy) return res.status(400).json({ error: "planId e createdBy são obrigatórios." });
 
@@ -2188,7 +2188,7 @@ superAdminRouter.post("/free-trial-invites", async (req, res) => {
 });
 
 // Revogar/deletar convite
-superAdminRouter.delete("/free-trial-invites/:id", async (req, res) => {
+superAdminRouter.delete("/free-trial-invites/:id", requireSuperPermission("sales"), async (req, res) => {
   try {
     await (prisma as any).freeTrialInvite.delete({ where: { id: req.params.id } });
     res.json({ ok: true });
