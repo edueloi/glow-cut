@@ -13,5 +13,7 @@ publicBookingRouter.get("/clients/search", clientController.publicSearch);
 publicBookingRouter.post("/clients", clientController.create);
 publicBookingRouter.get("/appointments/client", agendaController.clientAppointments);
 publicBookingRouter.post("/appointments", agendaController.create);
+publicBookingRouter.patch("/appointments/:id/cancel", agendaController.clientCancel);
+publicBookingRouter.patch("/appointments/:id/reschedule", agendaController.clientReschedule);
 publicBookingRouter.get("/calendar-status", agendaController.getCalendarStatus);
 publicBookingRouter.get("/products", productController.publicList);

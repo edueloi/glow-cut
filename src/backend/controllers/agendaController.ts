@@ -570,7 +570,95 @@ export const agendaController = {
       res.status(500).json({ error: "Erro." });
     }
   },
-  
+
+  // Autoatendimento do cliente: cancelar/remarcar o próprio agendamento (sem login, autenticado
+  // apenas pelo telefone cadastrado no agendamento — mesmo nível de "prova" já usado na consulta
+  // pública de agendamentos por telefone).
+  async clientCancel(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    const { phone } = req.body;
+    const { id } = req.params;
+    if (!phone) return res.status(400).json({ error: "Telefone obrigatório." });
+    try {
+      const agendaSettings = await ensureAgendaSettingsRecord(tenantId);
+      if (!agendaSettings.allowClientCancellation) {
+        return res.status(403).json({ error: "Cancelamento pelo cliente está desativado." });
+      }
+      const appt = await (prisma as any).appointment.findFirst({ where: { id, tenantId }, include: { client: true } });
+      if (!appt) return res.status(404).json({ error: "Agendamento não encontrado." });
+
+      const digits = String(phone).replace(/\D/g, "");
+      const apptPhoneDigits = String(appt.client?.phone || "").replace(/\D/g, "");
+      if (!digits || digits !== apptPhoneDigits) {
+        return res.status(403).json({ error: "Telefone não confere com o agendamento." });
+      }
+      if (appt.status === "done") {
+        return res.status(400).json({ error: "Este agendamento já foi concluído." });
+      }
+      if (appt.status !== "cancelled" && appt.status !== "cancelado") {
+        const wasActive = appt.status === "scheduled" || appt.status === "confirmed";
+        await (prisma as any).appointment.update({ where: { id }, data: { status: "cancelled" } });
+        if (wasActive) await handleAppointmentStockReservation(appt.serviceId, "release");
+        emitToTenant(tenantId, "agenda:changed");
+      }
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message || "Erro." });
+    }
+  },
+
+  async clientReschedule(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    const { phone, date, startTime } = req.body;
+    const { id } = req.params;
+    if (!phone || !date || !startTime) return res.status(400).json({ error: "Telefone, data e horário são obrigatórios." });
+    try {
+      const agendaSettings = await ensureAgendaSettingsRecord(tenantId);
+      if (!agendaSettings.allowClientReschedule) {
+        return res.status(403).json({ error: "Reagendamento pelo cliente está desativado." });
+      }
+      const appt = await (prisma as any).appointment.findFirst({ where: { id, tenantId }, include: { client: true, service: true } });
+      if (!appt) return res.status(404).json({ error: "Agendamento não encontrado." });
+
+      const digits = String(phone).replace(/\D/g, "");
+      const apptPhoneDigits = String(appt.client?.phone || "").replace(/\D/g, "");
+      if (!digits || digits !== apptPhoneDigits) {
+        return res.status(403).json({ error: "Telefone não confere com o agendamento." });
+      }
+      if (appt.status !== "scheduled" && appt.status !== "confirmed") {
+        return res.status(400).json({ error: "Este agendamento não pode mais ser remarcado." });
+      }
+
+      const targetDate = toDateOnly(date);
+      const duration = appt.duration || appt.service?.duration || 60;
+      const resolvedEndTime = resolveEndTime(targetDate, startTime, null, duration);
+
+      const targetStart = parse(`${format(targetDate, "yyyy-MM-dd")} ${startTime}`, "yyyy-MM-dd HH:mm", new Date());
+      if (targetStart < addMinutes(new Date(), agendaSettings.minAdvanceMinutes || 0)) {
+        return res.status(400).json({ error: "Horário muito próximo — escolha outro." });
+      }
+      const maxBookingDate = addDays(startOfDay(new Date()), agendaSettings.maxAdvanceDays);
+      if (startOfDay(targetDate) > maxBookingDate) {
+        return res.status(400).json({ error: "Data fora do período permitido para agendamento." });
+      }
+
+      await ensureSlotAvailable(tenantId, appt.professionalId, targetDate, startTime, resolvedEndTime, id);
+      await ensureWithinWorkingHours(tenantId, appt.professionalId, targetDate, startTime, resolvedEndTime, agendaSettings);
+
+      const updated = await (prisma as any).appointment.update({
+        where: { id },
+        data: { date: targetDate, startTime, endTime: resolvedEndTime },
+        include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true, phone: true } } },
+      });
+      emitToTenant(tenantId, "agenda:changed");
+      res.json(updated);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message || "Erro." });
+    }
+  },
+
   async checkRecurrence(req: Request, res: Response) {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório" });

@@ -88,6 +88,17 @@ export default function ClientBooking() {
   const [datesToBook, setDatesToBook] = useState<string[]>([]);
   const [showConflictsModal, setShowConflictsModal] = useState(false);
 
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+  const [cancelLoadingId, setCancelLoadingId] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState("");
+
+  const [rescheduleAppt, setRescheduleAppt] = useState<any | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleSlots, setRescheduleSlots] = useState<string[]>([]);
+  const [rescheduleSlot, setRescheduleSlot] = useState<string | null>(null);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [rescheduleError, setRescheduleError] = useState("");
+
   const formatPhone = (v: string) => {
     const d = v.replace(/\D/g, "").slice(0, 11);
     if (d.length <= 2) return d;
@@ -286,6 +297,83 @@ export default function ClientBooking() {
     const data = await res.json();
     setMyAppointments(Array.isArray(data) ? data : []);
     setIsLoading(false);
+  };
+
+  const handleCancelAppointment = async (apptId: string) => {
+    setCancelError("");
+    setCancelLoadingId(apptId);
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (tenantId) headers["x-tenant-id"] = tenantId;
+    try {
+      const res = await fetch(`/api/public/appointments/${apptId}/cancel`, {
+        method: "PATCH", headers, body: JSON.stringify({ phone }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setCancelError(err?.error || "Não foi possível cancelar.");
+        setCancelLoadingId(null);
+        return;
+      }
+      setCancelConfirmId(null);
+      setCancelLoadingId(null);
+      handleConsultAppointments();
+    } catch {
+      setCancelError("Não foi possível cancelar.");
+      setCancelLoadingId(null);
+    }
+  };
+
+  const fetchRescheduleSlots = async (appt: any, dateStr: string) => {
+    if (!appt?.service?.id || !appt?.professional?.id || !dateStr) return;
+    const headers: Record<string, string> = {};
+    if (tenantId) headers["x-tenant-id"] = tenantId;
+    try {
+      const res = await fetch(`/api/availability?date=${dateStr}&serviceId=${appt.service.id}&professionalId=${appt.professional.id}`, { headers });
+      const data = await res.json();
+      setRescheduleSlots(Array.isArray(data) ? data : []);
+    } catch { setRescheduleSlots([]); }
+  };
+
+  const openReschedule = (appt: any) => {
+    const dateStr = format(new Date(appt.date), "yyyy-MM-dd");
+    setRescheduleAppt(appt);
+    setRescheduleDate(dateStr);
+    setRescheduleSlot(null);
+    setRescheduleSlots([]);
+    setRescheduleError("");
+    fetchRescheduleSlots(appt, dateStr);
+  };
+
+  const handleRescheduleDateChange = (dateStr: string) => {
+    setRescheduleDate(dateStr);
+    setRescheduleSlot(null);
+    if (rescheduleAppt) fetchRescheduleSlots(rescheduleAppt, dateStr);
+  };
+
+  const confirmReschedule = async () => {
+    if (!rescheduleAppt || !rescheduleDate || !rescheduleSlot) return;
+    setRescheduleLoading(true);
+    setRescheduleError("");
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (tenantId) headers["x-tenant-id"] = tenantId;
+    try {
+      const res = await fetch(`/api/public/appointments/${rescheduleAppt.id}/reschedule`, {
+        method: "PATCH", headers,
+        body: JSON.stringify({ phone, date: rescheduleDate, startTime: rescheduleSlot }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setRescheduleError(err?.error || "Não foi possível remarcar.");
+        setRescheduleLoading(false);
+        return;
+      }
+      setRescheduleLoading(false);
+      setRescheduleAppt(null);
+      handleConsultAppointments();
+    } catch {
+      setRescheduleError("Não foi possível remarcar.");
+      setRescheduleLoading(false);
+    }
   };
 
   const fetchAvailability = async (date: Date, serviceId: string, professionalId: string) => {
@@ -683,23 +771,77 @@ export default function ClientBooking() {
                   </div>
                   {myAppointments.length > 0 ? (
                     <div className="space-y-2">
-                      {myAppointments.map((app) => (
-                        <div key={app.id} className="p-3.5 border border-zinc-200 rounded-2xl bg-white shadow-sm flex flex-col gap-1.5 relative overflow-hidden">
-                          <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: customColor }} />
-                          <div className="flex justify-between items-start pl-3">
-                            <div>
-                              <p className="text-xs font-black text-zinc-900">{app.service?.name}</p>
-                              <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
-                                {format(new Date(app.date), "dd 'de' MMMM", { locale: ptBR })} às {app.startTime}
-                              </p>
+                      {myAppointments.map((app) => {
+                        const statusLabels: Record<string, { label: string; cls: string }> = {
+                          scheduled: { label: "Agendado", cls: "bg-amber-100 text-amber-700" },
+                          confirmed: { label: "Confirmado", cls: "bg-blue-100 text-blue-700" },
+                          done: { label: "Concluído", cls: "bg-emerald-100 text-emerald-700" },
+                          cancelled: { label: "Cancelado", cls: "bg-zinc-200 text-zinc-500" },
+                          cancelado: { label: "Cancelado", cls: "bg-zinc-200 text-zinc-500" },
+                          noshow: { label: "Não compareceu", cls: "bg-rose-100 text-rose-600" },
+                        };
+                        const statusInfo = statusLabels[app.status] || { label: app.status, cls: "bg-zinc-100 text-zinc-500" };
+                        const isActiveAppt = app.status === "scheduled" || app.status === "confirmed";
+                        return (
+                          <div key={app.id} className="p-3.5 border border-zinc-200 rounded-2xl bg-white shadow-sm flex flex-col gap-1.5 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: customColor }} />
+                            <div className="flex justify-between items-start pl-3">
+                              <div>
+                                <p className="text-xs font-black text-zinc-900">{app.service?.name}</p>
+                                <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
+                                  {format(new Date(app.date), "dd 'de' MMMM", { locale: ptBR })} às {app.startTime}
+                                </p>
+                              </div>
+                              <span className={cn("text-[8px] px-2 py-1 rounded-full uppercase font-black tracking-widest shrink-0", statusInfo.cls)}>
+                                {statusInfo.label}
+                              </span>
                             </div>
-                            <span className={cn("text-[8px] px-2 py-1 rounded-full uppercase font-black tracking-widest",
-                              app.status === "scheduled" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700")}>
-                              {app.status === "scheduled" ? "Agendado" : "Concluído"}
-                            </span>
+
+                            {isActiveAppt && (publicAgendaSettings.allowClientCancellation || publicAgendaSettings.allowClientReschedule) && (
+                              <div className="pl-3 pt-1 flex items-center gap-2">
+                                {publicAgendaSettings.allowClientReschedule && (
+                                  <button
+                                    onClick={() => openReschedule(app)}
+                                    className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-colors"
+                                  >
+                                    Remarcar
+                                  </button>
+                                )}
+                                {publicAgendaSettings.allowClientCancellation && (
+                                  cancelConfirmId === app.id ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[10px] font-bold text-zinc-400">Confirmar?</span>
+                                      <button
+                                        onClick={() => handleCancelAppointment(app.id)}
+                                        disabled={cancelLoadingId === app.id}
+                                        className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+                                      >
+                                        {cancelLoadingId === app.id ? <Loader2 size={11} className="animate-spin" /> : "Sim, cancelar"}
+                                      </button>
+                                      <button
+                                        onClick={() => setCancelConfirmId(null)}
+                                        className="text-[10px] font-bold px-2 py-1.5 text-zinc-400 hover:text-zinc-600"
+                                      >
+                                        Voltar
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => { setCancelConfirmId(app.id); setCancelError(""); }}
+                                      className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                                    >
+                                      Cancelar
+                                    </button>
+                                  )
+                                )}
+                              </div>
+                            )}
+                            {cancelConfirmId === app.id && cancelError && (
+                              <p className="pl-3 text-[10px] font-bold text-red-500">{cancelError}</p>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : phone.length >= 10 && !isLoading && (
                     <div className="p-6 text-center border-2 border-dashed border-zinc-100 rounded-2xl bg-zinc-50">
@@ -1375,6 +1517,78 @@ export default function ClientBooking() {
                 </Button>
                 <Button variant="ghost" fullWidth onClick={() => { setShowConflictsModal(false); setRecurrenceConflicts([]); setIsLoading(false); }} className="h-12 text-zinc-500 hover:bg-zinc-100">
                   Cancelar
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Reschedule Modal */}
+      <AnimatePresence>
+        {rescheduleAppt && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-[32px] p-6 max-w-sm w-full shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: customColor + "15" }}>
+                  <CalendarIcon size={20} style={{ color: customColor }} />
+                </div>
+                <button onClick={() => setRescheduleAppt(null)} className="w-8 h-8 rounded-xl flex items-center justify-center text-zinc-400 hover:bg-zinc-100 transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+              <h3 className="text-xl font-black text-zinc-900 mb-1">Remarcar Horário</h3>
+              <p className="text-xs text-zinc-500 font-medium mb-5 leading-relaxed">
+                {rescheduleAppt.service?.name} com {rescheduleAppt.professional?.name}
+              </p>
+
+              <div className="space-y-4">
+                <Input
+                  label="Nova data"
+                  type="date"
+                  value={rescheduleDate}
+                  min={format(new Date(), "yyyy-MM-dd")}
+                  onChange={(e: any) => handleRescheduleDateChange(e.target.value)}
+                  iconLeft={<CalendarIcon size={16} />}
+                />
+
+                <div className="space-y-2">
+                  <p className="text-[10px] uppercase tracking-widest font-bold text-zinc-400">Horários disponíveis</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {rescheduleSlots.length > 0 ? rescheduleSlots.map((slot) => (
+                      <button key={slot} onClick={() => setRescheduleSlot(slot)}
+                        className={cn("py-2.5 text-xs font-bold rounded-xl border-2 transition-all active:scale-95",
+                          rescheduleSlot === slot ? "text-white border-transparent shadow-md" : "bg-white border-zinc-200 text-zinc-700 hover:border-zinc-300")}
+                        style={rescheduleSlot === slot ? { backgroundColor: customColor, borderColor: customColor } : {}}>
+                        {slot}
+                      </button>
+                    )) : (
+                      <div className="col-span-4 py-6 text-center border-2 border-dashed border-zinc-100 rounded-xl bg-zinc-50">
+                        <p className="text-xs font-bold text-zinc-400">Nenhum horário livre nesta data.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {rescheduleError && (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-bold text-red-600">
+                    {rescheduleError}
+                  </div>
+                )}
+
+                <Button
+                  onClick={confirmReschedule}
+                  disabled={!rescheduleSlot || rescheduleLoading}
+                  className="w-full h-12 rounded-2xl text-white font-black text-sm shadow-lg disabled:opacity-50"
+                  style={{ backgroundColor: customColor }}
+                  iconLeft={rescheduleLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                >
+                  {rescheduleLoading ? "Remarcando..." : "Confirmar Nova Data"}
                 </Button>
               </div>
             </motion.div>
