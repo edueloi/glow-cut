@@ -149,7 +149,7 @@ export function AdminScheduleActionModals(props: any) {
           <div className="w-full max-w-sm space-y-5 rounded-[28px] border border-zinc-200 bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-black text-zinc-900">Importar Comanda</h3>
+                <h3 className="text-base font-black text-zinc-900">Vincular Comanda</h3>
                 <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-zinc-400">{linkComandaAppt.client?.name} • {linkComandaAppt.service?.name}</p>
               </div>
               <button onClick={() => setIsLinkComandaModalOpen(false)} className="rounded-xl p-2 text-zinc-400 transition-all hover:bg-zinc-100"><X size={18} /></button>

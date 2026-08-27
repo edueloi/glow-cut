@@ -122,31 +122,31 @@ export function AdminScheduleAuxModals(props: any) {
             ) : (
               /* UI Original para Atendimentos */
               <>
-                <div className="flex items-center gap-4 rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                    <CalendarDays size={24} />
+                <div className="flex items-center gap-3 rounded-2xl border border-zinc-100 bg-zinc-50 p-3 sm:gap-4 sm:p-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 sm:h-12 sm:w-12">
+                    <CalendarDays size={22} />
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-black text-zinc-900">{selectedAppointment.client?.name || "Cliente não identificado"}</p>
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-500">
+                    <p className="truncate text-[10px] font-bold uppercase tracking-widest text-zinc-500 sm:text-[11px]">
                       {format(new Date(selectedAppointment.date), "EEEE, d 'de' MMMM", { locale: ptBR })} • {selectedAppointment.startTime}
                     </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-xl border border-zinc-100 bg-white p-3">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                  <div className="min-w-0 rounded-xl border border-zinc-100 bg-white p-3">
                     <p className="mb-1 text-[9px] font-black uppercase tracking-widest text-zinc-400">Serviço/Pacote</p>
                     <p className="truncate text-xs font-bold text-zinc-800">{selectedAppointment.service?.name || "-"}</p>
                   </div>
-                  <div className="rounded-xl border border-zinc-100 bg-white p-3">
+                  <div className="min-w-0 rounded-xl border border-zinc-100 bg-white p-3">
                     <p className="mb-1 text-[9px] font-black uppercase tracking-widest text-zinc-400">Profissional</p>
                     <p className="truncate text-xs font-bold text-zinc-800">{selectedAppointment.professional?.name || "-"}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-4">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div
                       className={cn(
                         "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
@@ -159,9 +159,9 @@ export function AdminScheduleAuxModals(props: any) {
                     >
                       <Banknote size={20} />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-bold text-zinc-900">Status Financeiro</p>
-                      <p className="text-[10px] font-medium text-zinc-500">
+                      <p className="truncate text-[10px] font-medium text-zinc-500">
                         {selectedAppointment.comanda
                           ? selectedAppointment.comanda.status === "paid"
                             ? "Comanda Paga"
@@ -170,24 +170,23 @@ export function AdminScheduleAuxModals(props: any) {
                       </p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedAppointment.comanda ? (
-                      <Button variant="outline" size="sm" onClick={() => { setIsViewAppointmentModalOpen(false); handleTabChange("comandas"); }}>
-                        Ver Comanda
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        className="bg-amber-500 text-white hover:bg-amber-600"
-                        onClick={() => {
-                          setLinkComandaAppt(selectedAppointment);
-                          setIsLinkComandaModalOpen(true);
-                        }}
-                      >
-                        Importar Comanda
-                      </Button>
-                    )}
-                  </div>
+                  {selectedAppointment.comanda ? (
+                    <Button variant="outline" size="sm" fullWidth className="sm:w-auto" onClick={() => { setIsViewAppointmentModalOpen(false); handleTabChange("comandas"); }}>
+                      Ver Comanda
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      fullWidth
+                      className="bg-amber-500 text-white hover:bg-amber-600 sm:w-auto"
+                      onClick={() => {
+                        setLinkComandaAppt(selectedAppointment);
+                        setIsLinkComandaModalOpen(true);
+                      }}
+                    >
+                      Vincular Comanda
+                    </Button>
+                  )}
                 </div>
 
                 <div className="pt-2">
