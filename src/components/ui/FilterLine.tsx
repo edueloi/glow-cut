@@ -197,16 +197,16 @@ export const FilterLineSearch: React.FC<FilterLineSearchProps> = ({
 export const FilterLineDateRange: React.FC<FilterLineDateRangeProps> = ({
   from, to, onFromChange, onToChange, fromLabel = 'De', toLabel = 'Até', className = '',
 }) => (
-  <div className={cx('flex w-full flex-col gap-2', className)}>
+  <div className={cx('flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3', className)}>
     <div className="flex items-center gap-2">
-      <span className="w-6 shrink-0 text-[10px] font-black uppercase tracking-widest text-zinc-400">{fromLabel}</span>
-      <div className="flex-1">
+      <span className="w-8 shrink-0 text-[10px] font-black uppercase tracking-widest text-zinc-400">{fromLabel}</span>
+      <div className="flex-1 sm:w-[150px]">
         <DatePicker value={from} onChange={onFromChange} />
       </div>
     </div>
     <div className="flex items-center gap-2">
-      <span className="w-6 shrink-0 text-[10px] font-black uppercase tracking-widest text-zinc-400">{toLabel}</span>
-      <div className="flex-1">
+      <span className="w-8 shrink-0 text-[10px] font-black uppercase tracking-widest text-zinc-400">{toLabel}</span>
+      <div className="flex-1 sm:w-[150px]">
         <DatePicker value={to} onChange={onToChange} />
       </div>
     </div>
