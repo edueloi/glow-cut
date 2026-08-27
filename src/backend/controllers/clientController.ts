@@ -220,8 +220,12 @@ export const clientController = {
         emitToTenant(tenantId, "agenda:changed");
       }
       if (comandaIds.length > 0) {
-        // Excluir itens das comandas antes das comandas
+        // Excluir itens e lançamentos de caixa das comandas antes das comandas — CashEntry não
+        // tem FK pra Comanda (só o campo solto comandaId), então sem isso o lançamento de receita
+        // ficava órfão e continuava contando no total do dashboard financeiro mesmo depois do
+        // cliente (e a comanda) serem excluídos, divergindo do breakdown por forma de pagamento.
         await (prisma as any).comandaItem.deleteMany({ where: { comandaId: { in: comandaIds } } }).catch(() => {});
+        await (prisma as any).cashEntry.deleteMany({ where: { comandaId: { in: comandaIds } } }).catch(() => {});
         await (prisma as any).comanda.deleteMany({ where: { id: { in: comandaIds } } });
       }
 

@@ -75,6 +75,18 @@ async function ensureBotConfig(tenantId: string) {
   });
 }
 
+// `appt.date` é gravado como meio-dia (toDateOnly, buffer de +-12h contra virada de dia por fuso)
+// no fuso do processo que grava. Formatar de volta sem fixar o fuso explicitamente depende do
+// processo que LÊ ter o mesmo TZ padrão do que gravou — funciona hoje (VPS inteira em
+// America/Sao_Paulo), mas fica frágil a qualquer mudança de ambiente. Reconstrói a data a partir
+// dos componentes de calendário em America/Sao_Paulo antes de formatar, igual `getSaudacao` já
+// faz pra hora, pra não depender disso.
+function toSaoPauloDate(date: Date): Date {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+  const get = (t: string) => Number(parts.find(p => p.type === t)?.value);
+  return new Date(get("year"), get("month") - 1, get("day"), 12, 0, 0, 0);
+}
+
 function getSaudacao(hour?: number): string {
   let h = hour;
   if (h === undefined) {
@@ -222,7 +234,7 @@ export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Pro
       valor_agendamento: appt.service?.price != null ? appt.service.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "",
       recorrencia: textoRecorrencia,
       nome_estabelecimento: tenant?.name || "",
-      data_agendamento: format(new Date(appt.date), "EEEE, dd 'de' MMMM", { locale: ptBR }),
+      data_agendamento: format(toSaoPauloDate(new Date(appt.date)), "EEEE, dd 'de' MMMM", { locale: ptBR }),
       hora_agendamento: appt.startTime || "",
       link_painel: "https://agendelle.com.br/login",
     };
@@ -279,7 +291,7 @@ export async function fireWppConfirmation(tenantId: string, appts: any[]): Promi
     if (appt.totalSessions > 1) {
       const repeticoes = Array.isArray(appts) ? appts : [appt];
       textoRecorrencia = `\n\n🔄 *Sessões (${appt.totalSessions}):*\n` +
-        repeticoes.map((r: any, idx: number) => `   ${idx + 1}ª: ${new Date(r.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às ${r.startTime}`).join("\n");
+        repeticoes.map((r: any, idx: number) => `   ${idx + 1}ª: ${toSaoPauloDate(new Date(r.date)).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às ${r.startTime}`).join("\n");
     }
 
     const vars: Record<string, string> = {
@@ -290,7 +302,7 @@ export async function fireWppConfirmation(tenantId: string, appts: any[]): Promi
       tipo_servico: tipoServico,
       recorrencia: textoRecorrencia,
       nome_estabelecimento: tenant?.name || "",
-      data_agendamento: new Date(appt.date).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }),
+      data_agendamento: toSaoPauloDate(new Date(appt.date)).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }),
       hora_agendamento: appt.startTime || "",
       valor_agendamento: appt.service?.price != null ? appt.service.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "",
       local: tenant?.address || "",
@@ -492,6 +504,11 @@ export const wppController = {
           ...(name !== undefined && { name }),
           ...(body !== undefined && { body }),
           ...(isActive !== undefined && { isActive: !!isActive }),
+          // Sem isso, ensureTemplates() (chamado a cada carregamento da tela) via
+          // `existing.isDefault` sobrescrevia a personalização de volta pro texto padrão na
+          // próxima vez que a aba de WhatsApp fosse aberta — igual acontece no branch `create`
+          // acima, qualquer edição aqui tira o template do modo "padrão gerenciado pelo sistema".
+          isDefault: false,
         },
       });
       res.json(template);

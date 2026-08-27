@@ -68,6 +68,16 @@ function nowBrasilia(): Date {
   return new Date(str);
 }
 
+// appt.date é gravado como meio-dia no fuso de quem grava (toDateOnly, buffer contra virada de
+// dia); formatar de volta sem fixar o fuso explicitamente depende do processo que lê ter o mesmo
+// TZ padrão de quem gravou. Reconstrói pelos componentes de calendário em America/Sao_Paulo antes
+// de formatar, mesma lógica de nowBrasilia acima.
+function toSaoPauloDate(date: Date): Date {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+  const get = (t: string) => Number(parts.find(p => p.type === t)?.value);
+  return new Date(get("year"), get("month") - 1, get("day"), 12, 0, 0, 0);
+}
+
 function applyVars(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? "");
 }
@@ -194,7 +204,7 @@ async function processReminders24h(): Promise<void> {
         profissional: appt.profName || "",
         servico: appt.serviceName || "",
         nome_estabelecimento: tenant?.name || "",
-        data_agendamento: new Date(appt.date).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }),
+        data_agendamento: toSaoPauloDate(new Date(appt.date)).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }),
         hora_agendamento: appt.startTime || "",
       };
 
@@ -314,7 +324,7 @@ async function processReminders60min(): Promise<void> {
         profissional: appt.profName || "",
         servico: appt.serviceName || "",
         nome_estabelecimento: tenant?.name || "",
-        data_agendamento: new Date(appt.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+        data_agendamento: toSaoPauloDate(new Date(appt.date)).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
         hora_agendamento: appt.startTime || "",
       };
 
