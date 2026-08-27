@@ -158,7 +158,7 @@ function PlanModal({ plan, onClose, onSaved }: { plan: MembershipPlan | null; on
         {field("Descrição",
           <textarea className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 resize-none" rows={2} placeholder="Descreva o que está incluído..." value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
         )}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2">
           {field("Valor *",
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-400">R$</span>
@@ -599,12 +599,13 @@ function PlanCard({
   const totalSubs = Number(planStats?.subscribers ?? 0);
 
   return (
-    <ContentCard className={`flex flex-col gap-0 p-0 overflow-hidden transition-all hover:shadow-md ${!isActive ? "opacity-60" : ""}`}>
+    <ContentCard className={`group relative flex h-full min-w-0 flex-col gap-0 overflow-hidden p-0 transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-xl ${!isActive ? "opacity-65" : ""}`}>
+      <div className={`h-1 w-full ${isActive ? "bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500" : "bg-zinc-300"}`} />
       {/* Header */}
-      <div className={`p-4 pb-3 ${isActive ? "bg-gradient-to-br from-amber-50 to-white" : "bg-zinc-50"}`}>
+      <div className={`p-4 pb-4 sm:p-5 ${isActive ? "bg-gradient-to-br from-amber-50 via-white to-white" : "bg-zinc-50"}`}>
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isActive ? "bg-amber-100" : "bg-zinc-200"}`}>
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm ${isActive ? "border border-amber-200 bg-amber-100" : "bg-zinc-200"}`}>
               <Crown size={16} className={isActive ? "text-amber-600" : "text-zinc-400"} />
             </div>
             <div className="min-w-0">
@@ -618,19 +619,19 @@ function PlanCard({
         </div>
 
         <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-black text-zinc-900 tracking-tight">{fmt(plan.price)}</span>
+          <span className="text-2xl font-black tracking-tight text-zinc-900 sm:text-3xl">{fmt(plan.price)}</span>
           <span className="text-[10px] text-zinc-400 font-bold">/{cycleLabel(plan.billingCycle).toLowerCase()}</span>
         </div>
       </div>
 
       {/* Body */}
-      <div className="px-4 py-3 border-t border-zinc-100 space-y-3">
+      <div className="flex flex-1 flex-col space-y-4 border-t border-zinc-100 px-4 py-4 sm:px-5">
         {plan.description && (
           <p className="text-[11px] text-zinc-500 leading-relaxed line-clamp-2">{plan.description}</p>
         )}
 
         {included.length > 0 && (
-          <div className="space-y-1">
+          <div className="space-y-1.5 rounded-xl border border-zinc-100 bg-zinc-50/70 p-3">
             {included.slice(0, 3).map((s, i) => (
               <div key={i} className="flex items-center gap-2 text-[11px] text-zinc-600 font-medium">
                 <Check size={10} className="text-emerald-500 shrink-0" /> {s}
@@ -643,7 +644,7 @@ function PlanCard({
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-2 pt-1">
+        <div className="mt-auto grid grid-cols-3 gap-2 pt-1">
           <div className="bg-zinc-50 rounded-xl p-2.5 text-center border border-zinc-100">
             <p className="text-sm font-black text-zinc-900">{activeSubs}</p>
             <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wide">Ativos</p>
@@ -660,21 +661,22 @@ function PlanCard({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-zinc-100 flex gap-2">
+      <div className="flex gap-2 border-t border-zinc-100 bg-zinc-50/50 px-4 py-3 sm:px-5">
         {isActive && (
           <Button
             onClick={onNewSub}
-            className="h-8 text-[10px] font-black bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-2.5 gap-1"
+            className="h-10 flex-1 gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 text-[10px] font-black text-emerald-700 hover:bg-emerald-100"
           >
             <Plus size={11} /> Assinante
           </Button>
         )}
-        <Button variant="ghost" onClick={onEdit} className="flex-1 h-8 text-[10px] font-black gap-1 text-zinc-600 hover:bg-zinc-100">
+        <Button variant="ghost" onClick={onEdit} className="h-10 flex-1 gap-1 rounded-xl text-[10px] font-black text-zinc-600 hover:bg-zinc-100">
           <Edit2 size={11} /> Editar
         </Button>
         <button
           onClick={onDelete}
-          className="w-8 h-8 flex items-center justify-center rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+          aria-label="Excluir plano"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
         >
           <Trash2 size={12} />
         </button>
@@ -925,35 +927,37 @@ export default function PlanosAssinaturaTab() {
 
   return (
     <PageWrapper>
-      <SectionTitle
-        title="Planos de Assinatura"
-        description="Crie planos recorrentes e gerencie as assinaturas dos seus clientes."
-        icon={Crown}
-        action={
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+      <div className="mb-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:mb-5 sm:p-6 lg:rounded-3xl">
+        <SectionTitle
+          title="Planos de Assinatura"
+          description="Crie planos recorrentes e gerencie as assinaturas dos seus clientes."
+          icon={Crown}
+          action={
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             {portalLink && (
               <Button variant="ghost" onClick={copyPortal} className="h-9 text-xs font-black gap-1.5 text-zinc-500 hover:text-zinc-900 hidden sm:flex">
                 <Link size={13} /> Copiar link
               </Button>
             )}
-            <Button variant="ghost" onClick={load} className="h-9 w-9 p-0 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 shrink-0" title="Atualizar">
+            <Button variant="ghost" onClick={load} className="h-10 w-10 shrink-0 rounded-xl p-0 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700" title="Atualizar">
               <RefreshCw size={14} />
             </Button>
             {view === "plans" ? (
-              <Button onClick={() => setPlanModal("new")} className="h-9 flex-1 sm:flex-none text-xs font-black bg-amber-500 hover:bg-amber-600 text-white gap-1.5 min-w-[130px]">
+              <Button onClick={() => setPlanModal("new")} className="h-10 min-w-[130px] flex-1 gap-1.5 rounded-xl bg-amber-500 text-xs font-black text-white hover:bg-amber-600 sm:flex-none">
                 <Plus size={14} /> Novo Plano
               </Button>
             ) : (
-              <Button onClick={() => setNewSubModal(true)} disabled={activePlans === 0} className="h-9 flex-1 sm:flex-none text-xs font-black bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5 disabled:opacity-50 min-w-[140px]">
+              <Button onClick={() => setNewSubModal(true)} disabled={activePlans === 0} className="h-10 min-w-[140px] flex-1 gap-1.5 rounded-xl bg-emerald-500 text-xs font-black text-white hover:bg-emerald-600 disabled:opacity-50 sm:flex-none">
                 <Plus size={14} /> Nova Assinatura
               </Button>
             )}
           </div>
-        }
-      />
+          }
+        />
+      </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+      <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard title="Assinantes ativos" value={Number(stats?.totals?.active ?? activeSubs)} icon={UserCheck} color="success" delay={0} />
         <StatCard title="Pendentes" value={Number(stats?.totals?.pending ?? pendingSubs)} icon={Clock} color="warning" delay={0.05} />
         <StatCard title="Receita mensal" value={fmt(Number(stats?.totals?.mrr ?? 0))} icon={TrendingUp} color="info" delay={0.1} />
@@ -962,7 +966,7 @@ export default function PlanosAssinaturaTab() {
 
       {/* Link portal */}
       {portalLink && (
-        <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-3.5 mb-4 flex items-center gap-3">
+        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 p-3.5 sm:p-4">
           <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
             <Zap size={14} className="text-amber-600" />
           </div>
@@ -972,7 +976,7 @@ export default function PlanosAssinaturaTab() {
           </div>
           <button
             onClick={copyPortal}
-            className="shrink-0 flex items-center gap-1.5 text-[10px] font-black text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-xl transition-colors"
+            className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-amber-100 px-3 text-[10px] font-black text-amber-700 transition-colors hover:bg-amber-200 hover:text-amber-900"
           >
             <Copy size={11} /> Copiar
           </button>
@@ -980,7 +984,7 @@ export default function PlanosAssinaturaTab() {
       )}
 
       {/* Linha 1: Toggle planos/assinantes */}
-      <div className="bg-white border border-zinc-200 rounded-2xl p-3 shadow-sm flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:p-4">
         <FilterLineSegmented
           value={view}
           onChange={v => { setView(v as any); setSearch(""); setFilterStatus("all"); setFilterPlan("all"); pagination.setPage(1); }}
@@ -1000,7 +1004,7 @@ export default function PlanosAssinaturaTab() {
 
       {/* Linha 2: Filtros de status (só na aba assinantes) */}
       {view === "subscriptions" && (
-        <div className="bg-white border border-zinc-200 rounded-2xl px-3 py-2.5 shadow-sm flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-3 py-3 shadow-sm sm:px-4">
           <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest shrink-0">Status:</span>
           {(["all", "active", "pending", "cancelled", "paused"] as const).map(s => (
             <button
@@ -1082,7 +1086,7 @@ export default function PlanosAssinaturaTab() {
           <div className="space-y-4">
             {/* Banner de pendentes */}
             {allPending.length > 0 && filterStatus !== "pending" && (
-              <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3.5 flex items-center gap-3">
+              <div className="flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 min-[430px]:flex-row min-[430px]:items-center sm:p-4">
                 <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
                   <Clock size={15} className="text-amber-600" />
                 </div>
@@ -1096,7 +1100,7 @@ export default function PlanosAssinaturaTab() {
                 </div>
                 <button
                   onClick={() => { setFilterStatus("pending"); pagination.setPage(1); }}
-                  className="shrink-0 text-[10px] font-black text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-xl transition-colors"
+                  className="min-h-10 w-full shrink-0 rounded-xl bg-amber-100 px-3 text-[10px] font-black text-amber-700 transition-colors hover:bg-amber-200 min-[430px]:w-auto"
                 >
                   Ver pendentes
                 </button>

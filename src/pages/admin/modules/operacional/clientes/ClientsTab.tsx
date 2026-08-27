@@ -97,7 +97,7 @@ function HistoryModal({ client, onClose }: { client: Client | null; onClose: () 
     >
       <div className="space-y-4 p-1">
         {/* Client summary */}
-        <div className="flex items-center gap-3 p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
+        <div className="flex flex-col gap-3 rounded-2xl border border-zinc-100 bg-zinc-50 p-4 min-[520px]:flex-row min-[520px]:items-center">
           <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 text-xl font-black shrink-0">
             {client.name.charAt(0).toUpperCase()}
           </div>
@@ -116,7 +116,7 @@ function HistoryModal({ client, onClose }: { client: Client | null; onClose: () 
               )}
             </div>
           </div>
-          <div className="flex gap-3 shrink-0 text-center">
+          <div className="flex w-full justify-end gap-3 border-t border-zinc-200 pt-3 text-center min-[520px]:w-auto min-[520px]:shrink-0 min-[520px]:border-0 min-[520px]:pt-0">
             <div>
               <p className="text-lg font-black text-amber-600">{comandas.length}</p>
               <p className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">Comandas</p>
@@ -251,10 +251,11 @@ function ClientCard({ client, onEdit, onDelete, onHistory }: {
   const bday     = isBirthday(client.birthDate);
   const bdayDisp = getBirthDateDisplay(client.birthDate);
   const comandas = client.comandas?.length ?? 0;
+  const appointments = client.appointments?.length ?? 0;
 
   return (
     <div className={cn(
-      "bg-white rounded-2xl border p-4 shadow-sm hover:shadow-md transition-all group",
+      "group flex h-full min-w-0 flex-col rounded-2xl border bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg",
       bday ? "border-pink-200 ring-1 ring-pink-100" : "border-zinc-200 hover:border-amber-300",
     )}>
       {/* Header */}
@@ -272,12 +273,6 @@ function ClientCard({ client, onEdit, onDelete, onHistory }: {
               <Phone size={9} />{client.phone}
             </p>
           )}
-        </div>
-        {/* Actions */}
-        <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-          <IconButton size="xs" variant="ghost" onClick={onHistory} title="Histórico"><History size={12} /></IconButton>
-          <IconButton size="xs" variant="ghost" onClick={onEdit}    title="Editar">   <Edit2   size={12} /></IconButton>
-          <IconButton size="xs" variant="ghost" onClick={onDelete}  title="Excluir">  <Trash2  size={12} /></IconButton>
         </div>
       </div>
 
@@ -300,11 +295,13 @@ function ClientCard({ client, onEdit, onDelete, onHistory }: {
           <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest">Comandas</p>
           <p className="text-base font-black text-amber-600 mt-0.5">{comandas}</p>
         </div>
-        <div className="bg-zinc-50 border border-zinc-100 rounded-xl px-3 py-2">
-          <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Email</p>
-          <p className="text-[10px] font-bold text-zinc-600 mt-0.5 truncate">{client.email || "—"}</p>
+        <div className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2">
+          <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Agendamentos</p>
+          <p className="mt-0.5 text-base font-black text-zinc-700">{appointments}</p>
         </div>
       </div>
+
+      {client.email && <p className="mt-2.5 flex items-center gap-1 truncate text-[10px] font-bold text-zinc-400"><Mail size={9} className="shrink-0" />{client.email}</p>}
 
       {/* City */}
       {client.city && (
@@ -312,6 +309,12 @@ function ClientCard({ client, onEdit, onDelete, onHistory }: {
           <MapPin size={9} />{client.city}{client.state ? `, ${client.state}` : ""}
         </p>
       )}
+
+      <div className="mt-auto flex gap-2 border-t border-zinc-100 pt-3">
+        <Button variant="outline" size="sm" iconLeft={<History size={12} />} onClick={onHistory} className="h-9 flex-1 rounded-xl text-[10px]">Histórico</Button>
+        <Button variant="outline" size="sm" iconLeft={<Edit2 size={12} />} onClick={onEdit} className="h-9 flex-1 rounded-xl text-[10px]">Editar</Button>
+        <IconButton size="sm" variant="ghost" onClick={onDelete} title="Excluir cliente" className="h-9 w-9 shrink-0 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={13} /></IconButton>
+      </div>
     </div>
   );
 }
@@ -428,8 +431,8 @@ export function ClientsTab({
       render: (c) => (
         <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
           <IconButton size="sm" variant="ghost" onClick={() => setHistoryClient(c)} title="Histórico"><History size={13} /></IconButton>
-          <IconButton size="sm" variant="ghost" onClick={() => handleEditClient(c)}><Edit2 size={13} /></IconButton>
-          <IconButton size="sm" variant="ghost" onClick={() => handleDeleteClient(c.id)}><Trash2 size={13} /></IconButton>
+          <IconButton size="sm" variant="ghost" onClick={() => handleEditClient(c)} title="Editar cliente"><Edit2 size={13} /></IconButton>
+          <IconButton size="sm" variant="ghost" onClick={() => handleDeleteClient(c.id)} title="Excluir cliente"><Trash2 size={13} /></IconButton>
         </div>
       ),
     },
@@ -443,31 +446,31 @@ export function ClientsTab({
 
   return (
     <PageWrapper>
-      <SectionTitle
-        title="Gestão de Clientes"
-        description="Cadastro, histórico e aniversariantes"
-        icon={Users}
-        action={<Button iconLeft={<Plus size={14} />} onClick={() => setIsClientModalOpen(true)}>Novo Cliente</Button>}
-        divider
-      />
+      <div className="mb-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:mb-5 sm:p-6 lg:rounded-3xl">
+        <SectionTitle
+          title="Gestão de Clientes"
+          description="Cadastros, contatos, históricos e aniversariantes em um só lugar."
+          icon={Users}
+          action={<Button iconLeft={<Plus size={14} />} onClick={() => setIsClientModalOpen(true)} className="h-10 w-full rounded-xl sm:w-auto">Novo Cliente</Button>}
+        />
+      </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-5">
+      <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard title="Total"      value={clients.length}  icon={Users}       description="Clientes cadastrados" />
         <StatCard title="Comandas"   value={totalComandas}   icon={ShoppingBag} color="warning"  description="Total de comandas" />
-        <StatCard title="Agendamentos" value={totalAppts}    icon={Calendar}    color="info"     description="Total de agendamentos" className="hidden sm:block" />
+        <StatCard title="Agendamentos" value={totalAppts}    icon={Calendar}    color="info"     description="Total de agendamentos" />
         <StatCard
           title="Aniversariantes"
           value={todayBdays}
           icon={Cake}
           color={todayBdays > 0 ? "danger" : "default"}
           description="Hoje"
-          className="hidden sm:block"
         />
       </div>
 
       {/* Toolbar */}
-      <FilterLine className="mb-4">
+      <FilterLine className="mb-4 rounded-2xl shadow-sm">
         <FilterLineSection grow>
           <FilterLineItem grow>
             <FilterLineSearch value={search} onChange={setSearch} placeholder="Buscar por nome, telefone, e-mail..." />
@@ -490,10 +493,6 @@ export function ClientsTab({
             gridValue="grid"
             listValue="list"
           />
-          <Button iconLeft={<Plus size={14} />} onClick={() => setIsClientModalOpen(true)}>
-            <span className="hidden sm:inline">Novo Cliente</span>
-            <span className="sm:hidden">Novo</span>
-          </Button>
         </FilterLineSection>
       </FilterLine>
 
@@ -511,13 +510,14 @@ export function ClientsTab({
             </ContentCard>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {paginatedData.map((client, idx) => (
                   <motion.div
                     key={client.id}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.04 }}
+                    className="h-full"
                   >
                     <ClientCard
                       client={client}
@@ -619,7 +619,7 @@ export function ClientsTab({
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" iconLeft={<History size={12} />} onClick={() => setHistoryClient(c)} className="flex-1">Histórico</Button>
                   <Button variant="outline" size="sm" iconLeft={<Edit2 size={12} />}   onClick={() => handleEditClient(c)}  className="flex-1">Editar</Button>
-                  <IconButton variant="ghost" size="sm" onClick={() => handleDeleteClient(c.id)}><Trash2 size={13} /></IconButton>
+                  <IconButton variant="ghost" size="sm" onClick={() => handleDeleteClient(c.id)} title="Excluir cliente"><Trash2 size={13} /></IconButton>
                 </div>
               </div>
             )}

@@ -46,7 +46,7 @@ function MobileSitePreview({
   const isBold = data.siteTemplate === "bold";
   
   return (
-    <div className="relative mx-auto w-[280px] h-[580px] bg-zinc-950 rounded-[3rem] border-[8px] border-zinc-900 shadow-2xl overflow-hidden hidden 2xl:block sticky top-8 animate-in slide-in-from-right-4 duration-700">
+    <div className="relative mx-auto h-[580px] w-[280px] max-w-full overflow-hidden rounded-[3rem] border-[8px] border-zinc-900 bg-zinc-950 shadow-2xl animate-in slide-in-from-right-4 duration-700">
 
       {/* Notch */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 bg-zinc-900 rounded-b-2xl z-40" />
@@ -483,27 +483,31 @@ export function SiteTab() {
   }
 
   return (
-    <PageWrapper className="space-y-6">
-      <SectionTitle
-        title="Configurar Meu Site"
-        description="Personalize como o mundo vê o seu negócio na sua página exclusiva."
-        icon={Globe}
-        action={
-          <div className="flex items-center gap-1.5 sm:gap-2">
+    <PageWrapper className="space-y-5 sm:space-y-6">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 lg:rounded-3xl">
+        <SectionTitle
+          title="Configurar Meu Site"
+          description="Personalize como o mundo vê o seu negócio na sua página exclusiva."
+          icon={Globe}
+          action={
+            <div className="flex items-center gap-1.5 sm:gap-2">
             <Button
               variant="outline"
               size="sm"
               iconLeft={<Eye size={14} />}
               onClick={() => setShowPreview(true)}
-              className="bg-white"
+              className="h-10 rounded-xl bg-white"
+              title="Visualizar prévia"
             >
-              <span className="hidden sm:inline">Visualizar Preview</span>
+              <span className="hidden sm:inline">Visualizar prévia</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               iconLeft={<ExternalLink size={14} />}
               onClick={() => window.open(`/${formData.slug}`, "_blank")}
+              className="h-10 rounded-xl"
+              title="Visitar site"
             >
               <span className="hidden sm:inline">Visitar Site</span>
             </Button>
@@ -513,15 +517,17 @@ export function SiteTab() {
               loading={saving}
               iconLeft={<Save size={14} />}
               onClick={handleSave}
+              className="h-10 rounded-xl"
             >
               <span className="hidden xs:inline sm:inline">Salvar</span>
             </Button>
-          </div>
-        }
-      />
+            </div>
+          }
+        />
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-32">
-        <div className="lg:col-span-7 space-y-8">
+      <div className="grid min-w-0 grid-cols-1 gap-5 pb-4 lg:gap-6 xl:grid-cols-12 xl:gap-8">
+        <div className="min-w-0 space-y-5 lg:space-y-6 xl:col-span-7 xl:space-y-8">
 
 
           <PanelCard
@@ -626,15 +632,15 @@ export function SiteTab() {
 
               <div className="pt-4 border-t border-zinc-100">
                 <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Foto da Seção (Opcional)</p>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-4 min-[520px]:flex-row min-[520px]:items-center">
                   <div 
-                    className="relative w-32 h-40 rounded-2xl border-2 border-dashed border-zinc-200 overflow-hidden bg-zinc-50 flex items-center justify-center cursor-pointer hover:bg-zinc-100 transition-colors"
+                    className="relative flex h-44 w-full max-w-[220px] cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50 transition-colors hover:bg-zinc-100 min-[520px]:h-40 min-[520px]:w-32"
                     onClick={() => aboutInputRef.current?.click()}
                   >
                     {formData.coverUrl ? (
                       <>
                         <img src={formData.coverUrl} alt="Sobre nós" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-100 transition-opacity md:opacity-0 md:hover:opacity-100">
                           <Camera size={20} className="text-white" />
                         </div>
                       </>
@@ -788,7 +794,7 @@ export function SiteTab() {
           </PanelCard>
         </div>
 
-        <div className="lg:col-span-5 space-y-8">
+        <div className="min-w-0 space-y-5 lg:space-y-6 xl:col-span-5 xl:space-y-8">
           {/* ── Imagens do Site ───────────────────────────────────────────── */}
           <PanelCard
             title="Imagens do Site"
@@ -858,7 +864,7 @@ export function SiteTab() {
                   {formData.siteCoverUrl ? (
                     <>
                       <img src={formData.siteCoverUrl} alt="Capa do site" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-100 transition-opacity md:opacity-0 md:hover:opacity-100">
                         <Camera size={24} className="text-white" />
                       </div>
                     </>
@@ -1008,9 +1014,10 @@ export function SiteTab() {
                   {(formData.galleryImages as string[]).map((url, idx) => (
                     <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden bg-zinc-100">
                       <img src={url} alt={`Galeria ${idx + 1}`} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
                         <button
                           type="button"
+                          aria-label={`Remover foto ${idx + 1}`}
                           onClick={() => setFormData(prev => ({ ...prev, galleryImages: (prev.galleryImages as string[]).filter((_, i) => i !== idx) }))}
                           className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
                         >
@@ -1182,20 +1189,20 @@ export function SiteTab() {
         title="Preview Mobile"
         size="md"
       >
-        <div className="p-8 bg-zinc-100 flex justify-center">
+        <div className="flex justify-center overflow-x-auto bg-zinc-100 p-2 sm:p-6">
           <MobileSitePreview data={formData} />
         </div>
       </Modal>
 
       {/* Action Bar Flutuante — Refined Responsiveness */}
-      <div className="sticky bottom-4 lg:bottom-8 left-0 right-0 z-[100] mt-10">
-        <div className="bg-white/80 backdrop-blur-2xl border border-zinc-200 p-3 md:p-5 rounded-[24px] md:rounded-[28px] shadow-2xl shadow-zinc-950/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="sticky bottom-2 left-0 right-0 z-[100] mt-5 sm:bottom-4 lg:bottom-6">
+        <div className="flex items-center justify-between gap-2 rounded-2xl border border-zinc-200 bg-white/90 p-2.5 shadow-2xl shadow-zinc-950/10 backdrop-blur-2xl sm:gap-4 sm:p-3 md:p-4 lg:rounded-3xl">
            <div className="hidden lg:block ml-2">
               <p className="text-xs font-black text-zinc-800 uppercase tracking-widest">Configurações do Site</p>
               <p className="text-[10px] text-zinc-500 mt-1 font-medium">As alterações serão aplicadas instantaneamente na sua vitrine digital.</p>
            </div>
            
-           <div className="flex items-center justify-between w-full lg:hidden px-1">
+           <div className="hidden min-w-0 items-center justify-between px-1 min-[480px]:flex lg:hidden">
               <div className="flex flex-col">
                  <span className="text-[10px] font-black text-zinc-800 uppercase">Configurar Site</span>
                  <span className="text-[9px] text-zinc-500">Toque para publicar</span>
@@ -1203,11 +1210,11 @@ export function SiteTab() {
               <Button size="sm" variant="outline" onClick={() => setShowPreview(true)} className="h-8 px-3 text-[10px] bg-white">Preview</Button>
            </div>
 
-           <div className="flex items-center gap-3">
+           <div className="ml-auto flex min-w-0 flex-1 items-center gap-2 sm:flex-none lg:gap-3">
              <Button
                 variant="outline"
                 onClick={() => setShowPreview(true)}
-                className="hidden lg:flex h-14 px-8 rounded-2xl text-sm font-black bg-white"
+                className="hidden h-12 rounded-2xl bg-white px-6 text-sm font-black lg:flex"
                 iconLeft={<Eye size={18} />}
               >
                 Preview
@@ -1216,7 +1223,7 @@ export function SiteTab() {
                 onClick={handleSave}
                 disabled={saving || uploadingLogo || uploadingCover}
                 className={cn(
-                  "w-full sm:w-[240px] md:w-[280px] h-11 md:h-14 rounded-2xl text-sm md:text-base font-black shadow-xl transition-all active:scale-95 group",
+                  "group h-11 min-w-0 flex-1 rounded-xl text-xs font-black shadow-xl transition-all active:scale-95 sm:w-[240px] sm:flex-none sm:text-sm md:h-12 md:w-[280px] md:rounded-2xl",
                   saving ? "bg-zinc-800" : "bg-zinc-950 hover:bg-black"
                 )}
                 iconLeft={saving ? <Loader2 size={18} className="animate-spin text-zinc-400" /> : <CheckCircle2 size={18} className="group-hover:scale-110 transition-transform" />}

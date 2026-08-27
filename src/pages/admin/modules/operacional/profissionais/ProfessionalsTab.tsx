@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, UserCog, Trash2, Phone, Mail, Shield, Pencil, Users } from "lucide-react";
+import { Plus, UserCog, Trash2, Phone, Mail, Shield, Pencil, Users, Search, CalendarCheck2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Button, IconButton } from "@/src/components/ui/Button";
 import { Badge } from "@/src/components/ui/Badge";
@@ -82,9 +82,9 @@ interface PermissionsPageProps {
 
 function PermissionsPage({ permissionProfiles, onOpenPermProfileModal, onEditPermProfile, onDeletePermProfile }: PermissionsPageProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 sm:space-y-5">
       {/* Header — mesmo padrão da aba Profissionais */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <p className="text-xs text-zinc-500 font-medium">
           {permissionProfiles.length} perfil(is) de permissão
         </p>
@@ -100,7 +100,7 @@ function PermissionsPage({ permissionProfiles, onOpenPermProfileModal, onEditPer
       </div>
 
       {/* Grid de cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {permissionProfiles.map((profile, idx) => {
           const perms = parsePerms(profile.permissions);
           return (
@@ -109,10 +109,10 @@ function PermissionsPage({ permissionProfiles, onOpenPermProfileModal, onEditPer
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className="group bg-white rounded-3xl border border-zinc-200 shadow-sm hover:shadow-lg hover:border-amber-300 transition-all overflow-hidden"
+              className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-lg"
             >
               {/* Banner */}
-              <div className="relative h-12 bg-gradient-to-r from-zinc-700 to-zinc-800">
+              <div className="relative h-10 bg-gradient-to-r from-zinc-700 to-zinc-800">
                 <div className="absolute -bottom-6 left-5">
                   <div className="w-12 h-12 rounded-2xl bg-white border-4 border-white shadow-md flex items-center justify-center text-amber-500">
                     <Shield size={18} />
@@ -120,7 +120,7 @@ function PermissionsPage({ permissionProfiles, onOpenPermProfileModal, onEditPer
                 </div>
               </div>
 
-              <div className="pt-8 px-5 pb-5 space-y-3">
+              <div className="space-y-3 px-4 pb-4 pt-8 sm:px-5 sm:pb-5">
                 <div>
                   <h4 className="text-sm font-black text-zinc-900">{profile.name}</h4>
                   <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Perfil de Permissão</p>
@@ -214,10 +214,18 @@ export function ProfessionalsTab({
   onDeletePermProfile,
 }: ProfessionalsTabProps) {
   const { user } = useAuth();
+  const [searchTerm, setSearchTerm] = React.useState("");
   const maxProf = user?.maxProfessionals ?? 999;
   const isUnlimited = maxProf >= 999;
   const used = professionals.length;
   const remaining = isUnlimited ? null : maxProf - used;
+  const activeProfessionals = professionals.filter((prof) => prof.isActive !== false).length;
+  const scheduledProfessionals = professionals.filter((prof) => prof.attendsSchedule !== false).length;
+  const normalizedSearch = searchTerm.trim().toLocaleLowerCase("pt-BR");
+  const filteredProfessionals = normalizedSearch
+    ? professionals.filter((prof) => [prof.name, prof.nickname, prof.role, prof.phone, prof.email]
+        .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(normalizedSearch)))
+    : professionals;
 
   const openCreate = () => {
     setEditingProfessional(null);
@@ -260,12 +268,37 @@ export function ProfessionalsTab({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-4 p-3 pb-24 sm:p-5 sm:pb-6 lg:space-y-6 lg:p-6">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 lg:rounded-3xl">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-100 bg-amber-50 text-amber-600 sm:h-12 sm:w-12 sm:rounded-2xl">
+              <UserCog size={20} />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-lg font-black tracking-tight text-zinc-900 sm:text-xl">Profissionais</h1>
+              <p className="mt-0.5 text-xs leading-relaxed text-zinc-500 sm:text-sm">Gerencie sua equipe, acessos e participação na agenda.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:min-w-[330px]">
+            {[
+              { label: "Cadastrados", value: used, icon: Users },
+              { label: "Ativos", value: activeProfessionals, icon: UserCog },
+              { label: "Na agenda", value: scheduledProfessionals, icon: CalendarCheck2 },
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-xl border border-zinc-100 bg-zinc-50 p-2.5 text-center sm:p-3">
+                <div className="flex items-center justify-center gap-1.5 text-zinc-400"><stat.icon size={12} /><span className="text-[9px] font-black uppercase tracking-wide">{stat.label}</span></div>
+                <p className="mt-1 text-lg font-black leading-none text-zinc-900">{stat.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
       {/* ── Sub-abas ──────────────────────────────────────── */}
-      <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-2xl w-fit">
+      <div className="flex w-full items-center gap-1 overflow-x-auto rounded-xl bg-zinc-100 p-1 sm:w-fit sm:rounded-2xl">
         <button
           onClick={() => onSubTabChange("lista")}
-          className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          className={`flex min-h-10 flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer sm:flex-none sm:rounded-xl ${
             profSubTab === "lista"
               ? "bg-white text-zinc-900 shadow-sm"
               : "text-zinc-500 hover:text-zinc-700"
@@ -276,7 +309,7 @@ export function ProfessionalsTab({
         </button>
         <button
           onClick={() => onSubTabChange("permissoes")}
-          className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          className={`flex min-h-10 flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer sm:flex-none sm:rounded-xl ${
             profSubTab === "permissoes"
               ? "bg-white text-zinc-900 shadow-sm"
               : "text-zinc-500 hover:text-zinc-700"
@@ -303,8 +336,8 @@ export function ProfessionalsTab({
         ) : (
           <motion.div key="lista" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4">
             {/* Header da lista */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-4">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <p className="text-xs text-zinc-500 font-medium">
                   {used} profissional(is) cadastrado(s)
                 </p>
@@ -324,21 +357,32 @@ export function ProfessionalsTab({
                   </span>
                 )}
               </div>
-              <Button
-                onClick={openCreate}
-                variant="primary"
-                size="md"
-                iconLeft={<Plus size={16} />}
-                className="shadow-lg shadow-amber-500/20"
-                disabled={!isUnlimited && remaining !== null && remaining <= 0}
-              >
-                Novo Profissional
-              </Button>
+              <div className="flex w-full gap-2 sm:w-auto">
+                <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
+                  <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Buscar profissional..."
+                    className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-9 pr-3 text-xs font-medium outline-none transition-all placeholder:text-zinc-400 focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-500/10"
+                  />
+                </div>
+                <Button
+                  onClick={openCreate}
+                  variant="primary"
+                  size="md"
+                  iconLeft={<Plus size={16} />}
+                  className="shrink-0 shadow-lg shadow-amber-500/20"
+                  disabled={!isUnlimited && remaining !== null && remaining <= 0}
+                >
+                  <span className="hidden sm:inline">Novo Profissional</span><span className="sm:hidden">Novo</span>
+                </Button>
+              </div>
             </div>
 
             {/* Grid de cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {professionals.map((prof: any, idx: number) => {
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredProfessionals.map((prof: any, idx: number) => {
                 const perms = parsePerms(prof.permissions);
                 return (
                   <motion.div
@@ -346,10 +390,10 @@ export function ProfessionalsTab({
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="group bg-white rounded-3xl border border-zinc-200 shadow-sm hover:shadow-lg hover:border-amber-300 transition-all overflow-hidden"
+                    className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-lg"
                   >
                     {/* Banner */}
-                    <div className={`relative h-14 bg-gradient-to-r ${prof.isOwner ? "from-zinc-700 to-zinc-900" : "from-amber-400 to-amber-500"}`}>
+                    <div className={`relative h-12 bg-gradient-to-r ${prof.isOwner ? "from-zinc-700 to-zinc-900" : "from-amber-400 to-amber-500"}`}>
                       <div className="absolute -bottom-7 left-5">
                         {prof.photo ? (
                           <img src={prof.photo} className="w-14 h-14 rounded-2xl object-cover border-4 border-white shadow-md" />
@@ -369,7 +413,7 @@ export function ProfessionalsTab({
                       </div>
                     </div>
 
-                    <div className="pt-9 px-5 pb-5 space-y-3">
+                    <div className="flex flex-1 flex-col space-y-3 px-4 pb-4 pt-9 sm:px-5 sm:pb-5">
                       <div>
                         <h4 className="text-sm font-black text-zinc-900">{prof.name}</h4>
                         <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest">{prof.role || "Sem cargo"}</p>
@@ -388,7 +432,7 @@ export function ProfessionalsTab({
                       </div>
                       {/* Permissões expandidas */}
                       {Object.values(perms).some(m => Object.values(m).some(Boolean)) ? (
-                        <div className="bg-zinc-50 rounded-xl p-2.5 space-y-1">
+                        <div className="max-h-24 space-y-1 overflow-y-auto rounded-xl bg-zinc-50 p-2.5">
                           {Object.entries(perms).filter(([, m]) => Object.values(m).some(Boolean)).map(([mod, actions]) => {
                             const activeActions = Object.entries(actions).filter(([, v]) => v).map(([a]) => ACTION_LABELS[a] || a);
                             return (
@@ -402,7 +446,7 @@ export function ProfessionalsTab({
                       ) : (
                         <p className="text-[9px] text-zinc-400 italic">Sem permissões</p>
                       )}
-                      <div className="flex gap-2 pt-1">
+                      <div className="mt-auto flex gap-2 border-t border-zinc-100 pt-3">
                         <Button
                           variant="outline"
                           size="sm"
@@ -430,12 +474,12 @@ export function ProfessionalsTab({
                 );
               })}
 
-              {professionals.length === 0 && (
+              {filteredProfessionals.length === 0 && (
                 <div className="col-span-full">
                   <EmptyState
                     icon={UserCog}
-                    title="Nenhum profissional cadastrado."
-                    description="Clique no botão acima para adicionar."
+                    title={professionals.length === 0 ? "Nenhum profissional cadastrado." : "Nenhum profissional encontrado."}
+                    description={professionals.length === 0 ? "Clique no botão acima para adicionar." : "Tente buscar por outro nome, cargo ou contato."}
                   />
                 </div>
               )}

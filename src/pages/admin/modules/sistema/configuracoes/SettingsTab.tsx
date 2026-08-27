@@ -114,8 +114,11 @@ function ToggleItem({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
-      <div>
+    <div className={cn(
+      "flex min-h-[88px] items-start justify-between gap-4 rounded-2xl border px-4 py-3.5 transition-all",
+      checked ? "border-amber-200 bg-amber-50/60 shadow-sm" : "border-zinc-200 bg-zinc-50 hover:border-zinc-300"
+    )}>
+      <div className="min-w-0">
         <p className="text-sm font-black text-zinc-900">{label}</p>
         <p className="mt-1 text-xs leading-relaxed text-zinc-500">{desc}</p>
       </div>
@@ -297,7 +300,7 @@ export function SettingsTab({
         description="Intervalos, antecedência e comportamento do autoatendimento."
         icon={CalendarDays}
         action={
-          <Button onClick={saveAgendaSettings} loading={isSaving} size="sm">
+          <Button onClick={saveAgendaSettings} loading={isSaving} size="sm" className="h-10 w-full rounded-xl bg-zinc-950 px-5 text-white hover:bg-black sm:w-auto">
             Salvar
           </Button>
         }
@@ -384,6 +387,7 @@ export function SettingsTab({
             onClick={createRelease}
             disabled={!releaseForm.date || busyId === "release:create"}
             size="sm"
+            className="h-10 w-full rounded-xl sm:w-auto"
           >
             Cadastrar liberação
           </Button>
@@ -398,7 +402,7 @@ export function SettingsTab({
                     <p className="text-sm font-black text-zinc-900">{formatDateLabel(item.date)} · {item.startTime} às {item.endTime}</p>
                     <p className="mt-0.5 text-[11px] text-zinc-500">{item.professionalName ? `${item.professionalName}. ` : "Toda a agenda. "}{item.description || "Sem descrição."}</p>
                   </div>
-                  <IconButton variant="ghost" size="sm" onClick={() => deleteRelease(item.id)}>
+                  <IconButton variant="ghost" size="sm" onClick={() => deleteRelease(item.id)} title="Excluir liberação" className="shrink-0 text-red-400 hover:bg-red-50 hover:text-red-600">
                     {busyId === `release:${item.id}` ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                   </IconButton>
                 </div>
@@ -447,6 +451,7 @@ export function SettingsTab({
             onClick={saveSpecialDay}
             disabled={!specialForm.date || busyId === "special:create"}
             size="sm"
+            className="h-10 w-full rounded-xl sm:w-auto"
             variant="danger"
           >
             Salvar data especial
@@ -462,7 +467,7 @@ export function SettingsTab({
                     <p className="text-sm font-black text-zinc-900">{formatDateLabel(item.date)} · {item.isClosed ? "Agenda fechada" : `${item.startTime} às ${item.endTime}`}</p>
                     <p className="mt-0.5 text-[11px] text-zinc-500">{item.professionalName ? `${item.professionalName}. ` : "Toda a agenda. "}{item.description || "Sem descrição."}</p>
                   </div>
-                  <IconButton variant="ghost" size="sm" onClick={() => deleteSpecialDay(item.id)}>
+                  <IconButton variant="ghost" size="sm" onClick={() => deleteSpecialDay(item.id)} title="Excluir data especial" className="shrink-0 text-red-400 hover:bg-red-50 hover:text-red-600">
                     {busyId === `special:${item.id}` ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                   </IconButton>
                 </div>
@@ -478,20 +483,28 @@ export function SettingsTab({
   const renderConfiguracoes = () => (
     <div className="space-y-6">
       <PanelCard title="Tema do painel" description="Personalização visual do sistema." icon={Settings}>
-        <div className="flex flex-wrap gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
           {themeColors.map(color => (
-            <button key={color.value} type="button" onClick={() => handleThemeChange(color.value)} className="flex flex-col items-center gap-2">
+            <button key={color.value} type="button" onClick={() => handleThemeChange(color.value)} className={cn(
+              "group relative flex min-h-24 flex-col items-start justify-between overflow-hidden rounded-2xl border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md",
+              themeColor === color.value ? "border-zinc-900 bg-zinc-50 ring-2 ring-zinc-900/10" : "border-zinc-200 bg-white hover:border-zinc-300"
+            )}>
               <div
-                className={cn("h-10 w-10 rounded-full border-2 transition-transform", themeColor === color.value ? "border-zinc-900 scale-110" : "border-white")}
+                className="mt-2 h-9 w-9 rounded-xl border-4 border-white shadow-md"
                 style={{ background: color.hex }}
               />
-              <span className={cn("text-[10px] font-black uppercase", themeColor === color.value ? "text-zinc-900" : "text-zinc-400")}>{color.label}</span>
+              {themeColor === color.value && <span className="absolute right-2 top-2 rounded-full bg-zinc-900 px-2 py-1 text-[8px] font-black uppercase tracking-wider text-white">Atual</span>}
+              <span className={cn("text-[10px] font-black uppercase tracking-wider", themeColor === color.value ? "text-zinc-900" : "text-zinc-500")}>{color.label}</span>
             </button>
           ))}
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-          <button className="rounded-xl px-4 py-2 text-xs font-bold text-white" style={{ background: currentTheme.hex }}>Botão principal</button>
-          <button className="rounded-xl border px-4 py-2 text-xs font-bold" style={{ background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }}>Secundário</button>
+        <div className="mt-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
+          <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-zinc-400">Prévia dos componentes</p>
+          <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center">
+            <button className="min-h-10 rounded-xl px-5 text-xs font-bold text-white shadow-sm" style={{ background: currentTheme.hex }}>Botão principal</button>
+            <button className="min-h-10 rounded-xl border px-5 text-xs font-bold" style={{ background: currentTheme.light, color: currentTheme.hex, borderColor: currentTheme.border }}>Secundário</button>
+            <span className="text-[10px] font-bold text-zinc-400 min-[420px]:ml-auto">Alteração aplicada imediatamente</span>
+          </div>
         </div>
       </PanelCard>
     </div>
@@ -499,36 +512,47 @@ export function SettingsTab({
 
   /* ── Layout ─────────────────────────────────────────────────────────────── */
   return (
-    <div className="space-y-6 pb-20 sm:pb-0">
+    <div className="w-full min-w-0 space-y-4 p-3 pb-24 sm:p-5 sm:pb-6 lg:space-y-6 lg:p-6">
       {/* Sidebar + content */}
-      <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="space-y-5 lg:space-y-6">
 
         {/* Sidebar */}
-        <aside className="flex xl:flex-col gap-2 overflow-x-auto pb-1 xl:pb-0 -mx-4 px-4 xl:mx-0 xl:px-0">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 lg:rounded-3xl">
+          <div className="mb-4 flex min-w-0 items-center gap-3 sm:gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-100 bg-amber-50 text-amber-600 sm:h-12 sm:w-12 sm:rounded-2xl">
+              <Settings size={20} />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-lg font-black tracking-tight text-zinc-900 sm:text-xl">Configurações</h1>
+              <p className="mt-0.5 text-xs leading-relaxed text-zinc-500 sm:text-sm">Personalize as regras da agenda e a aparência do seu painel.</p>
+            </div>
+          </div>
+          <div className="flex gap-1 overflow-x-auto rounded-xl bg-zinc-100 p-1 sm:w-fit sm:rounded-2xl">
           {sections.map(item => (
             <button
               key={item.id}
               type="button"
               onClick={() => setSettingsOpenCard(item.id)}
               className={cn(
-                "flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all whitespace-nowrap shrink-0 xl:w-full",
+                "flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-4 py-2 text-left transition-all whitespace-nowrap sm:rounded-xl",
                 activeSection === item.id
-                  ? "border-amber-200 bg-amber-50"
-                  : "border-zinc-200 bg-white hover:border-zinc-300"
+                  ? "border-white bg-white shadow-sm"
+                  : "border-transparent bg-transparent hover:bg-white/60"
               )}
             >
-              <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
+              <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
                 activeSection === item.id ? "bg-amber-100 border-amber-200 text-amber-600" : "bg-white border-zinc-200 text-zinc-500"
               )}>
                 <item.icon size={16} />
               </div>
-              <span className={cn("text-sm font-black", activeSection === item.id ? "text-amber-700" : "text-zinc-700")}>{item.label}</span>
+              <span className={cn("text-xs font-black sm:text-sm", activeSection === item.id ? "text-zinc-900" : "text-zinc-600")}>{item.label}</span>
             </button>
           ))}
-        </aside>
+          </div>
+        </div>
 
         {/* Content */}
-        <div>
+        <div className="min-w-0">
           {isLoading ? (
             <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-zinc-200 bg-white">
               <div className="flex items-center gap-3 text-sm font-bold text-zinc-500">

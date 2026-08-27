@@ -44,7 +44,7 @@ function MobileBookingPreview({
   welcomeMessage: string;
 }) {
   return (
-    <div className="relative mx-auto w-[280px] h-[580px] bg-zinc-950 rounded-[3rem] border-[8px] border-zinc-900 shadow-2xl overflow-hidden hidden 2xl:block sticky top-8 animate-in slide-in-from-right-4 duration-700">
+    <div className="sticky top-6 mx-auto hidden h-[580px] w-[280px] overflow-hidden rounded-[3rem] border-[8px] border-zinc-900 bg-zinc-950 shadow-2xl animate-in slide-in-from-right-4 duration-700 xl:block">
       {/* Notch */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 bg-zinc-900 rounded-b-2xl z-40" />
       
@@ -383,7 +383,7 @@ export function MinhaAgendaTab({
 
   return (
     <PageWrapper mobileBottomPad>
-      <div className="space-y-6 lg:space-y-10 animate-in fade-in duration-700">
+      <div className="space-y-5 animate-in fade-in duration-700 sm:space-y-6 lg:space-y-8">
         <SectionTitle 
           title="Minha Agenda Online" 
           description="Sua vitrine digital. Configure como os clientes visualizam seu estúdio e realizam agendamentos." 
@@ -391,39 +391,43 @@ export function MinhaAgendaTab({
         />
 
         {/* Hero Section: Link de Agendamento */}
-        <div className="relative overflow-hidden rounded-[32px] bg-zinc-950 p-6 md:p-10 shadow-2xl">
+        <div className="relative overflow-hidden rounded-2xl bg-zinc-950 p-5 shadow-2xl sm:p-7 lg:rounded-3xl lg:p-9">
           {/* Animated Background Elements */}
           <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none animate-pulse" />
           <div className="absolute bottom-[-20%] left-[-10%] w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
           
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+          <div className="relative z-10 flex flex-col justify-between gap-6 lg:flex-row lg:items-center lg:gap-8">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-4">
                 <Badge color="success" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-black tracking-widest px-3 py-1 uppercase text-[10px]">
                   Link Público Ativo
                 </Badge>
               </div>
-              <h2 className="text-2xl md:text-4xl font-black text-white tracking-tight break-all">
-                {link}
-              </h2>
-              <p className="text-sm text-zinc-400 mt-4 max-w-xl leading-relaxed">
+              <p className="mb-1 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Seu endereço de agendamento</p>
+              <div className="flex min-w-0 items-baseline overflow-hidden rounded-xl border border-white/10 bg-white/5 px-3 py-3 sm:px-4">
+                <span className="hidden shrink-0 text-sm font-bold text-zinc-500 sm:inline">{currentHost}/agendar/</span>
+                <h2 className="min-w-0 truncate text-lg font-black tracking-tight text-white sm:text-2xl">
+                  <span className="sm:hidden">{link}</span><span className="hidden sm:inline">{activeSlug}</span>
+                </h2>
+              </div>
+              <p className="mt-3 max-w-xl text-xs leading-relaxed text-zinc-400 sm:text-sm">
                 Este é o endereço que você deve colocar na sua bio do Instagram, WhatsApp Business e Google Maps. 
                 Os clientes agendam em menos de 1 minuto sem precisar de aplicativo.
               </p>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-4 shrink-0 w-full lg:w-auto">
+            <div className="flex w-full shrink-0 flex-col gap-2 sm:flex-row lg:w-auto lg:gap-3">
               <Button 
                 onClick={handleCopyLink}
                 variant="outline"
-                className="bg-zinc-900 border-zinc-800 text-white hover:bg-zinc-800 h-12 px-8 rounded-2xl shadow-sm"
+                className="h-11 flex-1 rounded-xl border-zinc-800 bg-zinc-900 px-6 text-white shadow-sm hover:bg-zinc-800 lg:flex-none"
                 iconLeft={<Copy size={18} />}
               >
                 Copiar Link
               </Button>
               <Button 
                 onClick={handleOpenLink}
-                className="bg-white text-zinc-950 hover:bg-zinc-100 h-12 px-8 rounded-2xl shadow-lg border-transparent font-black"
+                className="h-11 flex-1 rounded-xl border-transparent bg-white px-6 font-black text-zinc-950 shadow-lg hover:bg-zinc-100 lg:flex-none"
                 iconLeft={<ExternalLink size={18} />}
               >
                 Ver Página
@@ -432,7 +436,9 @@ export function MinhaAgendaTab({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_auto] gap-6 lg:gap-8 pb-32">
+        <div className="grid min-w-0 grid-cols-1 gap-6 pb-4 sm:pb-6 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_320px]">
+
+          <div className="grid min-w-0 grid-cols-1 gap-6 2xl:grid-cols-2 2xl:gap-8">
 
           {/* Coluna 1: SEO e Links */}
           <div className="space-y-6 lg:space-y-8">
@@ -442,6 +448,8 @@ export function MinhaAgendaTab({
               icon={Globe}
               iconWrapClassName="bg-amber-50 border-amber-100 shadow-sm"
               iconClassName="text-amber-500"
+              className="rounded-2xl lg:rounded-3xl"
+              contentClassName="p-4 sm:p-6"
             >
               <div className="space-y-6 pt-2">
                 <Input
@@ -498,7 +506,7 @@ export function MinhaAgendaTab({
             </PanelCard>
 
             {hasProfessionals === false && (
-              <div className="group relative overflow-hidden bg-white border-2 border-dashed border-amber-200 rounded-[28px] p-8 flex flex-col items-center text-center transition-all hover:border-amber-400 hover:bg-amber-50/30">
+              <div className="group relative flex flex-col items-center overflow-hidden rounded-2xl border-2 border-dashed border-amber-200 bg-white p-5 text-center transition-all hover:border-amber-400 hover:bg-amber-50/30 sm:p-8 lg:rounded-3xl">
                 <div className="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center mb-4 text-2xl shadow-inner">
                   ⚠️
                 </div>
@@ -525,6 +533,8 @@ export function MinhaAgendaTab({
               icon={Layout}
               iconWrapClassName="bg-indigo-50 border-indigo-100 shadow-sm"
               iconClassName="text-indigo-500"
+              className="rounded-2xl lg:rounded-3xl"
+              contentClassName="p-4 sm:p-6"
             >
               <div className="space-y-8 pt-2">
                 <Input
@@ -540,7 +550,7 @@ export function MinhaAgendaTab({
                     <label className="ds-label">Logo Oficial</label>
                     <div 
                       className={cn(
-                        "group relative flex h-40 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[24px] border-2 border-dashed transition-all duration-300",
+                        "group relative flex h-36 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition-all duration-300 sm:h-40",
                         logoPreview ? "border-zinc-200 bg-white" : "border-zinc-200 bg-zinc-50 hover:border-emerald-400 hover:bg-white"
                       )}
                       onClick={() => !logoPreview && document.getElementById('logo-upload')?.click()}
@@ -555,9 +565,9 @@ export function MinhaAgendaTab({
                       ) : logoPreview ? (
                         <>
                           <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-6" />
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                            <span className="text-[10px] font-black text-white uppercase tracking-widest">Trocar Logotipo</span>
-                            <button onClick={removeLogo} className="w-8 h-8 rounded-full bg-white/20 hover:bg-rose-500 text-white flex items-center justify-center transition-colors">
+                          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+                            <button type="button" onClick={(e) => { e.stopPropagation(); document.getElementById('logo-upload')?.click(); }} className="min-h-10 rounded-xl bg-white px-3 text-[10px] font-black uppercase tracking-wider text-zinc-900">Trocar</button>
+                            <button type="button" aria-label="Remover logotipo" onClick={removeLogo} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white transition-colors hover:bg-rose-500">
                               <X size={16} />
                             </button>
                           </div>
@@ -575,7 +585,7 @@ export function MinhaAgendaTab({
                     <label className="ds-label">Banner de Capa</label>
                     <div 
                       className={cn(
-                        "group relative flex h-40 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[24px] border-2 border-dashed transition-all duration-300",
+                        "group relative flex h-36 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition-all duration-300 sm:h-40",
                         coverPreview ? "border-zinc-200 bg-white" : "border-zinc-200 bg-zinc-50 hover:border-blue-400 hover:bg-white"
                       )}
                       onClick={() => !coverPreview && document.getElementById('cover-upload')?.click()}
@@ -590,9 +600,9 @@ export function MinhaAgendaTab({
                       ) : coverPreview ? (
                         <>
                           <img src={coverPreview} alt="Capa" className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                            <span className="text-[10px] font-black text-white uppercase tracking-widest">Trocar Banner</span>
-                            <button onClick={removeCover} className="w-8 h-8 rounded-full bg-white/20 hover:bg-rose-500 text-white flex items-center justify-center transition-colors">
+                          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+                            <button type="button" onClick={(e) => { e.stopPropagation(); document.getElementById('cover-upload')?.click(); }} className="min-h-10 rounded-xl bg-white px-3 text-[10px] font-black uppercase tracking-wider text-zinc-900">Trocar</button>
+                            <button type="button" aria-label="Remover banner" onClick={removeCover} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white transition-colors hover:bg-rose-500">
                               <X size={16} />
                             </button>
                           </div>
@@ -613,7 +623,7 @@ export function MinhaAgendaTab({
                     <Badge color="success" className="text-[9px] uppercase tracking-[0.1em] py-0.5 font-black">Design Ativo</Badge>
                   </div>
                   
-                  <div className="bg-zinc-50 border border-zinc-200 rounded-[24px] p-5 space-y-5">
+                  <div className="space-y-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
                     <div className="grid grid-cols-6 sm:grid-cols-12 gap-2.5">
                       {PRESET_COLORS.map((color) => (
                         <button
@@ -628,7 +638,7 @@ export function MinhaAgendaTab({
                       ))}
                     </div>
                     
-                    <div className="flex items-center gap-4 pt-4 border-t border-zinc-200/60">
+                    <div className="flex min-w-0 items-center gap-3 border-t border-zinc-200/60 pt-4 sm:gap-4">
                       <div className="relative group/picker cursor-pointer shrink-0">
                         <input 
                           type="color" 
@@ -637,13 +647,12 @@ export function MinhaAgendaTab({
                           className="w-12 h-12 rounded-2xl cursor-pointer border-4 border-white shadow-md ring-1 ring-zinc-200 transition-transform active:scale-95 translate-y-2" 
                         />
                       </div>
-                      <div className="flex-1">
+                      <div className="min-w-0 flex-1">
                         <Input 
                           label="Customizar Hex"
                           value={localColor.toUpperCase()}
                           onChange={(e: any) => setLocalColor(e.target.value)}
                           className="font-mono text-sm tracking-widest focus:ring-0 bg-transparent"
-                          addonLeft="#"
                           wrapperClassName="gap-0.5"
                         />
                       </div>
@@ -658,25 +667,32 @@ export function MinhaAgendaTab({
             </PanelCard>
           </div>
 
+          </div>
+
           {/* Coluna 3: Preview (Mobile) */}
-          <MobileBookingPreview 
-            studioName={localTitle || studioName}
-            logo={logoPreview}
-            cover={coverPreview}
-            color={localColor}
-            welcomeMessage={localWelcome}
-          />
+          <aside className="hidden xl:block">
+            <div className="mb-3 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+              <MonitorSmartphone size={14} /> Prévia em tempo real
+            </div>
+            <MobileBookingPreview
+              studioName={localTitle || studioName}
+              logo={logoPreview}
+              cover={coverPreview}
+              color={localColor}
+              welcomeMessage={localWelcome}
+            />
+          </aside>
         </div>
 
         {/* Footer Actions — Refined Responsiveness */}
-        <div className="sticky bottom-4 lg:bottom-8 left-0 right-0 z-[100] mt-10">
-          <div className="bg-white/80 backdrop-blur-2xl border border-zinc-200 p-3 md:p-5 rounded-[24px] md:rounded-[28px] shadow-2xl shadow-zinc-950/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="sticky bottom-2 left-0 right-0 z-[100] mt-5 sm:bottom-4 lg:bottom-6">
+          <div className="flex items-center justify-between gap-2 rounded-2xl border border-zinc-200 bg-white/90 p-2.5 shadow-2xl shadow-zinc-950/10 backdrop-blur-2xl sm:gap-4 sm:p-3 md:p-4 lg:rounded-3xl">
              <div className="hidden lg:block ml-2">
                 <p className="text-xs font-black text-zinc-800 uppercase tracking-widest">Configurações Públicas</p>
                 <p className="text-[10px] text-zinc-500 mt-1 font-medium">As alterações serão exibidas instantaneamente para seus clientes.</p>
              </div>
              
-             <div className="flex items-center justify-between w-full lg:hidden px-1">
+             <div className="hidden min-w-0 items-center justify-between px-1 min-[420px]:flex lg:hidden">
                 <div className="flex flex-col">
                    <span className="text-[10px] font-black text-zinc-800 uppercase">Configurações</span>
                    <span className="text-[9px] text-zinc-500">Toque para publicar</span>
@@ -688,7 +704,7 @@ export function MinhaAgendaTab({
                 onClick={handleSave}
                 disabled={isLoading || isUploadingLogo || isUploadingCover}
                 className={cn(
-                  "w-full sm:w-[240px] md:w-[280px] h-11 md:h-14 rounded-2xl text-sm md:text-base font-black shadow-xl transition-all active:scale-95 group",
+                  "group h-11 min-w-0 flex-1 rounded-xl text-xs font-black shadow-xl transition-all active:scale-95 sm:ml-auto sm:flex-none sm:w-[240px] sm:text-sm md:h-12 md:w-[280px] md:rounded-2xl",
                   isLoading ? "bg-zinc-800" : "bg-zinc-950 hover:bg-black"
                 )}
                 iconLeft={isLoading ? <Loader2 size={18} className="animate-spin text-zinc-400" /> : <CheckCircle2 size={18} className="group-hover:scale-110 transition-transform" />}
@@ -701,4 +717,3 @@ export function MinhaAgendaTab({
     </PageWrapper>
   );
 }
-
