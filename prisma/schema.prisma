@@ -488,6 +488,8 @@ model Tenant {
   createdAt             DateTime    @default(now()) @db.DateTime(0)
   expiresAt             DateTime?   @db.DateTime(0)
   blockedAt             DateTime?   @db.DateTime(0)
+  expiryReminderSentAt  DateTime?   @db.DateTime(0)
+  winbackEmailSentAt    DateTime?   @db.DateTime(0)
   onboardingStep        Int         @default(0)
   segment               String?     @db.VarChar(50)
   maxAdminUsersOverride Int?

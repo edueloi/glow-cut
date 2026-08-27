@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import cors from "cors";
 import { prisma } from "./src/backend/prisma";
 import { initRealtime } from "./src/backend/realtime";
+import { runTenantLifecycleEmailsCheck } from "./src/backend/jobs/tenantLifecycleEmails";
 
 import fs from "fs";
 import { randomUUID } from "crypto";
@@ -1166,6 +1167,15 @@ async function startServer() {
         res.status(404).send("App not built");
       }
     });
+
+    // E-mails de ciclo de vida do tenant (vencimento próximo / win-back) — 1x por dia.
+    // Só em produção pra não disparar e-mail de verdade rodando localmente.
+    setTimeout(() => {
+      runTenantLifecycleEmailsCheck().catch((e) => console.error("[TenantLifecycleEmails] Erro:", e));
+      setInterval(() => {
+        runTenantLifecycleEmailsCheck().catch((e) => console.error("[TenantLifecycleEmails] Erro:", e));
+      }, 24 * 60 * 60 * 1000);
+    }, 60 * 1000);
   } else {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
     app.use(vite.middlewares);

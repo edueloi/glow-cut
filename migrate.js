@@ -952,6 +952,9 @@ const MIGRATIONS = [
     ignoreIfExists: true,
   },
 
+  { name: '055a_tenant_add_expiryReminderSentAt', sql: `ALTER TABLE Tenant ADD COLUMN expiryReminderSentAt DATETIME NULL AFTER blockedAt`, ignoreIfExists: true },
+  { name: '055b_tenant_add_winbackEmailSentAt',   sql: `ALTER TABLE Tenant ADD COLUMN winbackEmailSentAt DATETIME NULL AFTER expiryReminderSentAt`, ignoreIfExists: true },
+
 ];
 
 

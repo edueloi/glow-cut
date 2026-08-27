@@ -357,3 +357,91 @@ export async function sendPendingPaymentEmail(opts: {
     html: emailWrapper(content),
   });
 }
+
+// ─── Email de aviso: plano ativo perto de vencer ──────────────────────────────
+export async function sendExpiringSoonEmail(opts: {
+  toEmail: string;
+  toName: string;
+  tenantName: string;
+  expiresAt: Date;
+  daysLeft: number;
+}) {
+  const dateStr = opts.expiresAt.toLocaleDateString("pt-BR");
+  const subscriptionUrl = `${APP_URL}/admin/assinatura`;
+
+  const content = `
+    <h1 style="color:#1a1a1a;font-size:24px;font-weight:800;margin:0 0 8px;">Olá, ${opts.toName}! ⏰</h1>
+    <p style="color:#c9a96e;font-size:13px;font-weight:600;margin:0 0 24px;text-transform:uppercase;letter-spacing:1px;">Seu plano vence em breve</p>
+
+    <p style="color:#444;font-size:15px;line-height:1.7;margin:0 0 16px;">
+      O plano do <strong style="color:#1a1a1a;">${opts.tenantName}</strong> no Agendelle vence em
+      <strong style="color:#1a1a1a;">${opts.daysLeft} dia${opts.daysLeft === 1 ? "" : "s"}</strong>,
+      no dia <strong style="color:#1a1a1a;">${dateStr}</strong>.
+    </p>
+
+    <table cellpadding="0" cellspacing="0" style="margin:16px 0 24px;width:100%;">
+      <tr>
+        <td style="padding:16px 20px;background:#fdf8f0;border-radius:10px;border:1px solid #f0e6d0;">
+          <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#1a1a1a;">💡 Evite qualquer interrupção</p>
+          <p style="margin:0;font-size:13px;color:#666;line-height:1.6;">
+            Pra continuar com a agenda online, lembretes automáticos e tudo mais funcionando sem parar,
+            confira sua assinatura antes do vencimento.
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    ${primaryButton("Ver minha assinatura", subscriptionUrl)}
+
+    ${divider()}
+    ${smallNote("Se já renovou ou tem alguma dúvida sobre a cobrança, responda este e-mail que a gente confere pra você. 💛")}
+  `;
+
+  await transporter.sendMail({
+    from: FROM,
+    to: opts.toEmail,
+    subject: `⏰ ${opts.toName}, seu plano Agendelle vence em ${opts.daysLeft} dia${opts.daysLeft === 1 ? "" : "s"}`,
+    html: emailWrapper(content),
+  });
+}
+
+// ─── Email de reativação (win-back) — tenant bloqueado/cancelado ──────────────
+export async function sendWinbackEmail(opts: {
+  toEmail: string;
+  toName: string;
+  tenantName: string;
+}) {
+  const content = `
+    <h1 style="color:#1a1a1a;font-size:24px;font-weight:800;margin:0 0 8px;">Sentimos sua falta, ${opts.toName}! 💛</h1>
+    <p style="color:#c9a96e;font-size:13px;font-weight:600;margin:0 0 24px;text-transform:uppercase;letter-spacing:1px;">O ${opts.tenantName} está com o acesso pausado</p>
+
+    <p style="color:#444;font-size:15px;line-height:1.7;margin:0 0 16px;">
+      Notamos que sua conta no Agendelle está inativa no momento. Enquanto isso, sua agenda online,
+      os lembretes automáticos pro seus clientes e o painel de gestão ficam fora do ar.
+    </p>
+
+    <table cellpadding="0" cellspacing="0" style="margin:16px 0 24px;width:100%;">
+      <tr>
+        <td style="padding:16px 20px;background:#fdf8f0;border-radius:10px;border:1px solid #f0e6d0;">
+          <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#1a1a1a;">🎁 Podemos te ajudar a voltar</p>
+          <p style="margin:0;font-size:13px;color:#666;line-height:1.6;">
+            Se foi algo pontual (cartão vencido, mudança de plano, dúvida sobre a cobrança), é rapidinho de resolver.
+            É só responder este e-mail que a nossa equipe cuida disso com você.
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    ${primaryButton("Falar com a gente", `mailto:${ADMIN_EMAIL}`)}
+
+    ${divider()}
+    ${smallNote("Se você já cancelou por decisão própria, sem problema — é só ignorar este e-mail. 💛")}
+  `;
+
+  await transporter.sendMail({
+    from: FROM,
+    to: opts.toEmail,
+    subject: `💛 ${opts.toName}, sentimos sua falta no Agendelle`,
+    html: emailWrapper(content),
+  });
+}
