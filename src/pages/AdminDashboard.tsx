@@ -835,12 +835,16 @@ export default function AdminDashboard() {
 
     if ((newAppointment.type === 'bloqueio' || newAppointment.type === 'pessoal') && newAppointment.professionalId === 'all') {
       const activeProfs = professionals.filter((p: any) => p.isActive);
-      for (const prof of activeProfs) {
-        await apiFetch("/api/appointments", {
+      const results = await Promise.allSettled(activeProfs.map((prof: any) =>
+        apiFetch("/api/appointments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...commonBody, professionalId: prof.id })
-        });
+        }).then(r => { if (!r.ok) throw new Error(prof.name); })
+      ));
+      const failed = results.filter(r => r.status === "rejected") as PromiseRejectedResult[];
+      if (failed.length > 0) {
+        toast.error(`Não foi possível bloquear para: ${failed.map(f => f.reason?.message || "profissional").join(", ")}`);
       }
     } else {
       await apiFetch(urlAs, {

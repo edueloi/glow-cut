@@ -24,7 +24,7 @@ interface LiberacoesHorariosProps {
   appointments: any[];
   professionals: any[];
   workingHours: any[];
-  onNewBlockAppointment: (data: { date: Date; startTime: string; endTime: string; professionalId: string; notes?: string; recurrence?: BlockRecurrence }) => void;
+  onNewBlockAppointment: (data: { date: Date; startTime: string; endTime: string; professionalId: string; notes?: string; recurrence?: BlockRecurrence }) => Promise<any>;
   onDeleteAppointment: (id: string) => void;
   onRefresh: () => void;
 }
@@ -103,14 +103,21 @@ export function LiberacoesHorarios({
 
       if (newBlock.professionalId === "all") {
         const activeProfs = professionals.filter((p) => p.isActive !== false);
-        for (const prof of activeProfs) {
-          await onNewBlockAppointment({ ...payload, professionalId: prof.id });
+        const results = await Promise.allSettled(activeProfs.map((prof) =>
+          onNewBlockAppointment({ ...payload, professionalId: prof.id }).then((res: any) => {
+            if (res && res.ok === false) throw new Error(prof.name);
+          })
+        ));
+        const failed = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+        if (failed.length > 0) {
+          toast.error(`Não foi possível bloquear para: ${failed.map((f) => f.reason?.message || "profissional").join(", ")}`);
+        } else {
+          toast.success("Bloqueio criado com sucesso.");
         }
       } else {
         await onNewBlockAppointment({ ...payload, professionalId: newBlock.professionalId });
+        toast.success("Bloqueio criado com sucesso.");
       }
-
-      toast.success("Bloqueio criado com sucesso.");
       setNewBlock((prev) => ({ ...prev, notes: "", recurrence: { type: "none", count: 1, interval: 1 } }));
     } finally {
       setSavingBlock(false);

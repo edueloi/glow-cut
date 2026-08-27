@@ -1003,6 +1003,7 @@ function EditComandaModal({
   const subtotal = items.reduce((a, i) => a + i.price * i.quantity, 0);
   const d        = parseFloat(discount) || 0;
   const total    = Math.max(0, discountType === "percentage" ? subtotal * (1 - d / 100) : subtotal - d);
+  const discountExceeds = discountType === "percentage" ? d > 100 : d > subtotal;
 
   const filteredServices = useMemo(() => {
     const q = panelSearch.toLowerCase();
@@ -1209,6 +1210,13 @@ function EditComandaModal({
                 </div>
               </div>
             </div>
+            {discountExceeds && (
+              <p className="text-[10px] font-bold text-red-500 -mt-2 px-1">
+                {discountType === "percentage"
+                  ? "Desconto acima de 100% — o total ficará zerado."
+                  : "Desconto maior que o subtotal — o total ficará zerado."}
+              </p>
+            )}
           </div>
         )}
 
@@ -1280,6 +1288,28 @@ function EditComandaModal({
                 <div className="flex justify-between text-sm font-black text-zinc-900 pt-1 border-t border-zinc-200"><span>Total</span><span>{fmtBRL(total)}</span></div>
               </div>
             </ContentCard>
+
+            {/* Payment breakdown (pagamento misto) */}
+            {comanda.paymentMethod === "mixed" && comanda.paymentDetails && (() => {
+              const methodLabels: Record<string, string> = { cash: "Dinheiro", card: "Cartão", pix: "Pix", transfer: "Transf.", voucher: "Voucher" };
+              let parsed: any = null;
+              try { parsed = typeof comanda.paymentDetails === "string" ? JSON.parse(comanda.paymentDetails) : comanda.paymentDetails; } catch { parsed = null; }
+              const entries = Array.isArray(parsed?.entries) ? parsed.entries : [];
+              if (entries.length === 0) return null;
+              return (
+                <ContentCard>
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Pagamento Misto</p>
+                    {entries.map((e: any, i: number) => (
+                      <div key={i} className="flex justify-between text-xs font-bold text-zinc-600">
+                        <span>{methodLabels[e.method] || e.method}</span>
+                        <span>{fmtBRL(parseFloat(e.amount) || 0)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ContentCard>
+              );
+            })()}
 
             {/* Audit trail */}
             {(comanda.createdByName || comanda.closedByName || comanda.paidByName) && (

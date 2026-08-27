@@ -30,12 +30,6 @@ financeRouter.post("/cash-entries", financeController.createCashEntry);
 financeRouter.put("/cash-entries/:id", financeController.updateCashEntry);
 financeRouter.delete("/cash-entries/:id", financeController.deleteCashEntry);
 
-// Consumo de produtos por serviço
-financeRouter.get("/service-consumptions", financeController.listServiceConsumptions);
-financeRouter.post("/service-consumptions", financeController.createServiceConsumption);
-financeRouter.put("/service-consumptions/:id", financeController.updateServiceConsumption);
-financeRouter.delete("/service-consumptions/:id", financeController.deleteServiceConsumption);
-
 // Contas a Pagar/Receber (recorrentes, com vencimento/atraso/juros)
 financeRouter.get("/bill-categories", billController.listCategories);
 financeRouter.post("/bill-categories", billController.createCategory);

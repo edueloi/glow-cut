@@ -389,6 +389,16 @@ function AgendaSection({
     if (selectedService) setForm(f => ({ ...f, duration: selectedService.duration }));
   }, [form.serviceId]);
 
+  // Mesma config que o modal do admin e o autoatendimento público já respeitam — antes esse
+  // formulário sempre forçava "confirmed", ignorando o que o salão configurou.
+  const [autoConfirm, setAutoConfirm] = useState(false);
+  useEffect(() => {
+    apiFetch("/api/settings/agenda")
+      .then(r => r.json())
+      .then(d => setAutoConfirm(!!d?.autoConfirmAppointments))
+      .catch(() => {});
+  }, []);
+
   // ── Minhas Folgas ──
   const [showTimeOffModal, setShowTimeOffModal] = useState(false);
   const [timeOffList, setTimeOffList] = useState<{ id: string; date: string; description?: string }[]>([]);
@@ -496,7 +506,7 @@ function AgendaSection({
           recurrence: form.recurrence,
           sessions: form.recurrence.count || 1,
           professionalId: prof.id,
-          status: "confirmed",
+          status: autoConfirm ? "confirmed" : "scheduled",
         }),
       });
       if (res.ok) {

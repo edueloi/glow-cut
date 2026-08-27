@@ -347,7 +347,7 @@ export const comandaController = {
 
   async updateItems(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    const { items, discount, discountType, total } = req.body;
+    const { items, discount, discountType } = req.body;
     try {
       const oldItems: any[] = await (prisma as any).$queryRawUnsafe(`SELECT * FROM ComandaItem WHERE comandaId = ?`, req.params.id);
       for (const old of oldItems) {
@@ -374,11 +374,23 @@ export const comandaController = {
         }
       }
 
+      // Recalcula o total no servidor a partir dos itens de verdade + desconto, em vez de confiar
+      // no `total` que o cliente mandou — evita tanto um desconto maior que o subtotal virar total
+      // negativo/errado quanto um valor de total adulterado no request.
+      const dValue = parseFloat(discount) || 0;
+      const dType = discountType || "value";
+      const computedSubtotal = (items || []).reduce(
+        (s: number, it: any) => s + (parseFloat(it.price) || 0) * (parseInt(it.quantity) || 1), 0
+      );
+      const computedTotal = Math.max(0, dType === "percentage"
+        ? computedSubtotal * (1 - Math.min(dValue, 100) / 100)
+        : computedSubtotal - dValue);
+
       await (prisma as any).$executeRawUnsafe(
         `UPDATE Comanda SET discount = ?, discountType = ?, total = ? WHERE id = ?${tenantId ? " AND tenantId = ?" : ""}`,
         ...(tenantId
-          ? [parseFloat(discount) || 0, discountType || "value", parseFloat(total) || 0, req.params.id, tenantId]
-          : [parseFloat(discount) || 0, discountType || "value", parseFloat(total) || 0, req.params.id])
+          ? [dValue, dType, computedTotal, req.params.id, tenantId]
+          : [dValue, dType, computedTotal, req.params.id])
       );
       res.json({ success: true });
     } catch (e: any) {

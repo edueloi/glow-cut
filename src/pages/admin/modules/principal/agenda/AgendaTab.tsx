@@ -226,7 +226,7 @@ export function AgendaTab(props: AgendaTabProps) {
               professionals={props.professionals}
               workingHours={props.workingHours ?? []}
               onNewBlockAppointment={(data) => {
-                return props.onNewBlockAppointment?.(data);
+                return Promise.resolve(props.onNewBlockAppointment?.(data));
               }}
               onDeleteAppointment={(id) => props.onDeleteAppointment?.(id)}
               onRefresh={props.onRefresh ?? (() => {})}

@@ -345,7 +345,7 @@ export const agendaController = {
     const tenantId = getTenantId(req);
     const { date, serviceId, professionalId } = req.query;
 
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     if (!date || !serviceId || !professionalId) return res.status(400).json({ error: "date, serviceId and professionalId required." });
 
     try {
@@ -353,19 +353,12 @@ export const agendaController = {
       const dayOfWeek = targetDate.getDay();
       const settings = await ensureAgendaSettingsRecord(tenantId);
       const service = await (prisma as any).service.findFirst({ where: { id: serviceId as string, tenantId } });
-      if (!service) return res.status(404).json({ error: "Serviâ”œÂºo nâ”œÃºo encontrado." });
-      const clientId: string | null = null;
-      const client = clientId
-        ? await (prisma as any).client.findFirst({ where: { id: clientId, tenantId } })
-        : null;
-      if (clientId && !client) {
-        return res.status(404).json({ error: "Cliente nâ”œÃ¢â”¬Ãºo encontrado." });
-      }
+      if (!service) return res.status(404).json({ error: "Serviço não encontrado." });
 
       const professional = await (prisma as any).professional.findFirst({
         where: { id: professionalId as string, tenantId, isActive: true },
       });
-      if (!professional) return res.status(404).json({ error: "Profissional nâ”œÃºo encontrado." });
+      if (!professional) return res.status(404).json({ error: "Profissional não encontrado." });
 
       if (!settings.onlineBookingEnabled || !settings.enableSelfService) return res.json([]);
 
@@ -446,8 +439,8 @@ export const agendaController = {
     const tenantId = getTenantId(req);
     const { month, professionalId } = req.query;
 
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
-    if (!month || !professionalId) return res.status(400).json({ error: "month e professionalId sâ”œÃºo obrigatâ”œâ”‚rios." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    if (!month || !professionalId) return res.status(400).json({ error: "month e professionalId são obrigatórios." });
 
     try {
       const targetDate = new Date(month as string);
@@ -519,13 +512,13 @@ export const agendaController = {
       }
       return res.json(statusMap);
     } catch (e: any) {
-      return res.status(500).json({ error: "Erro ao buscar status do calendâ”œÃ­rio." });
+      return res.status(500).json({ error: "Erro ao buscar status do calendário." });
     }
   },
 
   async list(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     try {
       const { start, end, professionalId } = req.query;
       const where: any = { tenantId };
@@ -550,13 +543,13 @@ export const agendaController = {
 
   async clientAppointments(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { phone } = req.query;
-    if (!phone) return res.status(400).json({ error: "Phone obrigatâ”œâ”‚rio." });
+    if (!phone) return res.status(400).json({ error: "Phone obrigatório." });
     try {
       const agendaSettings = await ensureAgendaSettingsRecord(tenantId);
       if (!agendaSettings.enableAppointmentSearch || !agendaSettings.enableClientAgendaView) {
-        return res.status(403).json({ error: "Consulta pâ”œâ•‘blica desativada." });
+        return res.status(403).json({ error: "Consulta pública desativada." });
       }
       const client = await findTenantClientByPhone(tenantId, String(phone));
       if (!client) return res.json([]);
@@ -748,7 +741,7 @@ export const agendaController = {
 
   async create(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { date, startTime, endTime, clientId, serviceId, professionalId: rawProfessionalId, comandaId, duration, notes, status, type, sessionNumber, totalSessions, recurrence, repeat, repeatCount, skipDates } = req.body;
     
     console.log("[Agenda] Criando agendamento", { 
@@ -765,7 +758,7 @@ export const agendaController = {
       const firstProf = await (prisma as any).professional.findFirst({ where: { tenantId, isActive: true } });
       if (firstProf) professionalId = firstProf.id;
     }
-    if (!professionalId) return res.status(400).json({ error: "Nenhum profissional disponâ”œÂ¡vel." });
+    if (!professionalId) return res.status(400).json({ error: "Nenhum profissional disponível." });
 
     try {
       const agendaSettings = await ensureAgendaSettingsRecord(tenantId);
@@ -773,37 +766,37 @@ export const agendaController = {
         return res.status(403).json({ error: "Autoagendamento desativado." });
       }
       if (isPublicRequest && (!clientId || !serviceId)) {
-        return res.status(400).json({ error: "clientId e serviceId sâ”œÃºo obrigatâ”œâ”‚rios no autoagendamento." });
+        return res.status(400).json({ error: "clientId e serviceId são obrigatórios no autoagendamento." });
       }
 
       const service = serviceId
         ? await (prisma as any).service.findFirst({ where: { id: serviceId, tenantId } })
         : null;
       if (serviceId && !service) {
-        return res.status(404).json({ error: "Serviâ”œÂºo nâ”œÃºo encontrado." });
+        return res.status(404).json({ error: "Serviço não encontrado." });
       }
 
       const client = clientId
         ? await (prisma as any).client.findFirst({ where: { id: clientId, tenantId } })
         : null;
       if (clientId && !client) {
-        return res.status(404).json({ error: "Cliente nâ”œÃ¢â”¬Ãºo encontrado." });
+        return res.status(404).json({ error: "Cliente não encontrado." });
       }
 
       const professional = await (prisma as any).professional.findFirst({
         where: { id: professionalId, tenantId, isActive: true },
       });
       if (!professional) {
-        return res.status(404).json({ error: "Profissional nâ”œÃºo encontrado." });
+        return res.status(404).json({ error: "Profissional não encontrado." });
       }
 
       try {
         const assignedIds = JSON.parse(service?.professionalIds || "[]");
         if (Array.isArray(assignedIds) && assignedIds.length > 0 && !assignedIds.includes(professionalId)) {
-          return res.status(400).json({ error: "Este profissional nâ”œÃ¢â”¬Ãºo atende o serviâ”œÃ¢â”¬Âºo selecionado." });
+          return res.status(400).json({ error: "Este profissional não atende o serviço selecionado." });
         }
       } catch {
-        // Ignora JSON invâ”œÃ¢â”¬Ã­lido em professionalIds.
+        // Ignora JSON inválido em professionalIds.
       }
 
       const effectiveStatus = isPublicRequest
@@ -1075,7 +1068,7 @@ export const agendaController = {
 
   async getGroup(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     try {
       const appts = await (prisma as any).appointment.findMany({
         where: { repeatGroupId: req.params.groupId, tenantId },
@@ -1090,9 +1083,9 @@ export const agendaController = {
 
   async batchDelete(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { ids } = req.body;
-    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "ids obrigatâ”œâ”‚rio." });
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "ids obrigatório." });
     try {
       await (prisma as any).appointment.deleteMany({ where: { id: { in: ids }, tenantId } });
       emitToTenant(tenantId, "agenda:changed");
@@ -1106,14 +1099,14 @@ export const agendaController = {
 
   async getPatGeneral(req: Request, res: Response) {
     const { slug } = req.params;
-    if (!slug) return res.status(400).json({ error: "Slug obrigatÃ³rio." });
+    if (!slug) return res.status(400).json({ error: "Slug obrigatório." });
 
     try {
       const tenant = await (prisma as any).tenant.findUnique({
         where: { slug },
         select: { id: true, name: true, slug: true },
       });
-      if (!tenant) return res.status(404).json({ error: "EstÃºdio nÃ£o encontrado." });
+      if (!tenant) return res.status(404).json({ error: "Estúdio não encontrado." });
 
       const tenantId = tenant.id;
       const settingsRow = await (prisma as any).agendaSettings.findFirst({ where: { tenantId } });
@@ -1186,13 +1179,13 @@ export const agendaController = {
 
   async getPatQueue(req: Request, res: Response) {
     const { professionalId } = req.params;
-    if (!professionalId) return res.status(400).json({ error: "professionalId obrigatÃ³rio." });
+    if (!professionalId) return res.status(400).json({ error: "professionalId obrigatório." });
     try {
       const prof = await (prisma as any).professional.findUnique({
         where: { id: professionalId },
         select: { id: true, name: true, role: true, tenantId: true, photo: true },
       });
-      if (!prof) return res.status(404).json({ error: "Profissional nÃ£o encontrado." });
+      if (!prof) return res.status(404).json({ error: "Profissional não encontrado." });
 
       const { tenantId } = prof;
       const settingsRow = await (prisma as any).agendaSettings.findFirst({ where: { tenantId } });
@@ -1262,7 +1255,7 @@ export const agendaController = {
   async patchPatStatus(req: Request, res: Response) {
     const { appointmentId } = req.params;
     const { status } = req.body;
-    if (!appointmentId || !status) return res.status(400).json({ error: "appointmentId e status obrigatÃ³rios." });
+    if (!appointmentId || !status) return res.status(400).json({ error: "appointmentId e status obrigatórios." });
 
     try {
       const appt = await (prisma as any).appointment.update({
@@ -1284,7 +1277,7 @@ export const agendaController = {
   // SETTINGS
   async getSettings(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     try {
       const settings = await ensureAgendaSettingsRecord(tenantId);
       const releases: any[] = await (prisma as any).$queryRawUnsafe(
@@ -1298,13 +1291,13 @@ export const agendaController = {
       res.json({ settings, releases: releases.map(mapScheduleRelease), specialDays: specialDays.map(mapSpecialScheduleDay) });
     } catch (e: any) {
       console.error("[getSettings] Error:", e?.message || e);
-      res.status(500).json({ error: e?.message || "Erro ao carregar configuraâ”œÂºâ”œÃes." });
+      res.status(500).json({ error: e?.message || "Erro ao carregar configurações." });
     }
   },
 
   async updateSettings(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     try {
       const current = await ensureAgendaSettingsRecord(tenantId);
       const next = normalizeAgendaSettings({ ...current, ...req.body }, tenantId);
@@ -1333,9 +1326,9 @@ export const agendaController = {
 
   async createRelease(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { date, startTime, endTime, professionalId, description } = req.body;
-    if (!date || !startTime || !endTime) return res.status(400).json({ error: "Campos obrigatâ”œâ”‚rios." });
+    if (!date || !startTime || !endTime) return res.status(400).json({ error: "Campos obrigatórios." });
     try {
       const id = randomUUID();
       await (prisma as any).$executeRawUnsafe(`INSERT INTO ScheduleRelease (id, tenantId, professionalId, date, startTime, endTime, description) VALUES (?, ?, ?, ?, ?, ?, ?)`, id, tenantId, professionalId || null, toDateOnly(date), startTime, endTime, description || null);
@@ -1358,7 +1351,7 @@ export const agendaController = {
 
   async saveSpecialDay(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { date, isClosed, startTime, endTime, professionalId, description } = req.body;
     try {
       const { start, end } = getDayRange(date);
@@ -1508,7 +1501,7 @@ export const agendaController = {
   // WORKING HOURS
   async getWorkingHours(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     try {
       const requestedId = req.query.professionalId as string | undefined;
       let prof = requestedId
@@ -1532,7 +1525,7 @@ export const agendaController = {
 
   async updateWorkingHours(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { hours, professionalId } = req.body;
     try {
       let profId: string | undefined = professionalId;
@@ -1568,7 +1561,7 @@ export const agendaController = {
   // CLOSED DAYS
   async getClosedDays(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     try {
       const days = await (prisma as any).closedDay.findMany({ where: { tenantId }, orderBy: { date: "asc" } });
       res.json(days.map((d: any) => ({ id: d.id, date: format(d.date, "yyyy-MM-dd"), name: d.description || "" })));
@@ -1579,7 +1572,7 @@ export const agendaController = {
 
   async createClosedDay(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { date, name } = req.body;
     try {
       const day = await (prisma as any).closedDay.create({ data: { id: randomUUID(), date: toDateOnly(date), description: name || null, tenantId } });
