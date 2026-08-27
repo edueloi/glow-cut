@@ -270,7 +270,7 @@ function resolveEndTime(targetDate: Date, startTime: string, providedEndTime: st
   return format(addMinutes(start, duration), "HH:mm");
 }
 
-async function ensureSlotAvailable(tenantId: string, professionalId: string, targetDate: Date, startTime: string, endTime: string) {
+async function ensureSlotAvailable(tenantId: string, professionalId: string, targetDate: Date, startTime: string, endTime: string, excludeAppointmentId?: string) {
   const { start, end } = getDayRange(targetDate);
   const appointments = await (prisma as any).appointment.findMany({
     where: {
@@ -278,12 +278,65 @@ async function ensureSlotAvailable(tenantId: string, professionalId: string, tar
       professionalId,
       date: { gte: start, lt: end },
       status: { notIn: ["cancelled", "canceled", "cancelado"] },
+      ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
     },
     select: { startTime: true, endTime: true },
   });
 
   if (hasSlotOverlap(startTime, endTime, appointments)) {
-    throw new Error("Jâ”œÃ¢â”¬Ã­ existe um agendamento neste horâ”œÃ¢â”¬Ã­rio para este profissional.");
+    throw new Error("Já existe um agendamento neste horário para este profissional.");
+  }
+}
+
+// Reaplica, fora do fluxo público de disponibilidade (getAvailability), a mesma validação de
+// expediente/dia fechado/feriado — sem isso, criação/reagendamento feitos pelo admin conseguiam
+// marcar um horário fora do expediente do profissional ou num dia fechado sem nenhum aviso.
+// Uma "Liberação de horário" (ScheduleRelease) continua funcionando como a forma sancionada de
+// abrir uma exceção pontual.
+async function ensureWithinWorkingHours(tenantId: string, professionalId: string, targetDate: Date, startTime: string, endTime: string, agendaSettings: any) {
+  const dayOfWeek = targetDate.getDay();
+  const { start, end } = getDayRange(targetDate);
+
+  const wh = await (prisma as any).workingHours.findFirst({ where: { professionalId, dayOfWeek } });
+  let closedByDay = !wh || !wh.isOpen;
+  let baseStartTime = wh?.startTime || "";
+  let baseEndTime = wh?.endTime || "";
+  let baseBreakStart = wh?.breakStart || null;
+  let baseBreakEnd = wh?.breakEnd || null;
+
+  const closed = await (prisma as any).closedDay.findFirst({ where: { tenantId, date: { gte: start, lt: end } } });
+  if (closed) closedByDay = true;
+
+  const specialRows: any[] = await (prisma as any).$queryRawUnsafe(
+    `SELECT * FROM SpecialScheduleDay WHERE tenantId = ? AND date >= ? AND date < ? AND (professionalId = ? OR professionalId IS NULL) ORDER BY professionalId IS NULL ASC, createdAt DESC`,
+    tenantId, start, end, professionalId
+  );
+  const special = specialRows[0];
+  if (special) {
+    if (asBool(special.isClosed, true)) closedByDay = true;
+    else {
+      closedByDay = false;
+      baseStartTime = special.startTime || baseStartTime || "09:00";
+      baseEndTime = special.endTime || baseEndTime || "19:00";
+      baseBreakStart = null;
+      baseBreakEnd = null;
+    }
+  }
+  if (agendaSettings?.blockNationalHolidays && isNationalHoliday(targetDate)) closedByDay = true;
+
+  const releaseRows: any[] = await (prisma as any).$queryRawUnsafe(
+    `SELECT * FROM ScheduleRelease WHERE tenantId = ? AND date >= ? AND date < ? AND (professionalId = ? OR professionalId IS NULL) ORDER BY startTime ASC`,
+    tenantId, start, end, professionalId
+  );
+
+  const withinRange = (s: string, e: string) => Boolean(s) && Boolean(e) && startTime >= s && endTime <= e;
+  const withinBreak = Boolean(baseBreakStart && baseBreakEnd && !(endTime <= baseBreakStart || startTime >= baseBreakEnd));
+
+  const fitsBase = !closedByDay && withinRange(baseStartTime, baseEndTime) && !withinBreak;
+  const fitsRelease = releaseRows.some((r) => withinRange(r.startTime, r.endTime));
+
+  if (!fitsBase && !fitsRelease) {
+    throw new Error(closedByDay ? "O profissional não atende nesta data (dia fechado)." : "Horário fora do expediente do profissional.");
   }
 }
 
@@ -699,8 +752,12 @@ export const agendaController = {
 
         // Um conflito num dia isolado (ex: bloqueio de semana inteira onde 1 dia já tem
         // agendamento) não deve abortar o restante do lote — pula esse dia e segue.
+        const effectiveType = type || "atendimento";
         try {
           await ensureSlotAvailable(tenantId, professionalId, apptDate, startTime, resolvedEndTime);
+          if (effectiveType !== "bloqueio") {
+            await ensureWithinWorkingHours(tenantId, professionalId, apptDate, startTime, resolvedEndTime, agendaSettings);
+          }
         } catch (slotError: any) {
           conflictSkipped.push({ date: apptDateStr, reason: slotError.message || "Horário indisponível." });
           continue;
@@ -769,6 +826,24 @@ export const agendaController = {
     const status = normalizeAppointmentStatus(rawStatus);
     try {
       const oldAppt = await (prisma as any).appointment.findUnique({ where: { id: req.params.id } });
+
+      if (oldAppt && tenantId) {
+        const effectiveType = type !== undefined ? type : oldAppt.type;
+        const effectiveStatus = status !== undefined ? status : oldAppt.status;
+        const scheduleChanged = date !== undefined || startTime !== undefined || endTime !== undefined || professionalId !== undefined;
+        const isActiveStatus = effectiveStatus === "scheduled" || effectiveStatus === "confirmed";
+
+        if (scheduleChanged && effectiveType !== "bloqueio" && isActiveStatus) {
+          const effectiveDate = date !== undefined ? new Date(date) : oldAppt.date;
+          const effectiveStartTime = startTime !== undefined ? startTime : oldAppt.startTime;
+          const effectiveEndTime = endTime !== undefined ? endTime : oldAppt.endTime;
+          const effectiveProfessionalId = professionalId !== undefined ? professionalId : oldAppt.professionalId;
+          await ensureSlotAvailable(tenantId, effectiveProfessionalId, effectiveDate, effectiveStartTime, effectiveEndTime, req.params.id);
+          const agendaSettings = await ensureAgendaSettingsRecord(tenantId);
+          await ensureWithinWorkingHours(tenantId, effectiveProfessionalId, effectiveDate, effectiveStartTime, effectiveEndTime, agendaSettings);
+        }
+      }
+
       await (prisma as any).appointment.updateMany({
         where: { id: req.params.id, tenantId: tenantId || undefined },
         data: {
@@ -832,11 +907,27 @@ export const agendaController = {
 
       const where: any = { id: req.params.id, tenantId: tenantId || undefined };
       const confirmAll = req.body.confirmAllRecurrences && oldAppt.repeatGroupId;
-      
+
       if (confirmAll) {
         where.repeatGroupId = oldAppt.repeatGroupId;
         delete where.id;
         where.status = "scheduled";
+      }
+
+      if (tenantId && !confirmAll) {
+        const effectiveStatus = data.status !== undefined ? data.status : oldAppt.status;
+        const scheduleChanged = data.date !== undefined || data.startTime !== undefined || data.endTime !== undefined || data.professionalId !== undefined;
+        const isActiveStatus = effectiveStatus === "scheduled" || effectiveStatus === "confirmed";
+
+        if (scheduleChanged && oldAppt.type !== "bloqueio" && isActiveStatus) {
+          const effectiveDate = data.date !== undefined ? data.date : oldAppt.date;
+          const effectiveStartTime = data.startTime !== undefined ? data.startTime : oldAppt.startTime;
+          const effectiveEndTime = data.endTime !== undefined ? data.endTime : oldAppt.endTime;
+          const effectiveProfessionalId = data.professionalId !== undefined ? data.professionalId : oldAppt.professionalId;
+          await ensureSlotAvailable(tenantId, effectiveProfessionalId, effectiveDate, effectiveStartTime, effectiveEndTime, req.params.id);
+          const agendaSettings = await ensureAgendaSettingsRecord(tenantId);
+          await ensureWithinWorkingHours(tenantId, effectiveProfessionalId, effectiveDate, effectiveStartTime, effectiveEndTime, agendaSettings);
+        }
       }
 
       await (prisma as any).appointment.updateMany({ where, data });
