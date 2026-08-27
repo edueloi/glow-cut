@@ -325,16 +325,22 @@ export function WppTab() {
       <div className="space-y-4 sm:space-y-5">
 
         {/* Header da página */}
-        <SectionTitle
-          title="WhatsApp Business"
-          description="Notificações automáticas e lembretes inteligentes para seus clientes."
-          icon={MessageCircle}
-          action={statusBadge}
-        />
+        <div className={cn(
+          "relative overflow-hidden rounded-2xl border bg-white p-4 shadow-sm sm:p-6 lg:rounded-3xl",
+          isConnected ? "border-emerald-200" : "border-zinc-200"
+        )}>
+          <div className={cn("absolute inset-y-0 left-0 w-1", isConnected ? "bg-emerald-500" : isQrPending ? "bg-amber-500" : "bg-zinc-300")} />
+          <SectionTitle
+            title="WhatsApp Business"
+            description="Notificações automáticas e lembretes inteligentes para seus clientes."
+            icon={MessageCircle}
+            action={statusBadge}
+          />
+        </div>
 
         {/* Aviso de Bot do Sistema */}
         {!isConnected && instance?.canUseSystemBot && (
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
+          <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5">
             <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm shrink-0">
               <MessageCircle size={20} className="text-blue-500" />
             </div>
@@ -359,7 +365,7 @@ export function WppTab() {
               isConnected ? (
                 <button
                   onClick={() => setShowDisconnectModal(true)}
-                  className="text-[11px] font-black text-rose-500 uppercase tracking-widest hover:underline"
+                  className="min-h-10 rounded-xl px-3 text-[10px] font-black uppercase tracking-widest text-rose-500 transition-colors hover:bg-rose-50"
                 >
                   Desconectar
                 </button>
@@ -389,7 +395,7 @@ export function WppTab() {
               </div>
             ) : (
               /* ── Desconectado / QR ── */
-              <div className="flex flex-col lg:flex-row gap-8 items-center">
+              <div className="flex flex-col items-center gap-6 lg:flex-row lg:gap-8">
                 <div className="flex-1 space-y-6 w-full">
                   <div className="space-y-2">
                     <h4 className="text-xl sm:text-2xl font-black text-zinc-900 leading-tight">
@@ -415,7 +421,7 @@ export function WppTab() {
                     onClick={handleConnect}
                     disabled={connectLoading}
                     loading={connectLoading}
-                    className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 text-white font-black uppercase tracking-widest"
+                    className="h-11 w-full rounded-xl bg-zinc-900 font-black uppercase tracking-widest text-white hover:bg-zinc-800 sm:w-auto"
                   >
                     <QrCode size={16} className="mr-2" />
                     {instance?.qrCode ? "Gerar Novo QR Code" : "Começar Conexão Agora"}
@@ -425,11 +431,11 @@ export function WppTab() {
                 {/* QR Code */}
                 <div className="shrink-0 flex justify-center">
                   {instance?.qrCode ? (
-                    <div className="p-4 bg-white border-4 border-zinc-100 rounded-3xl shadow-lg">
+                    <div className="max-w-full rounded-3xl border-4 border-zinc-100 bg-white p-3 shadow-lg sm:p-4">
                       <img
                         src={instance.qrCode.startsWith("data:") ? instance.qrCode : `data:image/png;base64,${instance.qrCode}`}
                         alt="QR Code"
-                        className="w-44 h-44 sm:w-56 sm:h-56 object-contain rounded-xl"
+                        className="h-44 w-44 max-w-full rounded-xl object-contain sm:h-56 sm:w-56"
                       />
                       <div className="mt-3 flex justify-center">
                         <Badge color="warning">Aguardando leitura</Badge>
@@ -450,6 +456,7 @@ export function WppTab() {
         )}
 
         {/* Card: Configurações de Disparo */}
+        <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:items-start">
         <PanelCard
           icon={Settings}
           iconWrapClassName="bg-amber-50 border-amber-100"
@@ -457,12 +464,12 @@ export function WppTab() {
           title="Configurações de Disparo"
           description="Escolha quais mensagens automáticas serão enviadas."
           action={
-            <Button size="sm" onClick={handleSaveBotConfig} loading={botSaving}>
+            <Button size="sm" onClick={handleSaveBotConfig} loading={botSaving} className="h-10 w-full rounded-xl bg-zinc-950 text-white hover:bg-black sm:w-auto">
               Salvar Configurações
             </Button>
           }
         >
-          <div className="divide-y divide-zinc-100">
+          <div className="grid gap-2">
             {([
               { key: "botEnabled", label: "Ativar Automações", desc: "Se desligado, nenhuma mensagem será enviada" },
               { key: "sendConfirmation", label: "Confirmação de Agendamento", desc: "Enviado ao confirmar um agendamento no painel" },
@@ -471,7 +478,10 @@ export function WppTab() {
               { key: "sendWelcome", label: "Boas-vindas (Novo Cliente)", desc: "Enviado ao cadastrar um novo cliente" },
               { key: "menuEnabled", label: "Resposta Automática", desc: "Ao receber uma mensagem, responde com nome do salão, link de agendamento e horários" },
             ] as const).map(({ key, label, desc }) => (
-              <div key={key} className="flex items-center justify-between py-3.5 gap-4">
+              <div key={key} className={cn(
+                "flex min-h-[76px] items-center justify-between gap-4 rounded-2xl border px-4 py-3 transition-all",
+                botConfig[key] ? "border-emerald-200 bg-emerald-50/50" : "border-zinc-200 bg-zinc-50"
+              )}>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-zinc-800">{label}</p>
                   <p className="text-xs text-zinc-400 mt-0.5">{desc}</p>
@@ -495,8 +505,8 @@ export function WppTab() {
         >
           <div className="space-y-2">
             {templates.map(tpl => (
-              <div key={tpl.type} className="flex items-center justify-between p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
-                <div className="flex items-center gap-3 min-w-0">
+              <div key={tpl.type} className="flex flex-col gap-3 rounded-2xl border border-zinc-100 bg-zinc-50 p-3.5 min-[480px]:flex-row min-[480px]:items-center min-[480px]:justify-between sm:p-4">
+                <div className="flex min-w-0 items-center gap-3">
                   <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-sm shrink-0">
                     {TEMPLATE_ICONS[tpl.type] || <FileText size={14} className="text-zinc-400" />}
                   </div>
@@ -505,7 +515,7 @@ export function WppTab() {
                     <p className="text-xs text-zinc-400 truncate">{tpl.body.slice(0, 60)}...</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0 ml-2">
+                <div className="flex shrink-0 items-center justify-end gap-2 border-t border-zinc-200 pt-2 min-[480px]:ml-2 min-[480px]:border-0 min-[480px]:pt-0">
                   <Badge color={tpl.isActive ? "success" : "default"} size="sm">
                     {tpl.isActive ? "Ativo" : "Inativo"}
                   </Badge>
@@ -513,6 +523,7 @@ export function WppTab() {
                     variant="ghost"
                     size="xs"
                     onClick={() => { setEditingTemplate({ ...tpl }); setShowTemplateModal(true); }}
+                    className="h-9 rounded-xl px-4"
                   >
                     Editar
                   </Button>
@@ -521,6 +532,7 @@ export function WppTab() {
             ))}
           </div>
         </PanelCard>
+        </div>
 
         {/* Card: Teste de Envio — só quando conectado */}
         {isConnected && (
@@ -531,7 +543,7 @@ export function WppTab() {
             title="Testar Envio"
             description="Envie uma mensagem de teste para verificar a conexão."
             action={
-              <Button size="sm" onClick={() => setShowTestModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              <Button size="sm" onClick={() => setShowTestModal(true)} className="h-10 w-full rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto">
                 <Send size={14} className="mr-1.5" /> Enviar Teste
               </Button>
             }
