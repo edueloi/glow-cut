@@ -96,10 +96,10 @@ function AppointmentCard({
             : "bg-white border-zinc-100 shadow-sm hover:shadow-md hover:border-zinc-200",
       )}
     >
-      <div className="flex items-center gap-4 p-4 sm:p-5">
+      <div className="grid grid-cols-[56px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[64px_minmax(0,1fr)_auto] sm:gap-4 sm:p-5">
         {/* Time info */}
         <div className={cn(
-          "flex flex-col items-center justify-center min-w-[64px] shrink-0 h-16 rounded-xl border transition-colors",
+          "flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl border transition-colors sm:h-16 sm:w-16",
           darkMode 
             ? isFirst ? "bg-amber-500/20 border-amber-500/30" : "bg-zinc-900 border-zinc-700 group-hover:bg-zinc-800"
             : isFirst ? "bg-amber-100 border-amber-200" : "bg-zinc-50 border-zinc-100 group-hover:bg-white"
@@ -160,7 +160,7 @@ function AppointmentCard({
         </div>
 
         {/* Status / Actions */}
-        <div className="shrink-0 flex items-center gap-2">
+        <div className={cn("col-span-2 flex shrink-0 items-center justify-end gap-2 border-t pt-3 sm:col-span-1 sm:border-0 sm:pt-0", darkMode ? "border-zinc-800" : "border-zinc-100")}>
            {isCompleted ? (
               <Badge color="success" size="md" icon={<Check size={14} />}>Finalizado</Badge>
            ) : isMissed ? (
@@ -417,7 +417,7 @@ export default function PATQueue() {
 
   return (
     <div className={cn(
-      "min-h-screen font-sans pb-24 transition-colors duration-500",
+      "min-h-screen font-sans pb-28 transition-colors duration-500",
       darkMode ? "bg-zinc-950 text-zinc-100" : "bg-[#FDFDFF] text-zinc-900"
     )}>
       
@@ -694,9 +694,9 @@ export default function PATQueue() {
           </div>
         ) : (
           // VISÃO EXCLUSIVA (Fila Detalhada do Profissional)
-          <div className="max-w-[1200px] mx-auto space-y-8">
+          <div className="mx-auto max-w-[1400px] space-y-6">
             
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-5">
                  <Link 
                    to={`/pat/general/${data.studio.slug}`} 
@@ -708,14 +708,14 @@ export default function PATQueue() {
                     <ArrowLeft size={22} />
                  </Link>
                  <div>
-                    <h2 className="text-3xl font-black tracking-tight leading-none">Fila Individual</h2>
+                    <h2 className="text-2xl font-black tracking-tight leading-none sm:text-3xl">Agenda do profissional</h2>
                     <p className={cn("text-base font-medium mt-1.5 opacity-60", darkMode ? "text-zinc-400" : "text-zinc-500")}>Acompanhe sua agenda do dia.</p>
                  </div>
               </div>
 
               {/* Status Header Bar */}
               <div className={cn(
-                "hidden md:flex items-center gap-8 p-4 rounded-3xl border",
+                "grid grid-cols-3 items-center gap-3 rounded-2xl border p-3 sm:gap-6",
                 darkMode ? "bg-zinc-900/30 border-zinc-800" : "bg-zinc-50 border-zinc-200/50"
               )}>
                  <div className="flex items-center gap-3">
@@ -733,12 +733,12 @@ export default function PATQueue() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
               
               {/* Sidebar: Profile */}
-              <div className="lg:col-span-4 space-y-6">
+              <div className="space-y-4">
                 <div className={cn(
-                  "p-8 rounded-[40px] border shadow-2xl relative overflow-hidden transition-all duration-500",
+                  "relative overflow-hidden rounded-3xl border p-5 shadow-xl transition-all duration-500 sm:p-6",
                   darkMode ? "bg-zinc-900 border-zinc-800 shadow-black/40" : "bg-white border-zinc-100 shadow-zinc-200/50"
                 )}>
                   <div className={cn(
@@ -747,12 +747,12 @@ export default function PATQueue() {
                   )} />
                   
                   <div className="flex flex-col items-center text-center">
-                    <div className="relative mb-6">
+                    <div className="relative mb-4">
                       {data.professional?.photo ? (
-                        <img src={data.professional.photo} className="w-32 h-32 rounded-[40px] object-cover border-4 border-white shadow-2xl" alt={data.professional.name} />
+                        <img src={data.professional.photo} className="h-24 w-24 rounded-3xl border-4 border-white object-cover shadow-xl" alt={data.professional.name} />
                       ) : (
                         <div className={cn(
-                          "w-32 h-32 rounded-[40px] flex items-center justify-center text-5xl font-black text-white shadow-2xl",
+                          "flex h-24 w-24 items-center justify-center rounded-3xl text-4xl font-black text-white shadow-xl",
                           darkMode ? "bg-zinc-800" : "bg-amber-500"
                         )}>
                           {data.professional?.name.charAt(0)}
@@ -766,7 +766,7 @@ export default function PATQueue() {
                     <p className={cn("text-xs font-black uppercase tracking-[0.4em] mb-2", darkMode ? "text-zinc-500" : "text-amber-500")}>
                       {getGreeting()}!
                     </p>
-                    <h1 className={cn("text-3xl font-black tracking-tight", darkMode ? "text-zinc-100" : "text-zinc-900")}>
+                    <h1 className={cn("text-2xl font-black tracking-tight", darkMode ? "text-zinc-100" : "text-zinc-900")}>
                       {data.professional?.name}
                     </h1>
                     <p className={cn("text-sm font-bold mt-1 opacity-60", darkMode ? "text-zinc-400" : "text-zinc-500")}>
@@ -775,17 +775,17 @@ export default function PATQueue() {
                   </div>
 
                   <div className={cn(
-                    "grid grid-cols-2 gap-4 mt-10 pt-10 border-t",
+                    "mt-6 grid grid-cols-2 gap-3 border-t pt-6",
                     darkMode ? "border-zinc-800" : "border-zinc-50"
                   )}>
-                     <div className={cn("p-4 rounded-3xl text-center", darkMode ? "bg-zinc-950/50" : "bg-zinc-50")}>
-                        <p className={cn("text-3xl font-black", darkMode ? "text-zinc-100" : "text-zinc-900")}>
+                     <div className={cn("rounded-2xl p-3 text-center", darkMode ? "bg-zinc-950/50" : "bg-zinc-50")}>
+                        <p className={cn("text-2xl font-black", darkMode ? "text-zinc-100" : "text-zinc-900")}>
                           {data.queue?.filter(q => ["scheduled", "confirmed"].includes(q.status)).length}
                         </p>
                         <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">Pendentes</p>
                      </div>
-                     <div className={cn("p-4 rounded-3xl text-center", darkMode ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600")}>
-                        <p className="text-3xl font-black">
+                     <div className={cn("rounded-2xl p-3 text-center", darkMode ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600")}>
+                        <p className="text-2xl font-black">
                           {data.queue?.filter(q => q.status === "performed").length}
                         </p>
                         <p className={cn("text-[10px] font-black uppercase tracking-widest mt-1", darkMode ? "text-emerald-500/60" : "text-emerald-400")}>Realizados</p>
@@ -794,39 +794,50 @@ export default function PATQueue() {
                 </div>
 
                 <div className={cn(
-                  "p-8 rounded-[40px] shadow-2xl relative overflow-hidden group hover:scale-[1.02] transition-transform duration-500",
-                  darkMode ? "bg-amber-600 text-zinc-950" : "bg-amber-500 text-white"
+                  "group relative overflow-hidden rounded-3xl border p-5 transition-all duration-500",
+                  darkMode ? "border-amber-500/20 bg-amber-500/10 text-amber-100" : "border-amber-200 bg-amber-50 text-amber-950"
                 )}>
                    <Scissors className="absolute -bottom-6 -right-6 w-32 h-32 opacity-10 rotate-12 group-hover:rotate-45 transition-transform duration-700" />
-                   <h4 className="text-lg font-black mb-3 flex items-center gap-3">
+                   <h4 className="mb-2 flex items-center gap-3 text-sm font-black">
                      <Clock size={20} /> Modo Operacional
                    </h4>
-                   <p className="text-sm font-bold leading-relaxed opacity-90">
+                   <p className="text-xs font-medium leading-relaxed opacity-70">
                      Ao finalizar um atendimento, clique no botão verde para atualizar o painel geral da recepção e notificar o sistema.
                    </p>
                 </div>
               </div>
 
               {/* Main Queue List */}
-              <div className="lg:col-span-8 space-y-6">
-                <div className="flex items-center justify-between px-2">
-                  <h3 className={cn("text-sm font-black uppercase tracking-[0.4em]", darkMode ? "text-zinc-500" : "text-zinc-400")}>Agenda do Dia</h3>
+              <div className="min-w-0 space-y-4">
+                <div className="flex items-center justify-between px-1">
+                  <div>
+                    <h3 className={cn("text-sm font-black uppercase tracking-[0.3em]", darkMode ? "text-zinc-400" : "text-zinc-500")}>Fila de hoje</h3>
+                    <p className={cn("mt-1 text-xs font-medium", darkMode ? "text-zinc-600" : "text-zinc-400")}>{todayLabel}</p>
+                  </div>
                   {refreshing && <Loader2 size={16} className="animate-spin text-amber-500" />}
                 </div>
 
                 {!data.queue || data.queue.length === 0 ? (
                   <div className={cn(
-                    "flex flex-col items-center justify-center py-32 border-2 border-dashed rounded-[48px] transition-colors",
-                    darkMode ? "bg-zinc-900/20 border-zinc-800" : "bg-white border-zinc-100"
+                    "relative flex min-h-[390px] flex-col items-center justify-center overflow-hidden rounded-3xl border p-8 text-center transition-colors sm:min-h-[460px]",
+                    darkMode ? "border-zinc-800 bg-zinc-900/30" : "border-zinc-100 bg-white shadow-sm"
                   )}>
+                    <div className={cn("pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full blur-3xl", darkMode ? "bg-emerald-500/5" : "bg-emerald-100/50")} />
                     <div className={cn(
-                      "w-24 h-24 rounded-full flex items-center justify-center mb-6",
-                      darkMode ? "bg-zinc-900" : "bg-emerald-50"
+                      "relative mb-6 flex h-20 w-20 items-center justify-center rounded-3xl border",
+                      darkMode ? "border-emerald-500/20 bg-emerald-500/10" : "border-emerald-100 bg-emerald-50"
                     )}>
-                      <CheckCircle2 size={48} className="text-emerald-500 opacity-40" />
+                      <CheckCircle2 size={38} className="text-emerald-500" />
                     </div>
-                    <p className={cn("text-lg font-black tracking-tight", darkMode ? "text-zinc-400" : "text-zinc-500")}>Nenhum agendamento hoje</p>
-                    <p className={cn("text-sm font-bold mt-1 opacity-50", darkMode ? "text-zinc-600" : "text-zinc-400")}>Tudo tranquilo por aqui!</p>
+                    <Badge color="success" size="sm">Agenda livre</Badge>
+                    <p className={cn("mt-4 text-xl font-black tracking-tight", darkMode ? "text-zinc-200" : "text-zinc-800")}>Nenhum atendimento na fila</p>
+                    <p className={cn("mt-2 max-w-sm text-sm font-medium leading-6", darkMode ? "text-zinc-500" : "text-zinc-400")}>A fila está atualizada. Novos agendamentos aparecerão aqui automaticamente.</p>
+                    <button
+                      onClick={() => fetchQueue(true)}
+                      className={cn("mt-7 inline-flex min-h-10 items-center gap-2 rounded-xl border px-4 text-xs font-black transition-all", darkMode ? "border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700" : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100")}
+                    >
+                      <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /> Atualizar fila
+                    </button>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -861,15 +872,15 @@ export default function PATQueue() {
 
       {/* Floating Status Bar */}
       <footer className={cn(
-        "fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-6 border backdrop-blur-xl transition-all duration-500",
+        "fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center justify-between gap-3 rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-xl transition-all duration-500 sm:bottom-6 sm:w-auto sm:justify-start sm:gap-6 sm:rounded-3xl sm:px-6",
         darkMode ? "bg-zinc-900/90 border-zinc-800 text-white shadow-black" : "bg-zinc-950/90 border-white/10 text-white shadow-zinc-900/20"
       )}>
-         <div className="flex items-center gap-3 pr-6 border-r border-white/10">
+         <div className="flex items-center gap-3 sm:border-r sm:border-white/10 sm:pr-6">
             <div className="relative">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-emerald-500 blur-sm animate-ping" />
             </div>
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] whitespace-nowrap">Monitoramento Ativo</p>
+            <p className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.14em] sm:text-[11px] sm:tracking-[0.2em]">Monitoramento Ativo</p>
          </div>
          <p className="hidden sm:block text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Pressione F11 para Tela Cheia</p>
          
