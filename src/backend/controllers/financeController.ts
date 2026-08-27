@@ -318,6 +318,13 @@ export const financeController = {
 
       const total = rows.reduce((s: number, r: any) => s + Number(r.totalComissao), 0);
 
+      // Baixa (CommissionPayout) já registrada pra esse profissional exatamente nesse período —
+      // o "De/Até" do filtro é o mesmo período usado ao marcar como paga.
+      const payoutRows: any[] = await (prisma as any).commissionPayout.findMany({
+        where: { tenantId, periodStart: dateFrom, periodEnd: dateTo, professionalId: { in: rows.map((r: any) => r.professionalId) } },
+      });
+      const payoutByProf = new Map(payoutRows.map((p: any) => [p.professionalId, p]));
+
       res.json({
         profissionais: rows.map(r => ({
           professionalId: r.professionalId,
@@ -326,6 +333,7 @@ export const financeController = {
           totalAtendimentos: Number(r.totalAtendimentos),
           totalFaturado: Number(r.totalFaturado),
           totalComissao: Number(r.totalComissao),
+          payout: payoutByProf.get(r.professionalId) || null,
         })),
         totalComissoes: total,
         periodo: { from: dateFrom, to: dateTo },
@@ -333,6 +341,44 @@ export const financeController = {
     } catch (e: any) {
       console.error("[GET /api/finance/pagamentos-profissionais]", e?.message || e);
       res.status(500).json({ error: e?.message || "Erro ao buscar pagamentos." });
+    }
+  },
+
+  async markCommissionPayout(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    const { professionalId, from, to, amount, notes } = req.body;
+    if (!professionalId || !from || !to) return res.status(400).json({ error: "professionalId, from e to são obrigatórios." });
+    try {
+      const periodStart = new Date(from);
+      const periodEnd = new Date(to);
+      const existing = await (prisma as any).commissionPayout.findFirst({ where: { tenantId, professionalId, periodStart, periodEnd } });
+      const payoutAmount = Number(amount) || 0;
+      const payout = existing
+        ? await (prisma as any).commissionPayout.update({
+            where: { id: existing.id },
+            data: { status: "paid", amount: payoutAmount, paidAmount: payoutAmount, paidAt: new Date(), notes: notes || null },
+          })
+        : await (prisma as any).commissionPayout.create({
+            data: {
+              id: randomUUID(), tenantId, professionalId, periodStart, periodEnd,
+              amount: payoutAmount, status: "paid", paidAmount: payoutAmount, paidAt: new Date(), notes: notes || null,
+            },
+          });
+      res.json(payout);
+    } catch (e: any) {
+      res.status(400).json({ error: e?.message || "Erro ao marcar comissão como paga." });
+    }
+  },
+
+  async undoCommissionPayout(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    try {
+      await (prisma as any).commissionPayout.deleteMany({ where: { id: req.params.id, tenantId } });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(400).json({ error: e?.message || "Erro." });
     }
   },
 

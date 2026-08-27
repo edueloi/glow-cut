@@ -84,6 +84,15 @@ export interface CaixaData {
   lancamentos: LancamentoCaixa[];
 }
 
+export interface CommissionPayout {
+  id: string;
+  status: "pending" | "paid";
+  amount: number;
+  paidAmount: number | null;
+  paidAt: string | null;
+  notes: string | null;
+}
+
 export interface ProfissionalPagamento {
   professionalId: string;
   professionalName: string;
@@ -91,6 +100,7 @@ export interface ProfissionalPagamento {
   totalAtendimentos: number;
   totalFaturado: number;
   totalComissao: number;
+  payout: CommissionPayout | null;
 }
 
 export interface PagamentosData {
@@ -219,6 +229,21 @@ export function useFinanceiro() {
     }
   }, [setPagamentosData, setPagamentosLoading]);
 
+  const markCommissionPayout = useCallback(async (professionalId: string, from: string, to: string, amount: number, notes?: string) => {
+    const res = await apiFetch(`/api/finance/pagamentos-profissionais/payout`, {
+      method: "POST",
+      body: JSON.stringify({ professionalId, from, to, amount, notes }),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || "Erro ao marcar comissão como paga.");
+    return res.json();
+  }, []);
+
+  const undoCommissionPayout = useCallback(async (payoutId: string) => {
+    const res = await apiFetch(`/api/finance/pagamentos-profissionais/payout/${payoutId}`, { method: "DELETE" });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || "Erro ao desfazer.");
+    return res.json();
+  }, []);
+
   // Formas de pagamento
   const fetchFormas = useCallback(async (from?: string | null, to?: string | null) => {
     setFormasLoading(true);
@@ -315,6 +340,8 @@ export function useFinanceiro() {
     fetchDashboard,
     fetchCaixa,
     fetchPagamentos,
+    markCommissionPayout,
+    undoCommissionPayout,
     fetchFormas,
     fetchDespesas,
     fetchControle,

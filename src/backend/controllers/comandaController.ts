@@ -4,6 +4,23 @@ import { randomUUID } from "crypto";
 import { getTenantId } from "../utils/helpers";
 import { consumeSubscriptionCredit } from "../routes/membershipRoutes";
 
+// Resolve o nome de quem está agindo (admin ou profissional) pro rastro de auditoria da comanda.
+// Guarda o nome como snapshot no momento da ação — não faz JOIN em toda leitura de comanda, e o
+// rastro continua legível mesmo se o autor depois for renomeado/desativado.
+async function resolveActorName(requester: any): Promise<string | null> {
+  if (!requester?.sub) return null;
+  try {
+    if (requester.type === "professional") {
+      const p = await (prisma as any).professional.findUnique({ where: { id: requester.sub }, select: { name: true } });
+      return p?.name || null;
+    }
+    const u = await (prisma as any).adminUser.findUnique({ where: { id: requester.sub }, select: { name: true } });
+    return u?.name || null;
+  } catch {
+    return null;
+  }
+}
+
 export const comandaController = {
   async list(req: Request, res: Response) {
     const tenantId = getTenantId(req);
@@ -113,13 +130,15 @@ export const comandaController = {
     const { clientId, professionalId, description, total, discount, discountType, paymentMethod, status, type, sessionCount, items } = req.body;
     try {
       const comandaId = randomUUID();
+      const requester = (req as any).auth;
+      const createdByName = await resolveActorName(requester);
       await (prisma as any).$executeRawUnsafe(
-        `INSERT INTO Comanda (id, clientId, professionalId, description, total, discount, discountType, paymentMethod, status, type, sessionCount, tenantId)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO Comanda (id, clientId, professionalId, description, total, discount, discountType, paymentMethod, status, type, sessionCount, tenantId, createdBy, createdByName)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         comandaId, clientId || null, professionalId || null, description || null,
         parseFloat(total) || 0, parseFloat(discount) || 0, discountType || "value",
         paymentMethod || null, status || "open", type || "normal",
-        parseInt(sessionCount) || 1, tenantId
+        parseInt(sessionCount) || 1, tenantId, requester?.sub || null, createdByName
       );
 
       for (const it of (items || [])) {
@@ -174,6 +193,7 @@ export const comandaController = {
     const tenantId = getTenantId(req);
     const { status, total, discount, discountType, paymentMethod, paymentDetails, description, clientId, professionalId, type, sessionCount, paidAmount } = req.body;
     try {
+      const requester = (req as any).auth;
       const sets: string[] = [];
       const vals: any[] = [];
       if (status !== undefined)        { sets.push("status = ?");        vals.push(status); }
@@ -189,7 +209,21 @@ export const comandaController = {
       if (sessionCount !== undefined)  { sets.push("sessionCount = ?");  vals.push(parseInt(sessionCount) || 1); }
       if (paidAmount !== undefined)    { sets.push("paidAmount = ?");    vals.push(parseFloat(paidAmount) || 0); }
 
+      // Rastro de auditoria: quem fechou (qualquer status que não seja mais "open") e quem
+      // efetivamente marcou como paga — snapshot do nome no momento da ação.
+      if (status !== undefined && status !== "open" && requester?.sub) {
+        const actorName = await resolveActorName(requester);
+        sets.push("closedBy = ?", "closedByName = ?");
+        vals.push(requester.sub, actorName);
+        if (status === "paid") {
+          sets.push("paidBy = ?", "paidByName = ?");
+          vals.push(requester.sub, actorName);
+        }
+      }
+
       if (sets.length > 0) {
+        sets.push("updatedAt = ?");
+        vals.push(new Date());
         vals.push(req.params.id);
         if (tenantId) vals.push(tenantId);
         await (prisma as any).$executeRawUnsafe(`UPDATE Comanda SET ${sets.join(", ")} WHERE id = ?${tenantId ? " AND tenantId = ?" : ""}`, ...vals);

@@ -12,6 +12,8 @@ financeRouter.get("/caixa", financeController.getCaixa);
 
 // Pagamentos de profissionais (comissões)
 financeRouter.get("/pagamentos-profissionais", financeController.getPagamentosProfissionais);
+financeRouter.post("/pagamentos-profissionais/payout", financeController.markCommissionPayout);
+financeRouter.delete("/pagamentos-profissionais/payout/:id", financeController.undoCommissionPayout);
 
 // Formas de pagamento
 financeRouter.get("/formas-pagamento", financeController.getFormasPagamento);

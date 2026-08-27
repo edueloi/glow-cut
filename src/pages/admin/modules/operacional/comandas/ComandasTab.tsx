@@ -1280,6 +1280,29 @@ function EditComandaModal({
                 <div className="flex justify-between text-sm font-black text-zinc-900 pt-1 border-t border-zinc-200"><span>Total</span><span>{fmtBRL(total)}</span></div>
               </div>
             </ContentCard>
+
+            {/* Audit trail */}
+            {(comanda.createdByName || comanda.closedByName || comanda.paidByName) && (
+              <div className="space-y-1 px-1">
+                {comanda.createdByName && (
+                  <p className="text-[10px] text-zinc-400 font-medium">
+                    Criada por <span className="font-bold text-zinc-500">{comanda.createdByName}</span>
+                    {comanda.createdAt && ` em ${format(new Date(comanda.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`}
+                  </p>
+                )}
+                {comanda.paidByName ? (
+                  <p className="text-[10px] text-zinc-400 font-medium">
+                    Paga por <span className="font-bold text-zinc-500">{comanda.paidByName}</span>
+                    {comanda.updatedAt && ` em ${format(new Date(comanda.updatedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`}
+                  </p>
+                ) : comanda.closedByName && (
+                  <p className="text-[10px] text-zinc-400 font-medium">
+                    Fechada por <span className="font-bold text-zinc-500">{comanda.closedByName}</span>
+                    {comanda.updatedAt && ` em ${format(new Date(comanda.updatedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

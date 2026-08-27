@@ -186,6 +186,13 @@ model Comanda {
   type               String?       @default("normal") @db.VarChar(20)
   paidAmount         Float         @default(0)
   createdAt      DateTime      @default(now()) @db.DateTime(0)
+  updatedAt      DateTime?     @db.DateTime(0)
+  createdBy      String?       @db.VarChar(36)
+  createdByName  String?       @db.VarChar(150)
+  closedBy       String?       @db.VarChar(36)
+  closedByName   String?       @db.VarChar(150)
+  paidBy         String?       @db.VarChar(36)
+  paidByName     String?       @db.VarChar(150)
   appointment    Appointment[]
   items          ComandaItem[]
   client         Client?       @relation(fields: [clientId], references: [id], map: "fk_comanda_client")
@@ -357,6 +364,28 @@ model BillOccurrence {
   @@index([billId], map: "idx_billocc_bill")
   @@index([status], map: "idx_billocc_status")
   @@index([dueDate], map: "idx_billocc_duedate")
+}
+
+// Baixa de comissão: getPagamentosProfissionais (financeController) agrega comissão por
+// profissional num período direto do ComandaItem — não existe uma linha por comanda pra marcar
+// "paga" individualmente. Em vez disso, um CommissionPayout registra que aquele período inteiro
+// (periodStart..periodEnd) já foi acertado com o profissional — mesmo padrão paid/paidAt/paidAmount
+// do BillOccurrence.
+model CommissionPayout {
+  id             String    @id @db.VarChar(36)
+  tenantId       String    @db.VarChar(36)
+  professionalId String    @db.VarChar(36)
+  periodStart    DateTime  @db.DateTime(0)
+  periodEnd      DateTime  @db.DateTime(0)
+  amount         Float     @default(0)
+  status         String    @default("pending") @db.VarChar(20)
+  paidAt         DateTime? @db.DateTime(0)
+  paidAmount     Float?
+  notes          String?   @db.Text
+  createdAt      DateTime  @default(now()) @db.DateTime(0)
+
+  @@index([tenantId], map: "idx_commissionpayout_tenant")
+  @@index([professionalId], map: "idx_commissionpayout_prof")
 }
 
 model StockMovement {

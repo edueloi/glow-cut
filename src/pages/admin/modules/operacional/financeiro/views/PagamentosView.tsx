@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Users, TrendingUp, Award, Scissors } from "lucide-react";
+import { Users, TrendingUp, Award, Scissors, Check, Undo2 } from "lucide-react";
 import {
   StatCard, GridTable, FilterLine, FilterLineSection, FilterLineItem,
-  FilterLineDateRange, FilterLineSearch, EmptyState,
+  FilterLineDateRange, FilterLineSearch, EmptyState, Badge, Button, useToast,
 } from "@/src/components/ui";
 import type { Column } from "@/src/components/ui/GridTable";
 import {
@@ -11,14 +11,35 @@ import {
 } from "@/src/hooks/useFinanceiro";
 
 export function PagamentosView() {
-  const { pagamentos, fetchPagamentos } = useFinanceiro();
+  const { pagamentos, fetchPagamentos, markCommissionPayout, undoCommissionPayout } = useFinanceiro();
   const [from, setFrom] = useState<string | null>(getFirstDayOfMonth());
   const [to, setTo]     = useState<string | null>(getTodayStr());
   const [search, setSearch] = useState("");
+  const [payingId, setPayingId] = useState<string | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     fetchPagamentos(from, to);
   }, [from, to, fetchPagamentos]);
+
+  const handleTogglePayout = async (row: ProfissionalPagamento) => {
+    if (!from || !to) return;
+    setPayingId(row.professionalId);
+    try {
+      if (row.payout && row.payout.status === "paid") {
+        await undoCommissionPayout(row.payout.id);
+        toast.success("Baixa desfeita.");
+      } else {
+        await markCommissionPayout(row.professionalId, from, to, row.totalComissao);
+        toast.success("Comissão marcada como paga.");
+      }
+      fetchPagamentos(from, to);
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao atualizar a baixa.");
+    } finally {
+      setPayingId(null);
+    }
+  };
 
   const lista: ProfissionalPagamento[] = (pagamentos.data?.profissionais ?? []).filter(p =>
     !search || p.professionalName.toLowerCase().includes(search.toLowerCase())
@@ -68,6 +89,27 @@ export function PagamentosView() {
         </div>
       ),
     },
+    {
+      header: "Baixa",
+      render: row => {
+        const isPaid = row.payout?.status === "paid";
+        return (
+          <div className="flex items-center gap-2">
+            <Badge color={isPaid ? "success" : "default"}>{isPaid ? "Pago" : "Pendente"}</Badge>
+            <Button
+              variant={isPaid ? "ghost" : "outline"}
+              size="sm"
+              disabled={payingId === row.professionalId || row.totalComissao <= 0}
+              onClick={() => handleTogglePayout(row)}
+              iconLeft={isPaid ? <Undo2 size={12} /> : <Check size={12} />}
+              className="h-8 px-2.5 text-[10px]"
+            >
+              {isPaid ? "Desfazer" : "Marcar pago"}
+            </Button>
+          </div>
+        );
+      },
+    },
   ];
 
   return (
@@ -115,6 +157,9 @@ export function PagamentosView() {
             <div className="text-right">
               <p className="text-sm font-black text-amber-600">{formatCurrency(row.totalComissao)}</p>
               <p className="text-[10px] text-zinc-400">{formatCurrency(row.totalFaturado)} faturado</p>
+              <Badge color={row.payout?.status === "paid" ? "success" : "default"} className="mt-1">
+                {row.payout?.status === "paid" ? "Pago" : "Pendente"}
+              </Badge>
             </div>
           </div>
         )}

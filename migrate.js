@@ -1023,6 +1023,37 @@ const MIGRATIONS = [
 
   { name: '057_membershipplan_add_includedServiceIds', sql: `ALTER TABLE MembershipPlan ADD COLUMN includedServiceIds TEXT NULL AFTER includedServices`, ignoreIfExists: true },
 
+  // Rastro de auditoria da comanda (quem criou/fechou/pagou + updatedAt).
+  { name: '058a_comanda_add_updatedAt', sql: `ALTER TABLE Comanda ADD COLUMN updatedAt DATETIME NULL AFTER createdAt`, ignoreIfExists: true },
+  { name: '058b_comanda_add_createdBy', sql: `ALTER TABLE Comanda ADD COLUMN createdBy VARCHAR(36) NULL AFTER updatedAt`, ignoreIfExists: true },
+  { name: '058c_comanda_add_createdByName', sql: `ALTER TABLE Comanda ADD COLUMN createdByName VARCHAR(150) NULL AFTER createdBy`, ignoreIfExists: true },
+  { name: '058d_comanda_add_closedBy', sql: `ALTER TABLE Comanda ADD COLUMN closedBy VARCHAR(36) NULL AFTER createdByName`, ignoreIfExists: true },
+  { name: '058e_comanda_add_closedByName', sql: `ALTER TABLE Comanda ADD COLUMN closedByName VARCHAR(150) NULL AFTER closedBy`, ignoreIfExists: true },
+  { name: '058f_comanda_add_paidBy', sql: `ALTER TABLE Comanda ADD COLUMN paidBy VARCHAR(36) NULL AFTER closedByName`, ignoreIfExists: true },
+  { name: '058g_comanda_add_paidByName', sql: `ALTER TABLE Comanda ADD COLUMN paidByName VARCHAR(150) NULL AFTER paidBy`, ignoreIfExists: true },
+
+  {
+    name: '059_create_commission_payout',
+    sql: `
+      CREATE TABLE IF NOT EXISTS CommissionPayout (
+        id             VARCHAR(36) NOT NULL PRIMARY KEY,
+        tenantId       VARCHAR(36) NOT NULL,
+        professionalId VARCHAR(36) NOT NULL,
+        periodStart    DATETIME    NOT NULL,
+        periodEnd      DATETIME    NOT NULL,
+        amount         DOUBLE      NOT NULL DEFAULT 0,
+        status         VARCHAR(20) NOT NULL DEFAULT 'pending',
+        paidAt         DATETIME    NULL,
+        paidAmount     DOUBLE      NULL,
+        notes          TEXT        NULL,
+        createdAt      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_commissionpayout_tenant (tenantId),
+        INDEX idx_commissionpayout_prof (professionalId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+    ignoreIfExists: true,
+  },
+
 ];
 
 
