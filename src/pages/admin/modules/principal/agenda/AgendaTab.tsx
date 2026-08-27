@@ -939,7 +939,7 @@ function MinhaAgendaView({
                               const startMin = h * 60 + m;
                               const endMin = startMin + (Number(app.duration) || 30);
                               const top = minutesToPixels(startMin);
-                              const height = Math.max(minutesToPixels(endMin) - top - 2, 36);
+                              const height = Math.max(minutesToPixels(endMin) - top - 2, 46);
                               const widthPct = 100 / group.length;
                               return (
                                 <div
@@ -954,7 +954,7 @@ function MinhaAgendaView({
                                     onMouseLeave={() => setHoveredAppointment(null)}
                                     onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(app); }}
                                     className={cn(
-                                      "flex h-full w-full cursor-pointer flex-col justify-between rounded-lg border p-1.5 shadow-sm transition-all hover:-translate-y-px hover:shadow-md sm:p-2",
+                                      "flex h-full w-full cursor-pointer flex-col justify-between overflow-hidden rounded-lg border p-1.5 shadow-sm transition-all hover:-translate-y-px hover:shadow-md sm:p-2",
                                       appBg(app.type, app.status)
                                     )}
                                   >
@@ -966,9 +966,14 @@ function MinhaAgendaView({
                                           ? "👤 Pessoal"
                                           : app.client?.name}
                                       </p>
-                                      {app.type === "atendimento" && app.service && app.duration >= 45 && (
+                                      {app.type === "atendimento" && app.service && (
                                         <p className="text-[8px] font-bold text-amber-600/80 leading-none mt-0.5 truncate">
                                           {app.service.name}
+                                        </p>
+                                      )}
+                                      {app.type === "atendimento" && app.professional?.name && (
+                                        <p className="text-[7px] font-semibold text-zinc-400 leading-none mt-0.5 truncate">
+                                          {app.professional.name}
                                         </p>
                                       )}
                                     </div>
