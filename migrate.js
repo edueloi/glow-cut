@@ -955,6 +955,72 @@ const MIGRATIONS = [
   { name: '055a_tenant_add_expiryReminderSentAt', sql: `ALTER TABLE Tenant ADD COLUMN expiryReminderSentAt DATETIME NULL AFTER blockedAt`, ignoreIfExists: true },
   { name: '055b_tenant_add_winbackEmailSentAt',   sql: `ALTER TABLE Tenant ADD COLUMN winbackEmailSentAt DATETIME NULL AFTER expiryReminderSentAt`, ignoreIfExists: true },
 
+  {
+    name: '056a_create_bill_category',
+    sql: `
+      CREATE TABLE IF NOT EXISTS BillCategory (
+        id        VARCHAR(36)  NOT NULL PRIMARY KEY,
+        tenantId  VARCHAR(36)  NOT NULL,
+        name      VARCHAR(100) NOT NULL,
+        direction VARCHAR(20)  NOT NULL,
+        color     VARCHAR(20)  NULL,
+        isActive  BOOLEAN      NOT NULL DEFAULT TRUE,
+        createdAt DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_billcategory_tenant (tenantId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+    ignoreIfExists: true,
+  },
+  {
+    name: '056b_create_bill',
+    sql: `
+      CREATE TABLE IF NOT EXISTS Bill (
+        id              VARCHAR(36)  NOT NULL PRIMARY KEY,
+        tenantId        VARCHAR(36)  NOT NULL,
+        direction       VARCHAR(20)  NOT NULL,
+        description     VARCHAR(255) NOT NULL,
+        categoryId      VARCHAR(36)  NULL,
+        amount          DOUBLE       NOT NULL DEFAULT 0,
+        amountType      VARCHAR(20)  NOT NULL DEFAULT 'fixed',
+        isRecurring     BOOLEAN      NOT NULL DEFAULT FALSE,
+        recurrenceUnit  VARCHAR(20)  NULL,
+        recurrenceCount INT          NULL,
+        dayOfMonth      INT          NULL,
+        interestRate    DOUBLE       NULL,
+        interestPeriod  VARCHAR(20)  NULL,
+        notes           TEXT         NULL,
+        isActive        BOOLEAN      NOT NULL DEFAULT TRUE,
+        createdAt       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_bill_tenant (tenantId),
+        INDEX idx_bill_category (categoryId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+    ignoreIfExists: true,
+  },
+  {
+    name: '056c_create_bill_occurrence',
+    sql: `
+      CREATE TABLE IF NOT EXISTS BillOccurrence (
+        id         VARCHAR(36) NOT NULL PRIMARY KEY,
+        billId     VARCHAR(36) NOT NULL,
+        tenantId   VARCHAR(36) NOT NULL,
+        sequence   INT         NOT NULL DEFAULT 1,
+        dueDate    DATETIME    NOT NULL,
+        amount     DOUBLE      NOT NULL DEFAULT 0,
+        status     VARCHAR(20) NOT NULL DEFAULT 'pending',
+        paidAt     DATETIME    NULL,
+        paidAmount DOUBLE      NULL,
+        createdAt  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_billocc_tenant (tenantId),
+        INDEX idx_billocc_bill (billId),
+        INDEX idx_billocc_status (status),
+        INDEX idx_billocc_duedate (dueDate),
+        CONSTRAINT fk_billocc_bill FOREIGN KEY (billId) REFERENCES Bill(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+    ignoreIfExists: true,
+  },
+
 ];
 
 

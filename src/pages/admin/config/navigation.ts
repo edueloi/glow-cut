@@ -156,7 +156,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
           { key: "caixa",                 label: "Financeiro – Caixa", permModule: "fin_caixa" },
           { key: "pagamentos",            label: "Pagamento de Profissionais", permModule: "fin_pagamentos" },
           { key: "formas_pagamento",      label: "Fluxo financeiro por forma de pagamento", permModule: "fin_formas" },
-          { key: "despesas",              label: "Despesas/Contas a Pagar", permModule: "fin_despesas" },
+          { key: "despesas",              label: "Contas a Pagar/Receber", permModule: "fin_despesas" },
           { key: "clientes_debito",       label: "Clientes em débito", permModule: "fin_debito" },
           { key: "credito_cliente",       label: "Crédito de cliente", permModule: "fin_credito" },
           { key: "contas",                label: "Contas financeiras", permModule: "fin_contas" },

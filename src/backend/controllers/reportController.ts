@@ -91,7 +91,31 @@ export const reportController = {
         otherExpenses = Number(expenseRows[0]?.expenses) || 0;
       } catch { /* CashEntry table may not exist */ }
 
-      res.json({ revenue: grossRevenue, cogs: totalCOGS, commissions: totalCommissions, taxes: totalTaxes, otherExpenses, grossProfit: grossRevenue - totalCOGS, netProfit: grossRevenue - totalCOGS - otherExpenses - totalCommissions - totalTaxes, fromDate, toDate });
+      // Contas a Pagar/Receber (Bill/BillOccurrence) pagas no período, somadas à parte
+      // pra não se misturar com o lançamento avulso do Fluxo de Caixa (CashEntry).
+      let billExpenses = 0;
+      let otherIncome = 0;
+      try {
+        const paidBills: any[] = await (prisma as any).billOccurrence.findMany({
+          where: { tenantId, status: "paid", paidAt: { gte: fromDate, lte: toDate } },
+          select: { paidAmount: true, amount: true, bill: { select: { direction: true } } },
+        });
+        for (const occ of paidBills) {
+          const value = occ.paidAmount ?? occ.amount ?? 0;
+          if (occ.bill?.direction === "income") otherIncome += value;
+          else billExpenses += value;
+        }
+      } catch { /* Bill/BillOccurrence table may not exist yet */ }
+
+      otherExpenses += billExpenses;
+
+      res.json({
+        revenue: grossRevenue, cogs: totalCOGS, commissions: totalCommissions, taxes: totalTaxes,
+        otherExpenses, otherIncome,
+        grossProfit: grossRevenue - totalCOGS,
+        netProfit: grossRevenue + otherIncome - totalCOGS - otherExpenses - totalCommissions - totalTaxes,
+        fromDate, toDate,
+      });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

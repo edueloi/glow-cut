@@ -301,6 +301,64 @@ model CashEntry {
   @@index([tenantId, date], map: "idx_cashentry_tenant_date")
 }
 
+model BillCategory {
+  id        String   @id @db.VarChar(36)
+  tenantId  String   @db.VarChar(36)
+  name      String   @db.VarChar(100)
+  direction String   @db.VarChar(20)
+  color     String?  @db.VarChar(20)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  bills     Bill[]
+
+  @@index([tenantId], map: "idx_billcategory_tenant")
+}
+
+model Bill {
+  id              String    @id @db.VarChar(36)
+  tenantId        String    @db.VarChar(36)
+  direction       String    @db.VarChar(20)
+  description     String    @db.VarChar(255)
+  categoryId      String?   @db.VarChar(36)
+  amount          Float     @default(0)
+  amountType      String    @default("fixed") @db.VarChar(20)
+  isRecurring     Boolean   @default(false)
+  recurrenceUnit  String?   @db.VarChar(20)
+  recurrenceCount Int?
+  dayOfMonth      Int?
+  interestRate    Float?
+  interestPeriod  String?   @db.VarChar(20)
+  notes           String?   @db.Text
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @db.DateTime(0)
+
+  category        BillCategory?    @relation(fields: [categoryId], references: [id])
+  occurrences     BillOccurrence[]
+
+  @@index([tenantId], map: "idx_bill_tenant")
+  @@index([categoryId], map: "idx_bill_category")
+}
+
+model BillOccurrence {
+  id         String    @id @db.VarChar(36)
+  billId     String    @db.VarChar(36)
+  tenantId   String    @db.VarChar(36)
+  sequence   Int       @default(1)
+  dueDate    DateTime  @db.DateTime(0)
+  amount     Float     @default(0)
+  status     String    @default("pending") @db.VarChar(20)
+  paidAt     DateTime? @db.DateTime(0)
+  paidAmount Float?
+  createdAt  DateTime  @default(now()) @db.DateTime(0)
+
+  bill       Bill      @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId], map: "idx_billocc_tenant")
+  @@index([billId], map: "idx_billocc_bill")
+  @@index([status], map: "idx_billocc_status")
+  @@index([dueDate], map: "idx_billocc_duedate")
+}
+
 model StockMovement {
   id          String   @id @db.VarChar(36)
   tenantId    String   @db.VarChar(36)

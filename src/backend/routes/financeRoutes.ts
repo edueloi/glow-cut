@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { financeController } from "../controllers/financeController";
+import { billController } from "../controllers/billController";
 
 export const financeRouter = Router();
 
@@ -32,3 +33,16 @@ financeRouter.get("/service-consumptions", financeController.listServiceConsumpt
 financeRouter.post("/service-consumptions", financeController.createServiceConsumption);
 financeRouter.put("/service-consumptions/:id", financeController.updateServiceConsumption);
 financeRouter.delete("/service-consumptions/:id", financeController.deleteServiceConsumption);
+
+// Contas a Pagar/Receber (recorrentes, com vencimento/atraso/juros)
+financeRouter.get("/bill-categories", billController.listCategories);
+financeRouter.post("/bill-categories", billController.createCategory);
+financeRouter.delete("/bill-categories/:id", billController.deleteCategory);
+
+financeRouter.get("/bills", billController.listBills);
+financeRouter.post("/bills", billController.createBill);
+financeRouter.patch("/bills/:id", billController.updateBill);
+financeRouter.delete("/bills/:id", billController.deleteBill);
+
+financeRouter.patch("/bill-occurrences/:id", billController.updateOccurrence);
+financeRouter.delete("/bill-occurrences/:id", billController.deleteOccurrence);

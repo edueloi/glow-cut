@@ -8,6 +8,7 @@ import cors from "cors";
 import { prisma } from "./src/backend/prisma";
 import { initRealtime } from "./src/backend/realtime";
 import { runTenantLifecycleEmailsCheck } from "./src/backend/jobs/tenantLifecycleEmails";
+import { runBillRecurrenceCheck } from "./src/backend/jobs/billRecurrence";
 
 import fs from "fs";
 import { randomUUID } from "crypto";
@@ -1176,6 +1177,14 @@ async function startServer() {
         runTenantLifecycleEmailsCheck().catch((e) => console.error("[TenantLifecycleEmails] Erro:", e));
       }, 24 * 60 * 60 * 1000);
     }, 60 * 1000);
+
+    // Contas a pagar/receber recorrentes "sem fim" — gera a próxima ocorrência quando a última vence.
+    setTimeout(() => {
+      runBillRecurrenceCheck().catch((e) => console.error("[BillRecurrence] Erro:", e));
+      setInterval(() => {
+        runBillRecurrenceCheck().catch((e) => console.error("[BillRecurrence] Erro:", e));
+      }, 24 * 60 * 60 * 1000);
+    }, 75 * 1000);
   } else {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
     app.use(vite.middlewares);
