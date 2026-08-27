@@ -939,12 +939,12 @@ function MinhaAgendaView({
                               const startMin = h * 60 + m;
                               const endMin = startMin + (Number(app.duration) || 30);
                               const top = minutesToPixels(startMin);
-                              const height = Math.max(minutesToPixels(endMin) - top - 2, 22);
+                              const height = Math.max(minutesToPixels(endMin) - top - 2, 36);
                               const widthPct = 100 / group.length;
                               return (
                                 <div
                                   key={app.id}
-                                  className="absolute overflow-hidden p-0.5 pointer-events-auto"
+                                  className="absolute p-0.5 pointer-events-auto"
                                   style={{ top, height, left: `${idx * widthPct}%`, width: `${widthPct}%` }}
                                 >
                                   <motion.div
@@ -986,23 +986,42 @@ function MinhaAgendaView({
 
                                   {/* Tooltip */}
                                   {hoveredAppointment === app.id && (
-                                    <div className="absolute bottom-full left-0 mb-1 z-50 pointer-events-none">
-                                      <div className="bg-zinc-900 text-white text-[10px] font-bold rounded-xl p-2.5 shadow-2xl min-w-[150px] space-y-0.5">
-                                        <p className="text-amber-400 uppercase tracking-widest text-[9px]">
-                                          {format(new Date(app.date), "EEE, d MMM", { locale: ptBR })}
+                                    <div className="absolute bottom-full left-0 z-50 mb-1 pointer-events-none">
+                                      <div className="min-w-[170px] space-y-1 rounded-xl bg-zinc-900 p-3 text-[10px] font-bold text-white shadow-2xl">
+                                        <p className="text-[9px] uppercase tracking-widest text-amber-400">
+                                          {format(new Date(app.date), "EEE, d MMM", { locale: ptBR })} · {app.startTime} → {app.endTime}
                                         </p>
-                                        <p className="text-white">{app.startTime} → {app.endTime}</p>
                                         {app.type === "atendimento" ? (
                                           <>
-                                            <p className="text-zinc-300">{app.client?.name}</p>
+                                            <p className="text-white">{app.client?.name || "Cliente não informado"}</p>
                                             {app.service && (
-                                              <p className="text-zinc-400 text-[9px]">{app.service.name}</p>
+                                              <p className="text-[9px] font-semibold text-zinc-400">{app.service.name}</p>
+                                            )}
+                                            {app.professional?.name && (
+                                              <p className="text-[9px] font-semibold text-zinc-500">
+                                                Prof.: {app.professional.name}
+                                              </p>
+                                            )}
+                                            {app.totalSessions > 1 && (
+                                              <p className="text-[9px] font-semibold text-amber-500">
+                                                Sessão {app.sessionNumber}/{app.totalSessions}
+                                              </p>
                                             )}
                                           </>
                                         ) : (
-                                          <p className="text-zinc-300">
-                                            {app.type === "bloqueio" ? "Horário bloqueado" : "Compromisso pessoal"}
-                                          </p>
+                                          <>
+                                            <p className="text-zinc-300">
+                                              {app.type === "bloqueio" ? "Horário bloqueado" : "Compromisso pessoal"}
+                                            </p>
+                                            {app.professional?.name && (
+                                              <p className="text-[9px] font-semibold text-zinc-500">
+                                                Prof.: {app.professional.name}
+                                              </p>
+                                            )}
+                                            {app.notes && (
+                                              <p className="text-[9px] font-semibold text-zinc-400">{app.notes}</p>
+                                            )}
+                                          </>
                                         )}
                                       </div>
                                     </div>
