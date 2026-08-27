@@ -52,7 +52,7 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
     if (!selectedProf && professionals.length > 0) {
       setSelectedProf(professionals[0].id);
     }
-  }, [professionals]);
+  }, [professionals, selectedProf]);
 
   useEffect(() => {
     const load = async () => {
@@ -102,7 +102,7 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
         ds === todayStr &&
         a.type !== "bloqueio" &&
         (a.professionalId === selectedProf || a.professional?.id === selectedProf) &&
-        ["scheduled", "confirmed"].includes(a.status)
+        ["scheduled", "confirmed", "agendado"].includes(a.status)
       );
     })
     .sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""));
@@ -116,10 +116,10 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-5 pb-20 sm:pb-6 relative">
+    <div className="w-full min-w-0 space-y-4 p-3 pb-24 sm:p-5 sm:pb-6 lg:space-y-5 lg:p-6">
 
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-zinc-100">
+      <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-50 border border-amber-100">
             <Tablet size={18} className="text-amber-600" />
@@ -129,8 +129,9 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
             <p className="text-xs text-zinc-400 mt-0.5">Configure o painel de fila visível para profissionais em dispositivos dedicados.</p>
           </div>
         </div>
-        <button onClick={onRefresh} className="self-start sm:self-auto p-2 rounded-xl text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-all" title="Atualizar">
+        <button onClick={onRefresh} className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-xl border border-zinc-200 px-3 text-sm font-bold text-zinc-600 transition-all hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 sm:self-auto" title="Atualizar dados" aria-label="Atualizar dados do terminal">
           <RefreshCw size={16} />
+          Atualizar
         </button>
       </div>
 
@@ -144,7 +145,7 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr,360px] gap-5">
+      <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
 
         {/* Configurações */}
         <div className="space-y-4">
@@ -176,11 +177,11 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
           </div>
 
           {/* Opções de exibição */}
-          <div className={cn(
-            "bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-4 transition-all",
-            !settings.enablePatTerminal && "opacity-50 pointer-events-none"
-          )}>
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">O que exibir no terminal</p>
+          <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">O que exibir no terminal</p>
+              {!settings.enablePatTerminal && <Badge color="warning" size="sm">Ative para editar</Badge>}
+            </div>
             {(
               [
                 { key: "patShowClientName" as const, label: "Nome do cliente", desc: "Mostra o nome do cliente na fila" },
@@ -188,25 +189,25 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
                 { key: "patShowTime" as const, label: "Horário do atendimento", desc: "Mostra hora início e fim" },
               ]
             ).map(({ key, label, desc }) => (
-              <div key={key} className="flex items-center justify-between gap-4">
+              <div key={key} className="flex min-h-16 items-center justify-between gap-4 rounded-xl border border-zinc-100 bg-zinc-50/70 p-3 sm:p-4">
                 <div>
                   <p className="text-sm font-bold text-zinc-800">{label}</p>
                   <p className="text-xs text-zinc-400">{desc}</p>
                 </div>
-                <Switch checked={settings[key]} onCheckedChange={(v) => set(key, v)} />
+                <Switch checked={settings.enablePatTerminal && settings[key]} disabled={!settings.enablePatTerminal} onCheckedChange={(v) => set(key, v)} />
               </div>
             ))}
 
             <div className="pt-3 border-t border-zinc-100 space-y-3">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex min-h-16 items-center justify-between gap-4 rounded-xl bg-zinc-50/70 p-3 sm:p-4">
                 <div>
                   <p className="text-sm font-bold text-zinc-800">Avançar automaticamente</p>
                   <p className="text-xs text-zinc-400">Remove o primeiro da fila após o tempo configurado</p>
                 </div>
-                <Switch checked={settings.patAutoAdvance} onCheckedChange={(v) => set("patAutoAdvance", v)} />
+                <Switch checked={settings.enablePatTerminal && settings.patAutoAdvance} disabled={!settings.enablePatTerminal} onCheckedChange={(v) => set("patAutoAdvance", v)} />
               </div>
-              {settings.patAutoAdvance && (
-                <div className="flex items-center gap-3">
+              {settings.enablePatTerminal && settings.patAutoAdvance && (
+                <div className="flex flex-col gap-2 rounded-xl bg-amber-50 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <label className="text-xs font-bold text-zinc-500 shrink-0">Minutos após horário:</label>
                   <select
                     value={settings.patAutoAdvanceMinutes}
@@ -220,13 +221,15 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
             </div>
           </div>
 
-          <Button variant="primary" size="md" loading={saving} onClick={handleSave} iconLeft={<CheckCircle size={15} />}>
-            Salvar Configurações
-          </Button>
+          <div className="flex sm:justify-end">
+            <Button className="w-full sm:w-auto" variant="primary" size="md" loading={saving} onClick={handleSave} iconLeft={<CheckCircle size={15} />}>
+              Salvar Configurações
+            </Button>
+          </div>
         </div>
 
         {/* Preview da fila */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4 xl:sticky xl:top-5">
           {professionals.length > 0 && (
             <div>
               <label className="ds-label">Profissional</label>
@@ -240,19 +243,23 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
             </div>
           )}
 
-          <div className={cn(
-            "bg-zinc-900 rounded-3xl overflow-hidden shadow-2xl border border-zinc-800",
-            !settings.enablePatTerminal && "opacity-40"
-          )}>
+          <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-2xl">
             <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Tablet size={16} className="text-amber-400" />
                 <p className="text-sm font-black text-white">Fila de Hoje</p>
               </div>
-              <Badge color="success" size="sm" dot>{queue.length} na fila</Badge>
+              {settings.enablePatTerminal
+                ? <Badge color="success" size="sm" dot>{queue.length} na fila</Badge>
+                : <Badge color="warning" size="sm">Prévia</Badge>}
             </div>
 
-            <div className="p-4 space-y-2 min-h-[200px]">
+            <div className="min-h-[220px] space-y-2 p-4">
+              {!settings.enablePatTerminal && (
+                <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-[11px] font-bold text-amber-200">
+                  <WifiOff size={14} className="shrink-0" /> Esta é somente uma prévia. Ative o PAT para publicar o terminal.
+                </div>
+              )}
               {queue.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10">
                   <CheckCircle size={24} className="text-zinc-600 mb-2" />
@@ -307,7 +314,7 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
           </div>
 
           {selectedProf && (
-            <div className={cn("space-y-2", !settings.enablePatTerminal && "opacity-60")}>
+            <div className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm">
               {!settings.enablePatTerminal && (
                 <p className="text-[11px] text-amber-600 font-bold text-center py-1">
                   Ative o Terminal PAT acima para liberar o acesso.
@@ -324,32 +331,36 @@ export function PAT({ professionals, appointments, onRefresh }: PATProps) {
                   </code>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex">
                 <button
+                  disabled={!settings.enablePatTerminal}
                   onClick={() => {
                     const url = `${PUBLIC_SITE_URL}/pat/${selectedProf}`;
                     window.open(url, "_blank", "noopener,noreferrer");
                   }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-bold text-xs transition-all"
+                  className="col-span-2 flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-zinc-900 px-4 py-2.5 text-xs font-bold text-white transition-all hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-400 sm:col-span-1"
                 >
                   <ExternalLink size={13} /> Abrir terminal
                 </button>
                 <button
+                  disabled={!settings.enablePatTerminal}
                   onClick={() => {
                     const url = `${PUBLIC_SITE_URL}/pat/${selectedProf}`;
                     navigator.clipboard.writeText(url).then(() => toast.success("Link copiado!"));
                   }}
-                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-bold text-xs transition-all"
+                  className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-zinc-100 px-4 py-2.5 text-xs font-bold text-zinc-700 transition-all hover:bg-zinc-200 disabled:cursor-not-allowed disabled:text-zinc-300"
                 >
                   <Copy size={13} /> Copiar
                 </button>
                 {typeof navigator.share !== "undefined" && (
                   <button
+                    disabled={!settings.enablePatTerminal}
+                    aria-label="Compartilhar link do terminal"
                     onClick={() => {
                       const url = `${PUBLIC_SITE_URL}/pat/${selectedProf}`;
                       navigator.share({ title: "Fila de espera", url }).catch(() => {});
                     }}
-                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl font-bold text-xs transition-all"
+                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-bold text-amber-700 transition-all hover:bg-amber-100 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-50 disabled:text-zinc-300"
                   >
                     <Share2 size={13} />
                   </button>

@@ -4,15 +4,11 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Scissors, Clock, User, CheckCircle, RefreshCw,
-  Loader2, AlertCircle, Calendar, ChevronRight,
-  Package, Sparkles, Users, Timer, ArrowLeft,
-  Check, X, UserMinus, Monitor, AppWindow, LayoutGrid,
-  MoreVertical, ChevronDown, CheckCircle2, Moon, Sun,
-  Filter, Grid, List, Search
+  Scissors, Clock, CheckCircle, RefreshCw,
+  Loader2, AlertCircle, ChevronRight, Sparkles, Timer, ArrowLeft,
+  Check, X, CheckCircle2, Moon, Sun, WifiOff, Settings, RotateCw
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
-import { Button } from "@/src/components/ui/Button";
 import { Badge } from "@/src/components/ui/Badge";
 import { useToast } from "@/src/components/ui/Toast";
 
@@ -321,27 +317,100 @@ export default function PATQueue() {
   }
 
   if (!data?.patEnabled) {
-      return (
-        <div className={cn(
-          "flex flex-col items-center justify-center min-h-screen p-6 text-center transition-colors duration-500",
-          darkMode ? "bg-zinc-950 text-white" : "bg-[#FDFDFF] text-zinc-900"
-        )}>
+    const studioName = data?.studio.name || "Terminal PAT";
+    const unavailableMessage = data
+      ? "Este terminal está temporariamente desativado nas configurações."
+      : "Não foi possível localizar este terminal. Confira o link e tente novamente.";
+
+    return (
+      <div className={cn(
+        "relative min-h-[100dvh] overflow-hidden px-4 py-5 transition-colors duration-500 sm:px-8 sm:py-8",
+        darkMode ? "bg-zinc-950 text-white" : "bg-zinc-50 text-zinc-900"
+      )}>
+        <div className={cn("pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full blur-3xl", darkMode ? "bg-amber-500/10" : "bg-amber-200/30")} />
+        <div className={cn("pointer-events-none absolute -bottom-40 -right-32 h-96 w-96 rounded-full blur-3xl", darkMode ? "bg-sky-500/10" : "bg-sky-200/30")} />
+
+        <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
             <div className={cn(
-              "w-24 h-24 rounded-[40px] flex items-center justify-center mb-8 border shadow-xl",
-              darkMode ? "bg-zinc-900 border-zinc-800 text-zinc-500" : "bg-white border-zinc-100 text-zinc-400"
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-lg",
+              darkMode ? "bg-amber-500 text-zinc-950 shadow-amber-500/10" : "bg-zinc-950 text-white shadow-zinc-900/10"
             )}>
-                <Monitor size={40} className="animate-bounce" />
+              <Scissors size={21} strokeWidth={2.5} />
             </div>
-            <h1 className="text-2xl font-black mb-3 tracking-tight">{data?.studio.name || "Terminal PAT"}</h1>
-            <p className={cn(
-              "text-sm font-medium max-w-xs leading-relaxed opacity-60",
-              darkMode ? "text-zinc-400" : "text-zinc-500"
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black sm:text-base">{studioName}</p>
+              <p className={cn("text-[9px] font-black uppercase tracking-[0.22em]", darkMode ? "text-zinc-500" : "text-zinc-400")}>Terminal de atendimento</p>
+            </div>
+          </div>
+          <button
+            onClick={toggleTheme}
+            className={cn(
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition-all active:scale-95",
+              darkMode ? "border-zinc-800 bg-zinc-900 text-amber-400" : "border-zinc-200 bg-white text-zinc-500 shadow-sm"
+            )}
+            title="Alternar tema"
+            aria-label="Alternar tema do terminal"
+          >
+            {darkMode ? <Sun size={19} /> : <Moon size={19} />}
+          </button>
+        </header>
+
+        <main className="relative z-10 mx-auto flex min-h-[calc(100dvh-145px)] w-full max-w-6xl items-center justify-center py-10 sm:py-14">
+          <div className={cn(
+            "grid w-full max-w-3xl overflow-hidden rounded-[28px] border shadow-2xl md:grid-cols-[minmax(0,1fr)_260px]",
+            darkMode ? "border-zinc-800 bg-zinc-900/90 shadow-black/30" : "border-white bg-white/95 shadow-zinc-300/40"
+          )}>
+            <section className="p-6 text-center sm:p-10 md:text-left">
+              <div className={cn(
+                "mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border md:mx-0",
+                data
+                  ? darkMode ? "border-amber-500/20 bg-amber-500/10 text-amber-400" : "border-amber-200 bg-amber-50 text-amber-600"
+                  : darkMode ? "border-red-500/20 bg-red-500/10 text-red-400" : "border-red-200 bg-red-50 text-red-500"
+              )}>
+                {data ? <WifiOff size={29} /> : <AlertCircle size={29} />}
+              </div>
+              <Badge color={data ? "warning" : "danger"} size="sm">{data ? "Terminal pausado" : "Terminal indisponível"}</Badge>
+              <h1 className="mt-4 text-2xl font-black tracking-tight sm:text-3xl">{studioName}</h1>
+              <p className={cn("mx-auto mt-3 max-w-md text-sm font-medium leading-6 md:mx-0", darkMode ? "text-zinc-400" : "text-zinc-500")}>
+                {unavailableMessage}
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className={cn(
+                  "mt-7 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-black transition-all active:scale-[0.98] sm:w-auto",
+                  darkMode ? "bg-amber-500 text-zinc-950 hover:bg-amber-400" : "bg-zinc-950 text-white hover:bg-zinc-800"
+                )}
+              >
+                <RotateCw size={16} /> Verificar novamente
+              </button>
+            </section>
+
+            <aside className={cn(
+              "flex flex-col justify-between border-t p-6 md:border-l md:border-t-0",
+              darkMode ? "border-zinc-800 bg-zinc-950/50" : "border-zinc-100 bg-zinc-50/80"
             )}>
-              {data ? "O Terminal PAT está desativado nas configurações." : "Terminal não encontrado ou link expirado."}
-            </p>
-            <Button variant="outline" className="mt-8" onClick={() => window.location.reload()}>Tentar Novamente</Button>
-        </div>
-      );
+              <div>
+                <div className={cn("mb-4 flex h-10 w-10 items-center justify-center rounded-xl", darkMode ? "bg-zinc-800 text-zinc-400" : "bg-white text-zinc-500 shadow-sm")}>
+                  <Settings size={18} />
+                </div>
+                <p className="text-sm font-black">Como liberar o acesso?</p>
+                <p className={cn("mt-2 text-xs font-medium leading-5", darkMode ? "text-zinc-500" : "text-zinc-500")}>
+                  Ative o PAT no painel administrativo e salve as configurações. Esta tela será atualizada automaticamente.
+                </p>
+              </div>
+              <div className={cn("mt-8 border-t pt-4 text-[10px] font-bold uppercase tracking-wider", darkMode ? "border-zinc-800 text-zinc-600" : "border-zinc-200 text-zinc-400")}>
+                Última verificação · {format(lastUpdate, "HH:mm:ss")}
+              </div>
+            </aside>
+          </div>
+        </main>
+
+        <footer className={cn("relative z-10 mx-auto max-w-6xl text-center text-[9px] font-black uppercase tracking-[0.3em]", darkMode ? "text-zinc-700" : "text-zinc-400")}>
+          Agendelle Intelligence · Terminal PAT
+        </footer>
+      </div>
+    );
   }
 
   const todayLabel = format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR });
