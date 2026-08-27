@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
 import { getTenantId, asBool, formatDateOnly } from "../utils/helpers";
+import { hashPassword, verifyPassword } from "../utils/password";
 
 const __filename = ""; // not used here as we use process.cwd()
 export const uploadsDir = path.join(process.cwd(), "uploads");
@@ -88,7 +89,8 @@ export const adminController = {
     try {
       if (password) {
         const currentUser = await (prisma as any).adminUser.findUnique({ where: { id: req.params.id } });
-        if (currentUser.password !== currentPassword) {
+        const check = await verifyPassword(currentPassword, currentUser?.password);
+        if (!check.valid) {
           return res.status(400).json({ error: "A senha atual está incorreta." });
         }
       }
@@ -106,7 +108,7 @@ export const adminController = {
           ...(jobTitle !== undefined && { jobTitle }),
           ...(bio !== undefined && { bio }),
           ...(phone !== undefined && { phone }),
-          ...(password !== undefined && password !== "" && { password }),
+          ...(password !== undefined && password !== "" && { password: await hashPassword(password) }),
           ...(photo !== undefined && { photo }),
           ...(cpf !== undefined && { cpf }),
           ...(birthDate !== undefined && { birthDate }),
@@ -141,24 +143,6 @@ export const adminController = {
       console.error("[Profile] Erro ao atualizar:", e.message);
       res.status(400).json({ error: "Erro ao atualizar perfil." });
     }
-  },
-
-  async login(req: Request, res: Response) {
-    const { email, password } = req.body;
-    const user = await (prisma as any).adminUser.findFirst({
-      where: { email, password, isActive: true },
-      include: { tenant: { include: { plan: true } } }
-    });
-    if (!user) return res.status(401).json({ error: "E-mail ou senha inválidos." });
-    await (prisma as any).adminUser.update({ where: { id: user.id }, data: { lastLogin: new Date() } });
-    res.json({
-      id: user.id, name: user.name, email: user.email, role: user.role,
-      jobTitle: user.jobTitle, tenantId: user.tenantId,
-      tenantName: user.tenant.name, planName: user.tenant.plan.name,
-      canCreateUsers: user.canCreateUsers, canDeleteAccount: user.canDeleteAccount,
-      permissions: user.permissions,
-      cpf: user.cpf, birthDate: user.birthDate,
-    });
   },
 
   async getTenant(req: Request, res: Response) {
@@ -260,14 +244,25 @@ export const adminController = {
     const { identifier, password } = req.body;
     if (!identifier || !password) return res.status(400).json({ error: "Preencha todos os campos." });
 
-    const sa = await (prisma as any).superAdmin.findFirst({ where: { username: identifier, password } });
-    if (sa) return res.json({ type: "superadmin", id: sa.id, username: sa.username, role: "superadmin" });
+    const saCandidate = await (prisma as any).superAdmin.findFirst({ where: { username: identifier } });
+    const saCheck = await verifyPassword(password, saCandidate?.password);
+    if (saCheck.valid) {
+      if (saCheck.needsRehash) {
+        await (prisma as any).superAdmin.update({ where: { id: saCandidate.id }, data: { password: await hashPassword(password) } });
+      }
+      return res.json({ type: "superadmin", id: saCandidate.id, username: saCandidate.username, role: "superadmin" });
+    }
 
-    const adminUser = await (prisma as any).adminUser.findFirst({
-      where: { email: identifier, password, isActive: true },
+    const adminCandidate = await (prisma as any).adminUser.findFirst({
+      where: { email: identifier, isActive: true },
       include: { tenant: { include: { plan: true } } }
     });
-    if (adminUser) {
+    const adminCheck = await verifyPassword(password, adminCandidate?.password);
+    if (adminCheck.valid) {
+      const adminUser = adminCandidate;
+      if (adminCheck.needsRehash) {
+        await (prisma as any).adminUser.update({ where: { id: adminUser.id }, data: { password: await hashPassword(password) } });
+      }
       await (prisma as any).adminUser.update({ where: { id: adminUser.id }, data: { lastLogin: new Date() } });
       return res.json({
         type: "admin", id: adminUser.id, name: adminUser.name, email: adminUser.email, role: adminUser.role,
@@ -279,10 +274,15 @@ export const adminController = {
       });
     }
 
-    const prof = await (prisma as any).professional.findFirst({
-      where: { OR: [ { name: identifier }, { email: identifier } ], password, isActive: true },
+    const profCandidate = await (prisma as any).professional.findFirst({
+      where: { OR: [ { name: identifier }, { email: identifier } ], isActive: true },
     });
-    if (prof) {
+    const profCheck = await verifyPassword(password, profCandidate?.password);
+    if (profCheck.valid) {
+      const prof = profCandidate;
+      if (profCheck.needsRehash) {
+        await (prisma as any).professional.update({ where: { id: prof.id }, data: { password: await hashPassword(password) } });
+      }
       return res.json({ type: "professional", id: prof.id, name: prof.name, role: prof.role, tenantId: prof.tenantId, permissions: (prof as any).permissions });
     }
     return res.status(401).json({ error: "Usuário ou senha inválidos." });
@@ -374,7 +374,7 @@ export const adminController = {
           tenantId,
           name,
           email,
-          password,
+          password: await hashPassword(password),
           role: role || "admin",
           jobTitle: jobTitle || null,
           phone: phone || null,
@@ -413,7 +413,7 @@ export const adminController = {
         data: {
           ...(name !== undefined && { name }),
           ...(email !== undefined && { email }),
-          ...(password !== undefined && password !== "" && { password }),
+          ...(password !== undefined && password !== "" && { password: await hashPassword(password) }),
           ...(role !== undefined && { role }),
           ...(jobTitle !== undefined && { jobTitle }),
           ...(phone !== undefined && { phone }),

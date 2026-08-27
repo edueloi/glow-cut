@@ -3,6 +3,7 @@ import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
 import { getTenantId } from "../utils/helpers";
 import { deleteLocalFile } from "./adminController";
+import { hashPassword, verifyPassword } from "../utils/password";
 
 const DAY_LABELS = [
   { dayOfWeek: 1, day: "segunda-feira" },
@@ -257,7 +258,7 @@ export const professionalController = {
           name,
           nickname: asString(nickname),
           role: asString(role),
-          password,
+          password: password ? await hashPassword(password) : null,
           cpf: asString(cpf),
           gender: asString(gender),
           birthDate: asString(birthDate),
@@ -297,17 +298,24 @@ export const professionalController = {
   async login(req: Request, res: Response) {
     const { name, email, password } = req.body;
     const identifier = email || name;
-    const professional = await (prisma as any).professional.findFirst({
+    const candidate = await (prisma as any).professional.findFirst({
       where: {
         OR: [
-          { email: identifier, password, isActive: true },
-          { name: identifier, password, isActive: true },
+          { email: identifier, isActive: true },
+          { name: identifier, isActive: true },
         ],
       },
     });
 
+    const check = await verifyPassword(password, candidate?.password);
+    const professional = check.valid ? candidate : null;
+
     if (!professional) {
       return res.status(401).json({ error: "Nome/e-mail ou senha incorretos." });
+    }
+
+    if (check.needsRehash) {
+      await (prisma as any).professional.update({ where: { id: professional.id }, data: { password: await hashPassword(password) } });
     }
 
     res.json({
@@ -384,10 +392,11 @@ export const professionalController = {
       };
 
       if (password) {
-        if (req.body.currentPassword && current.password !== req.body.currentPassword) {
-          return res.status(400).json({ error: "A senha atual está incorreta." });
+        if (req.body.currentPassword) {
+          const check = await verifyPassword(req.body.currentPassword, current.password);
+          if (!check.valid) return res.status(400).json({ error: "A senha atual está incorreta." });
         }
-        data.password = password;
+        data.password = await hashPassword(password);
       }
 
       await (prisma as any).professional.update({

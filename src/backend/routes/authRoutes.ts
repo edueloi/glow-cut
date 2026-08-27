@@ -4,6 +4,7 @@ import { signToken, requireAuth, type JwtPayload } from "../middleware/auth";
 import { randomUUID, randomBytes } from "crypto";
 import Stripe from "stripe";
 import { sendWelcomeEmail, sendResetPasswordEmail } from "../utils/emailService";
+import { hashPassword, verifyPassword } from "../utils/password";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2026-04-22.dahlia" });
 
@@ -60,10 +61,13 @@ authRouter.post("/login", async (req: Request, res: Response) => {
   }
 
   // 1. Super-admin
-  const sa = await (prisma as any).superAdmin.findFirst({
-    where: { username: identifier, password },
-  });
+  const saCandidate = await (prisma as any).superAdmin.findFirst({ where: { username: identifier } });
+  const saCheck = await verifyPassword(password, saCandidate?.password);
+  const sa = saCheck.valid ? saCandidate : null;
   if (sa) {
+    if (saCheck.needsRehash) {
+      await (prisma as any).superAdmin.update({ where: { id: sa.id }, data: { password: await hashPassword(password) } });
+    }
     clearAttempts(ip);
     const token = signToken({ sub: sa.id, type: "superadmin" });
     return res.json({
@@ -73,11 +77,16 @@ authRouter.post("/login", async (req: Request, res: Response) => {
   }
 
   // 2. Admin user
-  const admin = await (prisma as any).adminUser.findFirst({
-    where: { email: identifier, password, isActive: true },
+  const adminCandidate = await (prisma as any).adminUser.findFirst({
+    where: { email: identifier, isActive: true },
     include: { tenant: { include: { plan: true } } },
   });
+  const adminCheck = await verifyPassword(password, adminCandidate?.password);
+  const admin = adminCheck.valid ? adminCandidate : null;
   if (admin) {
+    if (adminCheck.needsRehash) {
+      await (prisma as any).adminUser.update({ where: { id: admin.id }, data: { password: await hashPassword(password) } });
+    }
     // Bloqueia login se o tenant foi bloqueado manualmente pelo super-admin
     if (admin.tenant && admin.tenant.blockedAt && !admin.tenant.isActive) {
       recordFailedAttempt(ip);
@@ -139,14 +148,15 @@ authRouter.post("/login", async (req: Request, res: Response) => {
   }
 
   // 3. Profissional
-  const prof = await (prisma as any).professional.findFirst({
+  const profCandidate = await (prisma as any).professional.findFirst({
     where: {
       OR: [{ name: identifier }, { email: identifier }],
-      password,
       isActive: true,
     },
     include: { tenant: true },
   });
+  const profCheck = await verifyPassword(password, profCandidate?.password);
+  const prof = profCheck.valid ? profCandidate : null;
   if (prof) {
     // Bloqueia se o tenant do profissional estiver bloqueado
     if (prof.tenant && prof.tenant.blockedAt && !prof.tenant.isActive) {
@@ -155,6 +165,9 @@ authRouter.post("/login", async (req: Request, res: Response) => {
         error: "O acesso a esta conta foi bloqueado. Entre em contato com o estabelecimento.",
         blocked: true,
       });
+    }
+    if (profCheck.needsRehash) {
+      await (prisma as any).professional.update({ where: { id: prof.id }, data: { password: await hashPassword(password) } });
     }
     clearAttempts(ip);
     const token = signToken({
@@ -285,7 +298,7 @@ authRouter.post("/register-tenant", async (req, res) => {
         id: randomUUID(),
         name: ownerName,
         email: ownerEmail,
-        password: adminPassword,
+        password: await hashPassword(adminPassword),
         role: "owner",
         tenantId,
         isActive: true,
@@ -428,7 +441,7 @@ authRouter.post("/register-free-trial", async (req: Request, res: Response) => {
         id: randomUUID(),
         name: ownerName,
         email: ownerEmail,
-        password: adminPassword,
+        password: await hashPassword(adminPassword),
         role: "owner",
         tenantId,
         isActive: true,
@@ -840,7 +853,7 @@ authRouter.post("/setup-account", async (req: Request, res: Response) => {
   // Atualiza a senha do AdminUser do owner e limpa o token
   await (prisma as any).adminUser.updateMany({
     where: { tenantId: tenant.id, role: "owner" },
-    data: { password, isActive: true },
+    data: { password: await hashPassword(password), isActive: true },
   });
 
   await (prisma as any).tenant.update({
@@ -960,14 +973,15 @@ authRouter.post("/reset-password", async (req: Request, res: Response) => {
   }
 
   // Atualiza senha de todos os admins + profissional owner deste tenant com esse email
+  const hashedPassword = await hashPassword(password);
   await (prisma as any).adminUser.updateMany({
     where: { tenantId: tenant.id, email: tenant.ownerEmail },
-    data: { password },
+    data: { password: hashedPassword },
   });
 
   await (prisma as any).professional.updateMany({
     where: { tenantId: tenant.id, email: tenant.ownerEmail },
-    data: { password },
+    data: { password: hashedPassword },
   });
 
   await (prisma as any).tenant.update({

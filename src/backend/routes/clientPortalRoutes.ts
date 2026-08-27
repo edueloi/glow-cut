@@ -3,6 +3,7 @@ import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
 import jwt from "jsonwebtoken";
 import { emitToTenant } from "../realtime";
+import { hashPassword, verifyPassword } from "../utils/password";
 
 export const clientPortalRouter = Router();
 
@@ -45,8 +46,12 @@ clientPortalRouter.post("/:slug/login", async (req: Request, res: Response) => {
       `SELECT * FROM ClientPortalUser WHERE email=? AND tenantId=? AND isActive=1`,
       email, tenant.id
     );
-    if (!user || user.password !== password) {
+    const check = await verifyPassword(password, user?.password);
+    if (!check.valid) {
       return res.status(401).json({ error: "E-mail ou senha inválidos." });
+    }
+    if (check.needsRehash) {
+      await (prisma as any).$executeRawUnsafe(`UPDATE ClientPortalUser SET password=? WHERE id=?`, await hashPassword(password), user.id);
     }
 
     await (prisma as any).$executeRawUnsafe(
@@ -99,7 +104,7 @@ clientPortalRouter.post("/:slug/register", async (req: Request, res: Response) =
     const portalUserId = randomUUID();
     await (prisma as any).$executeRawUnsafe(
       `INSERT INTO ClientPortalUser (id, tenantId, clientId, email, password) VALUES (?, ?, ?, ?, ?)`,
-      portalUserId, tenant.id, client.id, email, password
+      portalUserId, tenant.id, client.id, email, await hashPassword(password)
     );
 
     const token = signPortalToken({ sub: portalUserId, clientId: client.id, tenantId: tenant.id });
@@ -145,10 +150,11 @@ clientPortalRouter.post("/:slug/change-password", requirePortalAuth, async (req:
     const [user]: any[] = await (prisma as any).$queryRawUnsafe(
       `SELECT * FROM ClientPortalUser WHERE id=?`, auth.sub
     );
-    if (!user || user.password !== currentPassword) return res.status(401).json({ error: "Senha atual incorreta." });
+    const check = await verifyPassword(currentPassword, user?.password);
+    if (!check.valid) return res.status(401).json({ error: "Senha atual incorreta." });
 
     await (prisma as any).$executeRawUnsafe(
-      `UPDATE ClientPortalUser SET password=? WHERE id=?`, newPassword, auth.sub
+      `UPDATE ClientPortalUser SET password=? WHERE id=?`, await hashPassword(newPassword), auth.sub
     );
     res.json({ success: true });
   } catch (e: any) {

@@ -9,6 +9,7 @@ import {
 } from "../wpp/baileys-manager";
 import { requireSuperPermission } from "../middleware/auth";
 import { emitToSuperAdmins } from "../realtime";
+import { hashPassword, verifyPassword } from "../utils/password";
 
 export const superAdminRouter = Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2023-10-16" as any });
@@ -145,9 +146,13 @@ superAdminRouter.get("/sales-stats", async (req, res) => {
 // ═════════════════════════════════════════════════════════════
 superAdminRouter.post("/login", async (req, res) => {
   const { username, password } = req.body;
-  const sa = await (prisma as any).superAdmin.findFirst({ where: { username, password } });
-  if (!sa) return res.status(401).json({ error: "Credenciais inválidas." });
-  res.json({ id: sa.id, username: sa.username, role: "superadmin" });
+  const candidate = await (prisma as any).superAdmin.findFirst({ where: { username } });
+  const check = await verifyPassword(password, candidate?.password);
+  if (!check.valid) return res.status(401).json({ error: "Credenciais inválidas." });
+  if (check.needsRehash) {
+    await (prisma as any).superAdmin.update({ where: { id: candidate.id }, data: { password: await hashPassword(password) } });
+  }
+  res.json({ id: candidate.id, username: candidate.username, role: "superadmin" });
 });
 
 superAdminRouter.put("/profile", async (req, res) => {
@@ -163,7 +168,7 @@ superAdminRouter.put("/profile", async (req, res) => {
       bio: bio || null,
       photo: photo || null
     };
-    if (password) data.password = password;
+    if (password) data.password = await hashPassword(password);
 
     const updated = await (prisma as any).superAdmin.update({
       where: { id },
@@ -213,9 +218,9 @@ superAdminRouter.post("/staff", requireSuperPermission("staff"), async (req, res
 
     const newUser = await (prisma as any).superAdmin.create({
       data: { 
-        id: randomUUID(), 
-        username, 
-        password,
+        id: randomUUID(),
+        username,
+        password: await hashPassword(password),
         name,
         email: email || null,
         phone: phone || null,
@@ -248,7 +253,7 @@ superAdminRouter.put("/staff/:id", requireSuperPermission("staff"), async (req, 
       responsableCities: req.body.responsableCities || null,
       permissions: permissions ? (typeof permissions === 'string' ? permissions : JSON.stringify(permissions)) : undefined
     };
-    if (password) data.password = password;
+    if (password) data.password = await hashPassword(password);
 
     const updated = await (prisma as any).superAdmin.update({
       where: { id: req.params.id },
@@ -879,7 +884,7 @@ superAdminRouter.post("/tenants", requireSuperPermission("tenants"), async (req,
         id: randomUUID(),
         name: ownerName,
         email: ownerEmail,
-        password: adminPassword,
+        password: await hashPassword(adminPassword),
         role: "owner",
         jobTitle: "Proprietário",
         phone: ownerPhone || null,
@@ -1093,7 +1098,7 @@ superAdminRouter.post("/admin-users", requireSuperPermission("users"), async (re
     const user = await (prisma as any).adminUser.create({
       data: {
         id: randomUUID(),
-        name, email, password,
+        name, email, password: await hashPassword(password),
         role: role || "admin",
         jobTitle: jobTitle || null,
         phone: phone || null,
@@ -1118,7 +1123,7 @@ superAdminRouter.put("/admin-users/:id", requireSuperPermission("users"), async 
       data: {
         ...(name !== undefined && { name }),
         ...(email !== undefined && { email }),
-        ...(password !== undefined && password !== "" && { password }),
+        ...(password !== undefined && password !== "" && { password: await hashPassword(password) }),
         ...(role !== undefined && { role }),
         ...(jobTitle !== undefined && { jobTitle }),
         ...(phone !== undefined && { phone }),
