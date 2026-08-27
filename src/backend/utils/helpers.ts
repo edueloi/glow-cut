@@ -2,8 +2,14 @@ import { Request } from "express";
 import { format, startOfDay, addDays } from "date-fns";
 
 export function getTenantId(req: Request): string | null {
+  // Requisição autenticada: o tenant vem SEMPRE do JWT, nunca do header/query enviado pelo
+  // cliente — senão qualquer usuário autenticado de um tenant conseguiria ler/escrever dados de
+  // outro tenant só trocando o header "x-tenant-id" (curl/devtools), já que o token continua
+  // válido. O header só é usado como fallback quando não há JWT (rotas públicas de agendamento,
+  // onde o tenant é resolvido a partir do slug da página e não existe login).
   const authTenantId = (req as any)?.auth?.tenantId;
-  return (req.headers["x-tenant-id"] as string) || (req.query.tenantId as string) || authTenantId || null;
+  if (authTenantId) return authTenantId;
+  return (req.headers["x-tenant-id"] as string) || (req.query.tenantId as string) || null;
 }
 
 export function normalizePhone(value: string | null | undefined): string {
