@@ -7,7 +7,7 @@ import { PermissionsProvider } from "@/src/contexts/PermissionsContext";
 import { type PermissionSet } from "@/src/lib/permissions";
 import { saveToken, getToken, removeToken, isTokenExpired } from "@/src/lib/api";
 import { PUBLIC_SITE_URL, APP_SITE_URL, isAppHost } from "@/src/lib/domains";
-import { getSocket, disconnectSocket } from "@/src/lib/socket";
+import { getSocket, disconnectSocket, UPDATE_AVAILABLE_EVENT } from "@/src/lib/socket";
 import ClientBooking from "./pages/ClientBooking";
 import PATQueue from "./pages/PATQueue";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -25,7 +25,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import PlatformLegalPage from "./pages/PlatformLegalPage";
 import ClientPortalPage from "./pages/ClientPortalPage";
-import { Eye, EyeOff, ArrowRight, AlertCircle, Shield, Zap, BarChart3, Calendar } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, AlertCircle, Shield, Zap, BarChart3, Calendar, X } from "lucide-react";
 
 import logoFavicon from "./images/system/logo-favicon.png";
 import logoWhite from "./images/system/imagem-agendele-branco.png";
@@ -614,6 +614,42 @@ function SuperAdminWrapper() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Aviso de nova versão disponível — nunca recarrega sozinho (perderia formulário
+// aberto do usuário), só avisa e deixa ele escolher a hora de atualizar.
+// ─────────────────────────────────────────────────────────────────────────────
+function UpdateAvailableBanner() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const onUpdate = () => setVisible(true);
+    window.addEventListener(UPDATE_AVAILABLE_EVENT, onUpdate);
+    return () => window.removeEventListener(UPDATE_AVAILABLE_EVENT, onUpdate);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed inset-x-0 top-0 z-[10000] flex flex-wrap items-center justify-center gap-2.5 bg-zinc-900 px-4 py-2.5 text-white shadow-lg sm:gap-3">
+      <Zap size={14} className="shrink-0 text-amber-400" />
+      <p className="text-[11px] font-bold sm:text-xs">Uma nova versão do sistema está disponível.</p>
+      <button
+        onClick={() => window.location.reload()}
+        className="shrink-0 rounded-lg bg-amber-500 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-amber-600"
+      >
+        Atualizar agora
+      </button>
+      <button
+        onClick={() => setVisible(false)}
+        aria-label="Dispensar aviso"
+        className="shrink-0 text-zinc-400 transition-all hover:text-white"
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // App
 // ─────────────────────────────────────────────────────────────────────────────
 function App() {
@@ -625,6 +661,7 @@ function App() {
 
   return (
     <AuthProvider>
+      <UpdateAvailableBanner />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={onAppHost ? <LoginPage /> : toApp} />
