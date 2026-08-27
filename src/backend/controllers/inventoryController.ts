@@ -226,13 +226,17 @@ export const inventoryController = {
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     try {
       const products: any[] = await (prisma as any).$queryRawUnsafe(
-        `SELECT p.id, p.name, p.stock, p.minStock, p.costPrice, p.salePrice, p.unit, p.code, p.isForSale, p.sectorId, s.name as sectorName, s.color as sectorColor FROM Product p LEFT JOIN Sector s ON p.sectorId = s.id WHERE p.tenantId = ? ORDER BY p.stock ASC`,
+        `SELECT p.id, p.name, p.stock, p.reservedStock, p.minStock, p.costPrice, p.salePrice, p.unit, p.code, p.isForSale, p.sectorId, s.name as sectorName, s.color as sectorColor FROM Product p LEFT JOIN Sector s ON p.sectorId = s.id WHERE p.tenantId = ? ORDER BY p.stock ASC`,
         tenantId
       );
+      // "Disponível" desconta o que já está reservado pra agendamentos futuros — sem isso o admin
+      // via só o estoque bruto e podia achar que tinha mais disponível pra vender do que realmente
+      // tem (reservedStock nunca aparecia em nenhuma tela).
+      for (const p of products) p.available = Math.max(0, (p.stock || 0) - (p.reservedStock || 0));
       const totalCost = products.reduce((acc, p) => acc + p.costPrice * p.stock, 0);
       const totalSale = products.reduce((acc, p) => acc + p.salePrice * p.stock, 0);
-      const critical = products.filter(p => p.stock <= p.minStock);
-      const outOfStock = products.filter(p => p.stock <= 0);
+      const critical = products.filter(p => p.available <= p.minStock);
+      const outOfStock = products.filter(p => p.available <= 0);
 
       res.json({ products, totalCost, totalSale, criticalCount: critical.length, outOfStockCount: outOfStock.length });
     } catch (e: any) { res.status(500).json({ error: e.message }); }

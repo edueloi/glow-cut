@@ -11,16 +11,20 @@ import {
 } from "@/src/components/ui";
 
 interface PosicaoProduct {
-  id: string; name: string; code?: string; stock: number; minStock: number;
+  id: string; name: string; code?: string; stock: number; reservedStock?: number; available?: number; minStock: number;
   costPrice: number; salePrice: number; unit?: string; isForSale: boolean | number;
   sectorName?: string; sectorColor?: string;
 }
 
 type StockStatus = "ok" | "low" | "out";
 
+// Status considera o disponível (stock - reservedStock), não o estoque bruto — sem isso um
+// produto todo reservado pra agendamentos futuros aparecia como "OK" mesmo sem nada sobrando
+// pra vender de verdade.
 function getStatus(p: PosicaoProduct): StockStatus {
-  if (p.stock <= 0) return "out";
-  if (p.stock <= p.minStock) return "low";
+  const available = p.available ?? p.stock;
+  if (available <= 0) return "out";
+  if (available <= p.minStock) return "low";
   return "ok";
 }
 
@@ -45,6 +49,9 @@ function StockBar({ product }: { product: PosicaoProduct }) {
       <div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${s === "out" ? "bg-red-500" : s === "low" ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${pct}%` }} />
       </div>
+      {!!product.reservedStock && (
+        <p className="text-[9px] font-bold text-zinc-400">{product.reservedStock} reservado{product.reservedStock !== 1 ? "s" : ""}</p>
+      )}
     </div>
   );
 }

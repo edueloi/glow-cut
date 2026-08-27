@@ -924,9 +924,13 @@ export const agendaController = {
         });
       }
 
-      // Notifica profissional e cliente (se confirmado)
+      // Notifica profissional (se o agendamento está ativo) e cliente (se confirmado) — criação
+      // retroativa via API com status "done"/"cancelled" direto não deveria avisar o profissional
+      // de um "novo agendamento" que já nasce encerrado.
       if (tenantId && results.length > 0) {
-        fireWppProfNewBooking(tenantId, results).catch(e => console.error("Erro wpp prof:", e));
+        if (effectiveStatus === "scheduled" || effectiveStatus === "confirmed") {
+          fireWppProfNewBooking(tenantId, results).catch(e => console.error("Erro wpp prof:", e));
+        }
         if (effectiveStatus === "confirmed") {
           fireWppConfirmationCentral(tenantId, results).catch(e => console.error("Erro wpp client:", e));
         }

@@ -174,6 +174,13 @@ export const clientController = {
       }
       res.json(isPublicRequest ? mapPublicClient(client) : client);
     } catch (e: any) {
+      // Corrida no cadastro público (duplo clique/retry) pode disparar a constraint única de
+      // telefone entre o findClientByPhone e o create — em vez da mensagem crua do Prisma
+      // ("Unique constraint failed on the fields...") aparecendo pro cliente final, devolve algo
+      // legível.
+      if (e?.code === "P2002") {
+        return res.status(409).json({ error: "Já existe um cadastro com esse telefone. Tente novamente." });
+      }
       res.status(400).json({ error: e?.message || "Erro ao salvar cliente." });
     }
   },
