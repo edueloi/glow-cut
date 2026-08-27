@@ -202,10 +202,20 @@ async function handleAppointmentStockReservation(serviceId: string | null, actio
   try {
     const prods = await (prisma as any).serviceProduct.findMany({ where: { serviceId } });
     for (const p of prods) {
-      await (prisma as any).product.updateMany({
-        where: { id: p.productId },
-        data: { reservedStock: { [action === 'reserve' ? 'increment' : 'decrement']: p.quantity } }
-      });
+      if (action === 'reserve') {
+        await (prisma as any).product.updateMany({
+          where: { id: p.productId },
+          data: { reservedStock: { increment: p.quantity } },
+        });
+      } else {
+        // GREATEST(0, ...) — sem isso, liberar uma reserva já liberada (ou que nunca existiu, ex:
+        // release chamado duas vezes pro mesmo agendamento) jogava reservedStock pra negativo,
+        // silenciosamente, já que esse campo não aparece em nenhuma tela hoje.
+        await (prisma as any).$executeRawUnsafe(
+          `UPDATE Product SET reservedStock = GREATEST(0, reservedStock - ?) WHERE id = ?`,
+          p.quantity, p.productId
+        );
+      }
     }
   } catch (e: any) {
     console.error("[Stock Reservation Error]", e?.message);
@@ -1258,13 +1268,22 @@ export const agendaController = {
     if (!appointmentId || !status) return res.status(400).json({ error: "appointmentId e status obrigatórios." });
 
     try {
+      const oldAppt = await (prisma as any).appointment.findUnique({ where: { id: appointmentId }, select: { status: true } });
+      const wasActive = oldAppt && (oldAppt.status === "scheduled" || oldAppt.status === "confirmed");
+
       const appt = await (prisma as any).appointment.update({
         where: { id: appointmentId },
         data: { status },
         include: { client: { select: { name: true } }, service: { select: { name: true } } }
       });
 
-      if (status === "missed" || status === "performed" || status === "cancelled") {
+      // "performed" (finalizado pelo terminal) precisa da MESMA baixa de estoque real que o
+      // admin dispara ao marcar um agendamento como concluído — antes só liberava a reserva sem
+      // nunca deduzir o produto de verdade, então atendimentos fechados pelo PAT não geravam
+      // nenhum consumo de estoque.
+      if (wasActive && status === "performed") {
+        await handleAppointmentDone(appt.serviceId, appt.tenantId, appointmentId);
+      } else if (wasActive && (status === "missed" || status === "cancelled")) {
         await handleAppointmentStockReservation(appt.serviceId, "release");
       }
 

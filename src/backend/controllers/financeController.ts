@@ -291,31 +291,41 @@ export const financeController = {
       const params: any[] = [tenantId, dateFrom, dateTo];
       if (professionalId) { where += ` AND c.professionalId = ?`; params.push(professionalId); }
 
-      // Comissões por profissional via itens de comanda
-      const rows: any[] = await (prisma as any).$queryRawUnsafe(
-        `SELECT
-           p.id as professionalId,
-           p.name as professionalName,
-           p.role as professionalRole,
-           COUNT(DISTINCT c.id) as totalAtendimentos,
-           COALESCE(SUM(c.total), 0) as totalFaturado,
-           COALESCE(SUM(
-             CASE
-               WHEN s.commissionType = 'percentage' THEN (ci.total * s.commissionValue / 100)
-               WHEN s.commissionValue IS NOT NULL THEN (s.commissionValue * ci.quantity)
-               ELSE 0
-             END
-           ), 0) as totalComissao
+      // Faturado/atendimentos por profissional — direto de Comanda, sem join com itens (o join
+      // com ComandaItem faz fan-out: uma comanda com 3 itens contava seu total 3x na soma).
+      const faturadoRows: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT p.id as professionalId, p.name as professionalName, p.role as professionalRole,
+                COUNT(*) as totalAtendimentos, COALESCE(SUM(c.total), 0) as totalFaturado
          FROM Comanda c
          JOIN Professional p ON c.professionalId = p.id
-         LEFT JOIN ComandaItem ci ON ci.comandaId = c.id
-         LEFT JOIN Service s ON ci.serviceId = s.id
          ${where}
          GROUP BY p.id, p.name, p.role
          ORDER BY totalFaturado DESC`,
         ...params
       );
 
+      // Comissão por profissional via itens de comanda (aqui o join por item é necessário —
+      // cada item tem seu próprio serviço/comissão — mas fica numa query separada da soma do
+      // faturado bruto acima).
+      const comissaoRows: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT c.professionalId,
+                COALESCE(SUM(
+                  CASE
+                    WHEN s.commissionType = 'percentage' THEN (ci.total * s.commissionValue / 100)
+                    WHEN s.commissionValue IS NOT NULL THEN (s.commissionValue * ci.quantity)
+                    ELSE 0
+                  END
+                ), 0) as totalComissao
+         FROM Comanda c
+         LEFT JOIN ComandaItem ci ON ci.comandaId = c.id
+         LEFT JOIN Service s ON ci.serviceId = s.id
+         ${where}
+         GROUP BY c.professionalId`,
+        ...params
+      );
+      const comissaoByProf = new Map(comissaoRows.map((r: any) => [r.professionalId, Number(r.totalComissao)]));
+
+      const rows = faturadoRows.map((r: any) => ({ ...r, totalComissao: comissaoByProf.get(r.professionalId) || 0 }));
       const total = rows.reduce((s: number, r: any) => s + Number(r.totalComissao), 0);
 
       // Baixa (CommissionPayout) já registrada pra esse profissional exatamente nesse período —

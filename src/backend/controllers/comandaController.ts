@@ -26,28 +26,32 @@ export const comandaController = {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     try {
-      const { professionalId } = req.query;
-      const rows: any[] = professionalId
-        ? await (prisma as any).$queryRawUnsafe(
-            `SELECT c.*, cl.name as clientName, cl.phone as clientPhone,
-                    pr.name as professionalName
-             FROM Comanda c
-             LEFT JOIN Client cl ON c.clientId = cl.id
-             LEFT JOIN Professional pr ON c.professionalId = pr.id
-             WHERE c.tenantId = ? AND c.professionalId = ?
-             ORDER BY c.createdAt DESC`,
-            tenantId, professionalId
-          )
-        : await (prisma as any).$queryRawUnsafe(
-            `SELECT c.*, cl.name as clientName, cl.phone as clientPhone,
-                    pr.name as professionalName
-             FROM Comanda c
-             LEFT JOIN Client cl ON c.clientId = cl.id
-             LEFT JOIN Professional pr ON c.professionalId = pr.id
-             WHERE c.tenantId = ?
-             ORDER BY c.createdAt DESC`,
-            tenantId
-          );
+      const { professionalId, status, from, to } = req.query;
+      const where = [`c.tenantId = ?`];
+      const params: any[] = [tenantId];
+      if (professionalId) { where.push(`c.professionalId = ?`); params.push(professionalId); }
+      if (status) {
+        // "closed" (usado pela exportação/relatórios) = comandas com movimento financeiro real,
+        // ou seja, não mais "open". Também aceita um status único ou lista separada por vírgula.
+        const statusList = String(status) === "closed" ? ["paid", "partial"] : String(status).split(",").map(s => s.trim()).filter(Boolean);
+        if (statusList.length > 0) {
+          where.push(`c.status IN (${statusList.map(() => "?").join(",")})`);
+          params.push(...statusList);
+        }
+      }
+      if (from) { where.push(`c.createdAt >= ?`); params.push(new Date(`${from}T00:00:00`)); }
+      if (to)   { where.push(`c.createdAt <= ?`); params.push(new Date(`${to}T23:59:59.999`)); }
+
+      const rows: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT c.*, cl.name as clientName, cl.phone as clientPhone,
+                pr.name as professionalName
+         FROM Comanda c
+         LEFT JOIN Client cl ON c.clientId = cl.id
+         LEFT JOIN Professional pr ON c.professionalId = pr.id
+         WHERE ${where.join(" AND ")}
+         ORDER BY c.createdAt DESC`,
+        ...params
+      );
 
       const itemRows: any[] = rows.length > 0
         ? await (prisma as any).$queryRawUnsafe(
@@ -194,6 +198,14 @@ export const comandaController = {
     const { status, total, discount, discountType, paymentMethod, paymentDetails, description, clientId, professionalId, type, sessionCount, paidAmount } = req.body;
     try {
       const requester = (req as any).auth;
+      // Guarda contra dupla marcação: se a comanda já estava "paid"/"partial" antes desta
+      // chamada e o status não está de fato mudando, o bloco de CashEntry/baixa de estoque/
+      // crédito de assinatura abaixo é pulado — sem isso, um duplo clique em "Marcar como paga"
+      // deduzia o estoque (e consumia crédito de assinatura) duas vezes pela mesma venda.
+      const oldStatusRows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT status FROM Comanda WHERE id = ?`, req.params.id);
+      const oldStatus = oldStatusRows[0]?.status;
+      const isStatusTransition = status !== undefined && status !== oldStatus;
+
       const sets: string[] = [];
       const vals: any[] = [];
       if (status !== undefined)        { sets.push("status = ?");        vals.push(status); }
@@ -229,7 +241,7 @@ export const comandaController = {
         await (prisma as any).$executeRawUnsafe(`UPDATE Comanda SET ${sets.join(", ")} WHERE id = ?${tenantId ? " AND tenantId = ?" : ""}`, ...vals);
       }
 
-      if ((status === "paid" || status === "partial") && tenantId) {
+      if ((status === "paid" || status === "partial") && tenantId && isStatusTransition) {
         try {
           const cmdData: any[] = await (prisma as any).$queryRawUnsafe(`SELECT total, paidAmount, clientId FROM Comanda WHERE id = ?`, req.params.id);
           if (cmdData[0]) {
