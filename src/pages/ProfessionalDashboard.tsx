@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import {
   format, addDays, subDays, isToday, parseISO, isSameDay,
-  startOfToday,
+  startOfToday, eachDayOfInterval,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/src/lib/utils";
@@ -389,6 +389,85 @@ function AgendaSection({
     if (selectedService) setForm(f => ({ ...f, duration: selectedService.duration }));
   }, [form.serviceId]);
 
+  // ── Minhas Folgas ──
+  const [showTimeOffModal, setShowTimeOffModal] = useState(false);
+  const [timeOffList, setTimeOffList] = useState<{ id: string; date: string; description?: string }[]>([]);
+  const [timeOffLoading, setTimeOffLoading] = useState(false);
+  const [timeOffFrom, setTimeOffFrom] = useState(format(selectedDate, "yyyy-MM-dd"));
+  const [timeOffTo, setTimeOffTo] = useState(format(selectedDate, "yyyy-MM-dd"));
+  const [timeOffDescription, setTimeOffDescription] = useState("");
+  const [timeOffSubmitting, setTimeOffSubmitting] = useState(false);
+
+  const fetchTimeOff = async () => {
+    setTimeOffLoading(true);
+    try {
+      const res = await apiFetch(`/api/professionals/${prof.id}/timeoff`);
+      const data = await res.json();
+      setTimeOffList(Array.isArray(data) ? data : []);
+    } catch { setTimeOffList([]); }
+    finally { setTimeOffLoading(false); }
+  };
+
+  useEffect(() => {
+    if (showTimeOffModal) {
+      fetchTimeOff();
+      setTimeOffFrom(format(selectedDate, "yyyy-MM-dd"));
+      setTimeOffTo(format(selectedDate, "yyyy-MM-dd"));
+      setTimeOffDescription("");
+    }
+  }, [showTimeOffModal]);
+
+  const handleCreateTimeOff = async () => {
+    if (!timeOffFrom || !timeOffTo) return;
+    const start = parseISO(timeOffFrom);
+    const end = parseISO(timeOffTo);
+    if (end < start) {
+      toast.error("A data final não pode ser antes da data inicial.");
+      return;
+    }
+    const dates = eachDayOfInterval({ start, end }).map(d => format(d, "yyyy-MM-dd"));
+    setTimeOffSubmitting(true);
+    try {
+      const res = await apiFetch(`/api/professionals/${prof.id}/timeoff`, {
+        method: "POST",
+        body: JSON.stringify({ dates, description: timeOffDescription || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data?.error || "Não foi possível marcar a folga.");
+        return;
+      }
+      if (Array.isArray(data.conflicts) && data.conflicts.length > 0) {
+        const total = data.conflicts.reduce((acc: number, c: any) => acc + (c.appointments?.length || 0), 0);
+        toast.warning(`Folga marcada, mas ${total} agendamento(s) já existiam nesses dias — avise os clientes.`);
+      } else {
+        toast.success("Folga marcada com sucesso!");
+      }
+      setTimeOffDescription("");
+      fetchTimeOff();
+      onRefresh();
+    } catch {
+      toast.error("Não foi possível marcar a folga.");
+    } finally {
+      setTimeOffSubmitting(false);
+    }
+  };
+
+  const handleDeleteTimeOff = async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/professionals/${prof.id}/timeoff/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Folga removida.");
+        fetchTimeOff();
+        onRefresh();
+      } else {
+        toast.error("Não foi possível remover a folga.");
+      }
+    } catch {
+      toast.error("Não foi possível remover a folga.");
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.clientId) {
@@ -482,6 +561,16 @@ function AgendaSection({
             Agendar
           </Button>
         )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          iconLeft={<CalendarIcon size={15} />}
+          onClick={() => setShowTimeOffModal(true)}
+          className="h-11 px-4 rounded-2xl text-[10px] uppercase tracking-wider"
+        >
+          Folgas
+        </Button>
 
         <IconButton
           onClick={onRefresh}
@@ -1036,6 +1125,65 @@ function AgendaSection({
           </>
         )}
       </AnimatePresence>
+
+      {/* ── Minhas Folgas ── */}
+      <Modal
+        isOpen={showTimeOffModal}
+        onClose={() => setShowTimeOffModal(false)}
+        title="Minhas Folgas"
+        size="md"
+      >
+        <div className="space-y-5">
+          <div className="space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Marcar novo período</p>
+            <div className="grid grid-cols-2 gap-3">
+              <DatePicker label="De" value={timeOffFrom} onChange={(v) => { if (!v) return; setTimeOffFrom(v); if (timeOffTo < v) setTimeOffTo(v); }} />
+              <DatePicker label="Até" value={timeOffTo} min={timeOffFrom} onChange={(v) => { if (v) setTimeOffTo(v); }} />
+            </div>
+            <Input
+              label="Motivo (opcional)"
+              placeholder="Ex: consulta médica, viagem..."
+              value={timeOffDescription}
+              onChange={(e: any) => setTimeOffDescription(e.target.value)}
+            />
+            <Button
+              variant="primary"
+              fullWidth
+              disabled={timeOffSubmitting}
+              onClick={handleCreateTimeOff}
+              className="rounded-xl"
+            >
+              {timeOffSubmitting ? "Marcando..." : "Marcar Folga"}
+            </Button>
+          </div>
+
+          <div className="border-t border-zinc-100 pt-4 space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Próximas folgas</p>
+            {timeOffLoading ? (
+              <Spinner />
+            ) : timeOffList.length === 0 ? (
+              <p className="text-xs text-zinc-400 font-medium py-3 text-center">Nenhuma folga marcada.</p>
+            ) : (
+              <div className="space-y-2 max-h-[220px] overflow-y-auto">
+                {timeOffList.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between p-3 bg-zinc-50 border border-zinc-100 rounded-xl">
+                    <div>
+                      <p className="text-xs font-black text-zinc-800">{format(parseISO(t.date), "dd 'de' MMMM", { locale: ptBR })}</p>
+                      {t.description && <p className="text-[10px] text-zinc-400 font-medium mt-0.5">{t.description}</p>}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteTimeOff(t.id)}
+                      className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

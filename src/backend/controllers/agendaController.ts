@@ -1387,6 +1387,124 @@ export const agendaController = {
     }
   },
 
+  // ── FOLGA DO PROFISSIONAL (autoatendimento) ──────────────────────────────
+  // Reaproveita SpecialScheduleDay (já respeitado por getAvailability e por
+  // ensureWithinWorkingHours em create/update/patch) mas com rotas e checagem de
+  // dono dedicadas — o CRUD acima (saveSpecialDay/deleteSpecialDay) é tenant-wide
+  // sem essa trava e continua sendo só a ferramenta administrativa.
+  async listProfessionalTimeOff(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    const professionalId = req.params.id;
+    const requester = (req as any).auth;
+    if (requester?.type === "professional" && requester.sub !== professionalId) {
+      return res.status(403).json({ error: "Você só pode ver sua própria agenda." });
+    }
+    try {
+      const professional = await (prisma as any).professional.findFirst({ where: { id: professionalId, tenantId } });
+      if (!professional) return res.status(404).json({ error: "Profissional não encontrado." });
+
+      const rows: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT sd.*, p.name AS professionalName FROM SpecialScheduleDay sd LEFT JOIN Professional p ON p.id = sd.professionalId
+         WHERE sd.tenantId = ? AND sd.professionalId = ? AND sd.isClosed = 1 AND sd.date >= ? ORDER BY sd.date ASC`,
+        tenantId, professionalId, startOfDay(new Date())
+      );
+      res.json(rows.map(mapSpecialScheduleDay));
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message || "Erro." });
+    }
+  },
+
+  async createProfessionalTimeOff(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    const professionalId = req.params.id;
+    const requester = (req as any).auth;
+    if (requester?.type === "professional" && requester.sub !== professionalId) {
+      return res.status(403).json({ error: "Você só pode gerenciar sua própria agenda." });
+    }
+    const { dates, description } = req.body;
+    if (!Array.isArray(dates) || dates.length === 0) return res.status(400).json({ error: "dates obrigatório." });
+    if (dates.length > 60) return res.status(400).json({ error: "Máximo de 60 dias por vez." });
+
+    try {
+      const professional = await (prisma as any).professional.findFirst({ where: { id: professionalId, tenantId } });
+      if (!professional) return res.status(404).json({ error: "Profissional não encontrado." });
+
+      const created: any[] = [];
+      const conflicts: { date: string; appointments: any[] }[] = [];
+
+      for (const rawDate of dates) {
+        const targetDate = toDateOnly(rawDate);
+        const { start, end } = getDayRange(targetDate);
+
+        const existingConflicts = await (prisma as any).appointment.findMany({
+          where: {
+            tenantId, professionalId, date: { gte: start, lt: end },
+            type: { not: "bloqueio" }, status: { in: ["scheduled", "confirmed"] },
+          },
+          include: { client: { select: { name: true } } },
+          orderBy: { startTime: "asc" },
+        });
+        if (existingConflicts.length > 0) {
+          conflicts.push({
+            date: format(targetDate, "yyyy-MM-dd"),
+            appointments: existingConflicts.map((a: any) => ({ id: a.id, startTime: a.startTime, clientName: a.client?.name || "Cliente" })),
+          });
+        }
+
+        const existing: any[] = await (prisma as any).$queryRawUnsafe(
+          `SELECT id FROM SpecialScheduleDay WHERE tenantId=? AND date>=? AND date<? AND professionalId=? LIMIT 1`,
+          tenantId, start, end, professionalId
+        );
+        const id = existing[0]?.id || randomUUID();
+        if (existing.length > 0) {
+          await (prisma as any).$executeRawUnsafe(
+            `UPDATE SpecialScheduleDay SET isClosed=1, startTime=NULL, endTime=NULL, description=? WHERE id=? AND tenantId=?`,
+            description || "Folga", id, tenantId
+          );
+        } else {
+          await (prisma as any).$executeRawUnsafe(
+            `INSERT INTO SpecialScheduleDay (id, tenantId, professionalId, date, isClosed, startTime, endTime, description) VALUES (?, ?, ?, ?, 1, NULL, NULL, ?)`,
+            id, tenantId, professionalId, targetDate, description || "Folga"
+          );
+        }
+        const rows: any[] = await (prisma as any).$queryRawUnsafe(
+          `SELECT sd.*, p.name AS professionalName FROM SpecialScheduleDay sd LEFT JOIN Professional p ON p.id = sd.professionalId WHERE sd.id = ? LIMIT 1`,
+          id
+        );
+        created.push(mapSpecialScheduleDay(rows[0]));
+      }
+
+      emitToTenant(tenantId, "agenda:changed");
+      emitToTenant(tenantId, "professional:timeoff", { professionalId, professionalName: professional.name, dates: created.map((c) => c.date) });
+
+      res.json({ created, conflicts });
+    } catch (e: any) {
+      res.status(400).json({ error: e?.message || "Erro." });
+    }
+  },
+
+  async deleteProfessionalTimeOff(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    const professionalId = req.params.id;
+    const requester = (req as any).auth;
+    if (requester?.type === "professional" && requester.sub !== professionalId) {
+      return res.status(403).json({ error: "Você só pode gerenciar sua própria agenda." });
+    }
+    try {
+      await (prisma as any).$executeRawUnsafe(
+        `DELETE FROM SpecialScheduleDay WHERE id=? AND tenantId=? AND professionalId=?`,
+        req.params.specialDayId, tenantId, professionalId
+      );
+      emitToTenant(tenantId, "agenda:changed");
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(400).json({ error: e?.message || "Erro." });
+    }
+  },
+
   // WORKING HOURS
   async getWorkingHours(req: Request, res: Response) {
     const tenantId = getTenantId(req);

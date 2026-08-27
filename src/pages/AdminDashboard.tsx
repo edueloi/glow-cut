@@ -206,6 +206,19 @@ export default function AdminDashboard() {
     };
   }, []);
 
+  // Profissional marcou folga sozinho (autoatendimento) — avisa o admin em tempo real.
+  useEffect(() => {
+    const socket = getSocket();
+    const onTimeOff = (payload: any) => {
+      const dates = Array.isArray(payload?.dates) ? payload.dates : [];
+      const who = payload?.professionalName || "Um profissional";
+      const when = dates.length > 1 ? `em ${dates.length} dias` : (dates[0] ? `em ${dates[0]}` : "");
+      toast.warning(`${who} marcou folga ${when}.`.replace(/\s+/g, " ").trim());
+    };
+    socket.on("professional:timeoff", onTimeOff);
+    return () => { socket.off("professional:timeoff", onTimeOff); };
+  }, []);
+
   // Sub-aba de profissionais
   const [profSubTab, setProfSubTab] = useState<"lista" | "permissoes">(() => {
     return location.pathname.includes('permissoes') ? 'permissoes' : 'lista';

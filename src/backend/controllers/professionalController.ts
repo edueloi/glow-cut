@@ -323,6 +323,12 @@ export const professionalController = {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
 
+    const requester = (req as any).auth;
+    const isSelfProfessional = requester?.type === "professional" && requester.sub === req.params.id;
+    if (requester?.type === "professional" && !isSelfProfessional) {
+      return res.status(403).json({ error: "Você só pode editar seu próprio cadastro." });
+    }
+
     const {
       name,
       nickname,
@@ -366,11 +372,14 @@ export const professionalController = {
         ...(instagram !== undefined && { instagram: asString(instagram) }),
         ...(bio !== undefined && { bio: asString(bio) }),
         ...(photo !== undefined && { photo: asString(photo) }),
-        ...(permissions !== undefined && { permissions: parsePermissions(permissions) }),
-        ...(accessLevel !== undefined && { accessLevel: asString(accessLevel) || "no-access" }),
-        ...(patAccess !== undefined && { patAccess: asBoolean(patAccess) }),
+        // Campos privilegiados (permissões/nível de acesso/ativo) só podem ser alterados por
+        // quem não é o próprio profissional editando a si mesmo — evita que um profissional
+        // autenticado se auto-promova via body manipulado.
+        ...(!isSelfProfessional && permissions !== undefined && { permissions: parsePermissions(permissions) }),
+        ...(!isSelfProfessional && accessLevel !== undefined && { accessLevel: asString(accessLevel) || "no-access" }),
+        ...(!isSelfProfessional && patAccess !== undefined && { patAccess: asBoolean(patAccess) }),
         ...(canAddServicePhotos !== undefined && { canAddServicePhotos: asBoolean(canAddServicePhotos) }),
-        ...(isActive !== undefined && { isActive: asBoolean(isActive, true) }),
+        ...(!isSelfProfessional && isActive !== undefined && { isActive: asBoolean(isActive, true) }),
         ...(req.body.attendsSchedule !== undefined && { attendsSchedule: asBoolean(req.body.attendsSchedule, true) }),
       };
 
