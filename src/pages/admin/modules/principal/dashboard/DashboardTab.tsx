@@ -248,29 +248,6 @@ export function DashboardTab({
           </p>
           <p className="text-3xl font-black text-amber-400 tracking-tight leading-tight mt-0.5">{firstName}!</p>
 
-          {/* Mini stats no mobile */}
-          <div className="mt-4 grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
-            <div className="min-w-0 rounded-2xl border border-white/10 bg-white/8 p-3">
-              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500 mb-1">Faturamento</p>
-              <p className={cn("truncate text-sm font-black leading-none text-white", !showFinancials && "blur-sm select-none")}>
-                {showFinancials ? stats.revenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••"}
-              </p>
-              <p className="text-[8px] text-zinc-600 font-bold mt-1">{stats.paidCount} cmd</p>
-            </div>
-            <div className="min-w-0 rounded-2xl border border-white/10 bg-white/8 p-3">
-              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500 mb-1">Agenda</p>
-              <p className="text-sm font-black text-white leading-none">{stats.apptCount}</p>
-              <p className="text-[8px] text-zinc-600 font-bold mt-1">hoje</p>
-            </div>
-            <div className="min-w-0 rounded-2xl border border-white/10 bg-white/8 p-3">
-              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500 mb-1">Lucro</p>
-              <p className={cn("truncate text-sm font-black leading-none", !showFinancials ? "text-white blur-sm select-none" : netProfit === null ? "text-zinc-500" : isProfit ? "text-emerald-400" : "text-red-400")}>
-                {!showFinancials ? "••••" : netProfit === null ? "—" : netProfit.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-              </p>
-              <p className="text-[8px] text-zinc-600 font-bold mt-1">líquido</p>
-            </div>
-          </div>
-
           {(birthdayToday.length > 0 || pendingConfirmations.length > 0) && (
             <div className="flex flex-wrap gap-2 mt-3">
               {birthdayToday.length > 0 && (
@@ -316,29 +293,6 @@ export function DashboardTab({
                 )}
               </div>
             )}
-          </div>
-
-          {/* Divisor */}
-          <div className="w-px h-24 bg-white/10 shrink-0" />
-
-          {/* Lado direito: 3 stats em linha */}
-          <div className="flex gap-4 shrink-0">
-            {[
-              { label: "Faturamento", value: showFinancials ? stats.revenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••", sub: `${stats.paidCount} comanda(s)`, icon: <DollarSign size={14} className="text-amber-400" />, color: "text-white", financial: true },
-              { label: "Agendamentos", value: String(stats.apptCount), sub: "hoje", icon: <CalendarIcon size={14} className="text-blue-400" />, color: "text-white", financial: false },
-              { label: "Lucro Líquido", value: !showFinancials ? "••••" : netProfit === null ? "—" : netProfit.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }), sub: "líquido hoje", icon: <TrendingUp size={14} className={isProfit ? "text-emerald-400" : "text-red-400"} />, color: !showFinancials ? "text-white" : netProfit === null ? "text-zinc-500" : isProfit ? "text-emerald-400" : "text-red-400", financial: true },
-            ].map((s, i) => (
-              <div key={i} className="bg-white/8 rounded-2xl p-4 lg:p-5 border border-white/10 min-w-[130px] lg:min-w-[150px]">
-                <div className="flex items-center gap-1.5 mb-3">
-                  {s.icon}
-                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">{s.label}</p>
-                </div>
-                <p className={cn("text-xl lg:text-2xl font-black leading-none", s.color, s.financial && !showFinancials && "blur-sm select-none")}>
-                  {s.value}
-                </p>
-                <p className="text-[9px] text-zinc-600 font-bold mt-2">{s.sub}</p>
-              </div>
-            ))}
           </div>
 
           {/* Botão ocultar */}
@@ -456,6 +410,137 @@ export function DashboardTab({
               <p className="text-[9px] text-zinc-400 font-medium mt-2">{s.sub}</p>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* ── AGENDA, COMANDAS E ANIVERSARIANTES (prioridade antes dos gráficos) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+
+        {/* Próximos Agendamentos */}
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-zinc-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-black text-zinc-900">Próximos</h3>
+            <button onClick={() => handleTabChange("agenda")} className="text-[10px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 transition-colors">
+              Ver Todos <ArrowUpRight size={11} />
+            </button>
+          </div>
+          <div className="space-y-2">
+            {appointments.slice(0, 4).map((app) => (
+              <div key={app.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-zinc-50 transition-colors">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 font-black text-xs shrink-0">
+                  {app.client?.name?.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-black text-zinc-900 truncate">{app.client?.name}</p>
+                  <p className="text-[10px] text-zinc-400 font-medium truncate">{app.service?.name}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-[11px] font-black text-zinc-700">{app.startTime}</p>
+                  <p className="text-[9px] text-zinc-400">{format(new Date(app.date), "dd/MM")}</p>
+                </div>
+              </div>
+            ))}
+            {appointments.length === 0 && (
+              <div className="py-8 text-center">
+                <Clock size={24} className="mx-auto mb-2 text-zinc-200" />
+                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Sem agendamentos</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Últimas Comandas */}
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-zinc-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-black text-zinc-900">Comandas</h3>
+            <button onClick={() => handleTabChange("comandas")} className="text-[10px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 transition-colors">
+              Ver Todas <ArrowUpRight size={11} />
+            </button>
+          </div>
+          <div className="space-y-2">
+            {comandas.slice(0, 4).map((com) => (
+              <div key={com.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-zinc-50 transition-colors">
+                <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center text-xs shrink-0", com.status === "paid" ? "bg-emerald-50 border border-emerald-100 text-emerald-600" : "bg-orange-50 border border-orange-100 text-orange-500")}>
+                  <CheckCircle2 size={15} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-black text-zinc-900 truncate">{com.client?.name}</p>
+                  <p className={cn("text-[10px] font-bold", com.status === "paid" ? "text-emerald-500" : "text-orange-400")}>
+                    {com.status === "paid" ? "Pago" : "Em Aberto"}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={cn("text-[11px] font-black", showFinancials ? (com.status === "paid" ? "text-emerald-600" : "text-orange-500") : "text-zinc-300 blur-sm select-none")}>
+                    {showFinancials ? `R$ ${com.total?.toFixed(2)}` : "R$ ••"}
+                  </p>
+                  <p className="text-[9px] text-zinc-400">{format(new Date(com.createdAt), "dd/MM")}</p>
+                </div>
+              </div>
+            ))}
+            {comandas.length === 0 && (
+              <div className="py-8 text-center">
+                <DollarSign size={24} className="mx-auto mb-2 text-zinc-200" />
+                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Sem comandas</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Aniversariantes do Mês */}
+        <div className={cn(
+          "sm:col-span-2 xl:col-span-1 rounded-2xl shadow-sm border p-4 sm:p-5",
+          birthdayClients.length > 0 ? "bg-gradient-to-br from-pink-50 to-rose-50 border-pink-100" : "bg-white border-zinc-200"
+        )}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-pink-100 rounded-xl flex items-center justify-center shrink-0">
+                <Cake size={15} className="text-pink-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-zinc-900">Aniversariantes</h3>
+                <p className="text-[10px] text-pink-400 font-bold uppercase tracking-widest capitalize">{monthName}</p>
+              </div>
+            </div>
+            {birthdayClients.length > 0 && (
+              <span className="bg-pink-500 text-white text-[10px] font-black rounded-full w-6 h-6 flex items-center justify-center shrink-0">{birthdayClients.length}</span>
+            )}
+          </div>
+
+          {birthdayClients.length === 0 ? (
+            <div className="py-6 text-center">
+              <Cake size={24} className="mx-auto mb-2 text-zinc-200" />
+              <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Nenhum este mês</p>
+              <p className="text-[9px] text-zinc-400 mt-1">Cadastre datas de nascimento nos clientes</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2">
+              {birthdayClients.slice(0, 6).map((c) => {
+                const birthParts = parseBirthDateParts(c.birthDate);
+                const day = birthParts?.day ? String(birthParts.day).padStart(2, "0") : "--";
+                const age = calculateAge(c.birthDate);
+                const isToday = birthParts?.day === todayDay;
+                return (
+                  <div key={c.id} className={cn("flex items-center gap-2.5 p-2.5 rounded-xl transition-all", isToday ? "bg-pink-100 border border-pink-200" : "bg-white/60")}>
+                    <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0", isToday ? "bg-pink-500 text-white shadow-sm" : "bg-pink-50 border border-pink-100 text-pink-600")}>
+                      {c.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-black text-zinc-900 truncate">{c.name}</p>
+                      <p className="text-[10px] text-zinc-400 font-medium">Dia {day}{age !== null ? ` · ${age} anos` : ""}</p>
+                    </div>
+                    {isToday && (
+                      <span className="text-[8px] font-black bg-pink-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-widest shrink-0">Hoje!</span>
+                    )}
+                  </div>
+                );
+              })}
+              {birthdayClients.length > 6 && (
+                <button onClick={() => handleTabChange("clients")} className="sm:col-span-2 xl:col-span-1 w-full text-center text-[10px] font-bold text-pink-500 hover:text-pink-700 pt-1 transition-colors">
+                  +{birthdayClients.length - 6} mais →
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -594,137 +679,6 @@ export function DashboardTab({
           </div>
         </div>
       )}
-
-      {/* ── BOTTOM ROW ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
-
-        {/* Próximos Agendamentos */}
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-zinc-200">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-black text-zinc-900">Próximos</h3>
-            <button onClick={() => handleTabChange("agenda")} className="text-[10px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 transition-colors">
-              Ver Todos <ArrowUpRight size={11} />
-            </button>
-          </div>
-          <div className="space-y-2">
-            {appointments.slice(0, 4).map((app) => (
-              <div key={app.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-zinc-50 transition-colors">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 font-black text-xs shrink-0">
-                  {app.client?.name?.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-black text-zinc-900 truncate">{app.client?.name}</p>
-                  <p className="text-[10px] text-zinc-400 font-medium truncate">{app.service?.name}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-[11px] font-black text-zinc-700">{app.startTime}</p>
-                  <p className="text-[9px] text-zinc-400">{format(new Date(app.date), "dd/MM")}</p>
-                </div>
-              </div>
-            ))}
-            {appointments.length === 0 && (
-              <div className="py-8 text-center">
-                <Clock size={24} className="mx-auto mb-2 text-zinc-200" />
-                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Sem agendamentos</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Últimas Comandas */}
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-zinc-200">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-black text-zinc-900">Comandas</h3>
-            <button onClick={() => handleTabChange("comandas")} className="text-[10px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 transition-colors">
-              Ver Todas <ArrowUpRight size={11} />
-            </button>
-          </div>
-          <div className="space-y-2">
-            {comandas.slice(0, 4).map((com) => (
-              <div key={com.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-zinc-50 transition-colors">
-                <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center text-xs shrink-0", com.status === "paid" ? "bg-emerald-50 border border-emerald-100 text-emerald-600" : "bg-orange-50 border border-orange-100 text-orange-500")}>
-                  <CheckCircle2 size={15} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-black text-zinc-900 truncate">{com.client?.name}</p>
-                  <p className={cn("text-[10px] font-bold", com.status === "paid" ? "text-emerald-500" : "text-orange-400")}>
-                    {com.status === "paid" ? "Pago" : "Em Aberto"}
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className={cn("text-[11px] font-black", showFinancials ? (com.status === "paid" ? "text-emerald-600" : "text-orange-500") : "text-zinc-300 blur-sm select-none")}>
-                    {showFinancials ? `R$ ${com.total?.toFixed(2)}` : "R$ ••"}
-                  </p>
-                  <p className="text-[9px] text-zinc-400">{format(new Date(com.createdAt), "dd/MM")}</p>
-                </div>
-              </div>
-            ))}
-            {comandas.length === 0 && (
-              <div className="py-8 text-center">
-                <DollarSign size={24} className="mx-auto mb-2 text-zinc-200" />
-                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Sem comandas</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Aniversariantes do Mês */}
-        <div className={cn(
-          "sm:col-span-2 xl:col-span-1 rounded-2xl shadow-sm border p-4 sm:p-5",
-          birthdayClients.length > 0 ? "bg-gradient-to-br from-pink-50 to-rose-50 border-pink-100" : "bg-white border-zinc-200"
-        )}>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-pink-100 rounded-xl flex items-center justify-center shrink-0">
-                <Cake size={15} className="text-pink-500" />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-zinc-900">Aniversariantes</h3>
-                <p className="text-[10px] text-pink-400 font-bold uppercase tracking-widest capitalize">{monthName}</p>
-              </div>
-            </div>
-            {birthdayClients.length > 0 && (
-              <span className="bg-pink-500 text-white text-[10px] font-black rounded-full w-6 h-6 flex items-center justify-center shrink-0">{birthdayClients.length}</span>
-            )}
-          </div>
-
-          {birthdayClients.length === 0 ? (
-            <div className="py-6 text-center">
-              <Cake size={24} className="mx-auto mb-2 text-zinc-200" />
-              <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Nenhum este mês</p>
-              <p className="text-[9px] text-zinc-400 mt-1">Cadastre datas de nascimento nos clientes</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2">
-              {birthdayClients.slice(0, 6).map((c) => {
-                const birthParts = parseBirthDateParts(c.birthDate);
-                const day = birthParts?.day ? String(birthParts.day).padStart(2, "0") : "--";
-                const age = calculateAge(c.birthDate);
-                const isToday = birthParts?.day === todayDay;
-                return (
-                  <div key={c.id} className={cn("flex items-center gap-2.5 p-2.5 rounded-xl transition-all", isToday ? "bg-pink-100 border border-pink-200" : "bg-white/60")}>
-                    <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0", isToday ? "bg-pink-500 text-white shadow-sm" : "bg-pink-50 border border-pink-100 text-pink-600")}>
-                      {c.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-zinc-900 truncate">{c.name}</p>
-                      <p className="text-[10px] text-zinc-400 font-medium">Dia {day}{age !== null ? ` · ${age} anos` : ""}</p>
-                    </div>
-                    {isToday && (
-                      <span className="text-[8px] font-black bg-pink-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-widest shrink-0">Hoje!</span>
-                    )}
-                  </div>
-                );
-              })}
-              {birthdayClients.length > 6 && (
-                <button onClick={() => handleTabChange("clients")} className="sm:col-span-2 xl:col-span-1 w-full text-center text-[10px] font-bold text-pink-500 hover:text-pink-700 pt-1 transition-colors">
-                  +{birthdayClients.length - 6} mais →
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* ── FAB CONFIRMAÇÕES ── */}
       <AnimatePresence>
