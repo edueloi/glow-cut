@@ -265,6 +265,21 @@ async function handleAppointmentDone(serviceId: string | null, tenantId: string 
   }
 }
 
+// Quando um agendamento vinculado a uma comanda (venda de pacote) é marcado como concluído, sobe
+// o contador de sessões da comanda sozinho — antes só existia o botão manual "+1 sessão" na tela
+// de comandas, sem nenhuma relação com o agendamento real sendo concluído na agenda.
+async function syncComandaSessionProgress(comandaId: string | null | undefined) {
+  if (!comandaId) return;
+  try {
+    await (prisma as any).$executeRawUnsafe(
+      `UPDATE Comanda SET sessionsCompleted = LEAST(COALESCE(sessionCount, 1), COALESCE(sessionsCompleted, 0) + 1) WHERE id = ?`,
+      comandaId
+    );
+  } catch (e: any) {
+    console.error("[Comanda Session Sync Error]", e?.message);
+  }
+}
+
 async function findTenantClientByPhone(tenantId: string, phone: string) {
   const clients = await (prisma as any).client.findMany({ where: { tenantId } });
   return clients.find((client: any) => samePhone(client.phone, phone)) || null;
@@ -990,6 +1005,7 @@ export const agendaController = {
 
         if (status === "done" && oldAppt.status !== "done") {
           await handleAppointmentDone(oldSvc, tenantId, req.params.id);
+          await syncComandaSessionProgress(oldAppt.comandaId);
         } else if (oldIsActive && !newIsActive) {
           await handleAppointmentStockReservation(oldSvc, "release");
         } else if (!oldIsActive && newIsActive) {
@@ -1074,6 +1090,7 @@ export const agendaController = {
 
       if (statusToUse === "done" && oldAppt.status !== "done") {
         await handleAppointmentDone(oldAppt.serviceId, tenantId, req.params.id);
+        await syncComandaSessionProgress(oldAppt.comandaId);
       } else if (oldIsActive && !newIsActive) {
         await handleAppointmentStockReservation(oldAppt.serviceId, "release");
       } else if (!oldIsActive && newIsActive) {
@@ -1330,6 +1347,7 @@ export const agendaController = {
       // nenhum consumo de estoque.
       if (wasActive && status === "performed") {
         await handleAppointmentDone(appt.serviceId, appt.tenantId, appointmentId);
+        await syncComandaSessionProgress(appt.comandaId);
       } else if (wasActive && (status === "missed" || status === "cancelled")) {
         await handleAppointmentStockReservation(appt.serviceId, "release");
       }

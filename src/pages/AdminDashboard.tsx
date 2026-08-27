@@ -642,6 +642,13 @@ export default function AdminDashboard() {
   };
   const [comandaAppt, setComandaAppt] = useState({ ...emptyComandaAppt });
 
+  // Agendamento gerado por serviço componente do pacote (comanda type="pacote") — um pacote pode
+  // ter mais de um serviço componente com quantidades diferentes (ex: 5x Fisioterapia + 3x
+  // Massagem), então cada componente tem sua própria data/horário/recorrência, em vez de uma
+  // recorrência genérica única aplicada ao "pacote" como se fosse 1 serviço só.
+  interface PackageApptConfig { date: string; startTime: string; count: number; recurrenceType: "none" | "weekly" | "custom"; interval: number; }
+  const [packageApptConfigs, setPackageApptConfigs] = useState<Record<string, PackageApptConfig>>({});
+
   // New Client State
   const emptyClient = {
     name: "",
@@ -920,8 +927,18 @@ export default function AdminDashboard() {
       total = subtotal - discountVal;
     }
 
+    // Pra comanda de pacote, o total de sessões vem da soma dos componentes do pacote (cada um com
+    // sua própria quantidade), não mais de um único número digitado à mão. Esse é o valor
+    // provisório enviado na criação — depois de gerar os agendamentos reais (que podem ser menos
+    // que o pedido por causa de conflito de horário), a comanda é corrigida pro total real.
     let finalSessionCount = parseInt(newComanda.sessionCount || "1");
-    if (comandaAppt.generate && comandaAppt.recurrence.type !== 'none') {
+    if (newComanda.type === 'pacote') {
+      finalSessionCount = newComanda.items.reduce((sum, item) => {
+        const cfg = packageApptConfigs[item.id];
+        const c = comandaAppt.generate && cfg && cfg.recurrenceType !== 'none' ? (cfg.count || 1) : (item.sessions || item.quantity || 1);
+        return sum + c;
+      }, 0) || 1;
+    } else if (comandaAppt.generate && comandaAppt.recurrence.type !== 'none') {
       finalSessionCount = comandaAppt.recurrence.count || 1;
     }
 
@@ -977,46 +994,93 @@ export default function AdminDashboard() {
 
     // ── Gerar agendamento(s) vinculado(s) à comanda ──────────────
     if (comandaAppt.generate && newComanda.professionalId) {
-      // Descobre o serviceId principal
-      let apptServiceId: string | null = null;
-      if (newComanda.type === 'pacote' && newComanda.packageId) {
-        apptServiceId = newComanda.packageId;
-      } else if (newComanda.type === 'pacote' && newComanda.items.length > 0) {
-        apptServiceId = newComanda.items[0].serviceId || null;
+      if (newComanda.type === 'pacote' && newComanda.items.length > 0) {
+        // Um POST /api/appointments por serviço componente do pacote — cada um vira sua própria
+        // série (repeatGroupId próprio), com o serviceId real do componente (não mais o id do
+        // pacote em si, que fazia o agendamento apontar pro Service errado).
+        let totalCreated = 0;
+        for (const item of newComanda.items) {
+          if (!item.serviceId) continue;
+          const cfg = packageApptConfigs[item.id];
+          if (!cfg) continue;
+          const count = cfg.recurrenceType !== 'none' ? (cfg.count || 1) : 1;
+          try {
+            const res = await apiFetch("/api/appointments", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                date: cfg.date,
+                startTime: cfg.startTime,
+                endTime: cfg.startTime,
+                clientId,
+                serviceId: item.serviceId,
+                professionalId: newComanda.professionalId,
+                comandaId: createdComanda.id,
+                status: "agendado",
+                type: "atendimento",
+                recurrence: {
+                  type: cfg.recurrenceType === 'none' ? 'none' : 'custom',
+                  count,
+                  interval: cfg.interval || 7,
+                },
+              }),
+            });
+            const data = await res.json().catch(() => null);
+            if (res.ok) {
+              totalCreated += Math.max(0, count - (Array.isArray(data?.skipped) ? data.skipped.length : 0));
+            }
+          } catch {
+            // Um componente falhando não deve travar os outros — a comanda já existe.
+          }
+        }
+        // Corrige o sessionCount da comanda pro total realmente gerado (pode ser menor que o
+        // pedido se algum horário deu conflito).
+        if (totalCreated !== finalSessionCount) {
+          await apiFetch(`/api/comandas/${createdComanda.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionCount: totalCreated || 1 }),
+          }).catch(() => {});
+        }
+        if (totalCreated < finalSessionCount) {
+          toast.warning(`${totalCreated} de ${finalSessionCount} sessões agendadas — algum horário já estava ocupado.`);
+        }
+        fetchAppointments();
       } else {
         const matched = services.find((s: any) => s.name.toLowerCase() === (newComanda.description || "").toLowerCase());
-        apptServiceId = matched?.id || null;
+        const apptServiceId = matched?.id || null;
+        const count = comandaAppt.recurrence.type !== 'none' ? (comandaAppt.recurrence.count || 1) : 1;
+        const interval = comandaAppt.recurrence.interval || 7;
+        await apiFetch("/api/appointments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: comandaAppt.date,
+            startTime: comandaAppt.startTime,
+            endTime: comandaAppt.startTime,
+            clientId,
+            serviceId: apptServiceId,
+            professionalId: newComanda.professionalId,
+            comandaId: createdComanda.id,
+            status: "agendado",
+            type: "atendimento",
+            duration: 60,
+            recurrence: {
+              type: comandaAppt.recurrence.type === 'none' ? 'none' : 'custom',
+              count,
+              interval,
+            },
+          }),
+        });
+        fetchAppointments();
       }
-      const count = comandaAppt.recurrence.type !== 'none' ? (comandaAppt.recurrence.count || 1) : 1;
-      const interval = comandaAppt.recurrence.interval || 7;
-      await apiFetch("/api/appointments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: comandaAppt.date,
-          startTime: comandaAppt.startTime,
-          endTime: comandaAppt.startTime,
-          clientId,
-          serviceId: apptServiceId,
-          professionalId: newComanda.professionalId,
-          comandaId: createdComanda.id,
-          status: "agendado",
-          type: "atendimento",
-          duration: 60,
-          recurrence: {
-            type: comandaAppt.recurrence.type === 'none' ? 'none' : 'custom',
-            count,
-            interval,
-          },
-        }),
-      });
-      fetchAppointments();
     }
 
     toast.success("Comanda criada com sucesso!");
     setIsComandaModalOpen(false);
     setNewComanda({ ...emptyComanda });
     setComandaAppt({ ...emptyComandaAppt });
+    setPackageApptConfigs({});
     setComandaClientSearchResults([]);
     apiFetch("/api/comandas").then(res => res.json()).then(d => setComandas(Array.isArray(d) ? d : []));
   };
@@ -2278,7 +2342,7 @@ export default function AdminDashboard() {
 
       {/* ═══ MODAL NOVA COMANDA ═══════════════════════════════ */}
       {isComandaModalOpen && (() => {
-        const closeComanda = () => { setIsComandaModalOpen(false); setComandaClientSearchResults([]); setNewComanda({ ...emptyComanda }); setComandaAppt({ ...emptyComandaAppt }); };
+        const closeComanda = () => { setIsComandaModalOpen(false); setComandaClientSearchResults([]); setNewComanda({ ...emptyComanda }); setComandaAppt({ ...emptyComandaAppt }); setPackageApptConfigs({}); };
         const subtotal = newComanda.type === 'normal'
           ? (parseFloat(newComanda.value || "0") * parseInt(newComanda.sessionCount || "1"))
           : newComanda.items.reduce((acc, i) => acc + (i.price * i.quantity), 0);
@@ -2430,6 +2494,14 @@ export default function AdminDashboard() {
                         discount: (pkg.discount || 0).toString(),
                         discountType: (pkg.discountType || "value") as "value" | "percentage",
                       }));
+                      // Uma config de agendamento por componente do pacote, pré-preenchida com a
+                      // quantidade real de sessões daquele serviço (não mais um total digitado à mão).
+                      const todayStr = format(new Date(), "yyyy-MM-dd");
+                      const configs: Record<string, PackageApptConfig> = {};
+                      for (const it of pkgItems) {
+                        configs[it.id] = { date: todayStr, startTime: "09:00", count: it.sessions || it.quantity || 1, recurrenceType: "weekly", interval: 7 };
+                      }
+                      setPackageApptConfigs(configs);
                     }}
                     placeholder="Selecione uma definição de pacote"
                   >
@@ -2555,7 +2627,52 @@ export default function AdminDashboard() {
                     <div className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all", comandaAppt.generate ? "left-4" : "left-0.5")} />
                   </div>
                 </button>
-                {comandaAppt.generate && (
+                {comandaAppt.generate && newComanda.type === 'pacote' && (
+                  <div className="px-4 pb-4 pt-3 space-y-3 bg-amber-50/30 border-t border-amber-100/60">
+                    <p className="text-[10px] text-zinc-500 font-medium">
+                      Cada serviço do pacote vira sua própria série de sessões — ajuste data, horário e repetição de cada um.
+                    </p>
+                    {newComanda.items.map(item => {
+                      const cfg = packageApptConfigs[item.id] || { date: comandaAppt.date, startTime: "09:00", count: item.sessions || item.quantity || 1, recurrenceType: "weekly" as const, interval: 7 };
+                      const setCfg = (patch: Partial<PackageApptConfig>) => setPackageApptConfigs(p => ({ ...p, [item.id]: { ...cfg, ...patch } }));
+                      return (
+                        <div key={item.id} className="bg-white border border-amber-100 rounded-xl p-3 space-y-3">
+                          <p className="text-xs font-black text-zinc-800">{item.name}</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <Input label="Data" type="date" value={cfg.date} onChange={e => setCfg({ date: e.target.value })} />
+                            <Input label="Horário" type="time" value={cfg.startTime} onChange={e => setCfg({ startTime: e.target.value })} />
+                          </div>
+                          <div className="flex gap-2">
+                            {([
+                              { v: 'none', label: 'Sem repetição' },
+                              { v: 'weekly', label: 'Semanal' },
+                              { v: 'custom', label: 'Personalizada' },
+                            ] as const).map(opt => (
+                              <button key={opt.v} type="button"
+                                onClick={() => setCfg({ recurrenceType: opt.v })}
+                                className={cn(
+                                  "flex-1 py-1.5 rounded-lg text-[9px] font-bold transition-all border",
+                                  cfg.recurrenceType === opt.v ? "bg-amber-500 text-white border-amber-500" : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                                )}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                          {cfg.recurrenceType !== 'none' && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <Input label="Nº de Sessões" type="number" min="1" max="52" value={cfg.count} onChange={e => setCfg({ count: parseInt(e.target.value) || 1 })} />
+                              {cfg.recurrenceType === 'custom' && (
+                                <Input label="Intervalo (dias)" type="number" min="1" value={cfg.interval} onChange={e => setCfg({ interval: parseInt(e.target.value) || 7 })} />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {comandaAppt.generate && newComanda.type !== 'pacote' && (
                   <div className="px-4 pb-4 pt-3 space-y-4 bg-amber-50/30 border-t border-amber-100/60">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <Input label="Data" type="date" value={comandaAppt.date} onChange={e => setComandaAppt(p => ({ ...p, date: e.target.value }))} />
@@ -2617,10 +2734,7 @@ export default function AdminDashboard() {
                       <div className="flex items-center justify-between text-[10px]">
                         <span className="text-zinc-400 font-medium">Serviço/Pacote:</span>
                         <span className="font-bold text-zinc-700 truncate max-w-[140px]">
-                          {newComanda.type === 'pacote'
-                            ? (services.find(s => s.id === newComanda.packageId)?.name || "—")
-                            : (newComanda.description || services.find(s => s.id === newComanda.items[0]?.serviceId)?.name || "—")
-                          }
+                          {newComanda.description || services.find(s => s.id === newComanda.items[0]?.serviceId)?.name || "—"}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-[10px]">
