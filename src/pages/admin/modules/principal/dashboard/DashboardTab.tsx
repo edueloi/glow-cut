@@ -219,6 +219,8 @@ export function DashboardTab({
 
   const netProfit = profitability?.netProfit ?? null;
   const isProfit = netProfit !== null && netProfit >= 0;
+  const todayStr = new Date().toDateString();
+  const todayApptCount = appointments.filter((a) => new Date(a.date).toDateString() === todayStr).length;
 
   return (
     <div className="w-full min-w-0 space-y-4 pb-24 sm:space-y-6 sm:pb-6">
@@ -265,22 +267,22 @@ export function DashboardTab({
         </div>
 
         {/* ── DESKTOP (>= md) — layout horizontal limpo ── */}
-        <div className="relative z-10 hidden items-center gap-8 px-8 py-8 xl:flex 2xl:gap-10 2xl:px-10 2xl:py-10">
+        <div className="relative z-10 hidden items-center gap-6 px-8 py-6 xl:flex 2xl:gap-8 2xl:px-10 2xl:py-7">
 
           {/* Lado esquerdo: saudação */}
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3 capitalize">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 capitalize">
               {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
             </p>
-            <h1 className="text-4xl lg:text-5xl font-black text-white tracking-tighter leading-[1.05] mb-1">
+            <h1 className="text-3xl lg:text-4xl font-black text-white tracking-tighter leading-[1.05] mb-1">
               {greeting.text}, {greeting.emoji}
             </h1>
-            <h2 className="text-4xl lg:text-5xl font-black text-amber-400 tracking-tighter leading-[1.05]">
+            <h2 className="text-3xl lg:text-4xl font-black text-amber-400 tracking-tighter leading-[1.05]">
               {firstName}!
             </h2>
 
             {(birthdayToday.length > 0 || pendingConfirmations.length > 0) && (
-              <div className="flex flex-wrap gap-2 mt-5">
+              <div className="flex flex-wrap gap-2 mt-4">
                 {birthdayToday.length > 0 && (
                   <div className="flex items-center gap-1.5 bg-pink-500/20 border border-pink-500/30 text-pink-300 text-[10px] font-black px-3 py-1.5 rounded-full">
                     <Cake size={11} /> {birthdayToday[0].name.split(" ")[0]} faz anos hoje!
@@ -294,6 +296,22 @@ export function DashboardTab({
               </div>
             )}
           </div>
+
+          {/* Indicador rápido de hoje */}
+          <button
+            onClick={() => handleTabChange("agenda")}
+            className="shrink-0 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-left transition-all hover:bg-white/12 2xl:px-5"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400">
+              <CalendarIcon size={16} />
+            </div>
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 leading-none">Hoje</p>
+              <p className="mt-1.5 text-lg font-black leading-none text-white">
+                {todayApptCount} agend{todayApptCount === 1 ? "amento" : "amentos"}
+              </p>
+            </div>
+          </button>
 
           {/* Botão ocultar */}
           <button
