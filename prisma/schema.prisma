@@ -906,6 +906,7 @@ model MembershipPlan {
   billingCycle     String               @default("monthly") @db.VarChar(20)
   creditsPerCycle  Int                  @default(1)
   includedServices String?              @db.Text
+  includedServiceIds String?            @db.Text
   cancelRules      String?              @db.Text
   status           String               @default("active") @db.VarChar(20)
   createdAt        DateTime             @default(now()) @db.DateTime(0)

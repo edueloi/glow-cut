@@ -246,6 +246,23 @@ async function findTenantClientByPhone(tenantId: string, phone: string) {
 }
 
 
+// Alguns formulários do frontend ainda mandam status em português (herança de UI antiga).
+// O resto do sistema (baixa de estoque, filtros do dashboard, etc.) só reconhece os valores
+// em inglês abaixo — normaliza aqui, num lugar só, pra não depender de corrigir cada tela.
+const STATUS_PT_TO_EN: Record<string, string> = {
+  agendado: "scheduled",
+  confirmado: "confirmed",
+  realizado: "done",
+  cancelado: "cancelled",
+  faltou: "noshow",
+  reagendado: "scheduled",
+};
+function normalizeAppointmentStatus<T extends string | undefined | null>(status: T): T {
+  if (!status) return status;
+  const normalized = STATUS_PT_TO_EN[status as string];
+  return (normalized ?? status) as T;
+}
+
 function resolveEndTime(targetDate: Date, startTime: string, providedEndTime: string | null | undefined, duration: number) {
   if (providedEndTime) return providedEndTime;
   const dateStr = format(targetDate, "yyyy-MM-dd");
@@ -650,7 +667,7 @@ export const agendaController = {
 
       const effectiveStatus = isPublicRequest
         ? (agendaSettings.autoConfirmAppointments ? "confirmed" : "scheduled")
-        : (status || (agendaSettings.autoConfirmAppointments ? "confirmed" : "scheduled"));
+        : (normalizeAppointmentStatus(status) || (agendaSettings.autoConfirmAppointments ? "confirmed" : "scheduled"));
       const baseDate = new Date(date);
       
       let count = 1;
@@ -748,7 +765,8 @@ export const agendaController = {
 
   async update(req: Request, res: Response) {
     const tenantId = getTenantId(req);
-    const { date, startTime, endTime, clientId, serviceId, professionalId, status, notes, duration, type } = req.body;
+    const { date, startTime, endTime, clientId, serviceId, professionalId, status: rawStatus, notes, duration, type } = req.body;
+    const status = normalizeAppointmentStatus(rawStatus);
     try {
       const oldAppt = await (prisma as any).appointment.findUnique({ where: { id: req.params.id } });
       await (prisma as any).appointment.updateMany({
@@ -799,7 +817,10 @@ export const agendaController = {
     const data: any = {};
     const allowed = ["status", "date", "startTime", "endTime", "notes", "professionalId", "serviceId", "clientId", "duration", "comandaId"];
     for (const key of allowed) {
-      if (req.body[key] !== undefined) data[key] = key === "date" ? new Date(req.body[key]) : req.body[key];
+      if (req.body[key] === undefined) continue;
+      if (key === "date") data[key] = new Date(req.body[key]);
+      else if (key === "status") data[key] = normalizeAppointmentStatus(req.body[key]);
+      else data[key] = req.body[key];
     }
 
     try {
@@ -830,7 +851,7 @@ export const agendaController = {
       });
 
       // Lógica de Estoque e Notificações
-      const statusToUse = req.body.status !== undefined ? req.body.status : oldAppt.status;
+      const statusToUse = data.status !== undefined ? data.status : oldAppt.status;
       const svcToUse = req.body.serviceId !== undefined ? req.body.serviceId : oldAppt.serviceId;
       const oldIsActive = oldAppt.status === "scheduled" || oldAppt.status === "confirmed";
       const newIsActive = statusToUse === "scheduled" || statusToUse === "confirmed";
@@ -1192,7 +1213,11 @@ export const agendaController = {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
     try {
-      const prof = await (prisma as any).professional.findFirst({ where: { tenantId, isActive: true }, orderBy: { name: "asc" } });
+      const requestedId = req.query.professionalId as string | undefined;
+      let prof = requestedId
+        ? await (prisma as any).professional.findFirst({ where: { id: requestedId, tenantId } })
+        : null;
+      if (!prof) prof = await (prisma as any).professional.findFirst({ where: { tenantId, isActive: true }, orderBy: { name: "asc" } });
       if (!prof) {
         const defaults = Array.from({ length: 7 }, (_, i) => ({ id: `default-${i}`, dayOfWeek: i, isOpen: i !== 0, startTime: "09:00", endTime: "19:00", breakStart: "12:00", breakEnd: "13:00", professionalId: null }));
         return res.json(defaults);
@@ -1211,11 +1236,30 @@ export const agendaController = {
   async updateWorkingHours(req: Request, res: Response) {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatâ”œâ”‚rio." });
-    const { hours } = req.body;
+    const { hours, professionalId } = req.body;
     try {
+      let profId: string | undefined = professionalId;
+      if (profId) {
+        const prof = await (prisma as any).professional.findFirst({ where: { id: profId, tenantId } });
+        if (!prof) return res.status(404).json({ error: "Profissional não encontrado." });
+      } else {
+        const prof = await (prisma as any).professional.findFirst({ where: { tenantId, isActive: true }, orderBy: { name: "asc" } });
+        profId = prof?.id;
+      }
+      if (!profId) return res.status(400).json({ error: "Nenhum profissional disponível." });
+
       for (const h of (hours || [])) {
-        if (h.id && !h.id.startsWith("default-")) {
+        // Só reaproveita o id se a linha realmente pertencer a ESSE profissional —
+        // evita sobrescrever o horário de outro profissional por engano.
+        const existing = h.id && !h.id.startsWith("default-")
+          ? await (prisma as any).workingHours.findFirst({ where: { id: h.id, professionalId: profId } })
+          : null;
+        if (existing) {
           await (prisma as any).workingHours.update({ where: { id: h.id }, data: { isOpen: h.isOpen, startTime: h.startTime, endTime: h.endTime, breakStart: h.breakStart, breakEnd: h.breakEnd } });
+        } else {
+          await (prisma as any).workingHours.create({
+            data: { id: randomUUID(), dayOfWeek: h.dayOfWeek, isOpen: h.isOpen, startTime: h.startTime, endTime: h.endTime, breakStart: h.breakStart, breakEnd: h.breakEnd, professionalId: profId },
+          });
         }
       }
       res.json({ success: true });

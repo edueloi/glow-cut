@@ -300,9 +300,9 @@ export const financeController = {
            COUNT(DISTINCT c.id) as totalAtendimentos,
            COALESCE(SUM(c.total), 0) as totalFaturado,
            COALESCE(SUM(
-             CASE s.commissionType
-               WHEN 'percentage' THEN (ci.total * s.commissionValue / 100)
-               WHEN 'fixed' THEN (s.commissionValue * ci.quantity)
+             CASE
+               WHEN s.commissionType = 'percentage' THEN (ci.total * s.commissionValue / 100)
+               WHEN s.commissionValue IS NOT NULL THEN (s.commissionValue * ci.quantity)
                ELSE 0
              END
            ), 0) as totalComissao

@@ -1021,6 +1021,8 @@ const MIGRATIONS = [
     ignoreIfExists: true,
   },
 
+  { name: '057_membershipplan_add_includedServiceIds', sql: `ALTER TABLE MembershipPlan ADD COLUMN includedServiceIds TEXT NULL AFTER includedServices`, ignoreIfExists: true },
+
 ];
 
 

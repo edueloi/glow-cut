@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
 import { getTenantId } from "../utils/helpers";
+import { consumeSubscriptionCredit } from "../routes/membershipRoutes";
 
 export const comandaController = {
   async list(req: Request, res: Response) {
@@ -246,6 +247,37 @@ export const comandaController = {
             }
           } catch (e2: any) {
             console.warn("⚠️  Auto stock deduction failed:", e2.message);
+          }
+
+          // Consome crédito de assinatura, se o cliente tiver um plano ativo que cubra
+          // algum dos serviços dessa comanda (Bill/MembershipPlan.includedServiceIds).
+          try {
+            const cmd: any[] = await (prisma as any).$queryRawUnsafe(`SELECT clientId FROM Comanda WHERE id = ?`, req.params.id);
+            const clientId = cmd[0]?.clientId;
+            if (clientId) {
+              const items: any[] = await (prisma as any).$queryRawUnsafe(
+                `SELECT DISTINCT serviceId FROM ComandaItem WHERE comandaId = ? AND serviceId IS NOT NULL`, req.params.id
+              );
+              const serviceIds: string[] = items.map((i) => i.serviceId).filter(Boolean);
+              if (serviceIds.length > 0) {
+                const subs: any[] = await (prisma as any).$queryRawUnsafe(
+                  `SELECT cs.id, mp.includedServiceIds FROM ClientSubscription cs
+                   JOIN MembershipPlan mp ON mp.id = cs.membershipPlanId
+                   WHERE cs.clientId = ? AND cs.tenantId = ? AND cs.status = 'active' AND mp.includedServiceIds IS NOT NULL`,
+                  clientId, tenantId
+                );
+                for (const sub of subs) {
+                  let covered: string[] = [];
+                  try { covered = JSON.parse(sub.includedServiceIds || "[]"); } catch { covered = []; }
+                  if (serviceIds.some((sid) => covered.includes(sid))) {
+                    const result = await consumeSubscriptionCredit(tenantId!, sub.id);
+                    if (result.success) break; // 1 crédito consumido por comanda paga é suficiente
+                  }
+                }
+              }
+            }
+          } catch (e2: any) {
+            console.warn("⚠️ Consumo de crédito de assinatura falhou:", e2.message);
           }
         }
       }

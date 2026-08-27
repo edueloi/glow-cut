@@ -26,6 +26,7 @@ interface MembershipPlan {
   billingCycle: string;
   creditsPerCycle: number;
   includedServices?: string;
+  includedServiceIds?: string;
   cancelRules?: string;
   status: string;
   subscribers?: number;
@@ -78,6 +79,10 @@ function parseIncluded(raw?: string | null): string[] {
   if (!raw) return [];
   try { return JSON.parse(raw); } catch { return raw.split(",").map(s => s.trim()).filter(Boolean); }
 }
+function parseIncludedIds(raw?: string | null): string[] {
+  if (!raw) return [];
+  try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
+}
 
 // ─── Componente de crédito visual ────────────────────────────────────────────
 
@@ -113,9 +118,24 @@ function PlanModal({ plan, onClose, onSaved }: { plan: MembershipPlan | null; on
     billingCycle: plan?.billingCycle || "monthly",
     creditsPerCycle: plan?.creditsPerCycle?.toString() || "1",
     includedServices: parseIncluded(plan?.includedServices).join(", "),
+    includedServiceIds: parseIncludedIds(plan?.includedServiceIds),
     cancelRules: plan?.cancelRules || "",
   });
   const [loading, setLoading] = useState(false);
+  const [services, setServices] = useState<any[]>([]);
+
+  useEffect(() => {
+    apiFetch("/api/services").then(r => r.json()).then(d => setServices(Array.isArray(d) ? d : d?.data || [])).catch(() => setServices([]));
+  }, []);
+
+  const toggleServiceId = (id: string) => {
+    setForm(f => ({
+      ...f,
+      includedServiceIds: f.includedServiceIds.includes(id)
+        ? f.includedServiceIds.filter(sid => sid !== id)
+        : [...f.includedServiceIds, id],
+    }));
+  };
 
   const field = (label: string, node: React.ReactNode, hint?: string) => (
     <div>
@@ -137,6 +157,7 @@ function PlanModal({ plan, onClose, onSaved }: { plan: MembershipPlan | null; on
         billingCycle: form.billingCycle,
         creditsPerCycle: parseInt(form.creditsPerCycle) || 1,
         includedServices: form.includedServices ? form.includedServices.split(",").map(s => s.trim()).filter(Boolean) : [],
+        includedServiceIds: form.includedServiceIds,
         cancelRules: form.cancelRules || null,
         status: plan?.status || "active",
       };
@@ -181,6 +202,26 @@ function PlanModal({ plan, onClose, onSaved }: { plan: MembershipPlan | null; on
         {field("Serviços incluídos",
           <input className={inp} placeholder="Ex: 1 corte masculino, 1 barba" value={form.includedServices} onChange={e => setForm(f => ({ ...f, includedServices: e.target.value }))} />,
           "Separe com vírgula. Aparece na descrição pública do plano."
+        )}
+        {field("Quais serviços consomem crédito automaticamente",
+          services.length === 0 ? (
+            <p className="text-[11px] text-zinc-400 italic">Nenhum serviço cadastrado ainda.</p>
+          ) : (
+            <div className="max-h-40 overflow-y-auto rounded-xl border border-zinc-200 divide-y divide-zinc-100">
+              {services.map((s: any) => (
+                <label key={s.id} className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-zinc-700 cursor-pointer hover:bg-zinc-50">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-zinc-300 text-amber-500 focus:ring-amber-400/30"
+                    checked={form.includedServiceIds.includes(s.id)}
+                    onChange={() => toggleServiceId(s.id)}
+                  />
+                  {s.name}
+                </label>
+              ))}
+            </div>
+          ),
+          "Quando o cliente assinante paga uma comanda com um desses serviços, 1 crédito do ciclo é descontado automaticamente. Deixe vazio pra não descontar nada sozinho."
         )}
         {field("Regras de cancelamento",
           <textarea className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 resize-none" rows={2} placeholder="Ex: Cancele com 5 dias de antecedência..." value={form.cancelRules} onChange={e => setForm(f => ({ ...f, cancelRules: e.target.value }))} />

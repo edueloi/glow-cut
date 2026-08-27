@@ -29,19 +29,20 @@ membershipRouter.get("/plans", async (req: Request, res: Response) => {
 membershipRouter.post("/plans", async (req: Request, res: Response) => {
   try {
     const tid = tenantId(req);
-    const { name, description, price, billingCycle, creditsPerCycle, includedServices, cancelRules } = req.body;
+    const { name, description, price, billingCycle, creditsPerCycle, includedServices, includedServiceIds, cancelRules } = req.body;
     if (!name || price === undefined) return res.status(400).json({ error: "Nome e valor são obrigatórios." });
 
     const id = randomUUID();
     await (prisma as any).$executeRawUnsafe(
-      `INSERT INTO MembershipPlan (id, tenantId, name, description, price, billingCycle, creditsPerCycle, includedServices, cancelRules, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
+      `INSERT INTO MembershipPlan (id, tenantId, name, description, price, billingCycle, creditsPerCycle, includedServices, includedServiceIds, cancelRules, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
       id, tid, name,
       description || null,
       Number(price),
       billingCycle || "monthly",
       Number(creditsPerCycle) || 1,
       includedServices ? JSON.stringify(includedServices) : null,
+      Array.isArray(includedServiceIds) && includedServiceIds.length > 0 ? JSON.stringify(includedServiceIds) : null,
       cancelRules || null
     );
     const [plan] = await (prisma as any).$queryRawUnsafe(
@@ -58,15 +59,16 @@ membershipRouter.put("/plans/:id", async (req: Request, res: Response) => {
   try {
     const tid = tenantId(req);
     const { id } = req.params;
-    const { name, description, price, billingCycle, creditsPerCycle, includedServices, cancelRules, status } = req.body;
+    const { name, description, price, billingCycle, creditsPerCycle, includedServices, includedServiceIds, cancelRules, status } = req.body;
 
     await (prisma as any).$executeRawUnsafe(
-      `UPDATE MembershipPlan SET name=?, description=?, price=?, billingCycle=?, creditsPerCycle=?, includedServices=?, cancelRules=?, status=?
+      `UPDATE MembershipPlan SET name=?, description=?, price=?, billingCycle=?, creditsPerCycle=?, includedServices=?, includedServiceIds=?, cancelRules=?, status=?
        WHERE id=? AND tenantId=?`,
       name, description || null, Number(price),
       billingCycle || "monthly",
       Number(creditsPerCycle) || 1,
       includedServices ? JSON.stringify(includedServices) : null,
+      Array.isArray(includedServiceIds) && includedServiceIds.length > 0 ? JSON.stringify(includedServiceIds) : null,
       cancelRules || null,
       status || "active",
       id, tid
@@ -317,27 +319,41 @@ membershipRouter.patch("/subscriptions/:id/status", async (req: Request, res: Re
   }
 });
 
-// POST /api/memberships/subscriptions/:id/use-credit  (consumir 1 crédito)
+/**
+ * Consome 1 crédito do ciclo ativo de uma assinatura, de forma atômica (o UPDATE só
+ * afeta a linha se ainda houver crédito disponível — evita duas requisições concorrentes
+ * consumirem o mesmo último crédito, sem precisar de transação/lock explícito).
+ * Usada tanto pela rota manual abaixo quanto pelo fechamento de comanda (comandaController).
+ */
+export async function consumeSubscriptionCredit(tenantId: string, subscriptionId: string): Promise<{ success: boolean; remaining?: number; error?: string }> {
+  const [credit]: any[] = await (prisma as any).$queryRawUnsafe(
+    `SELECT sc.* FROM SubscriptionCredit sc
+     JOIN ClientSubscription cs ON cs.id = sc.subscriptionId
+     WHERE sc.subscriptionId=? AND cs.tenantId=? AND cs.status='active'
+       AND sc.cycleEnd > NOW() AND sc.usedCredits < sc.totalCredits
+     ORDER BY sc.createdAt DESC LIMIT 1`,
+    subscriptionId, tenantId
+  );
+  if (!credit) return { success: false, error: "Sem créditos disponíveis neste ciclo." };
+
+  const result: any = await (prisma as any).$executeRawUnsafe(
+    `UPDATE SubscriptionCredit SET usedCredits = usedCredits + 1 WHERE id=? AND usedCredits < totalCredits`,
+    credit.id
+  );
+  // $executeRawUnsafe retorna o número de linhas afetadas — 0 significa que outra
+  // requisição consumiu o crédito entre o SELECT e o UPDATE.
+  if (!result || Number(result) === 0) return { success: false, error: "Sem créditos disponíveis neste ciclo." };
+
+  return { success: true, remaining: Number(credit.totalCredits) - Number(credit.usedCredits) - 1 };
+}
+
+// POST /api/memberships/subscriptions/:id/use-credit  (consumir 1 crédito manualmente)
 membershipRouter.post("/subscriptions/:id/use-credit", async (req: Request, res: Response) => {
   try {
     const tid = tenantId(req);
-    const { id } = req.params;
-
-    const [credit]: any[] = await (prisma as any).$queryRawUnsafe(
-      `SELECT sc.* FROM SubscriptionCredit sc
-       JOIN ClientSubscription cs ON cs.id = sc.subscriptionId
-       WHERE sc.subscriptionId=? AND cs.tenantId=? AND cs.status='active'
-         AND sc.cycleEnd > NOW() AND sc.usedCredits < sc.totalCredits
-       ORDER BY sc.createdAt DESC LIMIT 1`,
-      id, tid
-    );
-    if (!credit) return res.status(400).json({ error: "Sem créditos disponíveis neste ciclo." });
-
-    await (prisma as any).$executeRawUnsafe(
-      `UPDATE SubscriptionCredit SET usedCredits = usedCredits + 1 WHERE id=?`,
-      credit.id
-    );
-    res.json({ success: true, remaining: Number(credit.totalCredits) - Number(credit.usedCredits) - 1 });
+    const result = await consumeSubscriptionCredit(tid, req.params.id);
+    if (!result.success) return res.status(400).json({ error: result.error });
+    res.json(result);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
