@@ -168,6 +168,31 @@ export async function getTemplateBody(tenantId: string, type: string): Promise<s
 }
 
 
+// Toggle "Boas-vindas (Novo Cliente)" já existia na tela (default ligado) e o template "welcome"
+// já vinha pronto em DEFAULT_TEMPLATES, mas nada disparava — o admin acreditava que todo cliente
+// novo recebia a mensagem e nunca recebia. Chamado por clientController.create().
+export async function fireWppWelcome(tenantId: string, client: { name?: string; phone?: string | null }): Promise<void> {
+  if (!client?.phone) return;
+  try {
+    const tenant = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
+    let config = await (prisma as any).wppBotConfig.findUnique({ where: { tenantId } });
+    if (!config) config = await ensureBotConfig(tenantId);
+    if (!config?.botEnabled || !config?.sendWelcome) return;
+
+    const tpl = await getTemplateBody(tenantId, "welcome");
+    if (!tpl) return;
+
+    const text = applyVars(tpl, {
+      saudacao: getSaudacao(),
+      nome_cliente: client.name || "",
+      nome_estabelecimento: tenant?.name || "",
+    });
+    await sendWppToPhone(tenantId, client.phone, text);
+  } catch (e) {
+    console.error("[WPP] Falha ao enviar boas-vindas:", e);
+  }
+}
+
 export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Promise<void> {
   const appt = Array.isArray(appts) ? appts[0] : appts;
   if (!appt) return;

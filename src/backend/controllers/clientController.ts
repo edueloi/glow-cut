@@ -3,6 +3,7 @@ import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
 import { getTenantId, samePhone } from "../utils/helpers";
 import { emitToTenant } from "../realtime";
+import { fireWppWelcome } from "./wppController";
 
 function toNullableString(value: unknown): string | null {
   const text = typeof value === "string" ? value.trim() : String(value ?? "").trim();
@@ -168,6 +169,9 @@ export const clientController = {
               ...payload,
             },
           });
+      if (!existing) {
+        fireWppWelcome(tenantId, client).catch((e) => console.error("[WPP] Falha ao enviar boas-vindas:", e?.message || e));
+      }
       res.json(isPublicRequest ? mapPublicClient(client) : client);
     } catch (e: any) {
       res.status(400).json({ error: e?.message || "Erro ao salvar cliente." });

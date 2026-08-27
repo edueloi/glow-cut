@@ -21,9 +21,17 @@ stripeWebhookRouter.post(
 
     let event: Stripe.Event;
 
+    const secretConfigured = Boolean(webhookSecret) && webhookSecret !== "whsec_COLE_AQUI_QUANDO_CONFIGURAR_WEBHOOK";
+
     try {
-      if (webhookSecret && webhookSecret !== "whsec_COLE_AQUI_QUANDO_CONFIGURAR_WEBHOOK") {
+      if (secretConfigured) {
         event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret) as Stripe.Event;
+      } else if (process.env.NODE_ENV === "production") {
+        // Sem o secret configurado, não dá pra verificar a origem do payload — qualquer um
+        // conseguiria forjar um "checkout.session.completed" e ativar assinatura de graça pra
+        // qualquer tenant. Em produção isso é um erro de configuração, não um fallback aceitável.
+        console.error("[Stripe Webhook] STRIPE_WEBHOOK_SECRET ausente/placeholder em produção — recusando webhook.");
+        return res.status(500).send("Webhook Error: secret não configurado.");
       } else {
         event = JSON.parse(req.body.toString()) as Stripe.Event;
       }

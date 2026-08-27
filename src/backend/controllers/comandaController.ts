@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
-import { getTenantId } from "../utils/helpers";
+import { getTenantId, endOfDayInclusive } from "../utils/helpers";
 import { consumeSubscriptionCredit } from "../routes/membershipRoutes";
 
 // Resolve o nome de quem está agindo (admin ou profissional) pro rastro de auditoria da comanda.
@@ -345,6 +345,15 @@ export const comandaController = {
   async delete(req: Request, res: Response) {
     const tenantId = getTenantId(req);
     try {
+      // Devolve ao estoque os produtos dos itens dessa comanda antes de excluir — sem isso, uma
+      // comanda em aberto com produto adicionado (o estoque já é deduzido na hora, não só quando
+      // "paga") tinha o estoque decrementado pra sempre se a comanda fosse excluída em vez de
+      // finalizada. Mesma lógica que updateItems() já faz ao trocar os itens.
+      const oldItems: any[] = await (prisma as any).$queryRawUnsafe(`SELECT productId, quantity FROM ComandaItem WHERE comandaId = ? AND productId IS NOT NULL`, req.params.id);
+      for (const old of oldItems) {
+        await (prisma as any).$executeRawUnsafe(`UPDATE Product SET stock = stock + ? WHERE id = ?`, parseInt(old.quantity) || 1, old.productId);
+      }
+
       await (prisma as any).$executeRawUnsafe(`DELETE FROM ComandaItem WHERE comandaId = ?`, req.params.id);
       if (tenantId) {
         await (prisma as any).$executeRawUnsafe(`DELETE FROM Comanda WHERE id = ? AND tenantId = ?`, req.params.id, tenantId);
@@ -535,7 +544,7 @@ export const comandaController = {
       let where = `WHERE c.tenantId = ? AND c.status = 'paid'`;
       const params: any[] = [tenantId];
       if (from) { where += ` AND c.createdAt >= ?`; params.push(new Date(from as string)); }
-      if (to)   { where += ` AND c.createdAt <= ?`; params.push(new Date(to as string)); }
+      if (to)   { where += ` AND c.createdAt <= ?`; params.push(endOfDayInclusive(to as string)); }
 
       const rows: any[] = await (prisma as any).$queryRawUnsafe(
         `SELECT

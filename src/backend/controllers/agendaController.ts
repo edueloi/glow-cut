@@ -222,6 +222,21 @@ async function handleAppointmentStockReservation(serviceId: string | null, actio
   }
 }
 
+// Trava curta em memória contra disparo duplicado de confirmação: o check-then-act de "status
+// !== confirmed antes" não é atômico — duas requisições PATCH/PUT quase simultâneas (duplo clique,
+// retry de rede) liam o status antigo antes de qualquer uma commitar e ambas disparavam a
+// confirmação pro cliente. Não usa o WppMessageSent (dedup permanente, pensado pra lembrete que só
+// deve sair uma vez na vida do agendamento) porque confirmar/desconfirmar/reconfirmar de novo dias
+// depois é um evento legítimo — só a janela de alguns segundos entre requests concorrentes é o
+// problema. Processo roda em fork único (sem cluster), então o Set em memória é seguro aqui.
+const wppConfirmationLocks = new Set<string>();
+function tryClaimWppConfirmation(appointmentId: string): boolean {
+  if (wppConfirmationLocks.has(appointmentId)) return false;
+  wppConfirmationLocks.add(appointmentId);
+  setTimeout(() => wppConfirmationLocks.delete(appointmentId), 10_000);
+  return true;
+}
+
 async function handleAppointmentDone(serviceId: string | null, tenantId: string | null, appointmentId: string) {
   if (!serviceId || !tenantId) return;
   try {
@@ -280,9 +295,9 @@ function resolveEndTime(targetDate: Date, startTime: string, providedEndTime: st
   return format(addMinutes(start, duration), "HH:mm");
 }
 
-async function ensureSlotAvailable(tenantId: string, professionalId: string, targetDate: Date, startTime: string, endTime: string, excludeAppointmentId?: string) {
+async function ensureSlotAvailable(tenantId: string, professionalId: string, targetDate: Date, startTime: string, endTime: string, excludeAppointmentId?: string, client: any = prisma) {
   const { start, end } = getDayRange(targetDate);
-  const appointments = await (prisma as any).appointment.findMany({
+  const appointments = await client.appointment.findMany({
     where: {
       tenantId,
       professionalId,
@@ -296,6 +311,16 @@ async function ensureSlotAvailable(tenantId: string, professionalId: string, tar
   if (hasSlotOverlap(startTime, endTime, appointments)) {
     throw new Error("Já existe um agendamento neste horário para este profissional.");
   }
+}
+
+// Trava a linha do profissional (SELECT ... FOR UPDATE) até o fim da transação — sem isso, dois
+// requests concorrentes (ex: duas abas do cliente batendo no mesmo último horário livre)
+// conseguiam passar pelo ensureSlotAvailable() ao mesmo tempo (nenhum vê o agendamento do outro
+// ainda não commitado) e os dois INSERTs eram aceitos pro mesmo horário. Travar a linha do
+// profissional serializa as tentativas de agendamento para ele: a segunda transação só roda seu
+// próprio ensureSlotAvailable depois que a primeira já commitou (ou deu rollback).
+async function lockProfessionalForBooking(tx: any, professionalId: string) {
+  await tx.$queryRawUnsafe(`SELECT id FROM Professional WHERE id = ? FOR UPDATE`, professionalId);
 }
 
 // Reaplica, fora do fluxo público de disponibilidade (getAvailability), a mesma validação de
@@ -844,35 +869,38 @@ export const agendaController = {
         // Um conflito num dia isolado (ex: bloqueio de semana inteira onde 1 dia já tem
         // agendamento) não deve abortar o restante do lote — pula esse dia e segue.
         const effectiveType = type || "atendimento";
+        let appt: any = null;
         try {
-          await ensureSlotAvailable(tenantId, professionalId, apptDate, startTime, resolvedEndTime);
-          if (effectiveType !== "bloqueio") {
-            await ensureWithinWorkingHours(tenantId, professionalId, apptDate, startTime, resolvedEndTime, agendaSettings);
-          }
+          appt = await (prisma as any).$transaction(async (tx: any) => {
+            await lockProfessionalForBooking(tx, professionalId);
+            await ensureSlotAvailable(tenantId, professionalId, apptDate, startTime, resolvedEndTime, undefined, tx);
+            if (effectiveType !== "bloqueio") {
+              await ensureWithinWorkingHours(tenantId, professionalId, apptDate, startTime, resolvedEndTime, agendaSettings);
+            }
+            createdCount++;
+            return tx.appointment.create({
+              data: {
+                id: randomUUID(),
+                date: apptDate,
+                startTime,
+                endTime: resolvedEndTime,
+                status: effectiveStatus,
+                type: isPublicRequest ? "atendimento" : (type || "atendimento"),
+                clientId: clientId || null,
+                serviceId: serviceId || null,
+                professionalId,
+                comandaId: isPublicRequest ? null : (comandaId || null),
+                duration: effectiveDuration,
+                notes: isPublicRequest ? null : (notes || null),
+                tenantId, sessionNumber: createdCount, totalSessions: count - skipDatesList.length, repeatGroupId: groupId,
+              },
+              include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true, phone: true } } }
+            });
+          });
         } catch (slotError: any) {
           conflictSkipped.push({ date: apptDateStr, reason: slotError.message || "Horário indisponível." });
           continue;
         }
-
-        createdCount++;
-        const appt = await (prisma as any).appointment.create({
-          data: {
-            id: randomUUID(),
-            date: apptDate,
-            startTime,
-            endTime: resolvedEndTime,
-            status: effectiveStatus,
-            type: isPublicRequest ? "atendimento" : (type || "atendimento"),
-            clientId: clientId || null,
-            serviceId: serviceId || null,
-            professionalId,
-            comandaId: isPublicRequest ? null : (comandaId || null),
-            duration: effectiveDuration,
-            notes: isPublicRequest ? null : (notes || null),
-            tenantId, sessionNumber: createdCount, totalSessions: count - skipDatesList.length, repeatGroupId: groupId,
-          },
-          include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true, phone: true } } }
-        });
         results.push(appt);
 
         if (effectiveStatus === "scheduled" || effectiveStatus === "confirmed") {
@@ -969,7 +997,9 @@ export const agendaController = {
       }
 
       if (status === "confirmed" && oldAppt?.status !== "confirmed" && appt?.client?.phone && appt.tenantId) {
-        fireWppConfirmation(appt.tenantId, appt).catch(() => {});
+        if (tryClaimWppConfirmation(appt.id)) {
+          fireWppConfirmation(appt.tenantId, appt).catch((e) => console.error("[WPP] Falha ao enviar confirmacao:", e?.message || e));
+        }
       }
       if (tenantId) emitToTenant(tenantId, "agenda:changed");
       res.json(appt);
@@ -1049,9 +1079,22 @@ export const agendaController = {
         await handleAppointmentStockReservation(svcToUse, "reserve");
       }
 
-      // Notificação via WPP
+      // Notificação via WPP — "confirmar todas as sessões" confirma o grupo inteiro no banco
+      // (where.repeatGroupId acima), mas sem isso a notificação só buscava e listava a sessão
+      // clicada (req.params.id): o cabeçalho dizia "Sessões (N)" só com 1 linha, sempre "1ª",
+      // nunca as outras N-1 datas. Busca o grupo inteiro pra notificação bater com o que foi
+      // confirmado de verdade.
       if (statusToUse === "confirmed" && oldAppt.status !== "confirmed" && appt?.client?.phone && appt.tenantId) {
-        fireWppConfirmation(appt.tenantId, appt).catch(() => {});
+        if (tryClaimWppConfirmation(appt.id)) {
+          const notifyPayload = confirmAll
+            ? await (prisma as any).appointment.findMany({
+                where: { repeatGroupId: oldAppt.repeatGroupId, tenantId },
+                orderBy: { date: "asc" },
+                include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true, phone: true } } },
+              })
+            : appt;
+          fireWppConfirmation(appt.tenantId, notifyPayload).catch((e) => console.error("[WPP] Falha ao enviar confirmacao:", e?.message || e));
+        }
       }
 
       if (tenantId) emitToTenant(tenantId, "agenda:changed");

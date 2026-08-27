@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
-import { getTenantId } from "../utils/helpers";
+import { getTenantId, endOfDayInclusive } from "../utils/helpers";
 
 export const financeController = {
   // ─── CASH ENTRIES (Lançamentos manuais) ───────────────────────────────────
@@ -14,7 +14,7 @@ export const financeController = {
       let where = `WHERE ce.tenantId = ?`;
       const params: any[] = [tenantId];
       if (from) { where += ` AND ce.date >= ?`; params.push(new Date(from as string)); }
-      if (to)   { where += ` AND ce.date <= ?`; params.push(new Date(to as string)); }
+      if (to)   { where += ` AND ce.date <= ?`; params.push(endOfDayInclusive(to as string)); }
       if (type && type !== "all") { where += ` AND ce.type = ?`; params.push(type); }
       const entries: any[] = await (prisma as any).$queryRawUnsafe(
         `SELECT ce.*, c.id as cmdId
@@ -96,7 +96,7 @@ export const financeController = {
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { from, to } = req.query;
     const dateFrom = from ? new Date(from as string) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const dateTo   = to   ? new Date(to as string)   : new Date();
+    const dateTo   = endOfDayInclusive(to as string);
 
     try {
       // Receita de comandas pagas no período — via CashEntry (data do pagamento)
@@ -284,7 +284,7 @@ export const financeController = {
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { from, to, professionalId } = req.query;
     const dateFrom = from ? new Date(from as string) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const dateTo   = to   ? new Date(to as string)   : new Date();
+    const dateTo   = endOfDayInclusive(to as string);
 
     try {
       let where = `WHERE c.tenantId = ? AND c.status = 'paid' AND c.createdAt >= ? AND c.createdAt <= ?`;
@@ -399,7 +399,7 @@ export const financeController = {
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { from, to } = req.query;
     const dateFrom = from ? new Date(from as string) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const dateTo   = to   ? new Date(to as string)   : new Date();
+    const dateTo   = endOfDayInclusive(to as string);
 
     try {
       const rows: any[] = await (prisma as any).$queryRawUnsafe(
@@ -445,7 +445,7 @@ export const financeController = {
       let where = `WHERE tenantId = ? AND type = 'expense'`;
       const params: any[] = [tenantId];
       if (from) { where += ` AND date >= ?`; params.push(new Date(from as string)); }
-      if (to)   { where += ` AND date <= ?`; params.push(new Date(to as string)); }
+      if (to)   { where += ` AND date <= ?`; params.push(endOfDayInclusive(to as string)); }
 
       const rows: any[] = await (prisma as any).$queryRawUnsafe(
         `SELECT * FROM CashEntry ${where} ORDER BY date DESC`, ...params
@@ -475,7 +475,7 @@ export const financeController = {
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const { from, to, professionalId } = req.query;
     const dateFrom = from ? new Date(from as string) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const dateTo   = to   ? new Date(to as string)   : new Date();
+    const dateTo   = endOfDayInclusive(to as string);
 
     try {
       let profWhere = professionalId ? `AND c.professionalId = ?` : "";

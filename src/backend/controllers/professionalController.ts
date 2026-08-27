@@ -251,6 +251,19 @@ export const professionalController = {
     if (!name || (!password && accessLevel !== "full")) return res.status(400).json({ error: "Nome e senha são obrigatórios." });
 
     try {
+      // Limite de profissionais do plano — antes era só texto de marketing na tela de planos,
+      // nada no backend impedia criar mais profissionais do que o plano contratado permite.
+      const tenant = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { plan: { select: { maxProfessionals: true } } } });
+      if (tenant?.plan?.maxProfessionals) {
+        const currentCount = await (prisma as any).professional.count({ where: { tenantId, isActive: true } });
+        if (currentCount >= tenant.plan.maxProfessionals) {
+          return res.status(403).json({
+            error: `Seu plano permite até ${tenant.plan.maxProfessionals} profissional${tenant.plan.maxProfessionals !== 1 ? "is" : ""} ativo${tenant.plan.maxProfessionals !== 1 ? "s" : ""}. Faça upgrade do plano ou desative um profissional existente para adicionar outro.`,
+            planLimitReached: true,
+          });
+        }
+      }
+
       const professional = await (prisma as any).professional.create({
         data: {
           id: randomUUID(),

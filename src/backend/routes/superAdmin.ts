@@ -986,6 +986,11 @@ superAdminRouter.delete("/tenants/:id", requireSuperPermission("tenants"), async
     await (prisma as any).scheduleRelease.deleteMany({ where: { tenantId: id } });
     await (prisma as any).specialScheduleDay.deleteMany({ where: { tenantId: id } });
     await (prisma as any).cashEntry.deleteMany({ where: { tenantId: id } });
+    // Contas a Pagar/Receber e baixa de comissão — sem FK pra Tenant (tenantId é campo solto),
+    // não davam erro no delete, só ficavam órfãs pra sempre inflando os relatórios agregados do
+    // superadmin com dados de tenant que já não existe mais.
+    await (prisma as any).bill.deleteMany({ where: { tenantId: id } }); // BillOccurrence cascateia
+    await (prisma as any).commissionPayout.deleteMany({ where: { tenantId: id } });
     // Subscriptions (child records first)
     await (prisma as any).subscriptionPayment.deleteMany({ where: { tenantId: id } });
     await (prisma as any).subscriptionCredit.deleteMany({ where: { tenantId: id } });

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../prisma";
 import { startOfMonth, endOfMonth } from "date-fns";
-import { getTenantId } from "../utils/helpers";
+import { getTenantId, endOfDayInclusive } from "../utils/helpers";
 
 export const reportController = {
   async professionalReport(req: Request, res: Response) {
@@ -15,7 +15,7 @@ export const reportController = {
       });
       const dateFilter: any = {};
       if (from) dateFilter.gte = new Date(from as string);
-      if (to) dateFilter.lte = new Date(to as string);
+      if (to) dateFilter.lte = endOfDayInclusive(to as string);
 
       const comandas = await (prisma as any).comanda.findMany({
         where: { tenantId, status: "paid", ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }) },
@@ -31,7 +31,7 @@ export const reportController = {
         const profAppts = appointments.filter((a: any) => a.professionalId === prof.id);
         const totalRevenue = profComandas.reduce((s: number, c: any) => s + (c.total || 0), 0);
         const avgTicket = profComandas.length > 0 ? totalRevenue / profComandas.length : 0;
-        const performed = profAppts.filter((a: any) => a.status === 'realizado' || a.status === 'confirmed').length;
+        const performed = profAppts.filter((a: any) => a.status === 'done' || a.status === 'realizado' || a.status === 'confirmed').length;
         return { ...prof, totalRevenue, avgTicket, totalComandas: profComandas.length, totalAppointments: profAppts.length, performedAppointments: performed };
       });
       result.sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
@@ -47,7 +47,7 @@ export const reportController = {
     const { from, to } = req.query;
     try {
       const fromDate = from ? new Date(from as string) : startOfMonth(new Date());
-      const toDate = to ? new Date(to as string) : endOfMonth(new Date());
+      const toDate = to ? endOfDayInclusive(to as string) : endOfMonth(new Date());
 
       let grossRevenue = 0;
       try {

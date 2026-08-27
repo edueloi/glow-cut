@@ -35,6 +35,15 @@ export function asNumber(value: any, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+// Fim de um período "até" (filtro de relatório). `new Date("YYYY-MM-DD")` sozinho vira meia-noite
+// UTC — qualquer registro criado depois da meia-noite UTC do dia final já ficava de fora, o que
+// na prática excluía o dia corrente inteiro dos relatórios com filtro padrão "do dia 1 até hoje".
+export function endOfDayInclusive(to: string | Date | undefined | null): Date {
+  if (!to) return new Date();
+  if (typeof to === "string" && /^\d{4}-\d{2}-\d{2}$/.test(to)) return new Date(`${to}T23:59:59.999`);
+  return new Date(to);
+}
+
 export function toDateOnly(date: string | Date): Date {
   if (date instanceof Date) {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);

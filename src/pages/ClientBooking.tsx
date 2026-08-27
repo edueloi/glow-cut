@@ -186,6 +186,7 @@ export default function ClientBooking() {
     if (skipProfessionalStep) {
       const prof = getDefaultProfessional();
       setSelectedProfessional(prof);
+      setSelectedSlot(null);
       setStep("date");
       fetchAvailability(selectedDate, s.id, prof?.id || "");
     } else {
@@ -943,7 +944,7 @@ export default function ClientBooking() {
                   <div className="space-y-2.5">
                     {servicesForProfessional(selectedProfessional?.id || "").map((s) => (
                       <button key={s.id}
-                        onClick={() => { setSelectedService(s); setStep("date"); fetchAvailability(selectedDate, s.id, selectedProfessional.id); }}
+                        onClick={() => { setSelectedService(s); setSelectedSlot(null); setStep("date"); fetchAvailability(selectedDate, s.id, selectedProfessional.id); }}
                         className="w-full flex items-center gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
                         <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 flex items-center justify-center" style={{ backgroundColor: s.photo ? undefined : customColor + "15" }}>
                           {s.photo ? <img src={s.photo} alt={s.name} className="w-full h-full object-cover" /> : <Scissors size={16} style={{ color: customColor }} />}
@@ -1020,6 +1021,7 @@ export default function ClientBooking() {
                       onClick={() => {
                         const first = professionalsForService(selectedService.id)[0] || professionals[0];
                         setSelectedProfessional(first);
+                        setSelectedSlot(null);
                         setStep("date");
                         fetchAvailability(selectedDate, selectedService.id, first?.id);
                       }}
@@ -1042,7 +1044,7 @@ export default function ClientBooking() {
 
                     {professionalsForService(selectedService?.id || "").map((p) => (
                       <button key={p.id}
-                        onClick={() => { setSelectedProfessional(p); setStep("date"); fetchAvailability(selectedDate, selectedService.id, p.id); }}
+                        onClick={() => { setSelectedProfessional(p); setSelectedSlot(null); setStep("date"); fetchAvailability(selectedDate, selectedService.id, p.id); }}
                         className="w-full flex items-center gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
                         <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center text-white font-black text-xl shadow-sm"
                           style={{ backgroundColor: customColor }}>
@@ -1075,9 +1077,9 @@ export default function ClientBooking() {
                         style={{ backgroundColor: customColor }}>
                         {selectedProfessional?.photo
                           ? <img src={selectedProfessional.photo} alt="" className="w-full h-full object-cover" />
-                          : selectedProfessional?.name.charAt(0)}
+                          : selectedProfessional?.name?.charAt(0)}
                       </div>
-                      <span className="text-[10px] font-bold text-zinc-600">{selectedProfessional?.name.split(" ")[0]}</span>
+                      <span className="text-[10px] font-bold text-zinc-600">{selectedProfessional?.name?.split(" ")[0]}</span>
                     </div>
                   </div>
 
