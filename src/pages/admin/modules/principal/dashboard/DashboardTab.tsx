@@ -221,16 +221,16 @@ export function DashboardTab({
   const isProfit = netProfit !== null && netProfit >= 0;
 
   return (
-    <div className="space-y-4 sm:space-y-6 pb-6">
+    <div className="w-full min-w-0 space-y-4 pb-24 sm:space-y-6 sm:pb-6">
 
       {/* ── HERO HEADER ── */}
-      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-zinc-900">
+      <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-zinc-900 shadow-xl sm:rounded-3xl">
         {/* Gradientes */}
         <div className="absolute -top-10 -right-10 w-80 h-80 bg-amber-500/25 blur-[120px] rounded-full pointer-events-none" />
         <div className="absolute bottom-0 left-1/4 w-56 h-56 bg-violet-600/15 blur-[80px] rounded-full pointer-events-none" />
 
         {/* ── MOBILE (< md) — saudação + mini stats ── */}
-        <div className="md:hidden px-5 pt-5 pb-5 relative z-10">
+        <div className="relative z-10 px-4 pb-5 pt-5 sm:px-6 xl:hidden">
           <div className="flex items-center justify-between mb-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 capitalize">
               {format(new Date(), "EEE, d 'de' MMM", { locale: ptBR })}
@@ -249,22 +249,22 @@ export function DashboardTab({
           <p className="text-3xl font-black text-amber-400 tracking-tight leading-tight mt-0.5">{firstName}!</p>
 
           {/* Mini stats no mobile */}
-          <div className="grid grid-cols-3 gap-2 mt-4">
-            <div className="bg-white/8 rounded-2xl p-3 border border-white/10">
+          <div className="mt-4 grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
+            <div className="min-w-0 rounded-2xl border border-white/10 bg-white/8 p-3">
               <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500 mb-1">Faturamento</p>
-              <p className={cn("text-sm font-black text-white leading-none", !showFinancials && "blur-sm select-none")}>
+              <p className={cn("truncate text-sm font-black leading-none text-white", !showFinancials && "blur-sm select-none")}>
                 {showFinancials ? stats.revenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••"}
               </p>
               <p className="text-[8px] text-zinc-600 font-bold mt-1">{stats.paidCount} cmd</p>
             </div>
-            <div className="bg-white/8 rounded-2xl p-3 border border-white/10">
+            <div className="min-w-0 rounded-2xl border border-white/10 bg-white/8 p-3">
               <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500 mb-1">Agenda</p>
               <p className="text-sm font-black text-white leading-none">{stats.apptCount}</p>
               <p className="text-[8px] text-zinc-600 font-bold mt-1">hoje</p>
             </div>
-            <div className="bg-white/8 rounded-2xl p-3 border border-white/10">
+            <div className="min-w-0 rounded-2xl border border-white/10 bg-white/8 p-3">
               <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500 mb-1">Lucro</p>
-              <p className={cn("text-sm font-black leading-none", !showFinancials ? "text-white blur-sm select-none" : netProfit === null ? "text-zinc-500" : isProfit ? "text-emerald-400" : "text-red-400")}>
+              <p className={cn("truncate text-sm font-black leading-none", !showFinancials ? "text-white blur-sm select-none" : netProfit === null ? "text-zinc-500" : isProfit ? "text-emerald-400" : "text-red-400")}>
                 {!showFinancials ? "••••" : netProfit === null ? "—" : netProfit.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
               </p>
               <p className="text-[8px] text-zinc-600 font-bold mt-1">líquido</p>
@@ -288,7 +288,7 @@ export function DashboardTab({
         </div>
 
         {/* ── DESKTOP (>= md) — layout horizontal limpo ── */}
-        <div className="hidden md:flex items-center px-8 py-8 lg:px-10 lg:py-10 relative z-10 gap-10">
+        <div className="relative z-10 hidden items-center gap-8 px-8 py-8 xl:flex 2xl:gap-10 2xl:px-10 2xl:py-10">
 
           {/* Lado esquerdo: saudação */}
           <div className="flex-1 min-w-0">
@@ -360,7 +360,7 @@ export function DashboardTab({
         <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 flex items-center gap-1.5">
           <Zap size={10} className="text-amber-500" /> Ações Rápidas
         </p>
-        <div className="grid grid-cols-4 gap-2 sm:gap-3">
+        <div className="grid grid-cols-2 gap-2 min-[520px]:grid-cols-4 sm:gap-3">
           {[
             { label: "Agendamento", sublabel: "Marcar horário", icon: CalendarIcon, iconBg: "bg-amber-500", shadow: "shadow-amber-200/60", action: "appointment" },
             { label: "Comanda", sublabel: "Abrir conta", icon: Receipt, iconBg: "bg-emerald-500", shadow: "shadow-emerald-200/60", action: "comanda" },
@@ -370,7 +370,7 @@ export function DashboardTab({
             <button
               key={qa.action}
               onClick={() => handleQuickAction(qa.action)}
-              className="flex flex-col items-center gap-2 sm:gap-2.5 py-4 px-2 sm:p-4 lg:p-5 rounded-2xl bg-white border border-zinc-100 hover:border-zinc-200 hover:shadow-md transition-all text-center active:scale-95 group"
+              className="group flex min-h-[112px] flex-col items-center justify-center gap-2 rounded-2xl border border-zinc-100 bg-white px-2 py-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-zinc-200 hover:shadow-md active:scale-95 sm:gap-2.5 sm:p-4 lg:min-h-[128px] lg:p-5"
             >
               <div className={cn("w-12 h-12 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-2xl flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform", qa.iconBg, qa.shadow)}>
                 <qa.icon size={22} />
@@ -406,7 +406,7 @@ export function DashboardTab({
         </div>
 
         {/* Grid de stats — 2 cols no mobile, 4 no desktop */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-4">
           {[
             {
               label: "Faturamento",
@@ -528,7 +528,7 @@ export function DashboardTab({
 
       {/* ── PROFISSIONAIS DO MÊS ── */}
       {profReport.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+        <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-3">
           {topProfessional && (
             <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-5 shadow-sm flex flex-col items-center text-center relative overflow-hidden">
               <div className="absolute top-3 right-3 opacity-10">
@@ -734,12 +734,12 @@ export function DashboardTab({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
             onClick={() => setIsConfirmationsModalOpen(true)}
-            className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-5 py-3.5 rounded-2xl shadow-[0_10px_40px_rgb(245,158,11,0.5)] hover:shadow-[0_10px_40px_rgb(245,158,11,0.7)] hover:scale-105 transition-all active:scale-95 group border-2 border-white/20"
+            className="group fixed bottom-24 right-3 z-50 flex items-center gap-2 rounded-2xl border-2 border-white/20 bg-gradient-to-r from-amber-500 to-orange-600 px-3 py-3 text-white shadow-[0_10px_40px_rgb(245,158,11,0.5)] transition-all hover:scale-105 hover:shadow-[0_10px_40px_rgb(245,158,11,0.7)] active:scale-95 sm:bottom-6 sm:right-6 sm:gap-3 sm:px-5 sm:py-3.5"
           >
             <div className="bg-white/20 p-1.5 rounded-lg group-hover:rotate-12 transition-transform">
               <AlertTriangle size={18} className="text-white" />
             </div>
-            <span className="font-black text-xs sm:text-sm uppercase tracking-widest">Confirmações</span>
+            <span className="hidden text-xs font-black uppercase tracking-widest min-[420px]:inline sm:text-sm">Confirmações</span>
             <div className="w-6 h-6 bg-white text-orange-600 rounded-full flex items-center justify-center text-[11px] font-black shadow-lg animate-bounce sm:animate-none group-hover:animate-pulse">
               {pendingConfirmations.length}
             </div>
