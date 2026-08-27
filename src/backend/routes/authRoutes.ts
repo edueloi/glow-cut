@@ -148,18 +148,22 @@ authRouter.post("/login", async (req: Request, res: Response) => {
   }
 
   // 3. Profissional
+  // Nota: Professional não tem relação `tenant` no schema (só o campo escalar `tenantId`) — um
+  // `include: { tenant: true }` aqui já derrubava o processo inteiro (PrismaClientValidationError
+  // não tratado, sem try/catch nesta rota) em QUALQUER tentativa de login que caísse até este
+  // branch, mesmo com credenciais erradas. Busca o tenant à parte, só quando precisa checar bloqueio.
   const profCandidate = await (prisma as any).professional.findFirst({
     where: {
       OR: [{ name: identifier }, { email: identifier }],
       isActive: true,
     },
-    include: { tenant: true },
   });
   const profCheck = await verifyPassword(password, profCandidate?.password);
   const prof = profCheck.valid ? profCandidate : null;
   if (prof) {
     // Bloqueia se o tenant do profissional estiver bloqueado
-    if (prof.tenant && prof.tenant.blockedAt && !prof.tenant.isActive) {
+    const profTenant = prof.tenantId ? await (prisma as any).tenant.findUnique({ where: { id: prof.tenantId }, select: { blockedAt: true, isActive: true } }) : null;
+    if (profTenant && profTenant.blockedAt && !profTenant.isActive) {
       recordFailedAttempt(ip);
       return res.status(403).json({
         error: "O acesso a esta conta foi bloqueado. Entre em contato com o estabelecimento.",
