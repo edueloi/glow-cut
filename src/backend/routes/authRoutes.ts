@@ -374,7 +374,7 @@ authRouter.post("/register-tenant", async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/auth/register-free-trial
-// Cadastro via link de indicação — plano Premium, 30 dias grátis, ativação imediata
+// Cadastro via link de indicação — plano Premium, 7 dias grátis, ativação imediata
 // ─────────────────────────────────────────────────────────────────────────────
 authRouter.post("/register-free-trial", async (req: Request, res: Response) => {
   const { name, slug, ownerName, ownerEmail, ownerPhone, ownerCpf, adminPassword, inviteToken } = req.body;
@@ -389,13 +389,13 @@ authRouter.post("/register-free-trial", async (req: Request, res: Response) => {
   try {
     // Valida o token de convite se fornecido
     let invite: any = null;
-    let trialDays = 30;
+    let trialDays = 7;
     if (inviteToken) {
       invite = await (prisma as any).freeTrialInvite.findUnique({ where: { token: inviteToken } });
       if (!invite) return res.status(400).json({ error: "Token de convite inválido." });
       if (invite.usedAt) return res.status(400).json({ error: "Este convite já foi utilizado." });
       if (new Date() > new Date(invite.expiresAt)) return res.status(400).json({ error: "Este convite expirou." });
-      trialDays = invite.trialDays ?? 30;
+      trialDays = invite.trialDays ?? 7;
     }
 
     const existing = await (prisma as any).tenant.findFirst({ where: { slug } });

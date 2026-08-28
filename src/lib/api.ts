@@ -1,23 +1,33 @@
 /**
  * Helper para chamadas de API com autenticação JWT.
- * O token é guardado em sessionStorage (limpo ao fechar o browser).
- * O tenantId vem do token decodificado — não é lido do localStorage.
+ * O token fica em sessionStorage por padrão (limpo ao fechar o browser); com "Lembrar de mim"
+ * (remember=true) vai pra localStorage, sobrevivendo ao fechar/reabrir o navegador até o JWT
+ * expirar de verdade (7 dias, ver JWT_EXPIRES no backend). Antes o checkbox só salvava o
+ * identificador digitado — não tinha efeito nenhum na sessão em si.
+ * O tenantId vem do token decodificado — não é lido separado do localStorage.
  */
 
 const TOKEN_KEY = "auth_token";
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
 
-export function saveToken(token: string) {
-  sessionStorage.setItem(TOKEN_KEY, token);
+export function saveToken(token: string, remember: boolean = false) {
+  if (remember) {
+    localStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.removeItem(TOKEN_KEY);
+  } else {
+    sessionStorage.setItem(TOKEN_KEY, token);
+    localStorage.removeItem(TOKEN_KEY);
+  }
 }
 
 export function getToken(): string | null {
-  return sessionStorage.getItem(TOKEN_KEY);
+  return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
 }
 
 export function removeToken() {
   sessionStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(TOKEN_KEY);
 }
 
 /** Decodifica o payload JWT sem verificar assinatura (só client-side) */

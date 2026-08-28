@@ -65,7 +65,7 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (identifier: string, password: string) => Promise<{ error?: string; user?: AuthUser; paymentPending?: boolean; checkoutUrl?: string }>;
+  login: (identifier: string, password: string, remember?: boolean) => Promise<{ error?: string; user?: AuthUser; paymentPending?: boolean; checkoutUrl?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -120,7 +120,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
     if (user) getSocket();
   }, [user]);
 
-  const login = async (identifier: string, password: string): Promise<{ error?: string; user?: AuthUser; paymentPending?: boolean; checkoutUrl?: string }> => {
+  const login = async (identifier: string, password: string, remember: boolean = false): Promise<{ error?: string; user?: AuthUser; paymentPending?: boolean; checkoutUrl?: string }> => {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -132,7 +132,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
         return { error: d.error || "Usuário ou senha inválidos.", paymentPending: d.paymentPending, checkoutUrl: d.checkoutUrl };
       }
       const { token, user: userData } = await res.json();
-      saveToken(token);
+      saveToken(token, remember);
       setUser(userData);
       return { user: userData };
     } catch {
@@ -235,7 +235,7 @@ function LoginPage() {
     if (remember) localStorage.setItem("savedLoginUser", identifier);
     else localStorage.removeItem("savedLoginUser");
 
-    const { error: err, user: loggedUser, paymentPending, checkoutUrl } = await login(identifier, pass);
+    const { error: err, user: loggedUser, paymentPending, checkoutUrl } = await login(identifier, pass, remember);
     if (err) {
       if (paymentPending) {
         setPaymentPendingUrl(checkoutUrl || null);
