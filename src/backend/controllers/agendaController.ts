@@ -237,8 +237,12 @@ function tryClaimWppConfirmation(appointmentId: string): boolean {
   return true;
 }
 
-async function handleAppointmentDone(serviceId: string | null, tenantId: string | null, appointmentId: string) {
-  if (!serviceId || !tenantId) return;
+// Quando o agendamento já tem uma comanda vinculada, a baixa de estoque acontece no
+// fechamento da comanda (comandaController.update, ao marcar como "paid") — dar baixa aqui
+// também duplicava o consumo do mesmo serviço (um StockMovement por "done" na agenda +
+// outro por "paid" na comanda), gerando saída de estoque em dobro pelo mesmo atendimento.
+async function handleAppointmentDone(serviceId: string | null, tenantId: string | null, appointmentId: string, comandaId?: string | null) {
+  if (!serviceId || !tenantId || comandaId) return;
   try {
     const prods = await (prisma as any).serviceProduct.findMany({ where: { serviceId } });
     const svcNameRows: any[] = await (prisma as any).$queryRawUnsafe(`SELECT name FROM Service WHERE id = ?`, serviceId);
@@ -1006,7 +1010,7 @@ export const agendaController = {
         const newSvc = serviceId !== undefined ? serviceId : oldAppt.serviceId;
 
         if (status === "done" && oldAppt.status !== "done") {
-          await handleAppointmentDone(oldSvc, tenantId, req.params.id);
+          await handleAppointmentDone(oldSvc, tenantId, req.params.id, oldAppt.comandaId);
           await syncComandaSessionProgress(oldAppt.comandaId);
         } else if (oldIsActive && !newIsActive) {
           await handleAppointmentStockReservation(oldSvc, "release");
@@ -1094,7 +1098,7 @@ export const agendaController = {
       const newIsActive = statusToUse === "scheduled" || statusToUse === "confirmed";
 
       if (statusToUse === "done" && oldAppt.status !== "done") {
-        await handleAppointmentDone(oldAppt.serviceId, tenantId, req.params.id);
+        await handleAppointmentDone(oldAppt.serviceId, tenantId, req.params.id, oldAppt.comandaId);
         await syncComandaSessionProgress(oldAppt.comandaId);
       } else if (oldIsActive && !newIsActive) {
         await handleAppointmentStockReservation(oldAppt.serviceId, "release");
@@ -1354,7 +1358,7 @@ export const agendaController = {
       // nunca deduzir o produto de verdade, então atendimentos fechados pelo PAT não geravam
       // nenhum consumo de estoque.
       if (wasActive && status === "performed") {
-        await handleAppointmentDone(appt.serviceId, appt.tenantId, appointmentId);
+        await handleAppointmentDone(appt.serviceId, appt.tenantId, appointmentId, appt.comandaId);
         await syncComandaSessionProgress(appt.comandaId);
       } else if (wasActive && (status === "missed" || status === "cancelled")) {
         await handleAppointmentStockReservation(appt.serviceId, "release");

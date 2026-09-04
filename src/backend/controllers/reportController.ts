@@ -17,22 +17,36 @@ export const reportController = {
       if (from) dateFilter.gte = new Date(from as string);
       if (to) dateFilter.lte = endOfDayInclusive(to as string);
 
-      const comandas = await (prisma as any).comanda.findMany({
-        where: { tenantId, status: "paid", ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }) },
-        select: { id: true, total: true, professionalId: true, createdAt: true, paymentMethod: true }
-      });
+      // Receita via CashEntry (fonte única de "realizado" — mesma base usada no Financeiro),
+      // não Comanda.total direto: evita divergir do resto do sistema em pagamentos parciais.
+      const dateFrom = dateFilter.gte || new Date(0);
+      const dateTo = dateFilter.lte || new Date();
+      const receitaRows: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT c.professionalId, COUNT(DISTINCT c.id) as totalComandas, COALESCE(SUM(ce.amount), 0) as totalRevenue
+         FROM CashEntry ce
+         JOIN Comanda c ON c.id = ce.comandaId
+         WHERE ce.tenantId = ? AND ce.type = 'income' AND ce.comandaId IS NOT NULL
+           AND ce.date >= ? AND ce.date <= ?
+         GROUP BY c.professionalId`,
+        tenantId, dateFrom, dateTo
+      );
+      const receitaByProf = new Map(receitaRows.map((r: any) => [r.professionalId, r]));
+
       const appointments = await (prisma as any).appointment.findMany({
         where: { tenantId, status: { not: "cancelled" }, ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }) },
         select: { id: true, professionalId: true, status: true, date: true }
       });
 
       const result = professionals.map((prof: any) => {
-        const profComandas = comandas.filter((c: any) => c.professionalId === prof.id);
+        const rev = receitaByProf.get(prof.id);
+        const totalRevenue = Number(rev?.totalRevenue || 0);
+        const totalComandas = Number(rev?.totalComandas || 0);
         const profAppts = appointments.filter((a: any) => a.professionalId === prof.id);
-        const totalRevenue = profComandas.reduce((s: number, c: any) => s + (c.total || 0), 0);
-        const avgTicket = profComandas.length > 0 ? totalRevenue / profComandas.length : 0;
-        const performed = profAppts.filter((a: any) => a.status === 'done' || a.status === 'realizado' || a.status === 'confirmed').length;
-        return { ...prof, totalRevenue, avgTicket, totalComandas: profComandas.length, totalAppointments: profAppts.length, performedAppointments: performed };
+        const avgTicket = totalComandas > 0 ? totalRevenue / totalComandas : 0;
+        // Status reais em uso: scheduled/confirmed/done/performed/missed/noshow/cancelled —
+        // 'realizado' nunca existiu de fato, era dead code que nunca dava match.
+        const performed = profAppts.filter((a: any) => a.status === 'done' || a.status === 'performed').length;
+        return { ...prof, totalRevenue, avgTicket, totalComandas, totalAppointments: profAppts.length, performedAppointments: performed };
       });
       result.sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
       res.json(result);

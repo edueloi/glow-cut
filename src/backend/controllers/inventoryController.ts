@@ -280,9 +280,12 @@ export const inventoryController = {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     try {
-      // Top sold products from stock movements (venda type)
+      // Top sold products from stock movements — só type='venda' (venda avulsa real de
+      // produto). 'consumo' (insumo gasto automaticamente num serviço) e 'saida' (baixa
+      // manual/perda) não são receita e não devem entrar nesta soma, senão o "Receita Total"
+      // do ranking conta como venda um insumo que nunca foi cobrado do cliente à parte.
       const sales: any[] = await (prisma as any).$queryRawUnsafe(
-        `SELECT sm.productId, p.name, p.salePrice, p.costPrice, p.photo, p.unit, SUM(ABS(sm.quantity)) as totalSold, COUNT(*) as salesCount FROM StockMovement sm JOIN Product p ON sm.productId = p.id WHERE sm.tenantId = ? AND sm.type IN ('venda','saida','consumo') GROUP BY sm.productId, p.name, p.salePrice, p.costPrice, p.photo, p.unit ORDER BY totalSold DESC LIMIT 20`,
+        `SELECT sm.productId, p.name, p.salePrice, p.costPrice, p.photo, p.unit, SUM(ABS(sm.quantity)) as totalSold, COUNT(*) as salesCount FROM StockMovement sm JOIN Product p ON sm.productId = p.id WHERE sm.tenantId = ? AND sm.type = 'venda' GROUP BY sm.productId, p.name, p.salePrice, p.costPrice, p.photo, p.unit ORDER BY totalSold DESC LIMIT 20`,
         tenantId
       );
 

@@ -52,6 +52,7 @@ export function DashboardTab({
   const [statPeriod, setStatPeriod] = useState<StatPeriod>("today");
   const [profReport, setProfReport] = useState<any[]>([]);
   const [profitability, setProfitability] = useState<any>(null);
+  const [financeDashboard, setFinanceDashboard] = useState<{ receita: number; comandas: number; ticketMedio: number } | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set());
   const [isConfirmationsModalOpen, setIsConfirmationsModalOpen] = useState(false);
@@ -114,6 +115,23 @@ export function DashboardTab({
       .catch(() => setProfitability(null));
   }, [statPeriod]);
 
+  // Faturamento/ticket médio do período vêm do Financeiro (CashEntry — data real do
+  // recebimento), não de Comanda.total somado no cliente: evita divergir do que as telas
+  // de Financeiro mostram pro mesmo período (ex.: pagamento parcial some do CashEntry mas
+  // não seria contado aqui se a comanda ainda estivesse "partial").
+  useEffect(() => {
+    const now = new Date();
+    const { from, to } = statPeriod === "today"
+      ? { from: new Date(now.setHours(0, 0, 0, 0)), to: new Date(new Date().setHours(23, 59, 59, 999)) }
+      : statPeriod === "week"
+      ? { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) }
+      : { from: startOfMonth(now), to: endOfMonth(now) };
+    apiFetch(`/api/finance/dashboard?from=${from.toISOString()}&to=${to.toISOString()}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setFinanceDashboard(d ? { receita: d.receita, comandas: d.comandas, ticketMedio: d.ticketMedio } : null))
+      .catch(() => setFinanceDashboard(null));
+  }, [statPeriod]);
+
   const birthdayClients = clients.filter(c => {
     if (!c.birthDate) return false;
     const parts = parseBirthDateParts(c.birthDate);
@@ -166,16 +184,19 @@ export function DashboardTab({
     });
 
     const paidComandas = periodComandas.filter(c => c.status === "paid");
-    const revenue = paidComandas.reduce((s, c) => s + (c.total || 0), 0);
-    const avgTicket = paidComandas.length > 0 ? revenue / paidComandas.length : 0;
+    // Preferência pela fonte do Financeiro (CashEntry) quando disponível — só cai no cálculo
+    // local (Comanda.total, pode divergir em pagamentos parciais) se a API ainda não respondeu.
+    const revenue = financeDashboard ? financeDashboard.receita : paidComandas.reduce((s, c) => s + (c.total || 0), 0);
+    const paidCount = financeDashboard ? financeDashboard.comandas : paidComandas.length;
+    const avgTicket = financeDashboard ? financeDashboard.ticketMedio : (paidComandas.length > 0 ? revenue / paidComandas.length : 0);
 
     const newClients = clients.filter(c => {
       const dt = new Date(c.createdAt);
       return dt >= fromDate && dt <= toDate;
     });
 
-    return { revenue, avgTicket, apptCount: periodAppts.length, newClientsCount: newClients.length, periodLabel, paidCount: paidComandas.length };
-  }, [statPeriod, comandas, appointments, clients]);
+    return { revenue, avgTicket, apptCount: periodAppts.length, newClientsCount: newClients.length, periodLabel, paidCount };
+  }, [statPeriod, comandas, appointments, clients, financeDashboard]);
 
   const topProfessional = profReport[0] || null;
   const today = new Date().toISOString().slice(0, 10);
