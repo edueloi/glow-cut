@@ -557,10 +557,32 @@ export const agendaController = {
               continue;
             }
           }
+          // Ocupação por MINUTOS cobertos do expediente, não por quantidade de registros — um
+          // único bloqueio do dia inteiro (06:00-21:30) é 1 Appointment só, mas cobre o
+          // expediente inteiro; contando só "quantidade" ele nunca chegava aos 4/8 registros
+          // do limiar antigo e o dia continuava aparecendo como "Livre" no calendário público
+          // mesmo estando 100% bloqueado.
           const dayAppts = appts.filter((a: any) => format(a.date, "yyyy-MM-dd") === dateStr);
-          if (dayAppts.length >= 8) statusMap[dateStr] = "full";
-          else if (dayAppts.length >= 4) statusMap[dateStr] = "busy";
-          else statusMap[dateStr] = "available";
+          const effWh = (special && !asBool(special.isClosed, true))
+            ? { startTime: special.startTime || wh?.startTime || "09:00", endTime: special.endTime || wh?.endTime || "19:00" }
+            : wh;
+          if (dayAppts.length === 0 || !effWh?.startTime || !effWh?.endTime) {
+            statusMap[dateStr] = dayAppts.length > 0 ? "busy" : "available";
+          } else {
+            const toMinutes = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+            const workdayStart = toMinutes(effWh.startTime);
+            const workdayEnd = toMinutes(effWh.endTime);
+            const workdayMinutes = Math.max(1, workdayEnd - workdayStart);
+            const occupiedMinutes = dayAppts.reduce((sum: number, a: any) => {
+              const aStart = Math.max(toMinutes(a.startTime), workdayStart);
+              const aEnd = Math.min(toMinutes(a.endTime), workdayEnd);
+              return sum + Math.max(0, aEnd - aStart);
+            }, 0);
+            const occupiedRatio = occupiedMinutes / workdayMinutes;
+            if (occupiedRatio >= 0.95) statusMap[dateStr] = "full";
+            else if (occupiedRatio >= 0.5) statusMap[dateStr] = "busy";
+            else statusMap[dateStr] = "available";
+          }
         }
         cursor = addDays(cursor, 1);
       }
