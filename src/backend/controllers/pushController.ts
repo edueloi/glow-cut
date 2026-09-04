@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { getTenantId } from "../utils/helpers";
-import { saveSubscription, saveProfessionalSubscription, removeSubscription, isWebPushConfigured } from "../webpush/pushService";
+import { saveSubscription, saveProfessionalSubscription, saveAdminSubscription, removeSubscription, isWebPushConfigured } from "../webpush/pushService";
 
 export const pushController = {
   async getVapidPublicKey(req: Request, res: Response) {
@@ -55,6 +55,31 @@ export const pushController = {
       await saveProfessionalSubscription({
         tenantId,
         professionalId: auth.sub,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth,
+        userAgent: req.headers["user-agent"],
+      });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(400).json({ error: e?.message || "Erro ao salvar inscrição de push." });
+    }
+  },
+
+  // Admin/dono autenticado no painel — recebe todo novo agendamento do salão (visão de gestor).
+  async subscribeAdmin(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    const auth = (req as any).auth;
+    if (!tenantId || auth?.type !== "admin") {
+      return res.status(401).json({ error: "Não autenticado como admin." });
+    }
+    const { subscription } = req.body;
+    if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+      return res.status(400).json({ error: "subscription (endpoint, keys.p256dh, keys.auth) obrigatório." });
+    }
+    try {
+      await saveAdminSubscription({
+        tenantId,
         endpoint: subscription.endpoint,
         p256dh: subscription.keys.p256dh,
         auth: subscription.keys.auth,

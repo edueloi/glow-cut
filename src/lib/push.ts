@@ -25,3 +25,18 @@ export async function getOrCreatePushSubscription(publicKey: string): Promise<Pu
   }
   return subscription;
 }
+
+// Notification.permission é por ORIGEM/domínio inteiro, não por conta/pessoa — um profissional
+// que já usou a página pública de agendamento nesse mesmo navegador (ou vice-versa) já tem
+// "granted" mesmo sem nunca ter se inscrito como profissional. Sem checar a subscription de
+// verdade, o banner de opt-in nunca aparecia pra quem já tinha "granted" de outro fluxo.
+export async function hasActivePushSubscription(): Promise<boolean> {
+  if (!isPushSupported()) return false;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    return !!subscription;
+  } catch {
+    return false;
+  }
+}

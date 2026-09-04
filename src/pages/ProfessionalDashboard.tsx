@@ -26,7 +26,7 @@ import {
   useToast, ToastProvider,
 } from "@/src/components/ui";
 import { apiFetch } from "@/src/lib/api";
-import { isPushSupported, getOrCreatePushSubscription } from "@/src/lib/push";
+import { isPushSupported, getOrCreatePushSubscription, hasActivePushSubscription } from "@/src/lib/push";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1895,13 +1895,15 @@ function ProfessionalDashboardInner() {
   }, [authUser]);
 
   // Notificação push de novo agendamento — pede permissão só depois que o profissional já está
-  // logado e vendo o próprio painel (não faz sentido pedir antes disso).
+  // logado e vendo o próprio painel (não faz sentido pedir antes disso). Checa a subscription
+  // de verdade (não só Notification.permission, que é por ORIGEM inteira — já "granted" se a
+  // pessoa ativou em /agendar ou /admin nesse mesmo navegador, mesmo sem nunca ter se inscrito
+  // como profissional; o scope dedicado do SW em /pro/ garante que essa checagem é confiável).
   useEffect(() => {
     if (!prof) return;
     if (!isPushSupported()) { setPushState("unsupported"); return; }
-    if (Notification.permission === "granted") setPushState("granted");
-    else if (Notification.permission === "denied") setPushState("unsupported");
-    else setPushState("idle");
+    if (Notification.permission === "denied") { setPushState("unsupported"); return; }
+    hasActivePushSubscription().then((active) => setPushState(active ? "granted" : "idle"));
   }, [prof]);
 
   const handleEnableProfessionalPush = async () => {

@@ -9,12 +9,13 @@ import {
   DollarSign, CalendarIcon, UserPlus, TrendingUp, Cake,
   Eye, EyeOff, Plus, Receipt, Users, BarChart2, Scissors,
   ArrowUpRight, Clock, CheckCircle2, Zap, Trophy, Star, Activity,
-  Bell, Check, AlertTriangle,
+  Bell, Check, AlertTriangle, Loader2,
   Wallet, TrendingDown
 } from "lucide-react";
 
 import { cn } from "@/src/lib/utils";
 import { calculateAge, parseBirthDateParts } from "@/src/lib/masks";
+import { isPushSupported, getOrCreatePushSubscription, hasActivePushSubscription } from "@/src/lib/push";
 import { motion, AnimatePresence } from "motion/react";
 import { apiFetch } from "@/src/lib/api";
 import { Badge } from "@/src/components/ui/Badge";
@@ -53,6 +54,33 @@ export function DashboardTab({
   const [profReport, setProfReport] = useState<any[]>([]);
   const [profitability, setProfitability] = useState<any>(null);
   const [financeDashboard, setFinanceDashboard] = useState<{ receita: number; comandas: number; ticketMedio: number } | null>(null);
+  const [pushState, setPushState] = useState<"idle" | "asking" | "granted" | "unsupported">("idle");
+
+  useEffect(() => {
+    if (!isPushSupported()) { setPushState("unsupported"); return; }
+    if (Notification.permission === "denied") { setPushState("unsupported"); return; }
+    hasActivePushSubscription().then((active) => setPushState(active ? "granted" : "idle"));
+  }, []);
+
+  const handleEnableAdminPush = async () => {
+    setPushState("asking");
+    try {
+      const granted = await Notification.requestPermission();
+      if (granted !== "granted") { setPushState("unsupported"); return; }
+      const keyRes = await apiFetch("/api/public/push/vapid-public-key");
+      if (!keyRes.ok) { setPushState("unsupported"); return; }
+      const { publicKey } = await keyRes.json();
+      const subscription = await getOrCreatePushSubscription(publicKey);
+      if (!subscription) { setPushState("unsupported"); return; }
+      const res = await apiFetch("/api/admin/push/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ subscription: subscription.toJSON() }),
+      });
+      setPushState(res.ok ? "granted" : "unsupported");
+    } catch {
+      setPushState("unsupported");
+    }
+  };
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set());
   const [isConfirmationsModalOpen, setIsConfirmationsModalOpen] = useState(false);
@@ -245,6 +273,27 @@ export function DashboardTab({
 
   return (
     <div className="w-full min-w-0 space-y-4 pb-24 sm:space-y-6 sm:pb-6">
+
+      {pushState === "idle" && (
+        <button
+          type="button"
+          onClick={handleEnableAdminPush}
+          className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-dashed border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100 transition-all text-left"
+        >
+          <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-amber-100">
+            <Bell size={16} className="text-amber-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-bold text-zinc-800">Ativar notificações de novo agendamento</p>
+            <p className="text-[11px] text-zinc-500 font-medium">Receba um aviso aqui no navegador a cada novo agendamento do seu salão</p>
+          </div>
+        </button>
+      )}
+      {pushState === "asking" && (
+        <div className="w-full flex items-center justify-center gap-2 p-3 text-[12px] font-bold text-zinc-400">
+          <Loader2 size={14} className="animate-spin" /> Ativando notificações...
+        </div>
+      )}
 
       {/* ── HERO HEADER ── */}
       <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-zinc-900 shadow-xl sm:rounded-3xl">

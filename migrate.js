@@ -1130,6 +1130,7 @@ const MIGRATIONS = [
       CREATE TABLE IF NOT EXISTS PushSubscription (
         id             VARCHAR(36)  NOT NULL PRIMARY KEY,
         tenantId       VARCHAR(36)  NOT NULL,
+        role           VARCHAR(20)  NOT NULL DEFAULT 'client',
         clientId       VARCHAR(36)  NULL,
         phone          VARCHAR(20)  NULL,
         professionalId VARCHAR(36)  NULL,
@@ -1139,7 +1140,8 @@ const MIGRATIONS = [
         userAgent      VARCHAR(255) NULL,
         createdAt      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_pushsub_tenant_phone (tenantId, phone),
-        INDEX idx_pushsub_tenant_professional (tenantId, professionalId)
+        INDEX idx_pushsub_tenant_professional (tenantId, professionalId),
+        INDEX idx_pushsub_tenant_role (tenantId, role)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `,
   },
@@ -1150,6 +1152,12 @@ const MIGRATIONS = [
   { name: '064a_pushsubscription_phone_nullable', sql: `ALTER TABLE PushSubscription MODIFY COLUMN phone VARCHAR(20) NULL`, ignoreIfExists: true },
   { name: '064b_pushsubscription_add_professionalId', sql: `ALTER TABLE PushSubscription ADD COLUMN professionalId VARCHAR(36) NULL AFTER phone`, ignoreIfExists: true },
   { name: '064c_pushsubscription_idx_professional', sql: `ALTER TABLE PushSubscription ADD INDEX idx_pushsub_tenant_professional (tenantId, professionalId)`, ignoreIfExists: true },
+
+  // 065 — Push para o ADMIN/dono logado no painel (todo novo agendamento do salão, visão de
+  // gestor) — diferente do profissional em /pro, que só recebe dos agendamentos dele.
+  { name: '065a_pushsubscription_add_role', sql: `ALTER TABLE PushSubscription ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'client' AFTER tenantId`, ignoreIfExists: true },
+  { name: '065b_pushsubscription_idx_role', sql: `ALTER TABLE PushSubscription ADD INDEX idx_pushsub_tenant_role (tenantId, role)`, ignoreIfExists: true },
+  { name: '065c_backfill_pushsubscription_role', sql: `UPDATE PushSubscription SET role = 'professional' WHERE professionalId IS NOT NULL AND role = 'client'`, ignoreIfExists: true },
 
 ];
 

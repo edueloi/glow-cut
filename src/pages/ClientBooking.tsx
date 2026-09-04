@@ -6,7 +6,7 @@ import { ptBR } from "date-fns/locale";
 import { useParams, useNavigate } from "react-router-dom";
 import { cn } from "@/src/lib/utils";
 import { Button, Input, Badge, Divider, DatePicker } from "@/src/components/ui";
-import { isPushSupported, getOrCreatePushSubscription } from "@/src/lib/push";
+import { isPushSupported, getOrCreatePushSubscription, hasActivePushSubscription } from "@/src/lib/push";
 
 type Step = "loading" | "home" | "consult" | "choose-mode" | "by-professional" | "by-service" | "pick-professional" | "pick-service" | "date" | "confirm" | "success";
 
@@ -258,11 +258,9 @@ export default function ClientBooking() {
 
   useEffect(() => {
     if (step !== "success") return;
-    const supported = isPushSupported();
-    if (!supported) { setPushState("unsupported"); return; }
-    if (Notification.permission === "granted") setPushState("granted");
-    else if (Notification.permission === "denied") setPushState("unsupported");
-    else setPushState("idle");
+    if (!isPushSupported()) { setPushState("unsupported"); return; }
+    if (Notification.permission === "denied") { setPushState("unsupported"); return; }
+    hasActivePushSubscription().then((active) => setPushState(active ? "granted" : "idle"));
   }, [step]);
 
   const handleEnablePush = async () => {

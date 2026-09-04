@@ -11,7 +11,7 @@ import {
   sendMessage,
   getQrCode,
 } from "../wpp/baileys-manager";
-import { sendPushToPhone, sendPushToProfessional } from "../webpush/pushService";
+import { sendPushToPhone, sendPushToProfessional, sendPushToTenantAdmins } from "../webpush/pushService";
 
 // ── Templates padrão ──────────────────────────────────────────────────────────
 
@@ -219,13 +219,23 @@ export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Pro
 
     // Push independe do WhatsApp estar configurado/ativo pro profissional — dispara antes dos
     // early returns abaixo, senão profissional sem WPP configurado nunca recebia nem o push.
-    if (appt.professionalId) {
+    // Vai pro profissional daquele agendamento E pra todos os admins/donos do salão (visão de
+    // gestor, painel admin) — são dois públicos diferentes recebendo o mesmo evento.
+    {
       const valorFmt = appt.service?.price != null ? appt.service.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "";
-      sendPushToProfessional(tenantId, appt.professionalId, {
+      const pushBody = `${appt.client?.name || "Cliente"} — ${appt.service?.name || "Serviço"}${valorFmt ? ` (${valorFmt})` : ""} em ${format(toSaoPauloDate(new Date(appt.date)), "dd/MM", { locale: ptBR })} às ${appt.startTime}`;
+      if (appt.professionalId) {
+        sendPushToProfessional(tenantId, appt.professionalId, {
+          title: "Novo agendamento! 📅",
+          body: pushBody,
+          tag: `appt-prof-${appt.id}`,
+        }).catch((e) => console.warn("[WebPush] Falha ao notificar profissional (novo agendamento):", e?.message || e));
+      }
+      sendPushToTenantAdmins(tenantId, {
         title: "Novo agendamento! 📅",
-        body: `${appt.client?.name || "Cliente"} — ${appt.service?.name || "Serviço"}${valorFmt ? ` (${valorFmt})` : ""} em ${format(toSaoPauloDate(new Date(appt.date)), "dd/MM", { locale: ptBR })} às ${appt.startTime}`,
-        tag: `appt-prof-${appt.id}`,
-      }).catch((e) => console.warn("[WebPush] Falha ao notificar profissional (novo agendamento):", e?.message || e));
+        body: pushBody,
+        tag: `appt-admin-${appt.id}`,
+      }).catch((e) => console.warn("[WebPush] Falha ao notificar admin (novo agendamento):", e?.message || e));
     }
 
     if (!config?.botEnabled || !config?.sendProfNewBooking) {

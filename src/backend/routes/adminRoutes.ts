@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { adminController } from "../controllers/adminController";
+import { pushController } from "../controllers/pushController";
 
 export const adminRouter = Router();
 
+adminRouter.post("/push/subscribe", pushController.subscribeAdmin);
 adminRouter.put("/profile/:id", adminController.updateProfile);
 adminRouter.post("/login", adminController.unifiedLogin); // Movido para o controller
 adminRouter.get("/tenant", adminController.getTenant);

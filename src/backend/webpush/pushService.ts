@@ -49,7 +49,7 @@ export async function saveSubscription(params: {
   if (existing) {
     await (prisma as any).pushSubscription.update({
       where: { endpoint: params.endpoint },
-      data: { tenantId: params.tenantId, clientId: client?.id || null, phone, p256dh: params.p256dh, auth: params.auth, userAgent: params.userAgent || null },
+      data: { tenantId: params.tenantId, role: "client", clientId: client?.id || null, phone, professionalId: null, p256dh: params.p256dh, auth: params.auth, userAgent: params.userAgent || null },
     });
     return;
   }
@@ -58,6 +58,7 @@ export async function saveSubscription(params: {
     data: {
       id: randomUUID(),
       tenantId: params.tenantId,
+      role: "client",
       clientId: client?.id || null,
       phone,
       endpoint: params.endpoint,
@@ -80,7 +81,7 @@ export async function saveProfessionalSubscription(params: {
   if (existing) {
     await (prisma as any).pushSubscription.update({
       where: { endpoint: params.endpoint },
-      data: { tenantId: params.tenantId, professionalId: params.professionalId, phone: null, clientId: null, p256dh: params.p256dh, auth: params.auth, userAgent: params.userAgent || null },
+      data: { tenantId: params.tenantId, role: "professional", professionalId: params.professionalId, phone: null, clientId: null, p256dh: params.p256dh, auth: params.auth, userAgent: params.userAgent || null },
     });
     return;
   }
@@ -89,7 +90,40 @@ export async function saveProfessionalSubscription(params: {
     data: {
       id: randomUUID(),
       tenantId: params.tenantId,
+      role: "professional",
       professionalId: params.professionalId,
+      endpoint: params.endpoint,
+      p256dh: params.p256dh,
+      auth: params.auth,
+      userAgent: params.userAgent || null,
+    },
+  });
+}
+
+// Admin/dono logado no painel — recebe todo novo agendamento do salão (visão de gestor), não só
+// os de um profissional específico. Sem clientId/phone/professionalId: identificado só por
+// tenantId+role, já que pode haver mais de um admin/usuário por tenant recebendo o mesmo aviso.
+export async function saveAdminSubscription(params: {
+  tenantId: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  userAgent?: string;
+}): Promise<void> {
+  const existing = await (prisma as any).pushSubscription.findUnique({ where: { endpoint: params.endpoint } });
+  if (existing) {
+    await (prisma as any).pushSubscription.update({
+      where: { endpoint: params.endpoint },
+      data: { tenantId: params.tenantId, role: "admin", professionalId: null, phone: null, clientId: null, p256dh: params.p256dh, auth: params.auth, userAgent: params.userAgent || null },
+    });
+    return;
+  }
+
+  await (prisma as any).pushSubscription.create({
+    data: {
+      id: randomUUID(),
+      tenantId: params.tenantId,
+      role: "admin",
       endpoint: params.endpoint,
       p256dh: params.p256dh,
       auth: params.auth,
@@ -144,9 +178,22 @@ export async function sendPushToPhone(tenantId: string, phone: string, payload: 
 export async function sendPushToProfessional(tenantId: string, professionalId: string, payload: PushPayload): Promise<void> {
   if (!configured || !professionalId) return;
   try {
-    const subs = await (prisma as any).pushSubscription.findMany({ where: { tenantId, professionalId } });
+    const subs = await (prisma as any).pushSubscription.findMany({ where: { tenantId, professionalId, role: "professional" } });
     await deliver(tenantId, subs, payload);
   } catch (e: any) {
     console.warn(`[WebPush][${tenantId}] sendPushToProfessional error:`, e?.message || e);
+  }
+}
+
+// Fire-and-forget: notifica TODOS os admins/donos do tenant que ativaram push no painel —
+// usado pra "todo novo agendamento do salão" (visão de gestor), independente de qual
+// profissional foi escolhido pelo cliente.
+export async function sendPushToTenantAdmins(tenantId: string, payload: PushPayload): Promise<void> {
+  if (!configured) return;
+  try {
+    const subs = await (prisma as any).pushSubscription.findMany({ where: { tenantId, role: "admin" } });
+    await deliver(tenantId, subs, payload);
+  } catch (e: any) {
+    console.warn(`[WebPush][${tenantId}] sendPushToTenantAdmins error:`, e?.message || e);
   }
 }

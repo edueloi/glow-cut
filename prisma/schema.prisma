@@ -1132,6 +1132,7 @@ model NfseInvoice {
 model PushSubscription {
   id             String   @id @db.VarChar(36)
   tenantId       String   @db.VarChar(36)
+  role           String   @default("client") @db.VarChar(20) // client | professional | admin
   clientId       String?  @db.VarChar(36)
   phone          String?  @db.VarChar(20)
   professionalId String?  @db.VarChar(36)
@@ -1143,4 +1144,5 @@ model PushSubscription {
 
   @@index([tenantId, phone], map: "idx_pushsub_tenant_phone")
   @@index([tenantId, professionalId], map: "idx_pushsub_tenant_professional")
+  @@index([tenantId, role], map: "idx_pushsub_tenant_role")
 }
