@@ -393,16 +393,42 @@ function applyAutoReplyVars(template: string, vars: Record<string, string>): str
   return template.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? "");
 }
 
-async function getHorarioFuncionamentoText(): Promise<string> {
+// WorkingHours não tem tenantId próprio — é escopado só por professionalId (opcional).
+// Um WHERE professionalId:null sem mais filtro busca as linhas "gerais" de TODOS os
+// tenants do sistema (lixo/config nunca usada de outros salões), não deste tenant — foi
+// isso que mandava "Fechado" o tempo todo, repetido, na resposta automática. O horário
+// real de cada salão fica gravado nas linhas vinculadas ao(s) Professional daquele tenant.
+async function getHorarioFuncionamentoText(tenantId: string): Promise<string> {
   try {
+    const professionals: any[] = await (prisma as any).professional.findMany({
+      where: { tenantId, isActive: true },
+      select: { id: true },
+    });
+    if (!professionals.length) return "Consulte nossos horários pelo link de agendamento.";
+
     const rows: any[] = await (prisma as any).workingHours.findMany({
-      where: { professionalId: null },
+      where: { professionalId: { in: professionals.map((p: any) => p.id) } },
       orderBy: { dayOfWeek: "asc" },
     });
     if (!rows.length) return "Consulte nossos horários pelo link de agendamento.";
-    return rows
-      .map((r: any) => r.isOpen ? `${DAY_NAMES[r.dayOfWeek]}: ${r.startTime} às ${r.endTime}` : `${DAY_NAMES[r.dayOfWeek]}: Fechado`)
-      .join("\n");
+
+    // Múltiplos profissionais podem ter grades diferentes — considera o dia "aberto" se
+    // QUALQUER um deles atende nele, mostrando a janela mais ampla (menor início, maior fim).
+    const byDay = new Map<number, { isOpen: boolean; startTime: string; endTime: string }>();
+    for (const r of rows) {
+      const curr = byDay.get(r.dayOfWeek);
+      if (!curr) { byDay.set(r.dayOfWeek, { isOpen: !!r.isOpen, startTime: r.startTime, endTime: r.endTime }); continue; }
+      if (r.isOpen) {
+        curr.isOpen = true;
+        if (!curr.startTime || r.startTime < curr.startTime) curr.startTime = r.startTime;
+        if (!curr.endTime || r.endTime > curr.endTime) curr.endTime = r.endTime;
+      }
+    }
+
+    return DAY_NAMES.map((name, day) => {
+      const d = byDay.get(day);
+      return d?.isOpen ? `${name}: ${d.startTime} às ${d.endTime}` : `${name}: Fechado`;
+    }).join("\n");
   } catch {
     return "Consulte nossos horários pelo link de agendamento.";
   }
@@ -434,7 +460,7 @@ async function maybeSendAutoReply(tenantId: string, sock: any, remoteJid: string
       saudacao: saudacao(),
       nome_estabelecimento: tenant.name || "",
       link_agendamento: tenant.slug ? `https://agendelle.com.br/${tenant.slug}` : "https://agendelle.com.br",
-      horario_funcionamento: await getHorarioFuncionamentoText(),
+      horario_funcionamento: await getHorarioFuncionamentoText(tenantId),
     };
 
     await send(sock, remoteJid, applyAutoReplyVars(body, vars));
