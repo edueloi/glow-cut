@@ -70,6 +70,7 @@ export default function ClientBooking() {
   const blockedDates: string[] = [];
 
   const [step, setStep] = useState<Step>("loading");
+  const [serviceSearch, setServiceSearch] = useState("");
   const [services, setServices] = useState<any[]>([]);
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -558,12 +559,16 @@ export default function ClientBooking() {
 
             <div className="flex flex-col gap-4">
               {studioAddress && (
-                <div className="inline-flex items-center gap-3 text-white/80 px-5 py-3 rounded-2xl border border-white/10 backdrop-blur-md bg-white/5 w-fit hover:bg-white/10 transition-colors">
-                  <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(studioAddress)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-3 text-white/80 px-5 py-3 rounded-2xl border border-white/10 backdrop-blur-md bg-white/5 w-fit hover:bg-white/10 hover:text-white transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
                     <MapPin size={16} />
                   </div>
                   <span className="text-sm font-bold tracking-tight">{studioAddress}</span>
-                </div>
+                </a>
               )}
               
               {instagram && (
@@ -613,25 +618,30 @@ export default function ClientBooking() {
       <div className="w-full md:w-[48%] lg:w-[45%] xl:w-[42%] flex flex-col bg-white min-h-screen md:overflow-y-auto relative">
 
         {/* Mobile header — immersive */}
-        <div className="md:hidden relative min-h-[180px] flex items-end px-6 pb-6 overflow-hidden" style={{ ...(coverUrl ? heroStyle : { backgroundColor: customColor }), paddingTop: "max(1.5rem, env(safe-area-inset-top))" }}>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/40 to-black/90 z-[1]" />
-          
-          <div className="relative z-10 w-full flex items-center gap-4 animate-in fade-in slide-in-from-bottom-5 duration-700">
+        <div className="md:hidden relative flex items-end px-6 pb-5 overflow-hidden" style={{ ...(coverUrl ? heroStyle : { backgroundColor: customColor }), paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/30 to-black/80 z-[1]" />
+
+          <div className="relative z-10 w-full flex items-center gap-3.5 animate-in fade-in slide-in-from-bottom-5 duration-700 py-3">
             {customLogo ? (
-              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-2xl overflow-hidden border-2 border-white/20 shrink-0">
+              <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-2xl overflow-hidden border-2 border-white/20 shrink-0">
                 <img src={customLogo} alt="Logo" className="w-full h-full object-cover" />
               </div>
             ) : (
-              <div className="w-16 h-16 rounded-full flex items-center justify-center bg-white/10 backdrop-blur-md border-2 border-white/20 shrink-0">
-                <Scissors size={28} className="text-white" />
+              <div className="w-14 h-14 rounded-full flex items-center justify-center bg-white/10 backdrop-blur-md border-2 border-white/20 shrink-0">
+                <Scissors size={24} className="text-white" />
               </div>
             )}
-            <div className="min-w-0">
-              <h2 className="text-xl font-black text-white tracking-tight leading-none mb-1.5">{studioName}</h2>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-display text-lg font-bold text-white tracking-tight leading-tight">{studioName}</h2>
               {studioAddress && (
-                <p className="text-[10px] text-white/60 font-medium flex items-center gap-1 truncate max-w-[200px]">
-                  <MapPin size={10} /> {studioAddress}
-                </p>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(studioAddress)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-[10px] text-white/70 font-medium flex items-start gap-1 mt-1 leading-snug active:text-white/90"
+                >
+                  <MapPin size={10} className="shrink-0 mt-[1px]" /> <span className="line-clamp-1 underline underline-offset-2 decoration-white/30">{studioAddress}</span>
+                </a>
               )}
             </div>
           </div>
@@ -733,10 +743,14 @@ export default function ClientBooking() {
                     </a>
                   )}
                   {studioAddress && (
-                    <div className="flex items-center justify-center gap-1.5 text-zinc-300 pt-1">
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(studioAddress)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 text-zinc-300 hover:text-zinc-500 pt-1 transition-colors"
+                    >
                       <MapPin size={11} />
                       <span className="text-[10px] font-medium">{studioAddress}</span>
-                    </div>
+                    </a>
                   )}
                 </motion.div>
               )}
@@ -843,10 +857,19 @@ export default function ClientBooking() {
                         );
                       })}
                     </div>
-                  ) : phone.length >= 10 && !isLoading && (
+                  ) : phone.length >= 10 && !isLoading ? (
                     <div className="p-6 text-center border-2 border-dashed border-zinc-100 rounded-2xl bg-zinc-50">
                       <CalendarIcon size={22} className="text-zinc-300 mx-auto mb-2" />
                       <p className="text-[11px] font-bold text-zinc-400">Nenhum agendamento encontrado.</p>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center py-10 px-4">
+                      <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: customColor + "10" }}>
+                        <Search size={24} style={{ color: customColor }} />
+                      </div>
+                      <p className="text-sm font-bold text-zinc-500 max-w-[220px] leading-relaxed">
+                        Digite o número usado no agendamento para ver seus horários aqui.
+                      </p>
                     </div>
                   )}
                 </motion.div>
@@ -941,8 +964,23 @@ export default function ClientBooking() {
                   {selectedProfessional && (
                     <SelectionChip label={selectedProfessional.name} sub={selectedProfessional.role} />
                   )}
+                  {servicesForProfessional(selectedProfessional?.id || "").length > 5 && (
+                    <div className="relative">
+                      <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-300" />
+                      <input
+                        type="text"
+                        value={serviceSearch}
+                        onChange={(e) => setServiceSearch(e.target.value)}
+                        placeholder="Buscar serviço..."
+                        className="w-full h-11 pl-10 pr-4 rounded-2xl border border-zinc-200 bg-zinc-50 text-sm font-medium text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:bg-white transition-all"
+                        style={{ ["--tw-ring-color" as any]: customColor + "33" }}
+                      />
+                    </div>
+                  )}
                   <div className="space-y-2">
-                    {servicesForProfessional(selectedProfessional?.id || "").map((s, idx) => (
+                    {servicesForProfessional(selectedProfessional?.id || "")
+                      .filter((s) => s.name.toLowerCase().includes(serviceSearch.trim().toLowerCase()))
+                      .map((s, idx) => (
                       <motion.button key={s.id}
                         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}
                         onClick={() => { setSelectedService(s); setSelectedSlot(null); setStep("date"); fetchAvailability(selectedDate, s.id, selectedProfessional.id); }}
@@ -968,6 +1006,12 @@ export default function ClientBooking() {
                         <p className="text-xs font-bold text-zinc-400">Nenhum serviço disponível para este profissional.</p>
                       </div>
                     )}
+                    {serviceSearch.trim() && servicesForProfessional(selectedProfessional?.id || "").length > 0 &&
+                      servicesForProfessional(selectedProfessional?.id || "").filter((s) => s.name.toLowerCase().includes(serviceSearch.trim().toLowerCase())).length === 0 && (
+                      <div className="p-6 text-center border-2 border-dashed border-zinc-100 rounded-2xl">
+                        <p className="text-xs font-bold text-zinc-400">Nenhum serviço encontrado para "{serviceSearch}".</p>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -980,8 +1024,23 @@ export default function ClientBooking() {
                     <h3 className="text-2xl font-black text-zinc-900 tracking-tight">Serviços</h3>
                     <p className="text-xs text-zinc-400 font-medium mt-1">O que você deseja fazer?</p>
                   </div>
+                  {services.length > 5 && (
+                    <div className="relative">
+                      <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-300" />
+                      <input
+                        type="text"
+                        value={serviceSearch}
+                        onChange={(e) => setServiceSearch(e.target.value)}
+                        placeholder="Buscar serviço..."
+                        className="w-full h-11 pl-10 pr-4 rounded-2xl border border-zinc-200 bg-zinc-50 text-sm font-medium text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:bg-white transition-all"
+                        style={{ ["--tw-ring-color" as any]: customColor + "33" }}
+                      />
+                    </div>
+                  )}
                   <div className="space-y-2">
-                    {services.map((s, idx) => {
+                    {services
+                      .filter((s) => s.name.toLowerCase().includes(serviceSearch.trim().toLowerCase()))
+                      .map((s, idx) => {
                       const profs = professionalsForService(s.id);
                       return (
                         <motion.button key={s.id}
@@ -1008,6 +1067,11 @@ export default function ClientBooking() {
                         </motion.button>
                       );
                     })}
+                    {serviceSearch.trim() && services.filter((s) => s.name.toLowerCase().includes(serviceSearch.trim().toLowerCase())).length === 0 && (
+                      <div className="p-6 text-center border-2 border-dashed border-zinc-100 rounded-2xl">
+                        <p className="text-xs font-bold text-zinc-400">Nenhum serviço encontrado para "{serviceSearch}".</p>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
