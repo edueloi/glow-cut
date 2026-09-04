@@ -30,6 +30,11 @@ module.exports = {
       cwd: "/root/agendelle",
       env: {
         NODE_ENV: "production",
+        // Marca este processo como dono de longo prazo das sessões WhatsApp dos tenants —
+        // habilita o heartbeat de auto-reconexão em baileys-manager.ts só aqui (ver comentário
+        // lá). Sem isso o painel (agendelle) também reconectava sessões de tenant sozinho,
+        // brigando pela sessão com este processo.
+        WPP_LONG_LIVED_WORKER: "1",
       },
       instances: 1,
       autorestart: true,

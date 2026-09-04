@@ -1619,9 +1619,19 @@ export async function restoreAllSessions(): Promise<void> {
   for (const tid of dirs) { try { await initSession(tid); } catch (e) { console.warn(`[Baileys] Erro ${tid}:`, e); } }
 }
 
-// Heartbeat: detecta sessões zombie (status=connected mas socket morto) e reconecta
+// Heartbeat: detecta sessões zombie (status=connected mas socket morto) e reconecta.
+// No processo do painel (agendelle), a sessão de um tenant só existe temporariamente
+// durante o pareamento por QR Code — connectSession() já agenda handoffSession() 5s
+// depois de conectar, entregando o socket pro agendelle-wpp (dono de longo prazo).
+// Sem essa checagem, uma sessão de tenant que não completou o handoff limpo (ex.: o
+// processo caiu no meio do fluxo) virava zombie pro heartbeat do painel, que reconectava
+// a cada 2min só pra fazer handoff nunca acontecer de novo — brigando pela sessão em loop
+// com o agendelle-wpp (erro 440 "conflict") e derrubando mensagens que tentassem sair
+// durante essa janela. Reconexão automática de tenant só faz sentido no processo dedicado.
+const IS_WPP_WORKER = process.env.WPP_LONG_LIVED_WORKER === "1";
 setInterval(() => {
   for (const [tenantId, session] of sessions.entries()) {
+    if (tenantId !== "system" && !IS_WPP_WORKER) continue;
     if (session.status === "connected" && session.sock?.ws?.readyState !== 1) {
       console.warn(`[Bot][Heartbeat] Sessão zombie detectada para ${tenantId}, reconectando...`);
       initSession(tenantId).catch(e => console.error(`[Bot][Heartbeat] Erro ao reconectar ${tenantId}:`, e));

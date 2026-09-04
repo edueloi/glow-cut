@@ -945,8 +945,12 @@ export const agendaController = {
 
       // Notifica profissional (se o agendamento está ativo) e cliente (se confirmado, ou pendente de
       // confirmação) — criação retroativa via API com status "done"/"cancelled" direto não deveria
-      // avisar ninguém de um "novo agendamento" que já nasce encerrado.
-      if (tenantId && results.length > 0) {
+      // avisar ninguém de um "novo agendamento" que já nasce encerrado. Também exige cliente E
+      // serviço vinculados: um agendamento criado pelo admin sem esses dados (bloqueio de horário,
+      // rascunho de teste) gerava uma notificação com "Cliente/Serviço/Valor" em branco pro
+      // profissional — sem os dois preenchidos não há nada de útil pra avisar.
+      const hasClientAndService = Boolean(clientId && serviceId);
+      if (tenantId && results.length > 0 && hasClientAndService) {
         if (effectiveStatus === "scheduled" || effectiveStatus === "confirmed") {
           fireWppProfNewBooking(tenantId, results).catch(e => console.error("Erro wpp prof:", e));
         }
