@@ -613,7 +613,7 @@ export default function ClientBooking() {
       <div className="w-full md:w-[48%] lg:w-[45%] xl:w-[42%] flex flex-col bg-white min-h-screen md:overflow-y-auto relative">
 
         {/* Mobile header — immersive */}
-        <div className="md:hidden relative min-h-[180px] flex items-end px-6 pb-6 overflow-hidden" style={coverUrl ? heroStyle : { backgroundColor: customColor }}>
+        <div className="md:hidden relative min-h-[180px] flex items-end px-6 pb-6 overflow-hidden" style={{ ...(coverUrl ? heroStyle : { backgroundColor: customColor }), paddingTop: "max(1.5rem, env(safe-area-inset-top))" }}>
           <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/40 to-black/90 z-[1]" />
           
           <div className="relative z-10 w-full flex items-center gap-4 animate-in fade-in slide-in-from-bottom-5 duration-700">
@@ -865,7 +865,7 @@ export default function ClientBooking() {
                     onClick={() => setStep("by-professional")}
                     className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-zinc-100 bg-white hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group"
                   >
-                    <div className="w-13 h-13 rounded-2xl flex items-center justify-center shrink-0 text-white shadow-sm" style={{ backgroundColor: customColor }}>
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-white shadow-sm" style={{ backgroundColor: customColor }}>
                       <User size={22} />
                     </div>
                     <div className="flex-1">
@@ -881,7 +881,7 @@ export default function ClientBooking() {
                     onClick={() => setStep("by-service")}
                     className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-zinc-100 bg-white hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group"
                   >
-                    <div className="w-13 h-13 rounded-2xl flex items-center justify-center shrink-0 bg-zinc-100">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 bg-zinc-100">
                       <Scissors size={22} className="text-zinc-500" />
                     </div>
                     <div className="flex-1">
@@ -904,10 +904,11 @@ export default function ClientBooking() {
                     <p className="text-xs text-zinc-400 font-medium mt-1">Com quem deseja ser atendido?</p>
                   </div>
                   <div className="space-y-3">
-                    {professionals.map((p) => {
+                    {professionals.map((p, idx) => {
                       const svcCount = servicesForProfessional(p.id).length;
                       return (
-                        <button key={p.id}
+                        <motion.button key={p.id}
+                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
                           onClick={() => { setSelectedProfessional(p); setStep("pick-service"); }}
                           className="w-full flex items-center gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
                           <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center text-white font-black text-xl shadow-sm"
@@ -922,7 +923,7 @@ export default function ClientBooking() {
                           <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all group-hover:translate-x-0.5" style={{ backgroundColor: customColor + "15" }}>
                             <ChevronRight size={15} style={{ color: customColor }} />
                           </div>
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
@@ -941,8 +942,9 @@ export default function ClientBooking() {
                     <SelectionChip label={selectedProfessional.name} sub={selectedProfessional.role} />
                   )}
                   <div className="space-y-2.5">
-                    {servicesForProfessional(selectedProfessional?.id || "").map((s) => (
-                      <button key={s.id}
+                    {servicesForProfessional(selectedProfessional?.id || "").map((s, idx) => (
+                      <motion.button key={s.id}
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
                         onClick={() => { setSelectedService(s); setSelectedSlot(null); setStep("date"); fetchAvailability(selectedDate, s.id, selectedProfessional.id); }}
                         className="w-full flex items-center gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
                         <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 flex items-center justify-center" style={{ backgroundColor: s.photo ? undefined : customColor + "15" }}>
@@ -957,7 +959,7 @@ export default function ClientBooking() {
                         <div className="text-right shrink-0">
                           {publicAgendaSettings.selfServiceShowPrices && <p className="text-sm font-black" style={{ color: customColor }}>R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</p>}
                         </div>
-                      </button>
+                      </motion.button>
                     ))}
                     {servicesForProfessional(selectedProfessional?.id || "").length === 0 && (
                       <div className="p-6 text-center border-2 border-dashed border-zinc-100 rounded-2xl">
@@ -977,10 +979,11 @@ export default function ClientBooking() {
                     <p className="text-xs text-zinc-400 font-medium mt-1">O que você deseja fazer?</p>
                   </div>
                   <div className="space-y-2.5">
-                    {services.map((s) => {
+                    {services.map((s, idx) => {
                       const profs = professionalsForService(s.id);
                       return (
-                        <button key={s.id}
+                        <motion.button key={s.id}
+                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
                           onClick={() => handleServiceSelected(s)}
                           className="w-full flex items-center gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
                           <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 flex items-center justify-center" style={{ backgroundColor: s.photo ? undefined : customColor + "15" }}>
@@ -998,7 +1001,7 @@ export default function ClientBooking() {
                           <div className="text-right shrink-0">
                             {publicAgendaSettings.selfServiceShowPrices && <p className="text-sm font-black" style={{ color: customColor }}>R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</p>}
                           </div>
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
@@ -1024,7 +1027,7 @@ export default function ClientBooking() {
                         setStep("date");
                         fetchAvailability(selectedDate, selectedService.id, first?.id);
                       }}
-                      className="w-full flex items-center gap-4 p-4 bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-2xl hover:border-zinc-300 hover:bg-zinc-100 transition-all active:scale-[0.98] text-left">
+                      className="w-full flex items-center gap-4 p-4 bg-zinc-50 border-2 border-dashed border-zinc-300 rounded-2xl hover:border-zinc-400 hover:bg-zinc-100 transition-all active:scale-[0.98] text-left">
                       <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-zinc-100 shrink-0">
                         <User size={18} className="text-zinc-400" />
                       </div>
@@ -1041,8 +1044,9 @@ export default function ClientBooking() {
                       </div>
                     )}
 
-                    {professionalsForService(selectedService?.id || "").map((p) => (
-                      <button key={p.id}
+                    {professionalsForService(selectedService?.id || "").map((p, idx) => (
+                      <motion.button key={p.id}
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
                         onClick={() => { setSelectedProfessional(p); setSelectedSlot(null); setStep("date"); fetchAvailability(selectedDate, selectedService.id, p.id); }}
                         className="w-full flex items-center gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
                         <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center text-white font-black text-xl shadow-sm"
@@ -1056,7 +1060,7 @@ export default function ClientBooking() {
                         <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all group-hover:translate-x-0.5" style={{ backgroundColor: customColor + "15" }}>
                           <ChevronRight size={15} style={{ color: customColor }} />
                         </div>
-                      </button>
+                      </motion.button>
                     ))}
                   </div>
                 </motion.div>
@@ -1066,19 +1070,19 @@ export default function ClientBooking() {
               {step === "date" && (
                 <motion.div key="date" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-5">
                   <BackBtn to={selectedService && selectedProfessional ? "pick-professional" : "pick-service"} />
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="min-w-0">
                       <h3 className="text-xl font-black text-zinc-900">Data e Hora</h3>
                       <p className="text-xs text-zinc-400 font-medium mt-0.5">Quando fica melhor?</p>
                     </div>
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-50 border border-zinc-200">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-50 border border-zinc-200 shrink-0 max-w-[60%]">
                       <div className="w-6 h-6 rounded-lg overflow-hidden flex items-center justify-center text-[10px] font-black text-white shrink-0"
                         style={{ backgroundColor: customColor }}>
                         {selectedProfessional?.photo
                           ? <img src={selectedProfessional.photo} alt="" className="w-full h-full object-cover" />
                           : selectedProfessional?.name?.charAt(0)}
                       </div>
-                      <span className="text-[10px] font-bold text-zinc-600">{selectedProfessional?.name?.split(" ")[0]}</span>
+                      <span className="text-[10px] font-bold text-zinc-600 truncate">{selectedProfessional?.name?.split(" ")[0]}</span>
                     </div>
                   </div>
 
@@ -1108,66 +1112,71 @@ export default function ClientBooking() {
                         <div key={i} className="text-center text-[9px] font-black text-zinc-400 uppercase">{d}</div>
                       ))}
                     </div>
-                    <div className="flex flex-wrap gap-3 mb-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1.5 mb-3">
                       {[["bg-emerald-400","Livre"],["bg-amber-400","Corrido"],["bg-zinc-400","Lotado"],["bg-rose-400","Fechado"]].map(([color, label]) => (
                         <div key={label} className="flex items-center gap-1">
-                          <div className={`w-1.5 h-1.5 rounded-full ${color}`} />
+                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${color}`} />
                           <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest">{label}</span>
                         </div>
                       ))}
                     </div>
-                    {(() => {
-                      const monthStart = startOfMonth(currentMonth);
-                      const monthEnd = endOfMonth(monthStart);
-                      const startDate = startOfWeek(monthStart);
-                      const endDate = endOfWeek(monthEnd);
-                      const rows: React.ReactNode[] = [];
-                      let days: React.ReactNode[] = [];
-                      let day = startDate;
-                      const today = startOfDay(new Date());
-                      while (day <= endDate) {
-                        for (let i = 0; i < 7; i++) {
-                          const cloneDay = day;
-                          const isPastDay = isBefore(day, today);
-                          const isActive = isSameDay(day, selectedDate);
-                          const isCurrentMonth = isSameMonth(day, monthStart);
-                          const dayOfWeek = day.getDay();
-                          const dateString = format(day, "yyyy-MM-dd");
-                          const isBlocked = blockedDates.includes(dateString);
-                          let dayStatus: "closed" | "full" | "busy" | "available" = "available";
-                          if (isBlocked) dayStatus = "closed";
-                          else if (calendarStatus[dateString]) dayStatus = calendarStatus[dateString] as any;
-                          
-                          const maxAdvanceDate = addDays(today, publicAgendaSettings.maxAdvanceDays);
-                          const isBeyondMaxAdvance = isBefore(maxAdvanceDate, day);
-                          const isDisabled = isPastDay || !isCurrentMonth || dayStatus === "closed" || isBeyondMaxAdvance;
-                          
-                          days.push(
-                            <button key={day.toISOString()} disabled={isDisabled}
-                              onClick={() => { setSelectedDate(cloneDay); setSelectedSlot(null); fetchAvailability(cloneDay, selectedService.id, selectedProfessional.id); }}
-                              className={cn("h-9 w-full rounded-xl flex flex-col items-center justify-center text-xs font-bold transition-all relative overflow-hidden",
-                                isActive ? "text-white shadow-md" :
-                                (isPastDay || !isCurrentMonth || dayStatus === "closed") ? "text-zinc-300 cursor-not-allowed" :
-                                "bg-white text-zinc-800 hover:shadow-sm border border-zinc-200/50 active:scale-95")}
-                              style={isActive ? { backgroundColor: customColor } : {}}>
-                              <span className="relative z-10">{format(day, "d")}</span>
-                              {!isPastDay && isCurrentMonth && (
-                                <div className="absolute bottom-1 flex gap-0.5">
-                                  {dayStatus === "closed" && <div className="w-1 h-1 rounded-full bg-rose-400" />}
-                                  {dayStatus === "full" && <div className="w-1 h-1 rounded-full bg-zinc-400" />}
-                                  {dayStatus === "busy" && <div className="w-1 h-1 rounded-full bg-amber-400" />}
-                                  {dayStatus === "available" && !isActive && <div className="w-1 h-1 rounded-full bg-emerald-400" />}
-                                </div>
-                              )}
-                            </button>
-                          );
-                          day = addDays(day, 1);
-                        }
-                        rows.push(<div key={day.toISOString()} className="grid grid-cols-7 gap-1 mb-1">{days}</div>);
-                        days = [];
-                      }
-                      return rows;
-                    })()}
+                    <AnimatePresence mode="wait">
+                      <motion.div key={format(currentMonth, "yyyy-MM")}
+                        initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.18 }}>
+                        {(() => {
+                          const monthStart = startOfMonth(currentMonth);
+                          const monthEnd = endOfMonth(monthStart);
+                          const startDate = startOfWeek(monthStart);
+                          const endDate = endOfWeek(monthEnd);
+                          const rows: React.ReactNode[] = [];
+                          let days: React.ReactNode[] = [];
+                          let day = startDate;
+                          const today = startOfDay(new Date());
+                          while (day <= endDate) {
+                            for (let i = 0; i < 7; i++) {
+                              const cloneDay = day;
+                              const isPastDay = isBefore(day, today);
+                              const isActive = isSameDay(day, selectedDate);
+                              const isCurrentMonth = isSameMonth(day, monthStart);
+                              const dayOfWeek = day.getDay();
+                              const dateString = format(day, "yyyy-MM-dd");
+                              const isBlocked = blockedDates.includes(dateString);
+                              let dayStatus: "closed" | "full" | "busy" | "available" = "available";
+                              if (isBlocked) dayStatus = "closed";
+                              else if (calendarStatus[dateString]) dayStatus = calendarStatus[dateString] as any;
+
+                              const maxAdvanceDate = addDays(today, publicAgendaSettings.maxAdvanceDays);
+                              const isBeyondMaxAdvance = isBefore(maxAdvanceDate, day);
+                              const isDisabled = isPastDay || !isCurrentMonth || dayStatus === "closed" || isBeyondMaxAdvance;
+
+                              days.push(
+                                <button key={day.toISOString()} disabled={isDisabled}
+                                  onClick={() => { setSelectedDate(cloneDay); setSelectedSlot(null); fetchAvailability(cloneDay, selectedService.id, selectedProfessional.id); }}
+                                  className={cn("h-10 w-full aspect-square rounded-xl flex flex-col items-center justify-center text-xs font-bold transition-all relative overflow-hidden",
+                                    isActive ? "text-white shadow-md" :
+                                    (isPastDay || !isCurrentMonth || dayStatus === "closed") ? "text-zinc-300 cursor-not-allowed" :
+                                    "bg-white text-zinc-800 hover:shadow-sm border border-zinc-200/50 active:scale-95")}
+                                  style={isActive ? { backgroundColor: customColor } : {}}>
+                                  <span className="relative z-10">{format(day, "d")}</span>
+                                  {!isPastDay && isCurrentMonth && (
+                                    <div className="absolute bottom-1 flex gap-0.5">
+                                      {dayStatus === "closed" && <div className="w-1 h-1 rounded-full bg-rose-400" />}
+                                      {dayStatus === "full" && <div className="w-1 h-1 rounded-full bg-zinc-400" />}
+                                      {dayStatus === "busy" && <div className="w-1 h-1 rounded-full bg-amber-400" />}
+                                      {dayStatus === "available" && !isActive && <div className="w-1 h-1 rounded-full bg-emerald-400" />}
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                              day = addDays(day, 1);
+                            }
+                            rows.push(<div key={day.toISOString()} className="grid grid-cols-7 gap-1 mb-1">{days}</div>);
+                            days = [];
+                          }
+                          return rows;
+                        })()}
+                      </motion.div>
+                    </AnimatePresence>
                   </div>
 
                   {/* Time slots */}
@@ -1316,18 +1325,21 @@ export default function ClientBooking() {
                         <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">
                           Repetir agendamento (opcional)
                         </label>
-                        <select
-                          value={repeatWeeks}
-                          onChange={(e) => setRepeatWeeks(Number(e.target.value))}
-                          className="w-full text-sm p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-800 font-medium focus:ring-2 outline-none transition-all"
-                        >
-                          <option value={1}>Não repetir (apenas este dia)</option>
-                          <option value={2}>Repetir por 2 semanas seguidas</option>
-                          <option value={4}>Repetir por 4 semanas seguidas (1 mês)</option>
-                          <option value={8}>Repetir por 8 semanas seguidas (2 meses)</option>
-                        </select>
+                        <div className="relative">
+                          <select
+                            value={repeatWeeks}
+                            onChange={(e) => setRepeatWeeks(Number(e.target.value))}
+                            className="w-full text-sm p-3.5 pr-10 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-800 font-medium focus:ring-2 outline-none transition-all appearance-none"
+                          >
+                            <option value={1}>Não repetir (apenas este dia)</option>
+                            <option value={2}>Repetir por 2 semanas seguidas</option>
+                            <option value={4}>Repetir por 4 semanas seguidas (1 mês)</option>
+                            <option value={8}>Repetir por 8 semanas seguidas (2 meses)</option>
+                          </select>
+                          <ChevronRight size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 rotate-90 text-zinc-400 pointer-events-none" />
+                        </div>
                         {repeatWeeks > 1 && (
-                          <p className="text-[10px] text-amber-600 font-medium mt-2 bg-amber-50 p-2 rounded-xl border border-amber-100">
+                          <p className="text-[11px] text-amber-600 font-medium mt-2 bg-amber-50 p-2.5 rounded-xl border border-amber-100">
                             Atenção: Ao confirmar, serão gerados {repeatWeeks} agendamentos. Avisaremos caso haja conflito com feriados ou agenda do profissional nas próximas semanas.
                           </p>
                         )}
@@ -1360,28 +1372,28 @@ export default function ClientBooking() {
                   className="flex flex-col items-center py-2 space-y-6"
                 >
                   {/* Ícone animado */}
-                  <div className="relative mt-2">
+                  <motion.div className="relative mt-2" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.1, type: "spring", stiffness: 200 }}>
                     <div className="absolute inset-0 rounded-full blur-[32px] opacity-30 animate-pulse" style={{ backgroundColor: customColor }} />
                     <div className="w-20 h-20 rounded-full flex items-center justify-center relative z-10 shadow-2xl"
                       style={{ backgroundColor: customColor }}>
                       <CheckCircle2 size={40} className="text-white stroke-[2]" />
                     </div>
-                  </div>
+                  </motion.div>
 
-                   <div className="text-center space-y-1.5">
+                   <motion.div className="text-center space-y-1.5" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
                     <h3 className="text-3xl font-black text-zinc-950 tracking-tight">
                       {publicAgendaSettings.autoConfirmAppointments ? "Reservado!" : "Solicitado!"}
                     </h3>
                     <p className="text-sm text-zinc-400 font-medium max-w-[260px] mx-auto leading-relaxed">
-                      {publicAgendaSettings.autoConfirmAppointments 
-                        ? `Agendamento confirmado em ` 
+                      {publicAgendaSettings.autoConfirmAppointments
+                        ? `Agendamento confirmado em `
                         : `Aguardando confirmação em `}
                       <span className="text-zinc-700 font-bold">{studioName}</span>
                     </p>
-                  </div>
+                  </motion.div>
 
                   {/* Card resumo */}
-                  <div className="w-full rounded-3xl overflow-hidden border-2 border-zinc-100 shadow-sm">
+                  <motion.div className="w-full rounded-3xl overflow-hidden border-2 border-zinc-100 shadow-sm" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
                     {/* Header colorido */}
                     <div className="px-5 py-4 text-white" style={{ backgroundColor: customColor }}>
                       <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">
@@ -1417,9 +1429,9 @@ export default function ClientBooking() {
                         <p className="text-[10px] text-zinc-400 font-medium">{selectedService?.duration} min</p>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
 
-                  <div className="w-full space-y-3">
+                  <motion.div className="w-full space-y-3" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
                     <Button
                       onClick={() => {
                         let msg = `Olá! Acabei de solicitar um agendamento no ${studioName}:\n\n` +
@@ -1438,7 +1450,7 @@ export default function ClientBooking() {
                         
                         window.open(url, "_blank");
                       }}
-                      className="w-full h-13 rounded-2xl bg-[#25D366] hover:bg-[#1DA851] text-white font-black text-sm shadow-lg border-transparent"
+                      className="w-full h-14 rounded-2xl bg-[#25D366] hover:bg-[#1DA851] text-white font-black text-sm shadow-lg border-transparent"
                       iconLeft={<Phone size={18} />}
                     >
                       Avisar no WhatsApp
@@ -1450,7 +1462,7 @@ export default function ClientBooking() {
                     >
                       Voltar ao Início
                     </button>
-                  </div>
+                  </motion.div>
                 </motion.div>
               )}
 
@@ -1465,7 +1477,8 @@ export default function ClientBooking() {
               initial={{ y: 80, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 80, opacity: 0 }}
-              className="fixed bottom-4 left-4 right-4 z-50 bg-zinc-950 rounded-2xl p-4 shadow-2xl border border-zinc-800"
+              className="fixed left-4 right-4 z-50 bg-zinc-950 rounded-2xl p-4 shadow-2xl border border-zinc-800"
+              style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
             >
               <button
                 onClick={() => { setShowIosBanner(false); sessionStorage.setItem("ios-banner-dismissed", "1"); }}
