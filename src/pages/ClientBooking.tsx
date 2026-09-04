@@ -473,7 +473,7 @@ export default function ClientBooking() {
       <div className="fixed inset-0 flex items-center justify-center z-[100]" style={{ backgroundColor: customColor || "#0a0a0a" }}>
         <div className="flex flex-col items-center">
           <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5 }}
-            className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-2xl overflow-hidden border border-white/10">
+            className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-2xl overflow-hidden border border-white/10">
             {customLogo ? <img src={customLogo} alt="Logo" className="w-full h-full object-cover" /> : (
               <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: customColor }}>
                 <Scissors size={40} className="text-white" />
@@ -539,8 +539,8 @@ export default function ClientBooking() {
           >
             {customLogo && (
               <div className="inline-block relative mb-10 group">
-                <div className="absolute -inset-4 bg-white/20 rounded-[32px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative w-24 h-24 bg-white rounded-[32px] flex items-center justify-center shadow-2xl border border-white/20 overflow-hidden">
+                <div className="absolute -inset-4 bg-white/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-2xl border border-white/20 overflow-hidden">
                   <img src={customLogo} alt={studioName} className="w-full h-full object-cover" />
                 </div>
               </div>
@@ -592,14 +592,13 @@ export default function ClientBooking() {
                     <p className="text-sm text-white font-black truncate">Instale para acesso rápido</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button 
+                    <button
                       onClick={handleInstall}
-                      size="sm"
-                      className="bg-white text-zinc-950 hover:bg-zinc-100 h-10 w-10 p-0 rounded-xl"
+                      className="h-10 w-10 rounded-full bg-white text-zinc-950 hover:bg-zinc-100 transition-colors flex items-center justify-center shrink-0"
                     >
                       <Download size={16} />
-                    </Button>
-                    <button onClick={() => setShowInstallBanner(false)} className="h-10 w-10 rounded-xl bg-white/5 text-white/40 hover:text-white transition-colors flex items-center justify-center">
+                    </button>
+                    <button onClick={() => setShowInstallBanner(false)} className="h-10 w-10 rounded-full bg-white/5 text-white/40 hover:text-white transition-colors flex items-center justify-center shrink-0">
                       <X size={16} />
                     </button>
                   </div>
@@ -619,11 +618,11 @@ export default function ClientBooking() {
           
           <div className="relative z-10 w-full flex items-center gap-4 animate-in fade-in slide-in-from-bottom-5 duration-700">
             {customLogo ? (
-              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl overflow-hidden border-2 border-white/20 shrink-0">
+              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-2xl overflow-hidden border-2 border-white/20 shrink-0">
                 <img src={customLogo} alt="Logo" className="w-full h-full object-cover" />
               </div>
             ) : (
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-white/10 backdrop-blur-md border-2 border-white/20 shrink-0">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center bg-white/10 backdrop-blur-md border-2 border-white/20 shrink-0">
                 <Scissors size={28} className="text-white" />
               </div>
             )}
@@ -1455,7 +1454,7 @@ export default function ClientBooking() {
                 <X size={16} />
               </button>
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 rounded-2xl bg-white overflow-hidden flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 rounded-full bg-white overflow-hidden flex items-center justify-center shrink-0">
                   {customLogo ? <img src={customLogo} alt="" className="w-full h-full object-cover" /> : <Scissors size={20} className="text-zinc-800" />}
                 </div>
                 <div>
@@ -1476,7 +1475,7 @@ export default function ClientBooking() {
         {/* Footer */}
         <div className="py-5 flex flex-col items-center border-t border-zinc-100 bg-white">
           <div className="flex items-center gap-2 mb-1">
-            {customLogo && <div className="w-5 h-5 rounded-md overflow-hidden border border-zinc-100"><img src={customLogo} alt="" className="w-full h-full object-cover" /></div>}
+            {customLogo && <div className="w-5 h-5 rounded-full overflow-hidden border border-zinc-100"><img src={customLogo} alt="" className="w-full h-full object-cover" /></div>}
             <p className="text-[10px] text-zinc-300 font-bold uppercase tracking-widest">{studioName}</p>
           </div>
           <a href="/login" className="text-[9px] text-zinc-300 hover:text-zinc-500 font-medium transition-colors">Área Administrativa</a>
