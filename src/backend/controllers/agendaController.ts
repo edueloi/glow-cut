@@ -3,7 +3,7 @@ import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
 import { format, addDays, isSameDay, startOfDay, startOfMonth, endOfMonth, endOfWeek, startOfWeek, isSameMonth, isBefore, addMonths, subMonths, addMinutes, parse } from "date-fns";
 import { getTenantId, asBool, asNumber, toDateOnly, getDayRange, formatDateOnly, getSaudacao, applyTemplateVars, samePhone, normalizePhone } from "../utils/helpers";
-import { fireWppProfNewBooking, fireWppProfConfirmed, fireWppConfirmation as fireWppConfirmationCentral, fireWppPending } from "./wppController";
+import { fireWppProfNewBooking, fireWppProfConfirmed, fireWppConfirmation as fireWppConfirmationCentral, fireWppPending, fireWppCancelled, fireWppRescheduled } from "./wppController";
 import { emitToTenant } from "../realtime";
 
 const DEFAULT_AGENDA_SETTINGS = {
@@ -1072,6 +1072,19 @@ export const agendaController = {
           fireWppProfConfirmed(appt.tenantId, appt).catch((e) => console.error("[WPP] Falha ao notificar profissional:", e?.message || e));
         }
       }
+      // Cancelamento/reagendamento feito pelo SALÃO (painel admin) — antes era silencioso pro
+      // cliente, sem nenhuma notificação (nem WhatsApp, nem push). clientCancel/clientReschedule
+      // (autoatendimento) continuam sem notificar aqui, já que o próprio cliente é o autor da ação.
+      if (oldAppt && status === "cancelled" && oldAppt.status !== "cancelled" && appt?.tenantId) {
+        fireWppCancelled(appt.tenantId, appt).catch((e) => console.error("[WPP] Falha ao notificar cancelamento:", e?.message || e));
+      } else if (oldAppt && appt?.tenantId) {
+        const effectiveStatus = status !== undefined ? status : oldAppt.status;
+        const isActiveStatus = effectiveStatus === "scheduled" || effectiveStatus === "confirmed";
+        const scheduleChanged = date !== undefined || startTime !== undefined || endTime !== undefined || professionalId !== undefined;
+        if (scheduleChanged && isActiveStatus && oldAppt.type !== "bloqueio") {
+          fireWppRescheduled(appt.tenantId, appt).catch((e) => console.error("[WPP] Falha ao notificar remarcação:", e?.message || e));
+        }
+      }
       if (tenantId) emitToTenant(tenantId, "agenda:changed");
       res.json(appt);
     } catch (e: any) {
@@ -1169,6 +1182,18 @@ export const agendaController = {
         }
         if (appt?.professional?.phone) {
           fireWppProfConfirmed(appt.tenantId, notifyPayload).catch((e) => console.error("[WPP] Falha ao notificar profissional:", e?.message || e));
+        }
+      }
+
+      // Cancelamento/reagendamento feito pelo SALÃO (painel admin) — antes era silencioso pro
+      // cliente. clientCancel/clientReschedule (autoatendimento) continuam sem notificar aqui.
+      if (statusToUse === "cancelled" && oldAppt.status !== "cancelled" && appt?.tenantId) {
+        fireWppCancelled(appt.tenantId, appt).catch((e) => console.error("[WPP] Falha ao notificar cancelamento:", e?.message || e));
+      } else if (appt?.tenantId) {
+        const scheduleChanged = data.date !== undefined || data.startTime !== undefined || data.endTime !== undefined || data.professionalId !== undefined;
+        const isActiveStatus = statusToUse === "scheduled" || statusToUse === "confirmed";
+        if (scheduleChanged && isActiveStatus && oldAppt.type !== "bloqueio") {
+          fireWppRescheduled(appt.tenantId, appt).catch((e) => console.error("[WPP] Falha ao notificar remarcação:", e?.message || e));
         }
       }
 

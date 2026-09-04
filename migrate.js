@@ -1120,6 +1120,28 @@ const MIGRATIONS = [
     `,
   },
 
+  // 063 — Web Push notifications (navegador/PWA) para clientes: cancelamento e remarcação
+  // pelo salão agora também disparam WhatsApp (antes eram silenciosos).
+  { name: '063a_wppbotconfig_add_sendCancelled', sql: `ALTER TABLE WppBotConfig ADD COLUMN sendCancelled BOOLEAN NOT NULL DEFAULT TRUE AFTER sendPending`, ignoreIfExists: true },
+  { name: '063b_wppbotconfig_add_sendRescheduled', sql: `ALTER TABLE WppBotConfig ADD COLUMN sendRescheduled BOOLEAN NOT NULL DEFAULT TRUE AFTER sendCancelled`, ignoreIfExists: true },
+  {
+    name: '063c_create_push_subscription',
+    sql: `
+      CREATE TABLE IF NOT EXISTS PushSubscription (
+        id        VARCHAR(36)  NOT NULL PRIMARY KEY,
+        tenantId  VARCHAR(36)  NOT NULL,
+        clientId  VARCHAR(36)  NULL,
+        phone     VARCHAR(20)  NOT NULL,
+        endpoint  VARCHAR(500) NOT NULL UNIQUE,
+        p256dh    VARCHAR(255) NOT NULL,
+        auth      VARCHAR(255) NOT NULL,
+        userAgent VARCHAR(255) NULL,
+        createdAt DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_pushsub_tenant_phone (tenantId, phone)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
 ];
 
 

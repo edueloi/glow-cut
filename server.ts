@@ -45,6 +45,7 @@ import { agendaController } from "./src/backend/controllers/agendaController";
 
 // Import Baileys session manager
 import { restoreAllSessions } from "./src/backend/wpp/baileys-manager";
+import { configureWebPush } from "./src/backend/webpush/pushService";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -551,6 +552,7 @@ async function initDb() {
 initDb().then(() => {
   restoreAllSessions().catch((e) => console.warn("[Server] restoreAllSessions error:", e));
 });
+configureWebPush();
 
 const SITE_URL = "https://agendelle.com.br";
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.jpg`;

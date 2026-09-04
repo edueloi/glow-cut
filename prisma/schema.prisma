@@ -669,6 +669,8 @@ model WppBotConfig {
   botEnabled            Boolean  @default(false)
   sendConfirmation      Boolean  @default(true)
   sendPending           Boolean  @default(true)
+  sendCancelled         Boolean  @default(true)
+  sendRescheduled       Boolean  @default(true)
   sendReminder24h       Boolean  @default(true)
   sendReminder60min     Boolean  @default(true)
   sendBirthday          Boolean  @default(true)
@@ -1125,4 +1127,18 @@ model NfseInvoice {
   comanda                  Comanda   @relation(fields: [comandaId], references: [id], onDelete: Cascade)
 
   @@index([tenantId], map: "idx_nfse_invoice_tenant")
+}
+
+model PushSubscription {
+  id        String   @id @db.VarChar(36)
+  tenantId  String   @db.VarChar(36)
+  clientId  String?  @db.VarChar(36)
+  phone     String   @db.VarChar(20)
+  endpoint  String   @unique @db.VarChar(500)
+  p256dh    String   @db.VarChar(255)
+  auth      String   @db.VarChar(255)
+  userAgent String?  @db.VarChar(255)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+
+  @@index([tenantId, phone], map: "idx_pushsub_tenant_phone")
 }

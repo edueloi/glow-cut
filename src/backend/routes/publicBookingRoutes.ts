@@ -4,6 +4,7 @@ import { professionalController } from "../controllers/professionalController";
 import { clientController } from "../controllers/clientController";
 import { agendaController } from "../controllers/agendaController";
 import { productController } from "../controllers/productController";
+import { pushController } from "../controllers/pushController";
 
 export const publicBookingRouter = Router();
 
@@ -17,3 +18,6 @@ publicBookingRouter.patch("/appointments/:id/cancel", agendaController.clientCan
 publicBookingRouter.patch("/appointments/:id/reschedule", agendaController.clientReschedule);
 publicBookingRouter.get("/calendar-status", agendaController.getCalendarStatus);
 publicBookingRouter.get("/products", productController.publicList);
+publicBookingRouter.get("/push/vapid-public-key", pushController.getVapidPublicKey);
+publicBookingRouter.post("/push/subscribe", pushController.subscribe);
+publicBookingRouter.delete("/push/subscribe", pushController.unsubscribe);

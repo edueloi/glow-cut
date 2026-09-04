@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Calendar as CalendarIcon, Clock, User, Phone, Instagram, ArrowRight, CheckCircle2, Search, Loader2, Scissors, MapPin, Download, X, ChevronRight, RefreshCw } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, User, Phone, Instagram, ArrowRight, CheckCircle2, Search, Loader2, Scissors, MapPin, Download, X, ChevronRight, RefreshCw, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { format, addDays, isSameDay, startOfDay, startOfMonth, endOfMonth, endOfWeek, startOfWeek, isSameMonth, isBefore, addMonths, subMonths, addMinutes, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -8,6 +8,42 @@ import { cn } from "@/src/lib/utils";
 import { Button, Input, Badge, Divider, DatePicker } from "@/src/components/ui";
 
 type Step = "loading" | "home" | "consult" | "choose-mode" | "by-professional" | "by-service" | "pick-professional" | "pick-service" | "date" | "confirm" | "success";
+
+// VAPID public key vem em base64url — pushManager.subscribe exige um Uint8Array.
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
+async function subscribeToPush(phone: string, tenantId: string): Promise<boolean> {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+    const registration = await navigator.serviceWorker.ready;
+    const keyRes = await fetch("/api/public/push/vapid-public-key", { headers: { "x-tenant-id": tenantId } });
+    if (!keyRes.ok) return false;
+    const { publicKey } = await keyRes.json();
+    if (!publicKey) return false;
+
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+    }
+
+    await fetch("/api/public/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-tenant-id": tenantId },
+      body: JSON.stringify({ phone, subscription: subscription.toJSON() }),
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 interface PublicAgendaSettings {
   onlineBookingEnabled: boolean;
@@ -71,6 +107,7 @@ export default function ClientBooking() {
 
   const [step, setStep] = useState<Step>("loading");
   const [serviceSearch, setServiceSearch] = useState("");
+  const [pushState, setPushState] = useState<"idle" | "asking" | "granted" | "unsupported">("idle");
   const [services, setServices] = useState<any[]>([]);
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -230,6 +267,28 @@ export default function ClientBooking() {
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "accepted") setShowInstallBanner(false);
     setDeferredPrompt(null);
+  };
+
+  useEffect(() => {
+    if (step !== "success") return;
+    const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+    if (!supported) { setPushState("unsupported"); return; }
+    if (Notification.permission === "granted") setPushState("granted");
+    else if (Notification.permission === "denied") setPushState("unsupported");
+    else setPushState("idle");
+  }, [step]);
+
+  const handleEnablePush = async () => {
+    if (!tenantId || !phone) return;
+    setPushState("asking");
+    try {
+      const granted = await Notification.requestPermission();
+      if (granted !== "granted") { setPushState("unsupported"); return; }
+      const ok = await subscribeToPush(phone, tenantId);
+      setPushState(ok ? "granted" : "unsupported");
+    } catch {
+      setPushState("unsupported");
+    }
   };
 
   useEffect(() => {
@@ -1498,6 +1557,33 @@ export default function ClientBooking() {
                       </div>
                     </div>
                   </motion.div>
+
+                  {pushState === "idle" && (
+                    <motion.button
+                      type="button"
+                      onClick={handleEnablePush}
+                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+                      className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 hover:border-zinc-300 hover:bg-zinc-100 transition-all text-left"
+                    >
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: customColor + "15" }}>
+                        <Bell size={16} style={{ color: customColor }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-bold text-zinc-800">Ativar notificações</p>
+                        <p className="text-[11px] text-zinc-400 font-medium">Avisamos aqui quando confirmar, cancelar ou remarcar</p>
+                      </div>
+                    </motion.button>
+                  )}
+                  {pushState === "asking" && (
+                    <div className="w-full flex items-center justify-center gap-2 p-3.5 text-[12px] font-bold text-zinc-400">
+                      <Loader2 size={14} className="animate-spin" /> Ativando notificações...
+                    </div>
+                  )}
+                  {pushState === "granted" && (
+                    <div className="w-full flex items-center justify-center gap-2 p-3 text-[11px] font-bold text-emerald-600">
+                      <CheckCircle2 size={13} /> Notificações ativadas
+                    </div>
+                  )}
 
                   <motion.div className="w-full space-y-3" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
                     <Button

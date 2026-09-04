@@ -11,6 +11,7 @@ import {
   sendMessage,
   getQrCode,
 } from "../wpp/baileys-manager";
+import { sendPushToPhone } from "../webpush/pushService";
 
 // ── Templates padrão ──────────────────────────────────────────────────────────
 
@@ -18,6 +19,8 @@ export const DEFAULT_TEMPLATES = [
   // Cliente
   { type: "confirmation",    name: "Confirmação de Agendamento (Cliente)",  body: "{{saudacao}}, *{{nome_cliente}}*! 🌟\n\nSeu agendamento em *{{nome_estabelecimento}}* foi confirmado com sucesso! 🎉\n\n📅 *Data:* {{data_agendamento}}\n⏰ *Horário:* {{hora_agendamento}}\n✂️ *Serviço:* {{servico}} {{tipo_servico}}\n👤 *Profissional:* {{profissional}}\n💰 *Valor:* {{valor_agendamento}}{{recorrencia}}\n\n📍 *Local:* {{local}}\n\nAgradecemos a preferência e estamos te esperando! Qualquer dúvida, é só chamar.\n\nCom carinho,\n*Equipe {{nome_estabelecimento}}* 💙" },
   { type: "pending",         name: "Agendamento Recebido / Aguardando Confirmação (Cliente)", body: "{{saudacao}}, *{{nome_cliente}}*! 📝\n\nRecebemos seu pedido de agendamento em *{{nome_estabelecimento}}*!\n\n📅 *Data:* {{data_agendamento}}\n⏰ *Horário:* {{hora_agendamento}}\n✂️ *Serviço:* {{servico}} {{tipo_servico}}\n👤 *Profissional:* {{profissional}}\n\nO profissional vai confirmar seu horário em breve — assim que confirmado, você recebe outra mensagem por aqui. 😉\n\n*Equipe {{nome_estabelecimento}}* 💙" },
+  { type: "cancelled",       name: "Agendamento Cancelado (Cliente)",       body: "{{saudacao}}, *{{nome_cliente}}*.\n\nSeu agendamento em *{{nome_estabelecimento}}* foi *cancelado*:\n\n📅 *Data:* {{data_agendamento}}\n⏰ *Horário:* {{hora_agendamento}}\n✂️ *Serviço:* {{servico}}\n\nSe quiser remarcar, é só acessar o link de agendamento novamente. Qualquer dúvida, é só chamar!\n\n*Equipe {{nome_estabelecimento}}*" },
+  { type: "rescheduled",     name: "Agendamento Remarcado (Cliente)",       body: "{{saudacao}}, *{{nome_cliente}}*! 🔄\n\nSeu agendamento em *{{nome_estabelecimento}}* foi *remarcado* para:\n\n📅 *Nova data:* {{data_agendamento}}\n⏰ *Novo horário:* {{hora_agendamento}}\n✂️ *Serviço:* {{servico}}\n👤 *Profissional:* {{profissional}}\n\nQualquer dúvida, é só chamar!\n\n*Equipe {{nome_estabelecimento}}*" },
   { type: "reminder_24h",    name: "Lembrete 24h Antes (Cliente)",          body: "{{saudacao}}, *{{nome_cliente}}*! ⏳\n\nPassando para lembrar do seu horário amanhã com a gente!\n\n📅 *Data:* {{data_agendamento}}\n⏰ *Horário:* {{hora_agendamento}}\n✂️ *Serviço:* {{servico}}\n👤 *Com:* {{profissional}}\n\nAté logo!\n*Equipe {{nome_estabelecimento}}* 💙" },
   { type: "reminder_60min",  name: "Lembrete 60min Antes (Cliente)",        body: "{{saudacao}}, *{{nome_cliente}}*! ⏰\n\nFalta pouco! Seu atendimento começa em 1 hora:\n\n⏰ *Horário:* {{hora_agendamento}}\n✂️ *Serviço:* {{servico}}\n\nJá estamos te esperando no local!\n*Equipe {{nome_estabelecimento}}* 📍" },
   { type: "birthday",        name: "Parabéns de Aniversário",               body: "{{saudacao}}, *{{nome_cliente}}*! 🎈🎂\n\nToda a nossa equipe deseja um feliz aniversário e um novo ciclo cheio de alegrias e realizações! Aproveite muito o seu dia! 🎉\n\n*Equipe {{nome_estabelecimento}}*" },
@@ -387,8 +390,82 @@ export async function fireWppConfirmation(tenantId: string, appts: any[]): Promi
     };
 
     await sendWppToPhone(tenantId, appt.client.phone, applyVars(tpl, vars));
+    sendPushToPhone(tenantId, appt.client.phone, {
+      title: "Agendamento confirmado! ✅",
+      body: `${vars.servico || "Seu horário"} em ${vars.data_agendamento} às ${vars.hora_agendamento}`,
+      tag: `appt-${appt.id}`,
+    }).catch((e) => console.warn("[WebPush] Falha ao notificar confirmação:", e?.message || e));
   } catch (err) {
     console.warn("[WPP] fireWppConfirmation error:", err);
+  }
+}
+
+export async function fireWppCancelled(tenantId: string, appts: any[]): Promise<void> {
+  const appt = Array.isArray(appts) ? appts[0] : appts;
+  if (!appt) return;
+
+  try {
+    const tenant = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
+    let config = await (prisma as any).wppBotConfig.findUnique({ where: { tenantId } });
+    if (!config) config = await ensureBotConfig(tenantId);
+
+    const vars: Record<string, string> = {
+      saudacao: getSaudacao(),
+      nome_cliente: appt.client?.name || "",
+      servico: appt.service?.name || "",
+      nome_estabelecimento: tenant?.name || "",
+      data_agendamento: toSaoPauloDate(new Date(appt.date)).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }),
+      hora_agendamento: appt.startTime || "",
+    };
+
+    if (appt?.client?.phone) {
+      if (config?.botEnabled && config?.sendCancelled) {
+        const tpl = await getTemplateBody(tenantId, "cancelled");
+        if (tpl) await sendWppToPhone(tenantId, appt.client.phone, applyVars(tpl, vars));
+      }
+      sendPushToPhone(tenantId, appt.client.phone, {
+        title: "Agendamento cancelado",
+        body: `${vars.servico || "Seu horário"} em ${vars.data_agendamento} às ${vars.hora_agendamento} foi cancelado.`,
+        tag: `appt-${appt.id}`,
+      }).catch((e) => console.warn("[WebPush] Falha ao notificar cancelamento:", e?.message || e));
+    }
+  } catch (err) {
+    console.warn("[WPP] fireWppCancelled error:", err);
+  }
+}
+
+export async function fireWppRescheduled(tenantId: string, appts: any[]): Promise<void> {
+  const appt = Array.isArray(appts) ? appts[0] : appts;
+  if (!appt) return;
+
+  try {
+    const tenant = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
+    let config = await (prisma as any).wppBotConfig.findUnique({ where: { tenantId } });
+    if (!config) config = await ensureBotConfig(tenantId);
+
+    const vars: Record<string, string> = {
+      saudacao: getSaudacao(),
+      nome_cliente: appt.client?.name || "",
+      profissional: appt.professional?.name || "",
+      servico: appt.service?.name || "",
+      nome_estabelecimento: tenant?.name || "",
+      data_agendamento: toSaoPauloDate(new Date(appt.date)).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }),
+      hora_agendamento: appt.startTime || "",
+    };
+
+    if (appt?.client?.phone) {
+      if (config?.botEnabled && config?.sendRescheduled) {
+        const tpl = await getTemplateBody(tenantId, "rescheduled");
+        if (tpl) await sendWppToPhone(tenantId, appt.client.phone, applyVars(tpl, vars));
+      }
+      sendPushToPhone(tenantId, appt.client.phone, {
+        title: "Agendamento remarcado 🔄",
+        body: `Novo horário: ${vars.data_agendamento} às ${vars.hora_agendamento}`,
+        tag: `appt-${appt.id}`,
+      }).catch((e) => console.warn("[WebPush] Falha ao notificar remarcação:", e?.message || e));
+    }
+  } catch (err) {
+    console.warn("[WPP] fireWppRescheduled error:", err);
   }
 }
 
