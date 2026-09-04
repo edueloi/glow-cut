@@ -93,6 +93,70 @@ function SessionsBadge({ comanda, onUpdate }: { comanda: any; onUpdate?: () => v
   );
 }
 
+// ─── Botão de Nota Fiscal (NFS-e) ─────────────────────────────────────────────
+// Só aparece quando a comanda está paga -- emitir nota de comanda em aberto não faz
+// sentido (o valor/serviço ainda pode mudar). Isolado num componente próprio pra não
+// se misturar com o estado grande do modal de detalhes (pagamento, catálogo etc).
+
+type NfseInvoiceState = { status: string; numero?: number } | null;
+
+function ComandaNfseButton({ comanda }: { comanda: any }) {
+  const toast = useToast();
+  const [invoice, setInvoice] = useState<NfseInvoiceState>(null);
+  const [loading, setLoading] = useState(false);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    if (comanda.status !== "paid" || !comanda.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiFetch(`/api/comandas/${comanda.id}/nfse`);
+        if (res.status === 404) { if (!cancelled) setInvoice(null); return; }
+        const data = await res.json();
+        if (!cancelled && res.ok) setInvoice(data);
+      } catch { /* segue sem nota */ }
+      finally { if (!cancelled) setChecked(true); }
+    })();
+    return () => { cancelled = true; };
+  }, [comanda.id, comanda.status]);
+
+  if (comanda.status !== "paid") return null;
+  // Ainda checando se já existe nota — evita "piscar" o botão de emitir antes de saber.
+  if (!checked) return null;
+
+  async function handleEmit() {
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/comandas/${comanda.id}/nfse/emit`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || "Erro ao emitir nota fiscal."); return; }
+      setInvoice(data);
+      toast.success("Emissão de nota fiscal iniciada — acompanhe em Nota Fiscal > Notas emitidas.");
+    } catch { toast.error("Erro ao emitir nota fiscal."); }
+    finally { setLoading(false); }
+  }
+
+  if (invoice) {
+    const label = invoice.status === "authorized" ? `NF-e nº ${invoice.numero}` :
+      invoice.status === "processing" || invoice.status === "pending" ? "Emitindo NF-e..." :
+      invoice.status === "rejected" || invoice.status === "error" ? "Falha ao emitir NF-e" : "NF-e cancelada";
+    const color = invoice.status === "authorized" ? "success" : invoice.status === "rejected" || invoice.status === "error" ? "danger" : "warning";
+    return <Badge color={color as any} size="sm">{label}</Badge>;
+  }
+
+  return (
+    <button
+      onClick={handleEmit}
+      disabled={loading}
+      className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+    >
+      <Receipt size={11} />
+      {loading ? "Emitindo..." : "Emitir Nota Fiscal"}
+    </button>
+  );
+}
+
 // ─── Package summary in grid ──────────────────────────────────────────────────
 
 function PackageSummary({ comanda }: { comanda: any }) {
@@ -425,7 +489,10 @@ function DetailModal({ comanda, onClose, onPay, onEdit, fetchComandas, products,
                 </p>
               </div>
               {view === "main" && (
-                <Badge color={statusColor} size="sm">{statusLabel}</Badge>
+                <div className="flex items-center gap-2 shrink-0">
+                  <ComandaNfseButton comanda={comanda} />
+                  <Badge color={statusColor} size="sm">{statusLabel}</Badge>
+                </div>
               )}
             </div>
 

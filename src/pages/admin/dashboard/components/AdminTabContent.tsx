@@ -19,6 +19,7 @@ import {
   ServicesTab,
   SiteTab,
   WppTab,
+  NotaFiscalTab,
   AssinaturaTab,
 } from "@/src/pages/admin/modules";
 
@@ -358,6 +359,8 @@ export function AdminTabContent(props: any) {
 
         {activeTab === "profile" && <AdminProfileTab />}
         {activeTab === "wpp" && (guard("whatsapp") ? <WppTab /> : <AccessDenied tabLabel="WhatsApp" />)}
+
+        {activeTab === "notafiscal" && (guard("notafiscal") ? <NotaFiscalTab /> : <AccessDenied tabLabel="Nota Fiscal" />)}
 
         {activeTab === "products" && (!guard("produtos") ? <AccessDenied tabLabel="Produtos & Estoque" /> : (
           <ProductsTab

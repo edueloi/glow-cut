@@ -52,6 +52,7 @@ export const MODULES = [
   // Sistema
   "horarios",
   "whatsapp",
+  "notafiscal",
   "perfil",
   "configuracoes",
   "config_agenda",
@@ -145,6 +146,7 @@ export const MODULE_META: ModuleMeta[] = [
   // ── Sistema
   { key: "horarios",     label: "Horários",       group: "sistema", actions: ["ver", "editar_todos"] },
   { key: "whatsapp",     label: "WhatsApp",       group: "sistema", actions: ["ver", "editar_todos"] },
+  { key: "notafiscal",   label: "Nota Fiscal",    group: "sistema", actions: ["ver", "editar_todos"] },
   { key: "perfil",       label: "Meu Perfil",     group: "sistema", actions: ["ver", "editar_proprio"] },
   { key: "config_agenda",label: "Configurações da Agenda", group: "sistema", actions: ["ver", "editar_todos"] },
   { key: "configuracoes",label: "Configurações do Site / Temas",  group: "sistema", actions: ["ver", "editar_todos"] },

@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   MessageCircle,
   Package,
+  Receipt,
   Scissors,
   Settings,
   Shield,
@@ -33,6 +34,7 @@ export type AdminTabId =
   | "horarios"
   | "profile"
   | "wpp"
+  | "notafiscal"
   | "products"
   | "financeiro"
   | "permissoes"
@@ -80,6 +82,7 @@ export const ADMIN_TAB_SLUGS: Record<AdminTabId, string> = {
   settings: "config",
   profile: "perfil",
   wpp: "whatsapp",
+  notafiscal: "notafiscal",
   products: "produtos",
   financeiro: "financeiro",
   permissoes: "permissoes",
@@ -107,6 +110,7 @@ export const ADMIN_TAB_TITLES: Record<AdminTabId, string> = {
   settings: "Configurações",
   profile: "Meu Perfil",
   wpp: "WhatsApp",
+  notafiscal: "Nota Fiscal",
   products: "Produtos & Estoque",
   financeiro: "Financeiro",
   permissoes: "Perfis de Permissão",
@@ -213,6 +217,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
     label: "Sistema",
     items: [
       { tab: "wpp",        label: "WhatsApp",    icon: MessageCircle, permModule: "whatsapp" },
+      { tab: "notafiscal", label: "Nota Fiscal", icon: Receipt,       permModule: "notafiscal" },
       { tab: "settings",   label: "Configurações", icon: Settings,    permModule: "configuracoes" },
       { tab: "permissoes", label: "Permissões",  icon: Shield,        permModule: "permissoes" },
       { tab: "assinatura", label: "Assinatura", icon: CreditCard,     permModule: "assinatura" },

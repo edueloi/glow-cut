@@ -1058,6 +1058,68 @@ const MIGRATIONS = [
   { name: '060a_wppbotconfig_add_sendPending', sql: `ALTER TABLE WppBotConfig ADD COLUMN sendPending BOOLEAN NOT NULL DEFAULT TRUE AFTER sendConfirmation`, ignoreIfExists: true },
   { name: '060b_wppbotconfig_add_sendProfConfirmed', sql: `ALTER TABLE WppBotConfig ADD COLUMN sendProfConfirmed BOOLEAN NOT NULL DEFAULT TRUE AFTER sendProfNewBooking`, ignoreIfExists: true },
 
+  // 061/062 — Nota Fiscal de Serviço eletrônica (NFS-e): emissor é sempre o TENANT (salão),
+  // integração direta com o Sistema Nacional NFS-e do governo (certificado A1, XML assinado,
+  // REST+mTLS). Ver src/backend/nfse/.
+  {
+    name: '061_create_nfse_config',
+    sql: `
+      CREATE TABLE IF NOT EXISTS NfseConfig (
+        id                       VARCHAR(36)  NOT NULL PRIMARY KEY,
+        tenantId                 VARCHAR(36)  NOT NULL UNIQUE,
+        enabled                  BOOLEAN      NOT NULL DEFAULT FALSE,
+        razaoSocial              VARCHAR(255) NULL,
+        cnpj                     VARCHAR(20)  NULL,
+        inscricaoMunicipal       VARCHAR(50)  NULL,
+        codigoMunicipio          VARCHAR(10)  NULL,
+        codigoTributacaoNacional VARCHAR(20)  NULL,
+        regimeTributario         VARCHAR(30)  NOT NULL DEFAULT 'simples_nacional',
+        environment              VARCHAR(20)  NOT NULL DEFAULT 'homologacao',
+        serie                    INT          NOT NULL DEFAULT 1,
+        nextNumber               INT          NOT NULL DEFAULT 1,
+        certPath                 VARCHAR(500) NULL,
+        certPasswordEnc          TEXT         NULL,
+        certUploadedAt           DATETIME     NULL,
+        createdAt                DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt                DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT fk_nfseconfig_tenant FOREIGN KEY (tenantId) REFERENCES Tenant(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+  {
+    name: '062_create_nfse_invoice',
+    sql: `
+      CREATE TABLE IF NOT EXISTS NfseInvoice (
+        id                       VARCHAR(36)  NOT NULL PRIMARY KEY,
+        tenantId                 VARCHAR(36)  NOT NULL,
+        comandaId                VARCHAR(36)  NOT NULL UNIQUE,
+        status                   VARCHAR(20)  NOT NULL DEFAULT 'pending',
+        environment              VARCHAR(20)  NOT NULL DEFAULT 'homologacao',
+        serie                    INT          NOT NULL,
+        numero                   INT          NOT NULL,
+        chaveAcesso              VARCHAR(60)  NULL UNIQUE,
+        valorServico             DOUBLE       NOT NULL,
+        descricaoServico         VARCHAR(1000) NULL,
+        codigoTributacaoNacional VARCHAR(20)  NULL,
+        authorizedAt             DATETIME     NULL,
+        rejectionCode            VARCHAR(50)  NULL,
+        rejectionReason          TEXT         NULL,
+        dpsXmlPath               VARCHAR(500) NULL,
+        nfseXmlPath              VARCHAR(500) NULL,
+        nfsePdfPath              VARCHAR(500) NULL,
+        attempts                 INT          NOT NULL DEFAULT 0,
+        lastAttemptAt            DATETIME     NULL,
+        cancelReason             TEXT         NULL,
+        cancelledAt              DATETIME     NULL,
+        createdAt                DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt                DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_nfse_invoice_tenant (tenantId),
+        CONSTRAINT fk_nfseinvoice_tenant FOREIGN KEY (tenantId) REFERENCES Tenant(id) ON DELETE CASCADE,
+        CONSTRAINT fk_nfseinvoice_comanda FOREIGN KEY (comandaId) REFERENCES Comanda(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+
 ];
 
 

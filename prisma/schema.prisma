@@ -196,6 +196,7 @@ model Comanda {
   appointment    Appointment[]
   items          ComandaItem[]
   client         Client?       @relation(fields: [clientId], references: [id], map: "fk_comanda_client")
+  nfseInvoice    NfseInvoice?
 
   @@index([clientId], map: "fk_comanda_client")
   @@index([professionalId], map: "idx_comanda_prof")
@@ -614,6 +615,8 @@ model Tenant {
   setupTokenExpiresAt   DateTime?   @db.DateTime(0)
   resetToken            String?     @db.VarChar(100)
   resetTokenExpiresAt   DateTime?   @db.DateTime(0)
+  nfseConfig            NfseConfig?
+  nfseInvoices          NfseInvoice[]
 
   @@index([planId], map: "fk_tenant_plan")
   @@index([stripeCustomerId], map: "idx_tenant_stripe_customer")
@@ -1063,4 +1066,63 @@ model QATestResult {
 
   @@index([runId], map: "idx_qar_run")
   @@unique([runId, testId], map: "uq_qar_run_test")
+}
+
+// ── NFS-e (Nota Fiscal de Serviço eletrônica) ─────────────────────────────────
+// Emissor é sempre o TENANT (salão), não o profissional individual — diferente do
+// psiflux, de onde este módulo foi portado (lá cada psicólogo emite com seu próprio
+// CPF/CNPJ). Integração direta com o Sistema Nacional NFS-e do governo (não um
+// agregador terceirizado): certificado A1, assinatura XML própria, REST+mTLS.
+
+model NfseConfig {
+  id                       String    @id @db.VarChar(36)
+  tenantId                 String    @unique @db.VarChar(36)
+  enabled                  Boolean   @default(false)
+  razaoSocial              String?   @db.VarChar(255)
+  cnpj                     String?   @db.VarChar(20)
+  inscricaoMunicipal       String?   @db.VarChar(50)
+  codigoMunicipio          String?   @db.VarChar(10) // código IBGE
+  codigoTributacaoNacional String?   @db.VarChar(20) // subitem padrão da LC 116/03
+  regimeTributario         String    @default("simples_nacional") @db.VarChar(30)
+  environment              String    @default("homologacao") @db.VarChar(20)
+  serie                    Int       @default(1)
+  nextNumber               Int       @default(1)
+  // Certificado A1 (.pfx): binário salvo fora de uploads/ e public/ (nunca servido
+  // estático), senha criptografada (AES-256-CBC, ver nfse/certCrypto.ts).
+  certPath                 String?   @db.VarChar(500)
+  certPasswordEnc          String?   @db.Text
+  certUploadedAt           DateTime? @db.DateTime(0)
+  createdAt                DateTime  @default(now()) @db.DateTime(0)
+  updatedAt                DateTime  @updatedAt @db.DateTime(0)
+  tenant                   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model NfseInvoice {
+  id                       String    @id @db.VarChar(36)
+  tenantId                 String    @db.VarChar(36)
+  comandaId                String    @unique @db.VarChar(36)
+  status                   String    @default("pending") @db.VarChar(20) // pending|processing|authorized|rejected|error|cancelled
+  environment              String    @default("homologacao") @db.VarChar(20)
+  serie                    Int
+  numero                   Int
+  chaveAcesso              String?   @unique @db.VarChar(60)
+  valorServico             Float
+  descricaoServico         String?   @db.VarChar(1000)
+  codigoTributacaoNacional String?   @db.VarChar(20)
+  authorizedAt             DateTime? @db.DateTime(0)
+  rejectionCode            String?   @db.VarChar(50)
+  rejectionReason          String?   @db.Text
+  dpsXmlPath               String?   @db.VarChar(500)
+  nfseXmlPath              String?   @db.VarChar(500)
+  nfsePdfPath              String?   @db.VarChar(500)
+  attempts                 Int       @default(0)
+  lastAttemptAt            DateTime? @db.DateTime(0)
+  cancelReason             String?   @db.Text
+  cancelledAt              DateTime? @db.DateTime(0)
+  createdAt                DateTime  @default(now()) @db.DateTime(0)
+  updatedAt                DateTime  @updatedAt @db.DateTime(0)
+  tenant                   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  comanda                  Comanda   @relation(fields: [comandaId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId], map: "idx_nfse_invoice_tenant")
 }

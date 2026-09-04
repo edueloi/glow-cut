@@ -14,6 +14,7 @@ export { default as PlanosAssinaturaTab } from "./operacional/planos-assinatura/
 
 export { HorariosTab } from "./sistema/horarios/HorariosTab";
 export { WppTab } from "./sistema/whatsapp/WppTab";
+export { NotaFiscalTab } from "./sistema/notafiscal/NotaFiscalTab";
 export { SettingsTab } from "./sistema/configuracoes/SettingsTab";
 export { SiteTab } from "./site/SiteTab";
 export { AdminProfileTab } from "./sistema/perfil/AdminProfileTab";

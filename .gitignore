@@ -10,3 +10,6 @@ coverage/
 # WhatsApp Baileys session files
 wpp-sessions/
 .claude/settings.local.json
+
+# Certificados digitais A1 (.pfx) e XMLs/PDFs fiscais de NFS-e — nunca versionar
+private_storage/
