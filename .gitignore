@@ -9,3 +9,4 @@ coverage/
 
 # WhatsApp Baileys session files
 wpp-sessions/
+.claude/settings.local.json

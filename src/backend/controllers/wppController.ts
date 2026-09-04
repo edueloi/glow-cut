@@ -17,6 +17,7 @@ import {
 export const DEFAULT_TEMPLATES = [
   // Cliente
   { type: "confirmation",    name: "Confirmação de Agendamento (Cliente)",  body: "{{saudacao}}, *{{nome_cliente}}*! 🌟\n\nSeu agendamento em *{{nome_estabelecimento}}* foi confirmado com sucesso! 🎉\n\n📅 *Data:* {{data_agendamento}}\n⏰ *Horário:* {{hora_agendamento}}\n✂️ *Serviço:* {{servico}} {{tipo_servico}}\n👤 *Profissional:* {{profissional}}\n💰 *Valor:* {{valor_agendamento}}{{recorrencia}}\n\n📍 *Local:* {{local}}\n\nAgradecemos a preferência e estamos te esperando! Qualquer dúvida, é só chamar.\n\nCom carinho,\n*Equipe {{nome_estabelecimento}}* 💙" },
+  { type: "pending",         name: "Agendamento Recebido / Aguardando Confirmação (Cliente)", body: "{{saudacao}}, *{{nome_cliente}}*! 📝\n\nRecebemos seu pedido de agendamento em *{{nome_estabelecimento}}*!\n\n📅 *Data:* {{data_agendamento}}\n⏰ *Horário:* {{hora_agendamento}}\n✂️ *Serviço:* {{servico}} {{tipo_servico}}\n👤 *Profissional:* {{profissional}}\n\nO profissional vai confirmar seu horário em breve — assim que confirmado, você recebe outra mensagem por aqui. 😉\n\n*Equipe {{nome_estabelecimento}}* 💙" },
   { type: "reminder_24h",    name: "Lembrete 24h Antes (Cliente)",          body: "{{saudacao}}, *{{nome_cliente}}*! ⏳\n\nPassando para lembrar do seu horário amanhã com a gente!\n\n📅 *Data:* {{data_agendamento}}\n⏰ *Horário:* {{hora_agendamento}}\n✂️ *Serviço:* {{servico}}\n👤 *Com:* {{profissional}}\n\nAté logo!\n*Equipe {{nome_estabelecimento}}* 💙" },
   { type: "reminder_60min",  name: "Lembrete 60min Antes (Cliente)",        body: "{{saudacao}}, *{{nome_cliente}}*! ⏰\n\nFalta pouco! Seu atendimento começa em 1 hora:\n\n⏰ *Horário:* {{hora_agendamento}}\n✂️ *Serviço:* {{servico}}\n\nJá estamos te esperando no local!\n*Equipe {{nome_estabelecimento}}* 📍" },
   { type: "birthday",        name: "Parabéns de Aniversário",               body: "{{saudacao}}, *{{nome_cliente}}*! 🎈🎂\n\nToda a nossa equipe deseja um feliz aniversário e um novo ciclo cheio de alegrias e realizações! Aproveite muito o seu dia! 🎉\n\n*Equipe {{nome_estabelecimento}}*" },
@@ -24,6 +25,7 @@ export const DEFAULT_TEMPLATES = [
   { type: "welcome",         name: "Boas-vindas",                           body: "{{saudacao}}, *{{nome_cliente}}*! 👋\n\nSeja muito bem-vindo(a) a *{{nome_estabelecimento}}*. É um prazer ter você com a gente!\n\nQualquer dúvida ou se quiser agendar um horário, nossa equipe está por aqui." },
   // Profissional
   { type: "prof_new_booking",    name: "Novo Agendamento Online (Profissional)", body: "{{saudacao}}, *{{profissional}}*! 🚀\n\nVocê acaba de receber um *novo agendamento online*!\n\n👤 *Cliente:* {{nome_cliente}}\n✂️ *Serviço:* {{servico}} {{tipo_servico}}\n💰 *Valor:* {{valor_agendamento}}\n📅 *Data:* {{data_agendamento}}\n⏰ *Horário:* {{hora_agendamento}}{{recorrencia}}\n\n✅ *Confirme o agendamento no painel do sistema para que o cliente receba a notificação de confirmação.*\n\n🔗 Acesse: {{link_painel}}\n\nBora pra cima! 💪" },
+  { type: "prof_confirmed",      name: "Agendamento Confirmado (Profissional)",  body: "{{saudacao}}, *{{profissional}}*! ✅\n\nO agendamento abaixo foi *confirmado*:\n\n👤 *Cliente:* {{nome_cliente}}\n✂️ *Serviço:* {{servico}} {{tipo_servico}}\n📅 *Data:* {{data_agendamento}}\n⏰ *Horário:* {{hora_agendamento}}\n\nJá está na sua agenda! 📌" },
   { type: "prof_reminder_24h",   name: "Lembrete 24h Antes (Profissional)",     body: "{{saudacao}}, *{{profissional}}*! 📅\n\nLembrete de agendamento para **amanhã**:\n\n👤 *Cliente:* {{nome_cliente}}\n✂️ *Serviço:* {{servico}}\n⏰ *Horário:* {{hora_agendamento}}\n\nBom descanso e bom trabalho amanhã!" },
   { type: "prof_reminder_60min", name: "Lembrete 60min Antes (Profissional)",   body: "{{saudacao}}, *{{profissional}}*! ⏰\n\nAtenção: Seu próximo cliente chega em **1 hora**.\n\n👤 *Cliente:* {{nome_cliente}}\n✂️ *Serviço:* {{servico}}\n⏰ *Horário:* {{hora_agendamento}}\n\nPrepare-se!" },
   // Resposta automática
@@ -60,12 +62,14 @@ async function ensureBotConfig(tenantId: string) {
       id: randomUUID(), tenantId,
       botEnabled: false,
       sendConfirmation: true,
+      sendPending: true,
       sendReminder24h: true,
       sendReminder60min: true,
       sendBirthday: true,
       sendCobranca: false,
       sendWelcome: true,
       sendProfNewBooking: true,
+      sendProfConfirmed: true,
       sendProfReminder24h: true,
       sendProfReminder60min: false,
       menuEnabled: false,
@@ -277,6 +281,55 @@ export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Pro
   }
 }
 
+export async function fireWppProfConfirmed(tenantId: string, appts: any[]): Promise<void> {
+  const appt = Array.isArray(appts) ? appts[0] : appts;
+  if (!appt) return;
+
+  try {
+    let config = await (prisma as any).wppBotConfig.findUnique({ where: { tenantId } });
+    if (!config) {
+      config = await ensureBotConfig(tenantId);
+    }
+
+    if (!config?.botEnabled || !config?.sendProfConfirmed) {
+      console.log(`[WPP] IGNORANDO prof_confirmed para ${tenantId}: botEnabled=${config?.botEnabled}, sendProfConfirmed=${config?.sendProfConfirmed}`);
+      return;
+    }
+    if (!appt?.professional?.phone) {
+      console.log(`[WPP] IGNORANDO prof_confirmed: Telefone do profissional ausente no banco.`);
+      return;
+    }
+
+    const tpl = await getTemplateBody(tenantId, "prof_confirmed");
+    if (!tpl) {
+      console.log(`[WPP] IGNORANDO prof_confirmed: Template não encontrado ou ativo no banco.`);
+      return;
+    }
+
+    let tipoServico = "";
+    if (appt.serviceId) {
+      const svc = await (prisma as any).service.findUnique({ where: { id: appt.serviceId }, select: { type: true } });
+      if (svc?.type === 'package') {
+        tipoServico = "(Pacote)";
+      }
+    }
+
+    const vars: Record<string, string> = {
+      saudacao: getSaudacao(),
+      nome_cliente: appt.client?.name || "",
+      profissional: appt.professional?.name || "",
+      servico: appt.service?.name || "",
+      tipo_servico: tipoServico,
+      data_agendamento: format(toSaoPauloDate(new Date(appt.date)), "EEEE, dd 'de' MMMM", { locale: ptBR }),
+      hora_agendamento: appt.startTime || "",
+    };
+
+    await sendWppToPhone(tenantId, appt.professional.phone, applyVars(tpl, vars));
+  } catch (err) {
+    console.warn("[WPP] fireWppProfConfirmed error:", err);
+  }
+}
+
 export async function fireWppConfirmation(tenantId: string, appts: any[]): Promise<void> {
   const appt = Array.isArray(appts) ? appts[0] : appts;
   if (!appt) return;
@@ -336,6 +389,57 @@ export async function fireWppConfirmation(tenantId: string, appts: any[]): Promi
     await sendWppToPhone(tenantId, appt.client.phone, applyVars(tpl, vars));
   } catch (err) {
     console.warn("[WPP] fireWppConfirmation error:", err);
+  }
+}
+
+export async function fireWppPending(tenantId: string, appts: any[]): Promise<void> {
+  const appt = Array.isArray(appts) ? appts[0] : appts;
+  if (!appt) return;
+
+  try {
+    const tenant = await (prisma as any).tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
+    let config = await (prisma as any).wppBotConfig.findUnique({ where: { tenantId } });
+    if (!config) {
+      config = await ensureBotConfig(tenantId);
+    }
+
+    if (!config?.botEnabled || !config?.sendPending) {
+      console.log(`[WPP] IGNORANDO pending para ${tenantId}: botEnabled=${config?.botEnabled}, sendPending=${config?.sendPending}`);
+      return;
+    }
+    if (!appt?.client?.phone) {
+      console.log(`[WPP] IGNORANDO pending: Telefone do cliente ausente no banco.`);
+      return;
+    }
+
+    const tpl = await getTemplateBody(tenantId, "pending");
+    if (!tpl) {
+      console.log(`[WPP] IGNORANDO pending: Template não encontrado ou ativo no banco.`);
+      return;
+    }
+
+    let tipoServico = "";
+    if (appt.serviceId) {
+      const svc = await (prisma as any).service.findUnique({ where: { id: appt.serviceId }, select: { type: true } });
+      if (svc?.type === 'package') {
+        tipoServico = "(Pacote)";
+      }
+    }
+
+    const vars: Record<string, string> = {
+      saudacao: getSaudacao(),
+      nome_cliente: appt.client?.name || "",
+      profissional: appt.professional?.name || "",
+      servico: appt.service?.name || "",
+      tipo_servico: tipoServico,
+      nome_estabelecimento: tenant?.name || "",
+      data_agendamento: toSaoPauloDate(new Date(appt.date)).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }),
+      hora_agendamento: appt.startTime || "",
+    };
+
+    await sendWppToPhone(tenantId, appt.client.phone, applyVars(tpl, vars));
+  } catch (err) {
+    console.warn("[WPP] fireWppPending error:", err);
   }
 }
 
@@ -556,9 +660,9 @@ export const wppController = {
     const tenantId = getTenantId(req);
     if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
     const {
-      botEnabled, sendConfirmation, sendReminder24h, sendReminder60min,
+      botEnabled, sendConfirmation, sendPending, sendReminder24h, sendReminder60min,
       sendBirthday, sendCobranca, sendWelcome,
-      sendProfNewBooking, sendProfReminder24h, sendProfReminder60min,
+      sendProfNewBooking, sendProfConfirmed, sendProfReminder24h, sendProfReminder60min,
       menuEnabled, menuWelcomeMsg, menuOptions,
     } = req.body;
     try {
@@ -568,12 +672,14 @@ export const wppController = {
           id: randomUUID(), tenantId,
           botEnabled: !!botEnabled,
           sendConfirmation: sendConfirmation !== false,
+          sendPending: sendPending !== false,
           sendReminder24h: sendReminder24h !== false,
           sendReminder60min: sendReminder60min !== false,
           sendBirthday: sendBirthday !== false,
           sendCobranca: !!sendCobranca,
           sendWelcome: sendWelcome !== false,
           sendProfNewBooking: sendProfNewBooking !== false,
+          sendProfConfirmed: sendProfConfirmed !== false,
           sendProfReminder24h: sendProfReminder24h !== false,
           sendProfReminder60min: !!sendProfReminder60min,
           menuEnabled: !!menuEnabled,
@@ -583,12 +689,14 @@ export const wppController = {
         update: {
           ...(botEnabled !== undefined && { botEnabled: !!botEnabled }),
           ...(sendConfirmation !== undefined && { sendConfirmation: !!sendConfirmation }),
+          ...(sendPending !== undefined && { sendPending: !!sendPending }),
           ...(sendReminder24h !== undefined && { sendReminder24h: !!sendReminder24h }),
           ...(sendReminder60min !== undefined && { sendReminder60min: !!sendReminder60min }),
           ...(sendBirthday !== undefined && { sendBirthday: !!sendBirthday }),
           ...(sendCobranca !== undefined && { sendCobranca: !!sendCobranca }),
           ...(sendWelcome !== undefined && { sendWelcome: !!sendWelcome }),
           ...(sendProfNewBooking !== undefined && { sendProfNewBooking: !!sendProfNewBooking }),
+          ...(sendProfConfirmed !== undefined && { sendProfConfirmed: !!sendProfConfirmed }),
           ...(sendProfReminder24h !== undefined && { sendProfReminder24h: !!sendProfReminder24h }),
           ...(sendProfReminder60min !== undefined && { sendProfReminder60min: !!sendProfReminder60min }),
           ...(menuEnabled !== undefined && { menuEnabled: !!menuEnabled }),

@@ -3,7 +3,7 @@ import { prisma } from "../prisma";
 import { randomUUID } from "crypto";
 import { format, addDays, isSameDay, startOfDay, startOfMonth, endOfMonth, endOfWeek, startOfWeek, isSameMonth, isBefore, addMonths, subMonths, addMinutes, parse } from "date-fns";
 import { getTenantId, asBool, asNumber, toDateOnly, getDayRange, formatDateOnly, getSaudacao, applyTemplateVars, samePhone, normalizePhone } from "../utils/helpers";
-import { fireWppProfNewBooking, fireWppConfirmation as fireWppConfirmationCentral } from "./wppController";
+import { fireWppProfNewBooking, fireWppProfConfirmed, fireWppConfirmation as fireWppConfirmationCentral, fireWppPending } from "./wppController";
 import { emitToTenant } from "../realtime";
 
 const DEFAULT_AGENDA_SETTINGS = {
@@ -939,15 +939,17 @@ export const agendaController = {
         });
       }
 
-      // Notifica profissional (se o agendamento está ativo) e cliente (se confirmado) — criação
-      // retroativa via API com status "done"/"cancelled" direto não deveria avisar o profissional
-      // de um "novo agendamento" que já nasce encerrado.
+      // Notifica profissional (se o agendamento está ativo) e cliente (se confirmado, ou pendente de
+      // confirmação) — criação retroativa via API com status "done"/"cancelled" direto não deveria
+      // avisar ninguém de um "novo agendamento" que já nasce encerrado.
       if (tenantId && results.length > 0) {
         if (effectiveStatus === "scheduled" || effectiveStatus === "confirmed") {
           fireWppProfNewBooking(tenantId, results).catch(e => console.error("Erro wpp prof:", e));
         }
         if (effectiveStatus === "confirmed") {
           fireWppConfirmationCentral(tenantId, results).catch(e => console.error("Erro wpp client:", e));
+        } else if (effectiveStatus === "scheduled") {
+          fireWppPending(tenantId, results).catch(e => console.error("Erro wpp pending:", e));
         }
       }
 
@@ -1016,9 +1018,12 @@ export const agendaController = {
         }
       }
 
-      if (status === "confirmed" && oldAppt?.status !== "confirmed" && appt?.client?.phone && appt.tenantId) {
-        if (tryClaimWppConfirmation(appt.id)) {
+      if (status === "confirmed" && oldAppt?.status !== "confirmed" && appt.tenantId) {
+        if (appt?.client?.phone && tryClaimWppConfirmation(appt.id)) {
           fireWppConfirmation(appt.tenantId, appt).catch((e) => console.error("[WPP] Falha ao enviar confirmacao:", e?.message || e));
+        }
+        if (appt?.professional?.phone) {
+          fireWppProfConfirmed(appt.tenantId, appt).catch((e) => console.error("[WPP] Falha ao notificar profissional:", e?.message || e));
         }
       }
       if (tenantId) emitToTenant(tenantId, "agenda:changed");
@@ -1105,16 +1110,19 @@ export const agendaController = {
       // clicada (req.params.id): o cabeçalho dizia "Sessões (N)" só com 1 linha, sempre "1ª",
       // nunca as outras N-1 datas. Busca o grupo inteiro pra notificação bater com o que foi
       // confirmado de verdade.
-      if (statusToUse === "confirmed" && oldAppt.status !== "confirmed" && appt?.client?.phone && appt.tenantId) {
-        if (tryClaimWppConfirmation(appt.id)) {
-          const notifyPayload = confirmAll
-            ? await (prisma as any).appointment.findMany({
-                where: { repeatGroupId: oldAppt.repeatGroupId, tenantId },
-                orderBy: { date: "asc" },
-                include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true, phone: true } } },
-              })
-            : appt;
+      if (statusToUse === "confirmed" && oldAppt.status !== "confirmed" && appt.tenantId) {
+        const notifyPayload = confirmAll
+          ? await (prisma as any).appointment.findMany({
+              where: { repeatGroupId: oldAppt.repeatGroupId, tenantId },
+              orderBy: { date: "asc" },
+              include: { client: { select: { id: true, name: true, phone: true } }, service: { select: { id: true, name: true, price: true } }, professional: { select: { id: true, name: true, phone: true } } },
+            })
+          : appt;
+        if (appt?.client?.phone && tryClaimWppConfirmation(appt.id)) {
           fireWppConfirmation(appt.tenantId, notifyPayload).catch((e) => console.error("[WPP] Falha ao enviar confirmacao:", e?.message || e));
+        }
+        if (appt?.professional?.phone) {
+          fireWppProfConfirmed(appt.tenantId, notifyPayload).catch((e) => console.error("[WPP] Falha ao notificar profissional:", e?.message || e));
         }
       }
 

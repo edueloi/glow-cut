@@ -1054,6 +1054,10 @@ const MIGRATIONS = [
     ignoreIfExists: true,
   },
 
+  // 060 — Notificações WhatsApp: agendamento pendente (cliente) e confirmado (profissional)
+  { name: '060a_wppbotconfig_add_sendPending', sql: `ALTER TABLE WppBotConfig ADD COLUMN sendPending BOOLEAN NOT NULL DEFAULT TRUE AFTER sendConfirmation`, ignoreIfExists: true },
+  { name: '060b_wppbotconfig_add_sendProfConfirmed', sql: `ALTER TABLE WppBotConfig ADD COLUMN sendProfConfirmed BOOLEAN NOT NULL DEFAULT TRUE AFTER sendProfNewBooking`, ignoreIfExists: true },
+
 ];
 
 
