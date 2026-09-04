@@ -50,7 +50,7 @@ interface AgendaTabProps {
   // Submodule data
   clients?: any[];
   services?: any[];
-  onNewBlockAppointment?: (data: { date: Date; startTime: string; endTime: string; professionalId: string; notes?: string; recurrence?: { type: "none" | "weekly" | "custom"; count: number; interval: number } }) => void | Promise<void>;
+  onNewBlockAppointment?: (data: { date: Date; startTime: string; endTime: string; professionalId: string; notes?: string; recurrence?: { type: "none" | "weekly" | "custom" | "indefinite"; count: number; interval: number } }) => void | Promise<void>;
   onDeleteAppointment?: (id: string) => void;
   onUpdateStatus?: (id: string, status: string) => void;
   onRefresh?: () => void;

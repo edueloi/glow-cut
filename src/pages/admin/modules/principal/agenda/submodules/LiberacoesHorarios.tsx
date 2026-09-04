@@ -368,52 +368,54 @@ export function LiberacoesHorarios({
                       {bloqueios.map((b) => {
                         const seriesCount = b.repeatGroupId ? bloqueios.filter((x) => x.repeatGroupId === b.repeatGroupId).length : 1;
                         return (
-                        <div key={b.id} className="group flex min-w-0 flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition-all hover:shadow-md sm:flex-nowrap sm:gap-4 sm:p-5">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-50 border border-zinc-100 group-hover:bg-red-50 group-hover:border-red-100 transition-colors">
-                            <Clock size={20} className="text-zinc-400 group-hover:text-red-500" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-black text-zinc-900">
-                              {format(new Date(b.date), "dd 'de' MMMM", { locale: ptBR })} ({format(new Date(b.date), "EEEE", { locale: ptBR })})
-                            </p>
-                            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                               <Badge color="default" className="bg-zinc-100 text-zinc-600 font-black h-6 px-2.5">{b.startTime} – {b.endTime}</Badge>
-                               {b.professional?.name && (
-                                 <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1">
-                                    <User size={10} /> {b.professional.name}
-                                 </span>
-                               )}
-                               {b.repeatGroupId && seriesCount > 1 && (
-                                 <Badge color="default" className="bg-red-50 text-red-600 font-black h-6 px-2.5">Série · {seriesCount}x</Badge>
-                               )}
-                               {(b.status === "cancelled" || b.status === "canceled" || b.status === "cancelado") && (
-                                 <Badge color="default" className="bg-zinc-200 text-zinc-500 font-black h-6 px-2.5">Pausado</Badge>
-                               )}
+                        <div key={b.id} className="group flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition-all hover:shadow-md sm:p-5">
+                          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-50 border border-zinc-100 group-hover:bg-red-50 group-hover:border-red-100 transition-colors">
+                              <Clock size={20} className="text-zinc-400 group-hover:text-red-500" />
                             </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-black text-zinc-900">
+                                {format(new Date(b.date), "dd 'de' MMMM", { locale: ptBR })} ({format(new Date(b.date), "EEEE", { locale: ptBR })})
+                              </p>
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                 <Badge color="default" className="bg-zinc-100 text-zinc-600 font-black h-6 px-2.5">{b.startTime} – {b.endTime}</Badge>
+                                 {b.professional?.name && (
+                                   <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1">
+                                      <User size={10} /> {b.professional.name}
+                                   </span>
+                                 )}
+                                 {b.repeatGroupId && seriesCount > 1 && (
+                                   <Badge color="default" className="bg-red-50 text-red-600 font-black h-6 px-2.5">Série · {seriesCount}x</Badge>
+                                 )}
+                                 {(b.status === "cancelled" || b.status === "canceled" || b.status === "cancelado") && (
+                                   <Badge color="default" className="bg-zinc-200 text-zinc-500 font-black h-6 px-2.5">Pausado</Badge>
+                                 )}
+                              </div>
+                            </div>
+                            <button onClick={() => onDeleteAppointment(b.id)} aria-label="Excluir bloqueio" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-300 transition-all hover:bg-red-50 hover:text-red-500">
+                              <Trash2 size={16} />
+                            </button>
                           </div>
                           {b.repeatGroupId && seriesCount > 1 && (
-                            <button
-                              onClick={() => handleToggleSeriesPause(b.repeatGroupId, b.status !== "cancelled")}
-                              disabled={togglingSeriesId === b.repeatGroupId}
-                              className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-zinc-400 hover:text-amber-600 transition-all px-2 whitespace-nowrap"
-                            >
-                              {b.status === "cancelled"
-                                ? <><Play size={11} /> Retomar série</>
-                                : <><Pause size={11} /> Pausar série</>}
-                            </button>
+                            <div className="flex items-center gap-2 border-t border-zinc-100 pt-3 sm:pl-16">
+                              <button
+                                onClick={() => handleToggleSeriesPause(b.repeatGroupId, b.status !== "cancelled")}
+                                disabled={togglingSeriesId === b.repeatGroupId}
+                                className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-zinc-500 hover:bg-amber-50 hover:text-amber-600 transition-all whitespace-nowrap"
+                              >
+                                {b.status === "cancelled"
+                                  ? <><Play size={11} /> Retomar série</>
+                                  : <><Pause size={11} /> Pausar série</>}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSeries(b.repeatGroupId)}
+                                disabled={deletingSeriesId === b.repeatGroupId}
+                                className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-zinc-500 hover:bg-red-50 hover:text-red-500 transition-all whitespace-nowrap"
+                              >
+                                <Trash2 size={11} /> Excluir série
+                              </button>
+                            </div>
                           )}
-                          {b.repeatGroupId && seriesCount > 1 && (
-                            <button
-                              onClick={() => handleDeleteSeries(b.repeatGroupId)}
-                              disabled={deletingSeriesId === b.repeatGroupId}
-                              className="text-[10px] font-black uppercase tracking-wide text-zinc-400 hover:text-red-500 transition-all px-2 whitespace-nowrap"
-                            >
-                              Excluir série
-                            </button>
-                          )}
-                          <button onClick={() => onDeleteAppointment(b.id)} aria-label="Excluir bloqueio" className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-300 transition-all hover:bg-red-50 hover:text-red-500">
-                            <Trash2 size={16} />
-                          </button>
                         </div>
                         );
                       })}
@@ -462,35 +464,80 @@ export function LiberacoesHorarios({
 
                   {professionals.length > 0 && (
                     <div className="space-y-1.5">
-                      <label className="ds-label">Em qual profissional?</label>
-                      <select value={newBlock.professionalId} onChange={(e) => setNewBlock((p) => ({ ...p, professionalId: e.target.value }))} className="ds-input font-bold rounded-2xl h-11">
-                        <option value="all">Todos os profissionais (fecha o estúdio)</option>
-                        {professionals.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
+                      <label className="ds-label">Bloquear para quem?</label>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => setNewBlock((p) => ({ ...p, professionalId: "all" }))}
+                          className={cn(
+                            "flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-left text-xs font-bold transition-all",
+                            newBlock.professionalId === "all"
+                              ? "bg-red-500 text-white border-red-500"
+                              : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
+                          )}
+                        >
+                          <Lock size={14} className="shrink-0" />
+                          <span className="min-w-0">
+                            Agenda inteira
+                            <span className={cn("block text-[10px] font-medium", newBlock.professionalId === "all" ? "text-white/80" : "text-zinc-400")}>
+                              Fecha o estúdio todo
+                            </span>
+                          </span>
+                        </button>
+                        {professionals.length === 1 ? (
+                          <button
+                            type="button"
+                            onClick={() => setNewBlock((p) => ({ ...p, professionalId: professionals[0].id }))}
+                            className={cn(
+                              "flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-left text-xs font-bold transition-all",
+                              newBlock.professionalId === professionals[0].id
+                                ? "bg-red-500 text-white border-red-500"
+                                : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
+                            )}
+                          >
+                            <User size={14} className="shrink-0" />
+                            <span className="min-w-0 truncate">{professionals[0].name}</span>
+                          </button>
+                        ) : (
+                          <select
+                            value={newBlock.professionalId === "all" ? "" : newBlock.professionalId}
+                            onChange={(e) => setNewBlock((p) => ({ ...p, professionalId: e.target.value }))}
+                            className="ds-input font-bold rounded-2xl h-11"
+                          >
+                            <option value="" disabled>Só um profissional...</option>
+                            {professionals.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        )}
+                      </div>
                     </div>
                   )}
 
                   <div className="space-y-1.5">
                     <label className="ds-label">Repetição</label>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2">
                       {([
-                        { v: "none", label: "Sem repetição" },
-                        { v: "weekly", label: "Semanal (1x por semana)" },
-                        { v: "custom", label: "Dias seguidos" },
-                        { v: "indefinite", label: "Sem prazo (até eu pausar)" },
+                        { v: "none", label: "Sem repetição", sub: null },
+                        { v: "weekly", label: "Semanal", sub: "1x por semana" },
+                        { v: "custom", label: "Dias seguidos", sub: null },
+                        { v: "indefinite", label: "Sem prazo", sub: "até eu pausar" },
                       ] as const).map((opt) => (
                         <button
                           key={opt.v}
                           type="button"
                           onClick={() => setNewBlock((p) => ({ ...p, recurrence: { ...p.recurrence, type: opt.v } }))}
                           className={cn(
-                            "flex-1 py-2 rounded-xl text-[10px] font-bold transition-all border",
+                            "flex flex-col items-center justify-center gap-0.5 rounded-xl border px-2 py-2.5 text-[11px] font-bold transition-all min-h-[52px]",
                             newBlock.recurrence.type === opt.v
                               ? "bg-red-500 text-white border-red-500"
                               : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
                           )}
                         >
-                          {opt.label}
+                          <span>{opt.label}</span>
+                          {opt.sub && (
+                            <span className={cn("text-[9px] font-medium", newBlock.recurrence.type === opt.v ? "text-white/80" : "text-zinc-400")}>
+                              {opt.sub}
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>

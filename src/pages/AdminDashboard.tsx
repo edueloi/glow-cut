@@ -867,7 +867,7 @@ export default function AdminDashboard() {
     fetchAppointments();
   };
 
-  const handleCreateBlockAppointment = async (data: { date: Date; startTime: string; endTime: string; professionalId: string; notes?: string; recurrence?: { type: "none" | "weekly" | "custom"; count: number; interval: number } }) => {
+  const handleCreateBlockAppointment = async (data: { date: Date; startTime: string; endTime: string; professionalId: string; notes?: string; recurrence?: { type: "none" | "weekly" | "custom" | "indefinite"; count: number; interval: number } }) => {
     const startMinutes = parseInt(data.startTime.split(":")[0]) * 60 + parseInt(data.startTime.split(":")[1]);
     const endMinutes = parseInt(data.endTime.split(":")[0]) * 60 + parseInt(data.endTime.split(":")[1]);
     const res = await apiFetch("/api/appointments", {
