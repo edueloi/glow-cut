@@ -432,10 +432,40 @@ async function processBirthdays(): Promise<void> {
   }
 }
 
+// ─── Sessões de parceiros ────────────────────────────────────────────────────
+
+// Adota sessões dos estabelecimentos (parceiros) — a sessão "system" (bot central) é
+// gerenciada exclusivamente pelo processo agendelle e nunca deve ser tocada aqui, senão
+// duplicaria o socket e quebraria o chatbot interativo. Rodada tanto no boot quanto a cada
+// tick: o painel (processo agendelle) só mantém o socket durante o pareamento via QR e o
+// solta assim que conecta (handoffSession) — é aqui que a sessão é assumida de vez, sem
+// nunca coexistir com o socket do painel (initSession é idempotente por processo: só reabre
+// se ainda não tiver um socket vivo localmente).
+async function syncPartnerSessions(): Promise<void> {
+  try {
+    const sessionsDir = path.resolve(ROOT, "wpp-sessions");
+    const { existsSync, readdirSync, statSync } = await import("fs");
+    if (!existsSync(sessionsDir)) return;
+    const dirs = readdirSync(sessionsDir).filter(d => {
+      if (d === "system") return false; // nunca restaurar bot do sistema aqui
+      const full = path.join(sessionsDir, d);
+      return statSync(full).isDirectory() && existsSync(path.join(full, "creds.json"));
+    });
+    const { initSession, getSessionInfo } = await import("../src/backend/wpp/baileys-manager.js");
+    for (const tid of dirs) {
+      if (getSessionInfo(tid).status === "connected") continue; // já ativo neste processo
+      try { await initSession(tid); } catch (e) { console.warn(`[WPP Scheduler] Erro sessão ${tid}:`, e); }
+    }
+  } catch (e) {
+    console.warn("[WPP Scheduler] syncPartnerSessions error:", e);
+  }
+}
+
 // ─── Loop principal ──────────────────────────────────────────────────────────
 
 async function tick(): Promise<void> {
   console.log(`[WPP Scheduler] tick ${new Date().toISOString()}`);
+  await syncPartnerSessions();
   await Promise.allSettled([processReminders24h(), processReminders60min(), processBirthdays()]);
 }
 
@@ -461,29 +491,7 @@ async function main() {
     console.warn("[WPP Scheduler] WppMessageSent table:", e?.message);
   }
 
-  // Restaura apenas sessões dos estabelecimentos (parceiros).
-  // A sessão "system" (bot central) é gerenciada exclusivamente pelo processo agendelle.
-  // Restaurar "system" aqui causaria conflito de socket e quebraria o chatbot interativo.
-  try {
-    const sessionsDir = path.resolve(ROOT, "wpp-sessions");
-    const { existsSync, readdirSync, statSync } = await import("fs");
-    if (existsSync(sessionsDir)) {
-      const dirs = readdirSync(sessionsDir).filter(d => {
-        if (d === "system") return false; // nunca restaurar bot do sistema aqui
-        const full = path.join(sessionsDir, d);
-        return statSync(full).isDirectory() && existsSync(path.join(full, "creds.json"));
-      });
-      const { initSession } = await import("../src/backend/wpp/baileys-manager.js");
-      console.log(`[WPP Scheduler] Restaurando ${dirs.length} sessão(ões) de parceiros...`);
-      for (const tid of dirs) {
-        try { await initSession(tid); } catch (e) { console.warn(`[WPP Scheduler] Erro sessão ${tid}:`, e); }
-      }
-    }
-  } catch (e) {
-    console.warn("[WPP Scheduler] restoreSessions error:", e);
-  }
-
-  // Executa imediatamente e depois a cada 60 segundos
+  // Executa imediatamente (o primeiro tick já chama syncPartnerSessions) e depois a cada 60s
   await tick();
   setInterval(tick, 60_000);
 }

@@ -195,6 +195,11 @@ setInterval(() => cleanInactive(), 5 * 60 * 1000);
 const sessions = new Map<string, ActiveSession>();
 const SESSIONS_DIR = path.join(process.cwd(), "wpp-sessions");
 
+// Tenants cujo socket local está sendo fechado de propósito para handoff entre processos
+// (ver handoffSession) — evita que o handler connection.update trate esse fechamento como
+// queda real e agende reconexão/grave "disconnected" no banco.
+const intentionalClose = new Set<string>();
+
 // ── Circuit breaker de reconexão ──────────────────────────────────────────────
 // Evita loop de reconexão acelerada quando uma sessão fica presa em erro (ex.: statusCode
 // não identificado pelo Baileys). Backoff exponencial com teto, resetado ao conectar com sucesso.
@@ -1441,6 +1446,15 @@ export async function initSession(tenantId: string): Promise<void> {
       console.log(`[Baileys][${tenantId}] Conectado como ${session.phone}`);
     }
     if (connection === "close") {
+      if (intentionalClose.has(tenantId)) {
+        // Handoff entre processos (ver handoffSession): fechamento de propósito, não é queda
+        // real — não agenda reconexão nem grava "disconnected" no banco (o outro processo
+        // assume a sessão em seguida e vai regravar "connected"; gravar aqui só criaria um
+        // flicker visual no painel).
+        intentionalClose.delete(tenantId);
+        sessions.delete(tenantId);
+        return;
+      }
       const err = lastDisconnect?.error as any;
       const statusCode = err?.output?.statusCode ?? err?.data?.attrs?.code ?? err?.data?.statusCode;
       const loggedOut = statusCode === DisconnectReason.loggedOut;
@@ -1539,10 +1553,25 @@ export function onSessionUpdate(tenantId: string, fn: (info: SessionInfo) => voi
   return () => s!.listeners.delete(fn);
 }
 
+// Fecha o socket local sem invalidar as credenciais em disco — usado pelo processo do painel
+// (agendelle) para entregar a sessão recém-conectada ao processo dedicado (agendelle-wpp),
+// que assume de forma permanente no próximo tick. Nunca chamar em vez de disconnectSession
+// quando a intenção for desconectar/logout de verdade.
+export function handoffSession(tenantId: string): void {
+  const s = sessions.get(tenantId);
+  if (!s?.sock) return;
+  intentionalClose.add(tenantId);
+  try { s.sock.end(undefined); } catch {}
+}
+
 export async function connectSession(tenantId: string): Promise<SessionInfo> {
   await initSession(tenantId);
   await new Promise<void>(resolve => { const t = setTimeout(resolve, 3000); onSessionUpdate(tenantId, () => { clearTimeout(t); resolve(); }); });
-  return getSessionInfo(tenantId);
+  const info = getSessionInfo(tenantId);
+  if (info.status === "connected") {
+    setTimeout(() => handoffSession(tenantId), 5000);
+  }
+  return info;
 }
 
 export async function disconnectSession(tenantId: string): Promise<void> {
