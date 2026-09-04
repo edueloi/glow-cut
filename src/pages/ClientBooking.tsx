@@ -941,28 +941,33 @@ export default function ClientBooking() {
                   {selectedProfessional && (
                     <SelectionChip label={selectedProfessional.name} sub={selectedProfessional.role} />
                   )}
-                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
+                  <div className="space-y-2.5">
                     {servicesForProfessional(selectedProfessional?.id || "").map((s, idx) => (
                       <motion.button key={s.id}
                         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
                         onClick={() => { setSelectedService(s); setSelectedSlot(null); setStep("date"); fetchAvailability(selectedDate, s.id, selectedProfessional.id); }}
-                        className="w-full flex items-start gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
+                        className="w-full flex items-center gap-3.5 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
                         <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 flex items-center justify-center" style={{ backgroundColor: s.photo ? undefined : customColor + "15" }}>
                           {s.photo ? <img src={s.photo} alt={s.name} className="w-full h-full object-cover" /> : <Scissors size={16} style={{ color: customColor }} />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-black text-zinc-900 leading-snug line-clamp-2">{s.name}</p>
-                          <p className="text-[10px] text-zinc-400 font-medium mt-1 flex items-center gap-1.5">
-                            <Clock size={9} />{s.duration} min
-                          </p>
+                          <p className="text-sm font-black text-zinc-900 leading-snug">{s.name}</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <p className="text-[10px] text-zinc-400 font-medium flex items-center gap-1.5">
+                              <Clock size={9} />{s.duration} min
+                            </p>
+                            {publicAgendaSettings.selfServiceShowPrices && (
+                              <>
+                                <span className="text-zinc-200 text-[10px]">·</span>
+                                <p className="text-[11px] font-black" style={{ color: customColor }}>R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</p>
+                              </>
+                            )}
+                          </div>
                         </div>
-                        {publicAgendaSettings.selfServiceShowPrices && (
-                          <p className="text-sm font-black shrink-0 whitespace-nowrap" style={{ color: customColor }}>R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</p>
-                        )}
                       </motion.button>
                     ))}
                     {servicesForProfessional(selectedProfessional?.id || "").length === 0 && (
-                      <div className="p-6 text-center border-2 border-dashed border-zinc-100 rounded-2xl md:col-span-2">
+                      <div className="p-6 text-center border-2 border-dashed border-zinc-100 rounded-2xl">
                         <p className="text-xs font-bold text-zinc-400">Nenhum serviço disponível para este profissional.</p>
                       </div>
                     )}
@@ -978,29 +983,34 @@ export default function ClientBooking() {
                     <h3 className="text-2xl font-black text-zinc-900 tracking-tight">Serviços</h3>
                     <p className="text-xs text-zinc-400 font-medium mt-1">O que você deseja fazer?</p>
                   </div>
-                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
+                  <div className="space-y-2.5">
                     {services.map((s, idx) => {
                       const profs = professionalsForService(s.id);
                       return (
                         <motion.button key={s.id}
                           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
                           onClick={() => handleServiceSelected(s)}
-                          className="w-full flex items-start gap-4 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
+                          className="w-full flex items-center gap-3.5 p-4 bg-white border-2 border-zinc-100 rounded-2xl hover:border-zinc-200 hover:shadow-md transition-all active:scale-[0.98] text-left group">
                           <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 flex items-center justify-center" style={{ backgroundColor: s.photo ? undefined : customColor + "15" }}>
                             {s.photo ? <img src={s.photo} alt={s.name} className="w-full h-full object-cover" /> : <Scissors size={16} style={{ color: customColor }} />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-black text-zinc-900 leading-snug line-clamp-2">{s.name}</p>
-                            <p className="text-[10px] text-zinc-400 font-medium mt-1 flex items-center gap-1.5">
-                              <Clock size={9} />{s.duration} min
-                              {!onlyOneProfessional && profs.length > 0 && (
-                                <><span className="text-zinc-200">·</span>{profs.length} prof.</>
+                            <p className="text-sm font-black text-zinc-900 leading-snug">{s.name}</p>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <p className="text-[10px] text-zinc-400 font-medium flex items-center gap-1.5">
+                                <Clock size={9} />{s.duration} min
+                                {!onlyOneProfessional && profs.length > 0 && (
+                                  <><span className="text-zinc-200">·</span>{profs.length} prof.</>
+                                )}
+                              </p>
+                              {publicAgendaSettings.selfServiceShowPrices && (
+                                <>
+                                  <span className="text-zinc-200 text-[10px]">·</span>
+                                  <p className="text-[11px] font-black" style={{ color: customColor }}>R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</p>
+                                </>
                               )}
-                            </p>
+                            </div>
                           </div>
-                          {publicAgendaSettings.selfServiceShowPrices && (
-                            <p className="text-sm font-black shrink-0 whitespace-nowrap" style={{ color: customColor }}>R$ {parseFloat(s.price).toFixed(2).replace(".", ",")}</p>
-                          )}
                         </motion.button>
                       );
                     })}
