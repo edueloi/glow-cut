@@ -217,7 +217,16 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
     label: "Sistema",
     items: [
       { tab: "wpp",        label: "WhatsApp",    icon: MessageCircle, permModule: "whatsapp" },
-      { tab: "notafiscal", label: "Nota Fiscal", icon: Receipt,       permModule: "notafiscal" },
+      {
+        tab: "notafiscal",
+        label: "Nota Fiscal",
+        icon: Receipt,
+        permModule: "notafiscal",
+        subItems: [
+          { key: "invoices", label: "Notas Emitidas" },
+          { key: "config",   label: "Configurações" },
+        ],
+      },
       { tab: "settings",   label: "Configurações", icon: Settings,    permModule: "configuracoes" },
       { tab: "permissoes", label: "Permissões",  icon: Shield,        permModule: "permissoes" },
       { tab: "assinatura", label: "Assinatura", icon: CreditCard,     permModule: "assinatura" },

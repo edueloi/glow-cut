@@ -10,6 +10,13 @@ import {
   useToast,
 } from "@/src/components/ui";
 
+type SubTab = "config" | "invoices";
+
+interface NotaFiscalTabProps {
+  activeSubModule?: string;
+  setActiveSubModule?: (key: string) => void;
+}
+
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
 interface NfseConfig {
@@ -63,9 +70,16 @@ const DEFAULT_CONFIG: NfseConfig = {
 
 // ─── Componente principal ────────────────────────────────────────────────────
 
-export function NotaFiscalTab() {
+export function NotaFiscalTab({ activeSubModule, setActiveSubModule }: NotaFiscalTabProps) {
   const toast = useToast();
 
+  useEffect(() => {
+    if (!activeSubModule && setActiveSubModule) {
+      setActiveSubModule("invoices");
+    }
+  }, [activeSubModule, setActiveSubModule]);
+
+  const subTab: SubTab = activeSubModule === "config" ? "config" : "invoices";
   const [config, setConfig] = useState<NfseConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -202,6 +216,9 @@ export function NotaFiscalTab() {
           />
         </div>
 
+        {/* Aba Configurações */}
+        {subTab === "config" && (
+        <>
         {/* Card: Ativação */}
         <PanelCard
           icon={config.enabled ? ShieldCheck : ShieldAlert}
@@ -345,8 +362,11 @@ export function NotaFiscalTab() {
             </Button>
           </div>
         </PanelCard>
+        </>
+        )}
 
-        {/* Card: Notas emitidas */}
+        {/* Aba Notas Emitidas */}
+        {subTab === "invoices" && (
         <PanelCard
           icon={Receipt}
           iconWrapClassName="bg-zinc-50 border-zinc-100"
@@ -377,6 +397,7 @@ export function NotaFiscalTab() {
             </div>
           )}
         </PanelCard>
+        )}
       </div>
     </PageWrapper>
   );

@@ -360,7 +360,12 @@ export function AdminTabContent(props: any) {
         {activeTab === "profile" && <AdminProfileTab />}
         {activeTab === "wpp" && (guard("whatsapp") ? <WppTab /> : <AccessDenied tabLabel="WhatsApp" />)}
 
-        {activeTab === "notafiscal" && (guard("notafiscal") ? <NotaFiscalTab /> : <AccessDenied tabLabel="Nota Fiscal" />)}
+        {activeTab === "notafiscal" && (guard("notafiscal") ? (
+          <NotaFiscalTab
+            activeSubModule={activeSubModule}
+            setActiveSubModule={setActiveSubModule}
+          />
+        ) : <AccessDenied tabLabel="Nota Fiscal" />)}
 
         {activeTab === "products" && (!guard("produtos") ? <AccessDenied tabLabel="Produtos & Estoque" /> : (
           <ProductsTab
