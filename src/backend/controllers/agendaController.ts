@@ -586,7 +586,13 @@ export const agendaController = {
               return sum + Math.max(0, aEnd - aStart);
             }, 0);
             const occupiedRatio = occupiedMinutes / workdayMinutes;
-            if (occupiedRatio >= 0.95) statusMap[dateStr] = "full";
+            // Um bloqueio manual (dono fechando a agenda de propósito) é diferente de "lotou de
+            // cliente real" — quando TODA a ocupação do dia vem de bloqueio, o dia é tratado
+            // como fechado (mesma cor/legenda de feriado), não "lotado" (que ficava cinza,
+            // clicável, e só mostrava "agenda cheia" depois de já ter clicado no dia).
+            const onlyBlocked = dayAppts.length > 0 && dayAppts.every((a: any) => a.type === "bloqueio");
+            if (occupiedRatio >= 0.95 && onlyBlocked) statusMap[dateStr] = "closed";
+            else if (occupiedRatio >= 0.95) statusMap[dateStr] = "full";
             else if (occupiedRatio >= 0.5) statusMap[dateStr] = "busy";
             else statusMap[dateStr] = "available";
           }
