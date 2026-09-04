@@ -426,8 +426,8 @@ export function LiberacoesHorarios({
                     <div className="grid grid-cols-1 gap-2 min-[430px]:grid-cols-3">
                       {([
                         { v: "none", label: "Sem repetição" },
-                        { v: "weekly", label: "Semanal" },
-                        { v: "custom", label: "Personalizada" },
+                        { v: "weekly", label: "Semanal (1x por semana)" },
+                        { v: "custom", label: "Dias seguidos" },
                       ] as const).map((opt) => (
                         <button
                           key={opt.v}
@@ -449,7 +449,7 @@ export function LiberacoesHorarios({
                   {newBlock.recurrence.type !== "none" && (
                     <div className="grid grid-cols-2 gap-4">
                       <Input
-                        label="Nº de dias/sessões"
+                        label={newBlock.recurrence.type === "weekly" ? "Repetir por quantas semanas?" : "Repetir por quantos dias?"}
                         type="number"
                         min="1"
                         max="365"
@@ -458,7 +458,7 @@ export function LiberacoesHorarios({
                       />
                       {newBlock.recurrence.type === "custom" && (
                         <Input
-                          label="Intervalo (dias)"
+                          label="A cada quantos dias (1 = todo dia)"
                           type="number"
                           min="1"
                           value={newBlock.recurrence.interval}
@@ -466,6 +466,11 @@ export function LiberacoesHorarios({
                         />
                       )}
                     </div>
+                  )}
+                  {newBlock.recurrence.type === "weekly" && (
+                    <p className="text-[10px] font-bold text-zinc-400 -mt-2">
+                      Cria 1 bloqueio por semana, sempre no mesmo dia/horário — para bloquear vários dias seguidos, use "Dias seguidos".
+                    </p>
                   )}
 
                   <button
