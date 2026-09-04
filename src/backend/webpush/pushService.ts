@@ -68,39 +68,85 @@ export async function saveSubscription(params: {
   });
 }
 
+export async function saveProfessionalSubscription(params: {
+  tenantId: string;
+  professionalId: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  userAgent?: string;
+}): Promise<void> {
+  const existing = await (prisma as any).pushSubscription.findUnique({ where: { endpoint: params.endpoint } });
+  if (existing) {
+    await (prisma as any).pushSubscription.update({
+      where: { endpoint: params.endpoint },
+      data: { tenantId: params.tenantId, professionalId: params.professionalId, phone: null, clientId: null, p256dh: params.p256dh, auth: params.auth, userAgent: params.userAgent || null },
+    });
+    return;
+  }
+
+  await (prisma as any).pushSubscription.create({
+    data: {
+      id: randomUUID(),
+      tenantId: params.tenantId,
+      professionalId: params.professionalId,
+      endpoint: params.endpoint,
+      p256dh: params.p256dh,
+      auth: params.auth,
+      userAgent: params.userAgent || null,
+    },
+  });
+}
+
 export async function removeSubscription(endpoint: string): Promise<void> {
   await (prisma as any).pushSubscription.deleteMany({ where: { endpoint } });
 }
 
+// Envia a mesma push message pra uma lista de subscriptions já resolvida — compartilhado entre
+// sendPushToPhone (cliente) e sendPushToProfessional. Subscription expirada/revogada (404/410 do
+// próprio endpoint do navegador) é removida do banco na hora, senão o histórico de endpoints
+// mortos só cresce e continua sendo tentado pra sempre.
+async function deliver(tenantId: string, subs: any[], payload: PushPayload): Promise<void> {
+  if (subs.length === 0) return;
+  await Promise.all(subs.map(async (sub: any) => {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        JSON.stringify(payload)
+      );
+    } catch (e: any) {
+      const statusCode = e?.statusCode;
+      if (statusCode === 404 || statusCode === 410) {
+        await (prisma as any).pushSubscription.deleteMany({ where: { id: sub.id } });
+      } else {
+        console.warn(`[WebPush][${tenantId}] Falha ao enviar para ${sub.endpoint}:`, e?.message || e);
+      }
+    }
+  }));
+}
+
 // Fire-and-forget: manda pra TODAS as subscriptions daquele telefone+tenant (o cliente pode ter
-// instalado o app em mais de um aparelho). Subscription expirada/revogada (404/410 do próprio
-// endpoint do navegador) é removida do banco na hora — sem isso o histórico de endpoints mortos
-// só cresce e continua sendo tentado pra sempre.
+// instalado o app em mais de um aparelho).
 export async function sendPushToPhone(tenantId: string, phone: string, payload: PushPayload): Promise<void> {
   if (!configured) return;
   const normalized = normalizePhone(phone);
   if (!normalized) return;
-
   try {
     const subs = await (prisma as any).pushSubscription.findMany({ where: { tenantId, phone: normalized } });
-    if (subs.length === 0) return;
-
-    await Promise.all(subs.map(async (sub: any) => {
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          JSON.stringify(payload)
-        );
-      } catch (e: any) {
-        const statusCode = e?.statusCode;
-        if (statusCode === 404 || statusCode === 410) {
-          await (prisma as any).pushSubscription.deleteMany({ where: { id: sub.id } });
-        } else {
-          console.warn(`[WebPush][${tenantId}] Falha ao enviar para ${sub.endpoint}:`, e?.message || e);
-        }
-      }
-    }));
+    await deliver(tenantId, subs, payload);
   } catch (e: any) {
     console.warn(`[WebPush][${tenantId}] sendPushToPhone error:`, e?.message || e);
+  }
+}
+
+// Fire-and-forget: notifica o PROFISSIONAL logado (novo agendamento, etc) — identificado por
+// professionalId (sessão autenticada), não por telefone como o cliente.
+export async function sendPushToProfessional(tenantId: string, professionalId: string, payload: PushPayload): Promise<void> {
+  if (!configured || !professionalId) return;
+  try {
+    const subs = await (prisma as any).pushSubscription.findMany({ where: { tenantId, professionalId } });
+    await deliver(tenantId, subs, payload);
+  } catch (e: any) {
+    console.warn(`[WebPush][${tenantId}] sendPushToProfessional error:`, e?.message || e);
   }
 }

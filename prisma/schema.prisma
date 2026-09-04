@@ -1130,15 +1130,17 @@ model NfseInvoice {
 }
 
 model PushSubscription {
-  id        String   @id @db.VarChar(36)
-  tenantId  String   @db.VarChar(36)
-  clientId  String?  @db.VarChar(36)
-  phone     String   @db.VarChar(20)
-  endpoint  String   @unique @db.VarChar(500)
-  p256dh    String   @db.VarChar(255)
-  auth      String   @db.VarChar(255)
-  userAgent String?  @db.VarChar(255)
-  createdAt DateTime @default(now()) @db.DateTime(0)
+  id             String   @id @db.VarChar(36)
+  tenantId       String   @db.VarChar(36)
+  clientId       String?  @db.VarChar(36)
+  phone          String?  @db.VarChar(20)
+  professionalId String?  @db.VarChar(36)
+  endpoint       String   @unique @db.VarChar(500)
+  p256dh         String   @db.VarChar(255)
+  auth           String   @db.VarChar(255)
+  userAgent      String?  @db.VarChar(255)
+  createdAt      DateTime @default(now()) @db.DateTime(0)
 
   @@index([tenantId, phone], map: "idx_pushsub_tenant_phone")
+  @@index([tenantId, professionalId], map: "idx_pushsub_tenant_professional")
 }

@@ -7,7 +7,7 @@ import {
   Phone, Plus, X, DollarSign, CheckCircle2,
   AlertCircle, ChevronDown, Search, Star,
   User, Bell, RefreshCw,
-  Menu, Eye, EyeOff,
+  Menu, Eye, EyeOff, Loader2,
 } from "lucide-react";
 import {
   format, addDays, subDays, isToday, parseISO, isSameDay,
@@ -26,6 +26,7 @@ import {
   useToast, ToastProvider,
 } from "@/src/components/ui";
 import { apiFetch } from "@/src/lib/api";
+import { isPushSupported, getOrCreatePushSubscription } from "@/src/lib/push";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1885,12 +1886,43 @@ function ProfessionalDashboardInner() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("dashboard");
   const [showMenu, setShowMenu] = useState(false);
+  const [pushState, setPushState] = useState<"idle" | "asking" | "granted" | "unsupported">("idle");
 
   useEffect(() => {
     if (authUser) {
       setProf(authUser as any);
     }
   }, [authUser]);
+
+  // Notificação push de novo agendamento — pede permissão só depois que o profissional já está
+  // logado e vendo o próprio painel (não faz sentido pedir antes disso).
+  useEffect(() => {
+    if (!prof) return;
+    if (!isPushSupported()) { setPushState("unsupported"); return; }
+    if (Notification.permission === "granted") setPushState("granted");
+    else if (Notification.permission === "denied") setPushState("unsupported");
+    else setPushState("idle");
+  }, [prof]);
+
+  const handleEnableProfessionalPush = async () => {
+    setPushState("asking");
+    try {
+      const granted = await Notification.requestPermission();
+      if (granted !== "granted") { setPushState("unsupported"); return; }
+      const keyRes = await apiFetch("/api/public/push/vapid-public-key");
+      if (!keyRes.ok) { setPushState("unsupported"); return; }
+      const { publicKey } = await keyRes.json();
+      const subscription = await getOrCreatePushSubscription(publicKey);
+      if (!subscription) { setPushState("unsupported"); return; }
+      const res = await apiFetch("/api/professionals/push/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ subscription: subscription.toJSON() }),
+      });
+      setPushState(res.ok ? "granted" : "unsupported");
+    } catch {
+      setPushState("unsupported");
+    }
+  };
 
   const perms = prof ? parsePerms(prof.permissions) : {};
   const canSeeDashboard = canDo(perms, "dashboard");
@@ -1990,7 +2022,28 @@ function ProfessionalDashboardInner() {
   ).length;
 
   const PageContent = (
-    <AnimatePresence mode="wait">
+    <>
+      {activeTab === "dashboard" && pushState === "idle" && (
+        <button
+          type="button"
+          onClick={handleEnableProfessionalPush}
+          className="w-full flex items-center gap-3 p-3.5 mb-4 rounded-2xl border border-dashed border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100 transition-all text-left"
+        >
+          <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-amber-100">
+            <Bell size={16} className="text-amber-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-bold text-zinc-800">Ativar notificações de novo agendamento</p>
+            <p className="text-[11px] text-zinc-500 font-medium">Receba um aviso aqui no celular assim que um cliente agendar com você</p>
+          </div>
+        </button>
+      )}
+      {activeTab === "dashboard" && pushState === "asking" && (
+        <div className="w-full flex items-center justify-center gap-2 p-3 mb-4 text-[12px] font-bold text-zinc-400">
+          <Loader2 size={14} className="animate-spin" /> Ativando notificações...
+        </div>
+      )}
+      <AnimatePresence mode="wait">
       <motion.div
         key={activeTab}
         initial={{ opacity: 0, y: 10 }}
@@ -2047,6 +2100,7 @@ function ProfessionalDashboardInner() {
         )}
       </motion.div>
     </AnimatePresence>
+    </>
   );
 
   return (

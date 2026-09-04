@@ -11,7 +11,7 @@ import {
   sendMessage,
   getQrCode,
 } from "../wpp/baileys-manager";
-import { sendPushToPhone } from "../webpush/pushService";
+import { sendPushToPhone, sendPushToProfessional } from "../webpush/pushService";
 
 // ── Templates padrão ──────────────────────────────────────────────────────────
 
@@ -217,6 +217,17 @@ export async function fireWppProfNewBooking(tenantId: string, appts: any[]): Pro
       config = await ensureBotConfig(tenantId);
     }
 
+    // Push independe do WhatsApp estar configurado/ativo pro profissional — dispara antes dos
+    // early returns abaixo, senão profissional sem WPP configurado nunca recebia nem o push.
+    if (appt.professionalId) {
+      const valorFmt = appt.service?.price != null ? appt.service.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "";
+      sendPushToProfessional(tenantId, appt.professionalId, {
+        title: "Novo agendamento! 📅",
+        body: `${appt.client?.name || "Cliente"} — ${appt.service?.name || "Serviço"}${valorFmt ? ` (${valorFmt})` : ""} em ${format(toSaoPauloDate(new Date(appt.date)), "dd/MM", { locale: ptBR })} às ${appt.startTime}`,
+        tag: `appt-prof-${appt.id}`,
+      }).catch((e) => console.warn("[WebPush] Falha ao notificar profissional (novo agendamento):", e?.message || e));
+    }
+
     if (!config?.botEnabled || !config?.sendProfNewBooking) {
       console.log(`[WPP] IGNORANDO prof_new_booking para ${tenantId}: botEnabled=${config?.botEnabled}, sendProfNewBooking=${config?.sendProfNewBooking}`);
       return;
@@ -392,7 +403,7 @@ export async function fireWppConfirmation(tenantId: string, appts: any[]): Promi
     await sendWppToPhone(tenantId, appt.client.phone, applyVars(tpl, vars));
     sendPushToPhone(tenantId, appt.client.phone, {
       title: "Agendamento confirmado! ✅",
-      body: `${vars.servico || "Seu horário"} em ${vars.data_agendamento} às ${vars.hora_agendamento}`,
+      body: `${vars.servico || "Seu horário"}${vars.profissional ? ` com ${vars.profissional}` : ""} — ${vars.data_agendamento} às ${vars.hora_agendamento}`,
       tag: `appt-${appt.id}`,
     }).catch((e) => console.warn("[WebPush] Falha ao notificar confirmação:", e?.message || e));
   } catch (err) {
@@ -412,6 +423,7 @@ export async function fireWppCancelled(tenantId: string, appts: any[]): Promise<
     const vars: Record<string, string> = {
       saudacao: getSaudacao(),
       nome_cliente: appt.client?.name || "",
+      profissional: appt.professional?.name || "",
       servico: appt.service?.name || "",
       nome_estabelecimento: tenant?.name || "",
       data_agendamento: toSaoPauloDate(new Date(appt.date)).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }),
@@ -425,7 +437,7 @@ export async function fireWppCancelled(tenantId: string, appts: any[]): Promise<
       }
       sendPushToPhone(tenantId, appt.client.phone, {
         title: "Agendamento cancelado",
-        body: `${vars.servico || "Seu horário"} em ${vars.data_agendamento} às ${vars.hora_agendamento} foi cancelado.`,
+        body: `${vars.servico || "Seu horário"}${vars.profissional ? ` com ${vars.profissional}` : ""} — ${vars.data_agendamento} às ${vars.hora_agendamento} foi cancelado.`,
         tag: `appt-${appt.id}`,
       }).catch((e) => console.warn("[WebPush] Falha ao notificar cancelamento:", e?.message || e));
     }
@@ -460,7 +472,7 @@ export async function fireWppRescheduled(tenantId: string, appts: any[]): Promis
       }
       sendPushToPhone(tenantId, appt.client.phone, {
         title: "Agendamento remarcado 🔄",
-        body: `Novo horário: ${vars.data_agendamento} às ${vars.hora_agendamento}`,
+        body: `${vars.servico || "Seu horário"}${vars.profissional ? ` com ${vars.profissional}` : ""} — novo horário: ${vars.data_agendamento} às ${vars.hora_agendamento}`,
         tag: `appt-${appt.id}`,
       }).catch((e) => console.warn("[WebPush] Falha ao notificar remarcação:", e?.message || e));
     }

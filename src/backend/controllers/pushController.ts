@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { getTenantId } from "../utils/helpers";
-import { saveSubscription, removeSubscription, isWebPushConfigured } from "../webpush/pushService";
+import { saveSubscription, saveProfessionalSubscription, removeSubscription, isWebPushConfigured } from "../webpush/pushService";
 
 export const pushController = {
   async getVapidPublicKey(req: Request, res: Response) {
@@ -37,5 +37,32 @@ export const pushController = {
     if (!endpoint) return res.status(400).json({ error: "endpoint obrigatório." });
     await removeSubscription(endpoint);
     res.json({ success: true });
+  },
+
+  // Profissional já está autenticado (req.auth.sub = professionalId) — diferente do cliente,
+  // que não tem login e é identificado por telefone.
+  async subscribeProfessional(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    const auth = (req as any).auth;
+    if (!tenantId || auth?.type !== "professional" || !auth?.sub) {
+      return res.status(401).json({ error: "Não autenticado como profissional." });
+    }
+    const { subscription } = req.body;
+    if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+      return res.status(400).json({ error: "subscription (endpoint, keys.p256dh, keys.auth) obrigatório." });
+    }
+    try {
+      await saveProfessionalSubscription({
+        tenantId,
+        professionalId: auth.sub,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth,
+        userAgent: req.headers["user-agent"],
+      });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(400).json({ error: e?.message || "Erro ao salvar inscrição de push." });
+    }
   },
 };

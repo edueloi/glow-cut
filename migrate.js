@@ -1128,19 +1128,28 @@ const MIGRATIONS = [
     name: '063c_create_push_subscription',
     sql: `
       CREATE TABLE IF NOT EXISTS PushSubscription (
-        id        VARCHAR(36)  NOT NULL PRIMARY KEY,
-        tenantId  VARCHAR(36)  NOT NULL,
-        clientId  VARCHAR(36)  NULL,
-        phone     VARCHAR(20)  NOT NULL,
-        endpoint  VARCHAR(500) NOT NULL UNIQUE,
-        p256dh    VARCHAR(255) NOT NULL,
-        auth      VARCHAR(255) NOT NULL,
-        userAgent VARCHAR(255) NULL,
-        createdAt DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_pushsub_tenant_phone (tenantId, phone)
+        id             VARCHAR(36)  NOT NULL PRIMARY KEY,
+        tenantId       VARCHAR(36)  NOT NULL,
+        clientId       VARCHAR(36)  NULL,
+        phone          VARCHAR(20)  NULL,
+        professionalId VARCHAR(36)  NULL,
+        endpoint       VARCHAR(500) NOT NULL UNIQUE,
+        p256dh         VARCHAR(255) NOT NULL,
+        auth           VARCHAR(255) NOT NULL,
+        userAgent      VARCHAR(255) NULL,
+        createdAt      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_pushsub_tenant_phone (tenantId, phone),
+        INDEX idx_pushsub_tenant_professional (tenantId, professionalId)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `,
   },
+
+  // 064 — Push notification também para o PROFISSIONAL (novo agendamento), não só o cliente.
+  // phone era NOT NULL na criação da tabela (063c); precisa virar opcional pra permitir uma
+  // subscription "pura" de profissional (sem telefone de cliente nenhum envolvido).
+  { name: '064a_pushsubscription_phone_nullable', sql: `ALTER TABLE PushSubscription MODIFY COLUMN phone VARCHAR(20) NULL`, ignoreIfExists: true },
+  { name: '064b_pushsubscription_add_professionalId', sql: `ALTER TABLE PushSubscription ADD COLUMN professionalId VARCHAR(36) NULL AFTER phone`, ignoreIfExists: true },
+  { name: '064c_pushsubscription_idx_professional', sql: `ALTER TABLE PushSubscription ADD INDEX idx_pushsub_tenant_professional (tenantId, professionalId)`, ignoreIfExists: true },
 
 ];
 

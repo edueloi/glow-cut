@@ -6,33 +6,20 @@ import { ptBR } from "date-fns/locale";
 import { useParams, useNavigate } from "react-router-dom";
 import { cn } from "@/src/lib/utils";
 import { Button, Input, Badge, Divider, DatePicker } from "@/src/components/ui";
+import { isPushSupported, getOrCreatePushSubscription } from "@/src/lib/push";
 
 type Step = "loading" | "home" | "consult" | "choose-mode" | "by-professional" | "by-service" | "pick-professional" | "pick-service" | "date" | "confirm" | "success";
 
-// VAPID public key vem em base64url — pushManager.subscribe exige um Uint8Array.
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
-}
-
 async function subscribeToPush(phone: string, tenantId: string): Promise<boolean> {
   try {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
-    const registration = await navigator.serviceWorker.ready;
+    if (!isPushSupported()) return false;
     const keyRes = await fetch("/api/public/push/vapid-public-key", { headers: { "x-tenant-id": tenantId } });
     if (!keyRes.ok) return false;
     const { publicKey } = await keyRes.json();
     if (!publicKey) return false;
 
-    let subscription = await registration.pushManager.getSubscription();
-    if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
-      });
-    }
+    const subscription = await getOrCreatePushSubscription(publicKey);
+    if (!subscription) return false;
 
     await fetch("/api/public/push/subscribe", {
       method: "POST",
@@ -271,7 +258,7 @@ export default function ClientBooking() {
 
   useEffect(() => {
     if (step !== "success") return;
-    const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+    const supported = isPushSupported();
     if (!supported) { setPushState("unsupported"); return; }
     if (Notification.permission === "granted") setPushState("granted");
     else if (Notification.permission === "denied") setPushState("unsupported");
