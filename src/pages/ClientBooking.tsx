@@ -5,7 +5,7 @@ import { format, addDays, isSameDay, startOfDay, startOfMonth, endOfMonth, endOf
 import { ptBR } from "date-fns/locale";
 import { useParams, useNavigate } from "react-router-dom";
 import { cn } from "@/src/lib/utils";
-import { Button, Input, Badge, Divider } from "@/src/components/ui";
+import { Button, Input, Badge, Divider, DatePicker } from "@/src/components/ui";
 
 type Step = "loading" | "home" | "consult" | "choose-mode" | "by-professional" | "by-service" | "pick-professional" | "pick-service" | "date" | "confirm" | "success";
 
@@ -1171,26 +1171,46 @@ export default function ClientBooking() {
                   </div>
 
                   {/* Time slots */}
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <p className="text-[10px] uppercase tracking-widest font-bold text-zinc-400 flex items-center justify-between">
                       <span>Horários disponíveis</span>
                       {isLoading && <Loader2 size={12} className="animate-spin" />}
                     </p>
-                    <div className="grid grid-cols-4 gap-2">
-                      {availableSlots.length > 0 ? availableSlots.map((slot) => (
-                        <button key={slot} onClick={() => setSelectedSlot(slot)}
-                          className={cn("py-2.5 text-xs font-bold rounded-xl border-2 transition-all active:scale-95",
-                            selectedSlot === slot ? "text-white border-transparent shadow-md" : "bg-white border-zinc-200 text-zinc-700 hover:border-zinc-300")}
-                          style={selectedSlot === slot ? { backgroundColor: customColor, borderColor: customColor } : {}}>
-                          {slot}
-                        </button>
-                      )) : (
-                        <div className="col-span-4 py-6 text-center border-2 border-dashed border-zinc-100 rounded-xl bg-zinc-50">
-                          <Clock size={20} className="text-zinc-300 mx-auto mb-1" />
-                          <p className="text-xs font-bold text-zinc-400">{!isLoading ? "Agenda cheia" : "Carregando..."}</p>
-                        </div>
-                      )}
-                    </div>
+                    {availableSlots.length > 0 ? (
+                      (() => {
+                        const periods: { label: string; test: (h: number) => boolean }[] = [
+                          { label: "Manhã", test: (h) => h < 12 },
+                          { label: "Tarde", test: (h) => h >= 12 && h < 18 },
+                          { label: "Noite", test: (h) => h >= 18 },
+                        ];
+                        return periods.map(({ label, test }) => {
+                          const slots = availableSlots.filter((slot) => test(parseInt(slot.split(":")[0], 10)));
+                          if (slots.length === 0) return null;
+                          return (
+                            <div key={label} className="space-y-1.5">
+                              <p className="text-[10px] font-black text-zinc-300 uppercase tracking-wide">{label}</p>
+                              <div className="grid grid-cols-3 min-[420px]:grid-cols-4 gap-2">
+                                {slots.map((slot) => (
+                                  <button key={slot} onClick={() => setSelectedSlot(slot)}
+                                    className={cn("py-3 text-xs font-bold rounded-xl border-2 transition-all active:scale-95",
+                                      selectedSlot === slot ? "text-white border-transparent shadow-md" : "bg-white border-zinc-200 text-zinc-700 hover:border-zinc-300")}
+                                    style={selectedSlot === slot ? { backgroundColor: customColor, borderColor: customColor } : {}}>
+                                    {slot}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()
+                    ) : (
+                      <div className="py-6 text-center border-2 border-dashed border-zinc-100 rounded-xl bg-zinc-50">
+                        <Clock size={20} className="text-zinc-300 mx-auto mb-1" />
+                        <p className="text-xs font-bold text-zinc-400">
+                          {isLoading ? "Carregando..." : isSameDay(selectedDate, new Date()) ? "Sem mais horários hoje — tente outro dia" : "Agenda cheia neste dia"}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <button disabled={!selectedSlot}
@@ -1275,13 +1295,13 @@ export default function ClientBooking() {
                                 />
 
                                 {!isExistingClient && (
-                                  <Input
+                                  <DatePicker
                                     label="Data de Aniversário"
-                                    type="date"
-                                    value={clientData.birthDate}
-                                    onChange={(e: any) => setClientData({ ...clientData, birthDate: e.target.value })}
+                                    value={clientData.birthDate || null}
+                                    onChange={(v) => setClientData({ ...clientData, birthDate: v || "" })}
+                                    placeholder="DD/MM/AAAA"
+                                    max={new Date().toISOString().slice(0, 10)}
                                     hint="Opcional. Adoraríamos te dar um parabéns!"
-                                    iconLeft={<CalendarIcon size={16} />}
                                   />
                                 )}
                               </>
