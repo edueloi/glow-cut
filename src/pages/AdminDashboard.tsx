@@ -75,6 +75,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/src/lib/utils";
 import { apiFetch } from "@/src/lib/api";
 import { getSocket } from "@/src/lib/socket";
+import { listenForPushSound } from "@/src/lib/push";
 import { Button, IconButton } from "@/src/components/ui/Button";
 import { Modal, ModalFooter } from "@/src/components/ui/Modal";
 import { Input, Textarea, Select } from "@/src/components/ui/Input";
@@ -147,9 +148,14 @@ export default function AdminDashboard() {
   const [tenantSlug, setTenantSlug] = useState<string>(adminUser?.tenantSlug || "");
   const location = useLocation();
 
+  // Toca o beep de novo agendamento em QUALQUER aba do painel admin (Comandas, Financeiro,
+  // etc), não só no Dashboard — o listener fica aqui, no componente raiz do painel inteiro,
+  // que permanece montado o tempo todo entre trocas de aba.
+  useEffect(() => listenForPushSound(), []);
+
   // Virtual Tour Logic
   const [showTour, setShowTour] = useState(false);
-  
+
   useEffect(() => {
     // Mostra o tour para quem acabou o onboarding mas ainda não fez o tour
     // onboardingStep 3 = onboarding OK, < 100 = tour ainda não finalizado

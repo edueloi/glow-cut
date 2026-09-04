@@ -26,7 +26,7 @@ import {
   useToast, ToastProvider,
 } from "@/src/components/ui";
 import { apiFetch } from "@/src/lib/api";
-import { isPushSupported, getOrCreatePushSubscription, hasActivePushSubscription } from "@/src/lib/push";
+import { isPushSupported, getOrCreatePushSubscription, hasActivePushSubscription, listenForPushSound } from "@/src/lib/push";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1905,6 +1905,10 @@ function ProfessionalDashboardInner() {
     if (Notification.permission === "denied") { setPushState("unsupported"); return; }
     hasActivePushSubscription().then((active) => setPushState(active ? "granted" : "idle"));
   }, [prof]);
+
+  // Toca o beep em QUALQUER aba do painel (Agenda, Comandas, etc), não só na Início — o listener
+  // fica no componente raiz do dashboard, que permanece montado o tempo todo entre trocas de tab.
+  useEffect(() => listenForPushSound(), []);
 
   const handleEnableProfessionalPush = async () => {
     setPushState("asking");
