@@ -497,7 +497,14 @@ export const agendaController = {
     if (!month || !professionalId) return res.status(400).json({ error: "month e professionalId são obrigatórios." });
 
     try {
-      const targetDate = new Date(month as string);
+      // Extrai ano/mês direto da string (não via `new Date()`) — o frontend manda
+      // `startOfMonth(new Date()).toISOString()`, que em qualquer fuso negativo (ex.:
+      // America/Sao_Paulo) vira meia-noite UTC do dia 31 do mês ANTERIOR, fazendo o
+      // calendário público carregar e pintar o mês errado inteiro.
+      const monthMatch = /^(\d{4})-(\d{2})/.exec(month as string);
+      const targetDate = monthMatch
+        ? new Date(Number(monthMatch[1]), Number(monthMatch[2]) - 1, 1)
+        : new Date(month as string);
       const start = startOfMonth(targetDate);
       const end = endOfMonth(targetDate);
       const settings = await ensureAgendaSettingsRecord(tenantId);
