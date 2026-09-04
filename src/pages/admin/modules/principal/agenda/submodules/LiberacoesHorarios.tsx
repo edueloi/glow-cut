@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Plus, Unlock, Lock, Clock, Trash2,
-  RefreshCw, Info, CalendarOff, Search, Loader2, User
+  RefreshCw, Info, CalendarOff, Search, Loader2, User, Pause, Play
 } from "lucide-react";
 import { format, addDays, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -15,10 +15,14 @@ import { Badge, Button, DatePicker, useToast, Input, Calendar } from "@/src/comp
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface BlockRecurrence {
-  type: "none" | "weekly" | "custom";
+  type: "none" | "weekly" | "custom" | "indefinite";
   count: number;
   interval: number;
 }
+
+// Horizonte usado pra "Sem prazo (até eu pausar)" — não é infinito de verdade, gera bloqueios
+// diários por 2 anos; o usuário pausa a série quando quiser liberar a agenda de novo.
+const INDEFINITE_HORIZON_DAYS = 730;
 
 interface LiberacoesHorariosProps {
   appointments: any[];
@@ -92,7 +96,13 @@ export function LiberacoesHorarios({
       const [y, m, d] = newBlock.date.split("-").map(Number);
       const startTime = newBlock.allDay ? HOURS_LIST[0] : newBlock.startTime;
       const endTime = newBlock.allDay ? HOURS_LIST[HOURS_LIST.length - 1] : newBlock.endTime;
-      const recurrence = newBlock.recurrence.type === "none" ? undefined : newBlock.recurrence;
+      // "Sem prazo" é implementado como "Dias seguidos" com uma contagem grande — o backend não
+      // precisa saber desse tipo, só recebe custom/interval:1/count:HORIZON.
+      const recurrence = newBlock.recurrence.type === "none"
+        ? undefined
+        : newBlock.recurrence.type === "indefinite"
+          ? { type: "custom" as const, count: INDEFINITE_HORIZON_DAYS, interval: 1 }
+          : newBlock.recurrence;
       const payload = {
         date: new Date(y, m - 1, d),
         startTime,
@@ -145,6 +155,31 @@ export function LiberacoesHorarios({
       onRefresh();
     } finally {
       setDeletingSeriesId(null);
+    }
+  };
+
+  const [togglingSeriesId, setTogglingSeriesId] = useState<string | null>(null);
+  const handleToggleSeriesPause = async (groupId: string, paused: boolean) => {
+    setTogglingSeriesId(groupId);
+    try {
+      const res = await apiFetch(`/api/appointments/group/${groupId}/pause`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paused }),
+      });
+      if (!res.ok) {
+        toast.error(paused ? "Erro ao pausar a série." : "Erro ao retomar a série.");
+        return;
+      }
+      const data = await res.json();
+      if (!paused && data.skipped > 0) {
+        toast.warning(`Série retomada, mas ${data.skipped} dia(s) ficaram de fora por já terem outro agendamento nesse horário.`);
+      } else {
+        toast.success(paused ? "Série pausada — os horários já estão liberados." : "Série retomada.");
+      }
+      onRefresh();
+    } finally {
+      setTogglingSeriesId(null);
     }
   };
 
@@ -351,8 +386,22 @@ export function LiberacoesHorarios({
                                {b.repeatGroupId && seriesCount > 1 && (
                                  <Badge color="default" className="bg-red-50 text-red-600 font-black h-6 px-2.5">Série · {seriesCount}x</Badge>
                                )}
+                               {(b.status === "cancelled" || b.status === "canceled" || b.status === "cancelado") && (
+                                 <Badge color="default" className="bg-zinc-200 text-zinc-500 font-black h-6 px-2.5">Pausado</Badge>
+                               )}
                             </div>
                           </div>
+                          {b.repeatGroupId && seriesCount > 1 && (
+                            <button
+                              onClick={() => handleToggleSeriesPause(b.repeatGroupId, b.status !== "cancelled")}
+                              disabled={togglingSeriesId === b.repeatGroupId}
+                              className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-zinc-400 hover:text-amber-600 transition-all px-2 whitespace-nowrap"
+                            >
+                              {b.status === "cancelled"
+                                ? <><Play size={11} /> Retomar série</>
+                                : <><Pause size={11} /> Pausar série</>}
+                            </button>
+                          )}
                           {b.repeatGroupId && seriesCount > 1 && (
                             <button
                               onClick={() => handleDeleteSeries(b.repeatGroupId)}
@@ -423,11 +472,12 @@ export function LiberacoesHorarios({
 
                   <div className="space-y-1.5">
                     <label className="ds-label">Repetição</label>
-                    <div className="grid grid-cols-1 gap-2 min-[430px]:grid-cols-3">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {([
                         { v: "none", label: "Sem repetição" },
                         { v: "weekly", label: "Semanal (1x por semana)" },
                         { v: "custom", label: "Dias seguidos" },
+                        { v: "indefinite", label: "Sem prazo (até eu pausar)" },
                       ] as const).map((opt) => (
                         <button
                           key={opt.v}
@@ -446,7 +496,7 @@ export function LiberacoesHorarios({
                     </div>
                   </div>
 
-                  {newBlock.recurrence.type !== "none" && (
+                  {newBlock.recurrence.type !== "none" && newBlock.recurrence.type !== "indefinite" && (
                     <div className="grid grid-cols-2 gap-4">
                       <Input
                         label={newBlock.recurrence.type === "weekly" ? "Repetir por quantas semanas?" : "Repetir por quantos dias?"}
@@ -470,6 +520,11 @@ export function LiberacoesHorarios({
                   {newBlock.recurrence.type === "weekly" && (
                     <p className="text-[10px] font-bold text-zinc-400 -mt-2">
                       Cria 1 bloqueio por semana, sempre no mesmo dia/horário — para bloquear vários dias seguidos, use "Dias seguidos".
+                    </p>
+                  )}
+                  {newBlock.recurrence.type === "indefinite" && (
+                    <p className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                      Gera bloqueios diários pelos próximos 2 anos. Quando quiser liberar a agenda de novo, use "Pausar série" na lista de bloqueios ativos abaixo — não precisa excluir.
                     </p>
                   )}
 

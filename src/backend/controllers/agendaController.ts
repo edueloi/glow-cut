@@ -862,7 +862,10 @@ export const agendaController = {
       let interval = 7;
       if (!isPublicRequest && recurrence && recurrence.type !== "none") {
         count = recurrence.count || 1;
-        interval = recurrence.interval || 7;
+        // "weekly" é sempre a cada 7 dias — recurrence.interval nunca deve valer aqui, mesmo
+        // que o cliente mande outro valor (o form sempre carrega interval:1 no state inicial,
+        // reaproveitado de "custom"; sem essa trava um bloqueio "Semanal" virava diário).
+        interval = recurrence.type === "weekly" ? 7 : (recurrence.interval || 1);
       } else if (isPublicRequest && repeat === "weekly") {
         count = Number(repeatCount) || 1;
       }
@@ -1166,6 +1169,60 @@ export const agendaController = {
         orderBy: { date: "asc" }
       });
       res.json(appts);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  },
+
+  // Pausa/retoma uma série de bloqueios (repeatGroupId) sem excluir nada — pausar marca as
+  // ocorrências futuras como "cancelled" (todo o resto do sistema já ignora esse status ao
+  // checar disponibilidade, ver ensureSlotAvailable/getAvailability), liberando o horário de
+  // verdade; retomar volta pra "confirmed". Só mexe em ocorrências >= hoje, pra não reescrever
+  // histórico nem re-bloquear dias que já passaram.
+  async setGroupStatus(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    const { paused } = req.body;
+    const groupId = req.params.groupId;
+    try {
+      const today = startOfDay(new Date());
+      const occurrences = await (prisma as any).appointment.findMany({
+        where: { repeatGroupId: groupId, tenantId, type: "bloqueio", date: { gte: today } },
+        select: { id: true, professionalId: true, date: true, startTime: true, endTime: true },
+      });
+      if (occurrences.length === 0) return res.json({ success: true, updated: 0, skipped: 0 });
+
+      if (paused) {
+        await (prisma as any).appointment.updateMany({
+          where: { id: { in: occurrences.map((o: any) => o.id) } },
+          data: { status: "cancelled" },
+        });
+        emitToTenant(tenantId, "agenda:changed");
+        return res.json({ success: true, updated: occurrences.length, skipped: 0 });
+      }
+
+      // Retomar: um agendamento real pode ter sido criado nesse horário enquanto o bloqueio
+      // estava pausado — reativar sem checar duplicaria a ocupação do horário. Pula (não
+      // reativa) qualquer ocorrência que hoje colida com outro agendamento não-cancelado.
+      let updated = 0;
+      let skipped = 0;
+      for (const occ of occurrences) {
+        const { start, end } = getDayRange(occ.date);
+        const conflicting = await (prisma as any).appointment.findMany({
+          where: {
+            tenantId, professionalId: occ.professionalId,
+            date: { gte: start, lt: end },
+            status: { notIn: ["cancelled", "canceled", "cancelado"] },
+            id: { not: occ.id },
+          },
+          select: { startTime: true, endTime: true },
+        });
+        if (hasSlotOverlap(occ.startTime, occ.endTime, conflicting)) { skipped++; continue; }
+        await (prisma as any).appointment.update({ where: { id: occ.id }, data: { status: "confirmed" } });
+        updated++;
+      }
+      emitToTenant(tenantId, "agenda:changed");
+      res.json({ success: true, updated, skipped });
     } catch (e: any) {
       res.status(400).json({ error: e.message });
     }
