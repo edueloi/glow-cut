@@ -760,6 +760,7 @@ async function startServer() {
         let description = "Agendelle é a agenda inteligente que une organização com elegância. O sistema perfeito de agendamento online para salões, barbearias e negócios de beleza.";
         let keywords = "agenda inteligente, agendamento online, sistema para salão de beleza, barbearia, gestão de estética, agendelle, blog agendelle, sistema de agendamento";
         let ogImage = DEFAULT_OG_IMAGE;
+        let partnerTenantLogo: string | null = null;
         let ogType = "website";
         let robots = "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1";
         let bodyMarkup = "";
@@ -1005,6 +1006,7 @@ async function startServer() {
             description = `Agende seu hor\u00e1rio em ${tenant.name}. Profissionalismo, praticidade e confirma\u00e7\u00e3o online em um s\u00f3 lugar.`;
             keywords = `agendamento, ${tenant.name}, sal\u00e3o, barbearia, agendelle`;
             ogImage = absoluteUrl(tenant.logoUrl);
+            partnerTenantLogo = tenant.logoUrl || null;
 
             bodyMarkup = `
               <main data-seo-preview="partner-page">
@@ -1084,6 +1086,16 @@ async function startServer() {
         const cleanKeywords = escapeAttribute(keywords);
         const cleanCanonical = escapeAttribute(canonical);
         const cleanOgImage = escapeAttribute(ogImage);
+        // Página de um salão (agendarMatch/profMatch) usa a logo do próprio tenant como favicon/
+        // ícone de instalação PWA quando ele tiver uma cadastrada — sem isso o popup "Instale o
+        // app" e a aba do navegador sempre mostravam o ícone genérico do Agendelle, mesmo dentro
+        // da página de agendamento de um salão específico.
+        const tenantIcon = (agendarMatch || profMatch) && partnerTenantLogo ? absoluteUrl(partnerTenantLogo) : null;
+        const cleanIcon = escapeAttribute(tenantIcon || `${SITE_URL}/favicon.png`);
+        const manifestHref = (agendarMatch)
+          ? `${SITE_URL}/agendar/${(agendarMatch)[1]}/manifest.json`
+          : `${SITE_URL}/manifest.json`;
+        const cleanManifest = escapeAttribute(manifestHref);
         const articleTagsMeta = articleTags
           .map((tag) => `<meta property="article:tag" content="${escapeAttribute(String(tag))}">`)
           .join("\n");
@@ -1095,8 +1107,9 @@ async function startServer() {
     <meta name="robots" content="${escapeAttribute(robots)}">
     <meta name="google-site-verification" content="4WE47kn3xYj8tvKqcZi4f4rnxN7nnlPF9CPrhd-tCdE" />
     <link rel="canonical" href="${cleanCanonical}" />
-    <link rel="icon" type="image/png" href="${SITE_URL}/favicon.png" />
-    <link rel="apple-touch-icon" href="${SITE_URL}/favicon.png" />
+    <link rel="icon" type="image/png" href="${cleanIcon}" />
+    <link rel="apple-touch-icon" href="${cleanIcon}" />
+    <link rel="manifest" href="${cleanManifest}" />
     <meta property="og:locale" content="pt_BR">
     <meta property="og:site_name" content="Agendelle">
     <meta property="og:type" content="${escapeAttribute(ogType)}">
@@ -1125,6 +1138,9 @@ async function startServer() {
           .replace(/<meta\s+name=["']robots["'][^>]*>/gi, "")
           .replace(/<meta\s+name=["']keywords["'][^>]*>/gi, "")
           .replace(/<link\s+rel=["']canonical["'][^>]*>/gi, "")
+          .replace(/<link\s+rel=["']icon["'][^>]*>/gi, "")
+          .replace(/<link\s+rel=["']apple-touch-icon["'][^>]*>/gi, "")
+          .replace(/<link\s+rel=["']manifest["'][^>]*>/gi, "")
           .replace(/<meta\s+property=["']og:[^"']*["'][^>]*>/gi, "")
           .replace(/<meta\s+name=["']twitter:[^"']*["'][^>]*>/gi, "")
           .replace(/<meta\s+property=["']twitter:[^"']*["'][^>]*>/gi, "")
