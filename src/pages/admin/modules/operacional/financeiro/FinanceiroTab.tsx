@@ -4,6 +4,7 @@ import { cn } from "@/src/lib/utils";
 import { ADMIN_NAV_SECTIONS } from "../../../config/navigation";
 
 // Import all views
+import { VisaoGeralView } from "./views/VisaoGeralView";
 import { ControleView } from "./views/ControleView";
 import { CaixaView } from "./views/CaixaView";
 import { PagamentosView } from "./views/PagamentosView";
@@ -20,7 +21,7 @@ import { RelatorioProfissionaisView } from "./views/RelatorioProfissionaisView";
 export function FinanceiroTab({ activeSubModule, setActiveSubModule }: any) {
   useEffect(() => {
     if (!activeSubModule) {
-      setActiveSubModule('controle');
+      setActiveSubModule('visao_geral');
     }
   }, [activeSubModule, setActiveSubModule]);
 
@@ -67,6 +68,7 @@ export function FinanceiroTab({ activeSubModule, setActiveSubModule }: any) {
           </div>
 
           <div className="mt-4 sm:mt-6">
+            {activeSubModule === 'visao_geral' && <VisaoGeralView />}
             {activeSubModule === 'controle' && <ControleView />}
             {activeSubModule === 'caixa' && <CaixaView />}
             {activeSubModule === 'pagamentos' && <PagamentosView />}

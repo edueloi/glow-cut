@@ -158,6 +158,22 @@ export interface RelatorioData {
   periodo: { from: string; to: string };
 }
 
+export interface PrevisaoRealizadoData {
+  mes: string;
+  previsto: {
+    total: number;
+    agendamentosFuturos: number;
+    comandasAbertas: number;
+    agendamentosSemPreco: number;
+  };
+  realizado: {
+    total: number;
+    count: number;
+  };
+  percentualRealizado: number;
+  periodo: { from: string; to: string };
+}
+
 // ─── Utilitários ──────────────────────────────────────────────────────────────
 
 type FetchState<T> = { data: T | null; loading: boolean; error: string | null };
@@ -183,6 +199,7 @@ export function useFinanceiro() {
   const [despesas, setDespesasData, setDespesasLoading] = useFetchState<DespesasData>();
   const [controle, setControleData, setControleLoading] = useFetchState<CashEntry[]>();
   const [relatorio, setRelatorioData, setRelatorioLoading] = useFetchState<RelatorioData>();
+  const [previsaoRealizado, setPrevisaoRealizadoData, setPrevisaoRealizadoLoading] = useFetchState<PrevisaoRealizadoData>();
 
   // Dashboard geral
   const fetchDashboard = useCallback(async (from?: string | null, to?: string | null) => {
@@ -329,6 +346,20 @@ export function useFinanceiro() {
     }
   }, [setRelatorioData, setRelatorioLoading]);
 
+  // Previsão x Realizado (mês)
+  const fetchPrevisaoRealizado = useCallback(async (month?: string | null) => {
+    setPrevisaoRealizadoLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (month) params.set("month", month);
+      const res = await apiFetch(`/api/finance/previsao-vs-realizado?${params}`);
+      if (!res.ok) throw new Error(await res.text());
+      setPrevisaoRealizadoData(await res.json());
+    } catch (e: any) {
+      setPrevisaoRealizadoData(null, e.message || "Erro ao carregar previsão x realizado");
+    }
+  }, [setPrevisaoRealizadoData, setPrevisaoRealizadoLoading]);
+
   return {
     dashboard,
     caixa,
@@ -337,6 +368,7 @@ export function useFinanceiro() {
     despesas,
     controle,
     relatorio,
+    previsaoRealizado,
     fetchDashboard,
     fetchCaixa,
     fetchPagamentos,
@@ -346,6 +378,7 @@ export function useFinanceiro() {
     fetchDespesas,
     fetchControle,
     fetchRelatorio,
+    fetchPrevisaoRealizado,
     createLancamento,
     deleteLancamento,
   };

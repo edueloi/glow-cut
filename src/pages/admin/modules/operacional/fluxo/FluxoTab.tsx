@@ -85,7 +85,7 @@ export function FluxoTab({ comandas, sectors }: FluxoTabProps) {
   const fetchEntries = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch("/api/cash-entries");
+      const res = await apiFetch("/api/finance/cash-entries");
       if (res.ok) {
         setEntries(await res.json());
       }
@@ -199,7 +199,7 @@ export function FluxoTab({ comandas, sectors }: FluxoTabProps) {
         ? formData.customCategory 
         : (formData.category || "Outros");
 
-      await apiFetch("/api/cash-entries", {
+      await apiFetch("/api/finance/cash-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -235,7 +235,7 @@ export function FluxoTab({ comandas, sectors }: FluxoTabProps) {
     setDeleteConfirm(null);
     setEntries(prev => prev.filter(e => e.id !== id));
     try {
-      await apiFetch(`/api/cash-entries/${id}`, { method: "DELETE" });
+      await apiFetch(`/api/finance/cash-entries/${id}`, { method: "DELETE" });
     } catch (e) {
       fetchEntries(); // rollback
     }

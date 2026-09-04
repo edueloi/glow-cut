@@ -28,18 +28,17 @@ export function MotivosDescontoView() {
 
   useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({ status: "closed" });
+    const params = new URLSearchParams();
     if (from) params.set("from", from);
     if (to)   params.set("to", to);
-    apiFetch(`/api/comandas?${params}`)
+    apiFetch(`/api/finance/motivos-desconto?${params}`)
       .then(r => r.json())
-      .then((data: any[]) => {
-        const comDesconto = (data || [])
-          .filter(c => Number(c.discount) > 0)
+      .then((data: { comandas?: any[] }) => {
+        const comDesconto = (data.comandas || [])
           .map(c => ({
             id: c.id,
-            clientName: c.clientName || c.client?.name || null,
-            professionalName: c.professionalName || c.professional?.name || null,
+            clientName: c.clientName || null,
+            professionalName: c.professionalName || null,
             total: Number(c.total),
             discount: Number(c.discount),
             discountType: c.discountType || "value",

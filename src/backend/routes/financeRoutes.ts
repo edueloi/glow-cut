@@ -24,6 +24,12 @@ financeRouter.get("/despesas", financeController.listDespesas);
 // Relatório por profissional
 financeRouter.get("/relatorio-profissionais", financeController.getRelatorioProfissional);
 
+// Motivos de desconto
+financeRouter.get("/motivos-desconto", financeController.getMotivosDesconto);
+
+// Previsão x Realizado (mês)
+financeRouter.get("/previsao-vs-realizado", financeController.getPrevisaoRealizado);
+
 // Lançamentos manuais (Livro Caixa)
 financeRouter.get("/cash-entries", financeController.listCashEntries);
 financeRouter.post("/cash-entries", financeController.createCashEntry);

@@ -156,6 +156,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
         icon: Banknote,
         permModule: "financeiro",
         subItems: [
+          { key: "visao_geral",           label: "Visão Geral", permModule: "fin_controle" },
           { key: "controle",              label: "Controle de entrada e saída", permModule: "fin_controle" },
           { key: "caixa",                 label: "Financeiro – Caixa", permModule: "fin_caixa" },
           { key: "pagamentos",            label: "Pagamento de Profissionais", permModule: "fin_pagamentos" },

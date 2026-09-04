@@ -287,16 +287,18 @@ export const financeController = {
     const dateTo   = endOfDayInclusive(to as string);
 
     try {
-      let where = `WHERE c.tenantId = ? AND c.status = 'paid' AND c.createdAt >= ? AND c.createdAt <= ?`;
+      let where = `WHERE ce.tenantId = ? AND ce.type = 'income' AND ce.comandaId IS NOT NULL AND ce.date >= ? AND ce.date <= ?`;
       const params: any[] = [tenantId, dateFrom, dateTo];
       if (professionalId) { where += ` AND c.professionalId = ?`; params.push(professionalId); }
 
-      // Faturado/atendimentos por profissional — direto de Comanda, sem join com itens (o join
-      // com ComandaItem faz fan-out: uma comanda com 3 itens contava seu total 3x na soma).
+      // Faturado por profissional vem de CashEntry (fonte única do "realizado"). totalAtendimentos
+      // usa COUNT(DISTINCT comandaId), não COUNT(*), pra não inflar quando a comanda foi paga em
+      // parcelas (cada parcela é um CashEntry, mas continua sendo 1 atendimento só).
       const faturadoRows: any[] = await (prisma as any).$queryRawUnsafe(
         `SELECT p.id as professionalId, p.name as professionalName, p.role as professionalRole,
-                COUNT(*) as totalAtendimentos, COALESCE(SUM(c.total), 0) as totalFaturado
-         FROM Comanda c
+                COUNT(DISTINCT c.id) as totalAtendimentos, COALESCE(SUM(ce.amount), 0) as totalFaturado
+         FROM CashEntry ce
+         JOIN Comanda c ON ce.comandaId = c.id
          JOIN Professional p ON c.professionalId = p.id
          ${where}
          GROUP BY p.id, p.name, p.role
@@ -304,9 +306,16 @@ export const financeController = {
         ...params
       );
 
-      // Comissão por profissional via itens de comanda (aqui o join por item é necessário —
-      // cada item tem seu próprio serviço/comissão — mas fica numa query separada da soma do
-      // faturado bruto acima).
+      // Comissão via itens de comanda (CashEntry não tem serviceId) — restrita ao mesmo conjunto
+      // de comandas que entrou no faturado acima, pra não divergir do período usado no CashEntry.
+      let comissaoWhere = `WHERE c.tenantId = ? AND c.id IN (
+        SELECT DISTINCT ce.comandaId FROM CashEntry ce
+        WHERE ce.tenantId = ? AND ce.type = 'income' AND ce.comandaId IS NOT NULL
+          AND ce.date >= ? AND ce.date <= ?
+      )`;
+      const comissaoParams: any[] = [tenantId, tenantId, dateFrom, dateTo];
+      if (professionalId) { comissaoWhere += ` AND c.professionalId = ?`; comissaoParams.push(professionalId); }
+
       const comissaoRows: any[] = await (prisma as any).$queryRawUnsafe(
         `SELECT c.professionalId,
                 COALESCE(SUM(
@@ -319,9 +328,9 @@ export const financeController = {
          FROM Comanda c
          LEFT JOIN ComandaItem ci ON ci.comandaId = c.id
          LEFT JOIN Service s ON ci.serviceId = s.id
-         ${where}
+         ${comissaoWhere}
          GROUP BY c.professionalId`,
-        ...params
+        ...comissaoParams
       );
       const comissaoByProf = new Map(comissaoRows.map((r: any) => [r.professionalId, Number(r.totalComissao)]));
 
@@ -402,16 +411,19 @@ export const financeController = {
     const dateTo   = endOfDayInclusive(to as string);
 
     try {
+      // Valor agregado vem de CashEntry (data real do recebimento, reflete parcelas
+      // corretamente); Comanda entra só pra pegar a forma de pagamento.
       const rows: any[] = await (prisma as any).$queryRawUnsafe(
         `SELECT
-           COALESCE(paymentMethod, 'outros') as method,
-           COALESCE(SUM(total), 0) as total,
+           COALESCE(c.paymentMethod, 'outros') as method,
+           COALESCE(SUM(ce.amount), 0) as total,
            COUNT(*) as count,
-           COALESCE(AVG(total), 0) as ticketMedio
-         FROM Comanda
-         WHERE tenantId = ? AND status = 'paid'
-           AND createdAt >= ? AND createdAt <= ?
-         GROUP BY paymentMethod
+           COALESCE(AVG(ce.amount), 0) as ticketMedio
+         FROM CashEntry ce
+         JOIN Comanda c ON ce.comandaId = c.id
+         WHERE ce.tenantId = ? AND ce.type = 'income' AND ce.comandaId IS NOT NULL
+           AND ce.date >= ? AND ce.date <= ?
+         GROUP BY c.paymentMethod
          ORDER BY total DESC`,
         tenantId, dateFrom, dateTo
       );
@@ -478,30 +490,42 @@ export const financeController = {
     const dateTo   = endOfDayInclusive(to as string);
 
     try {
-      let profWhere = professionalId ? `AND c.professionalId = ?` : "";
-      const params: any[] = [tenantId, dateFrom, dateTo];
+      let profWhere = professionalId ? `AND cd.professionalId = ?` : "";
+      const params: any[] = [tenantId, dateFrom, dateTo, tenantId];
       if (professionalId) params.push(professionalId);
 
+      // Pré-agrega CashEntry por comandaId antes de juntar com Comanda/Professional — evita
+      // fan-out de colunas da Comanda (ex: discount) quando a comanda foi paga em parcelas
+      // (múltiplos CashEntry para a mesma comanda).
       const rows: any[] = await (prisma as any).$queryRawUnsafe(
         `SELECT
            p.id as professionalId,
            p.name as professionalName,
            p.role as professionalRole,
-           COUNT(DISTINCT c.id) as atendimentos,
-           COALESCE(SUM(c.total), 0) as receita,
-           COALESCE(AVG(c.total), 0) as ticketMedio,
-           COALESCE(SUM(c.discount), 0) as totalDesconto,
+           COUNT(DISTINCT cd.comandaId) as atendimentos,
+           COALESCE(SUM(cd.receita), 0) as receita,
+           COALESCE(AVG(cd.receita), 0) as ticketMedio,
+           COALESCE(SUM(cd.discount), 0) as totalDesconto,
            COUNT(DISTINCT c.clientId) as clientesAtendidos
-         FROM Comanda c
-         JOIN Professional p ON c.professionalId = p.id
-         WHERE c.tenantId = ? AND c.status = 'paid'
-           AND c.createdAt >= ? AND c.createdAt <= ? ${profWhere}
+         FROM (
+           SELECT ce.comandaId, SUM(ce.amount) as receita,
+                  MAX(c2.discount) as discount, MAX(c2.professionalId) as professionalId
+           FROM CashEntry ce
+           JOIN Comanda c2 ON c2.id = ce.comandaId
+           WHERE ce.tenantId = ? AND ce.type = 'income' AND ce.comandaId IS NOT NULL
+             AND ce.date >= ? AND ce.date <= ?
+           GROUP BY ce.comandaId
+         ) cd
+         JOIN Comanda c ON c.id = cd.comandaId
+         JOIN Professional p ON p.id = cd.professionalId
+         WHERE c.tenantId = ? ${profWhere}
          GROUP BY p.id, p.name, p.role
          ORDER BY receita DESC`,
         ...params
       );
 
-      // Serviços mais realizados por profissional
+      // Serviços mais realizados por profissional — restrito ao mesmo conjunto de comandas
+      // que entrou na receita acima (via CashEntry), pra não divergir de período.
       const servicosRows: any[] = await (prisma as any).$queryRawUnsafe(
         `SELECT
            c.professionalId,
@@ -511,11 +535,14 @@ export const financeController = {
          FROM Comanda c
          JOIN ComandaItem ci ON ci.comandaId = c.id
          JOIN Service s ON ci.serviceId = s.id
-         WHERE c.tenantId = ? AND c.status = 'paid'
-           AND c.createdAt >= ? AND c.createdAt <= ?
+         WHERE c.tenantId = ? AND c.id IN (
+           SELECT DISTINCT ce.comandaId FROM CashEntry ce
+           WHERE ce.tenantId = ? AND ce.type = 'income' AND ce.comandaId IS NOT NULL
+             AND ce.date >= ? AND ce.date <= ?
+         )
          GROUP BY c.professionalId, s.name
          ORDER BY c.professionalId, vezes DESC`,
-        tenantId, dateFrom, dateTo
+        tenantId, tenantId, dateFrom, dateTo
       );
 
       const servicosByProf: Record<string, any[]> = {};
@@ -540,6 +567,140 @@ export const financeController = {
       });
     } catch (e: any) {
       res.status(500).json({ error: e?.message || "Erro ao buscar relatório." });
+    }
+  },
+
+  // ─── MOTIVOS DE DESCONTO ───────────────────────────────────────────────────
+
+  async getMotivosDesconto(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    const { from, to } = req.query;
+    const dateFrom = from ? new Date(from as string) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const dateTo   = endOfDayInclusive(to as string);
+
+    try {
+      // Pré-agrega CashEntry por comandaId (data de pagamento = primeira parcela recebida no
+      // período) antes de juntar com Comanda, consistente com o restante do módulo financeiro.
+      const rows: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT c.id, c.discount, c.discountType, c.total, c.description, cd.paidDate,
+                cl.name as clientName, p.name as professionalName
+         FROM (
+           SELECT ce.comandaId, MIN(ce.date) as paidDate
+           FROM CashEntry ce
+           WHERE ce.tenantId = ? AND ce.type = 'income' AND ce.comandaId IS NOT NULL
+             AND ce.date >= ? AND ce.date <= ?
+           GROUP BY ce.comandaId
+         ) cd
+         JOIN Comanda c ON c.id = cd.comandaId
+         LEFT JOIN Client cl ON cl.id = c.clientId
+         LEFT JOIN Professional p ON p.id = c.professionalId
+         WHERE c.tenantId = ? AND c.discount > 0
+         ORDER BY c.discount DESC`,
+        tenantId, dateFrom, dateTo, tenantId
+      );
+
+      res.json({
+        comandas: rows.map((r: any) => ({
+          id: r.id,
+          discount: Number(r.discount),
+          discountType: r.discountType,
+          total: Number(r.total),
+          description: r.description,
+          createdAt: r.paidDate,
+          clientName: r.clientName,
+          professionalName: r.professionalName,
+        })),
+        periodo: { from: dateFrom, to: dateTo },
+      });
+    } catch (e: any) {
+      console.error("[GET /api/finance/motivos-desconto]", e?.message || e);
+      res.status(500).json({ error: e?.message || "Erro ao buscar motivos de desconto." });
+    }
+  },
+
+  // ─── PREVISÃO x REALIZADO ──────────────────────────────────────────────────
+
+  async getPrevisaoRealizado(req: Request, res: Response) {
+    const tenantId = getTenantId(req);
+    if (!tenantId) return res.status(400).json({ error: "tenantId obrigatório." });
+    const { month } = req.query;
+
+    const now = new Date();
+    let year = now.getFullYear();
+    let monthIndex = now.getMonth();
+    if (month && /^\d{4}-\d{2}$/.test(month as string)) {
+      const [y, m] = (month as string).split("-").map(Number);
+      year = y; monthIndex = m - 1;
+    }
+    const monthStart = new Date(year, monthIndex, 1, 0, 0, 0);
+    const monthEnd   = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+    const mesLabel = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+
+    try {
+      // Realizado = todo CashEntry de entrada do mês (inclui receita manual, ex: antecipações —
+      // é dinheiro real recebido, não só o vinculado a comanda).
+      const realizadoRows: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count
+         FROM CashEntry
+         WHERE tenantId = ? AND type = 'income' AND date >= ? AND date <= ?`,
+        tenantId, monthStart, monthEnd
+      );
+
+      // Previsto parte A: agendamentos futuros/pendentes AINDA SEM comanda vinculada (se já tem
+      // comandaId, o valor já é capturado na parte B pelo saldo da comanda — evita contar 2x).
+      const agendamentosRows: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT a.id, s.price
+         FROM Appointment a
+         LEFT JOIN Service s ON s.id = a.serviceId
+         WHERE a.tenantId = ? AND a.type = 'atendimento'
+           AND a.status IN ('scheduled', 'confirmed')
+           AND a.comandaId IS NULL
+           AND a.date >= ? AND a.date <= ?`,
+        tenantId, monthStart, monthEnd
+      );
+      let previstoAgendamentos = 0;
+      let agendamentosSemPreco = 0;
+      agendamentosRows.forEach((r: any) => {
+        const price = r.price != null ? Number(r.price) : null;
+        if (price && price > 0) previstoAgendamentos += price;
+        else agendamentosSemPreco += 1;
+      });
+
+      // Previsto parte B: saldo pendente de comandas ainda não totalmente pagas.
+      const comandasAbertasRows: any[] = await (prisma as any).$queryRawUnsafe(
+        `SELECT total, paidAmount
+         FROM Comanda
+         WHERE tenantId = ? AND status IN ('open', 'partial')`,
+        tenantId
+      );
+      const previstoComandas = comandasAbertasRows.reduce((sum: number, r: any) => {
+        const saldo = Number(r.total || 0) - Number(r.paidAmount || 0);
+        return sum + Math.max(0, saldo);
+      }, 0);
+
+      const previstoTotal = previstoAgendamentos + previstoComandas;
+      const realizadoTotal = Number(realizadoRows[0]?.total ?? 0);
+      const percentualRealizado = previstoTotal > 0 ? (realizadoTotal / previstoTotal) * 100 : 0;
+
+      res.json({
+        mes: mesLabel,
+        previsto: {
+          total: previstoTotal,
+          agendamentosFuturos: previstoAgendamentos,
+          comandasAbertas: previstoComandas,
+          agendamentosSemPreco,
+        },
+        realizado: {
+          total: realizadoTotal,
+          count: Number(realizadoRows[0]?.count ?? 0),
+        },
+        percentualRealizado,
+        periodo: { from: monthStart, to: monthEnd },
+      });
+    } catch (e: any) {
+      console.error("[GET /api/finance/previsao-vs-realizado]", e?.message || e);
+      res.status(500).json({ error: e?.message || "Erro ao buscar previsão x realizado." });
     }
   },
 
