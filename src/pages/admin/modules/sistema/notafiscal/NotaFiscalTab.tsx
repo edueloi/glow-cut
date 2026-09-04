@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/src/lib/api";
 import { cn } from "@/src/lib/utils";
+import { maskCNPJ, maskDigitsOnly } from "@/src/lib/masks";
 import {
   PageWrapper, SectionTitle, PanelCard,
   Button, Input, Select, Switch, Badge,
@@ -261,25 +262,28 @@ export function NotaFiscalTab({ activeSubModule, setActiveSubModule }: NotaFisca
               label="CNPJ"
               placeholder="00.000.000/0000-00"
               value={config.cnpj || ""}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfig((c) => ({ ...c, cnpj: e.target.value }))}
+              maxLength={18}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfig((c) => ({ ...c, cnpj: maskCNPJ(e.target.value) }))}
             />
             <Input
               label="Inscrição municipal (opcional)"
               placeholder="Ex: 123456"
               value={config.inscricaoMunicipal || ""}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfig((c) => ({ ...c, inscricaoMunicipal: e.target.value }))}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfig((c) => ({ ...c, inscricaoMunicipal: maskDigitsOnly(e.target.value, 20) }))}
             />
             <Input
               label="Código do município (IBGE)"
               placeholder="Ex: 3550308 (São Paulo)"
               value={config.codigoMunicipio || ""}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfig((c) => ({ ...c, codigoMunicipio: e.target.value }))}
+              maxLength={7}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfig((c) => ({ ...c, codigoMunicipio: maskDigitsOnly(e.target.value, 7) }))}
             />
             <Input
               label="Código de tributação (LC 116/03)"
               placeholder="Ex: 060501"
               value={config.codigoTributacaoNacional || ""}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfig((c) => ({ ...c, codigoTributacaoNacional: e.target.value }))}
+              maxLength={20}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfig((c) => ({ ...c, codigoTributacaoNacional: maskDigitsOnly(e.target.value, 20) }))}
             />
             <Select
               label="Regime tributário"
